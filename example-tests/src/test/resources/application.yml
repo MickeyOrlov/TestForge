@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testforge;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create
+    open-in-view: false
+
+forge:
+  wait:
+    timeout: 10s
+    poll-interval: 200ms
+  db:
+    log-sql: true
+    repository-waiter:
+      enabled: true
+  prewarm:
+    enabled: false
+
+logging:
+  level:
+    forge.sql: info

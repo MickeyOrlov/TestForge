@@ -1,0 +1,17 @@
+.gradle/
+.gradle-home/
+.ms-playwright/
+build/
+out/
+
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+allure-results/
+allure-report/
+test-results/
+
+.env
+*.local.yml

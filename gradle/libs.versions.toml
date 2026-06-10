@@ -1,0 +1,14 @@
+[versions]
+spring-boot = "4.1.0"
+wiremock = "3.13.1"
+datasource-proxy = "1.10.1"
+playwright = "1.59.0"
+rest-assured = "5.5.0"
+
+[libraries]
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+# standalone (shaded) build: avoids the Jetty 11 vs Boot-managed Jetty 12 clash
+wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+datasource-proxy = { module = "net.ttddyy:datasource-proxy", version.ref = "datasource-proxy" }
+playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
+rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "rest-assured" }

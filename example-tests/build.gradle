@@ -1,0 +1,21 @@
+dependencies {
+    testImplementation platform(libs.spring.boot.dependencies)
+
+    testImplementation project(":core")
+    testImplementation project(":module-contract")
+    testImplementation project(":module-data")
+    testImplementation project(":module-db")
+    testImplementation project(":module-flow")
+    testImplementation project(":module-kafka")
+    testImplementation project(":module-mock")
+    testImplementation project(":module-reporting")
+    testImplementation project(":module-web")
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    testImplementation libs.rest.assured
+
+    testRuntimeOnly "com.h2database:h2"
+    // Gradle 9 no longer injects the launcher onto the test runtime classpath
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

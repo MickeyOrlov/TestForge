@@ -1,0 +1,39 @@
+allprojects {
+    group = "io.testforge"
+    version = "0.1.0"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: "java-library"
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(26)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+        systemProperty "file.encoding", "UTF-8"
+
+        // -DtestEnv=<name> on the Gradle command line selects the Spring profile
+        // inside forked test JVMs (Gradle does not forward system properties)
+        String testEnv = System.getProperty("testEnv")
+        if (testEnv != null) {
+            systemProperty "spring.profiles.active", testEnv
+        }
+
+        testLogging {
+            events "passed", "skipped", "failed"
+            exceptionFormat = "full"
+        }
+    }
+}

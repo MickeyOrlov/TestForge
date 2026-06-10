@@ -1,0 +1,18 @@
+services:
+  testforge:
+    build:
+      context: .
+    working_dir: /workspace
+    environment:
+      GRADLE_USER_HOME: /opt/gradle-home
+      GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
+      PLAYWRIGHT_BROWSERS_PATH: /opt/ms-playwright
+    volumes:
+      - .:/workspace
+      - gradle-home:/opt/gradle-home
+      - ms-playwright:/opt/ms-playwright
+    command: ./gradlew build
+
+volumes:
+  gradle-home:
+  ms-playwright:

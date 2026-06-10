@@ -1,0 +1,11 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "jakarta.persistence:jakarta.persistence-api"
+
+    implementation libs.datasource.proxy
+    implementation "org.aspectj:aspectjweaver"
+    implementation "org.springframework:spring-aop"
+}

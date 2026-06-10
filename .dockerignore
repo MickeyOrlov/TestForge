@@ -1,0 +1,13 @@
+.git
+.gradle
+.gradle-home
+.ms-playwright
+.idea
+.qodo
+**/build
+*.iml
+.DS_Store
+allure-results
+allure-report
+test-results
+.env

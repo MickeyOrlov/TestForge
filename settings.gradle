@@ -1,0 +1,17 @@
+plugins {
+    // auto-provisions the toolchain JDK on machines/CI that don't have it
+    id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
+}
+
+rootProject.name = "testforge"
+
+include "core",
+        "module-contract",
+        "module-data",
+        "module-db",
+        "module-flow",
+        "module-kafka",
+        "module-reporting",
+        "module-mock",
+        "module-web",
+        "example-tests"

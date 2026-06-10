@@ -1,0 +1,15 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api libs.playwright
+}
+
+tasks.register("playwrightInstall", JavaExec) {
+    description = "Downloads the Chromium bundle (and OS deps) used by prewarm"
+    group = "setup"
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "com.microsoft.playwright.CLI"
+    args "install", "--with-deps", "chromium"
+}
