@@ -18,4 +18,9 @@ dependencies {
     testRuntimeOnly "com.h2database:h2"
     // Gradle 9 no longer injects the launcher onto the test runtime classpath
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
+    // embedded broker for the collector integration test; spring-boot-kafka
+    // auto-configures the ConsumerFactory the collector needs
+    testImplementation "org.springframework.boot:spring-boot-kafka"
+    testImplementation "org.springframework.kafka:spring-kafka-test"
 }
