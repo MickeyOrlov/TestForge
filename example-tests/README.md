@@ -9,7 +9,7 @@ plays the service database.
 | `DataHelpersTest` | per-run unique values and `%{variable}%` template rendering |
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |
 | `DbWaiterTest` | waiting for a row written asynchronously, without sleeps |
-| `RepositoryWaiterAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
+| `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
 | `SchemaValidatorTest` | detecting drift between entity mappings and the real schema |
 | `JsonContractValidatorTest` | validating API/queue/file payloads against a neutral message template |
 | `FlowRunnerTest` | running a deterministic state path with readable failure diagnostics |

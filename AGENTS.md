@@ -53,7 +53,7 @@ update its example test in the same commit.
    tables tests need to assert on (separate Gradle module per service DB if
    there are many). Write one `SchemaValidator` test per entity and schedule
    them in CI — they catch service migrations that silently break mappings.
-   Enable `forge.db.repository-waiter.enabled` only when you want `waitBy...`
+   Enable `forge.db.repository-polling.enabled` only when you want `waitBy...`
    default repository methods to poll matching `findBy...` queries.
 5. **module-contract**: encode external API/event/file payloads as
    `MessageContract`s and validate them in scheduled checks. This is the

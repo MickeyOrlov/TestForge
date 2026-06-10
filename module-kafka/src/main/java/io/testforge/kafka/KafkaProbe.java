@@ -24,13 +24,13 @@ public class KafkaProbe {
         this.objectMapper = objectMapper;
     }
 
-    public Optional<KafkaMessage> findMessage(KafkaSearchFilter filter) {
+    public Optional<KafkaMessage> findMessage(KafkaMessageFilter filter) {
         return buffer.newestFirst(filter.topic()).stream()
                 .filter(message -> filter.matches(message, objectMapper))
                 .findFirst();
     }
 
-    public KafkaMessage awaitMessage(KafkaSearchFilter filter) {
+    public KafkaMessage awaitMessage(KafkaMessageFilter filter) {
         return waiter.await(
                 "Kafka message matching " + filter,
                 () -> findMessage(filter).orElse(null),

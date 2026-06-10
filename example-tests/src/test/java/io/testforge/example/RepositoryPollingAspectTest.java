@@ -16,7 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  * routed to the matching findBy... query and polled until a row appears.
  */
 @SpringBootTest
-class RepositoryWaiterAspectTest {
+class RepositoryPollingAspectTest {
 
     @Autowired
     TaskRecordRepository repository;

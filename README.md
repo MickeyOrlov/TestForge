@@ -74,7 +74,7 @@ forge:
     scope-json-path: "$.metadata.test_scope"
   db:
     log-sql: true
-    repository-waiter:
+    repository-polling:
       enabled: false
   contract:
     fail-fast: false

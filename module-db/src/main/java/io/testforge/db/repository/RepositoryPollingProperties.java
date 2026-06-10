@@ -8,10 +8,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <pre>
  * forge:
  *   db:
- *     repository-waiter:
+ *     repository-polling:
  *       enabled: true
  * </pre>
  */
-@ConfigurationProperties(prefix = "forge.db.repository-waiter")
-public record RepositoryWaiterProperties(boolean enabled) {
+@ConfigurationProperties(prefix = "forge.db.repository-polling")
+public record RepositoryPollingProperties(boolean enabled) {
 }

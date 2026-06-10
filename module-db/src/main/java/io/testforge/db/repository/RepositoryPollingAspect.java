@@ -11,11 +11,11 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 
 @Aspect
-public class RepositoryWaiterAspect {
+public class RepositoryPollingAspect {
 
     private final DbWaiter dbWaiter;
 
-    public RepositoryWaiterAspect(DbWaiter dbWaiter) {
+    public RepositoryPollingAspect(DbWaiter dbWaiter) {
         this.dbWaiter = dbWaiter;
     }
 

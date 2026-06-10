@@ -3,8 +3,8 @@ package io.testforge.db;
 import io.testforge.core.TestForgeCoreAutoConfiguration;
 import io.testforge.core.wait.Waiter;
 import io.testforge.db.logging.SqlLoggingDataSourcePostProcessor;
-import io.testforge.db.repository.RepositoryWaiterAspect;
-import io.testforge.db.repository.RepositoryWaiterProperties;
+import io.testforge.db.repository.RepositoryPollingAspect;
+import io.testforge.db.repository.RepositoryPollingProperties;
 import io.testforge.db.schema.SchemaValidator;
 import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration(
         after = TestForgeCoreAutoConfiguration.class,
         afterName = "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration")
-@EnableConfigurationProperties(RepositoryWaiterProperties.class)
+@EnableConfigurationProperties(RepositoryPollingProperties.class)
 public class TestForgeDbAutoConfiguration {
 
     @Bean
@@ -45,8 +45,8 @@ public class TestForgeDbAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnClass(name = "org.springframework.data.repository.Repository")
-    @ConditionalOnProperty(prefix = "forge.db.repository-waiter", name = "enabled", havingValue = "true")
-    public RepositoryWaiterAspect repositoryWaiterAspect(DbWaiter dbWaiter) {
-        return new RepositoryWaiterAspect(dbWaiter);
+    @ConditionalOnProperty(prefix = "forge.db.repository-polling", name = "enabled", havingValue = "true")
+    public RepositoryPollingAspect repositoryPollingAspect(DbWaiter dbWaiter) {
+        return new RepositoryPollingAspect(dbWaiter);
     }
 }

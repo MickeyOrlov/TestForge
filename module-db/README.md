@@ -7,7 +7,7 @@ answered, but what the services actually persisted.
 
 - **`DbWaiter`** — polls a repository call until the row written by an
   asynchronous backend process appears. The antidote to `Thread.sleep`.
-- **`RepositoryWaiterAspect`** — optional naming-convention wrapper:
+- **`RepositoryPollingAspect`** — optional naming-convention wrapper:
   `waitBy...` default repository methods poll the matching `findBy...` query.
 - **`SqlLoggingDataSourcePostProcessor`** — logs every SQL statement tests
   execute (logger `forge.sql`), enabled by `forge.db.log-sql: true`.
@@ -21,7 +21,7 @@ answered, but what the services actually persisted.
 forge:
   db:
     log-sql: true   # default: false
-    repository-waiter:
+    repository-polling:
       enabled: true # default: false
 ```
 

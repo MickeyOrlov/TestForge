@@ -8,7 +8,7 @@ Kafka message probing for tests and scheduled contract drift checks.
   configured topics through Spring Kafka `ConsumerFactory`.
 - **`KafkaMessageBuffer`** — bounded in-memory message journal, newest-first
   search, safe for asynchronous tests.
-- **`KafkaProbe` / `KafkaSearchFilter`** — wait for messages by topic, key,
+- **`KafkaProbe` / `KafkaMessageFilter`** — wait for messages by topic, key,
   headers, text fragments, or JSON paths.
 
 Contract checks are **composition, not a dependency**: the probe finds the
@@ -43,7 +43,7 @@ forge:
 ## Usage
 
 ```java
-KafkaSearchFilter filter = KafkaSearchFilter.builder()
+KafkaMessageFilter filter = KafkaMessageFilter.builder()
         .topic("partner.events")
         .key("request-123")
         .jsonPathEquals("$.payload.status", "accepted")

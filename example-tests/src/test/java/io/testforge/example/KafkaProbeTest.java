@@ -12,7 +12,7 @@ import io.testforge.contract.json.MessageContract;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
 import io.testforge.kafka.KafkaProbe;
-import io.testforge.kafka.KafkaSearchFilter;
+import io.testforge.kafka.KafkaMessageFilter;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +66,7 @@ class KafkaProbeTest {
                 Instant.parse("2026-06-10T10:00:00Z"),
                 Map.of("source", "partner")));
 
-        KafkaSearchFilter filter = KafkaSearchFilter.builder()
+        KafkaMessageFilter filter = KafkaMessageFilter.builder()
                 .topic("partner.events")
                 .key("request-123")
                 .headerEquals("source", "partner")
@@ -98,7 +98,7 @@ class KafkaProbeTest {
                 Instant.parse("2026-06-10T10:01:00Z"),
                 Map.of()));
 
-        KafkaSearchFilter filter = KafkaSearchFilter.builder()
+        KafkaMessageFilter filter = KafkaMessageFilter.builder()
                 .topic("partner.events")
                 .key("request-124")
                 .build();

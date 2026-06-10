@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public record KafkaSearchFilter(
+public record KafkaMessageFilter(
         String topic,
         String key,
         List<String> valueContains,
@@ -17,7 +17,7 @@ public record KafkaSearchFilter(
         Map<String, String> jsonPathEquals,
         Map<String, String> jsonPathContains) {
 
-    public KafkaSearchFilter {
+    public KafkaMessageFilter {
         valueContains = List.copyOf(valueContains == null ? List.of() : valueContains);
         headerEquals = Map.copyOf(headerEquals == null ? Map.of() : headerEquals);
         jsonPathEquals = Map.copyOf(jsonPathEquals == null ? Map.of() : jsonPathEquals);
@@ -142,8 +142,8 @@ public record KafkaSearchFilter(
             return this;
         }
 
-        public KafkaSearchFilter build() {
-            return new KafkaSearchFilter(topic, key, valueContains, headerEquals, jsonPathEquals, jsonPathContains);
+        public KafkaMessageFilter build() {
+            return new KafkaMessageFilter(topic, key, valueContains, headerEquals, jsonPathEquals, jsonPathContains);
         }
     }
 }

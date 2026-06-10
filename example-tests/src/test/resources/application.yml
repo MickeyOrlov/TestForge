@@ -14,7 +14,7 @@ forge:
     poll-interval: 200ms
   db:
     log-sql: true
-    repository-waiter:
+    repository-polling:
       enabled: true
   prewarm:
     enabled: false
