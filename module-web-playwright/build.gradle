@@ -5,4 +5,8 @@ dependencies {
     api "org.springframework.boot:spring-boot-autoconfigure"
     api libs.playwright
     implementation "jakarta.annotation:jakarta.annotation-api"
+
+    // PlaywrightPageExtension: Page injection for JUnit 5 tests
+    api "org.junit.jupiter:junit-jupiter-api"
+    implementation "org.springframework:spring-test"
 }

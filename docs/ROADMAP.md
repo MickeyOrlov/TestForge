@@ -25,7 +25,7 @@ example-тест в том же коммите; перед коммитом гр
 | 4 | `@Prepared` data pools | ✅ закоммичен (`1f8c4c8`) |
 | 5 | Документация и публикация | ✅ доки (`e13f61b`); push отложен — нужен доступ к GitHub |
 | 6 | Open Source Readiness & Modernization | ✅ ScopedValue-гибрид, pollInSameThread, Agent notes, бейджи |
-| 7 | UI & Mobile Expansion | 🟡 скелеты playwright/appium (`bca8e25`) |
+| 7 | UI & Mobile Expansion | ✅ Page-фикстура, browsersTest, AppiumSession; page/screen-объекты — в адаптации |
 | — | Production v1 gaps (P0) | ✅ extension, scope helper, staging yml, checklist |
 
 ---

@@ -17,6 +17,8 @@ plays the service database.
 | `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
 | `SchemaValidatorTest` | detecting drift between entity mappings and the real schema |
 | `PostgresSchemaValidationIT` | same checks on real Postgres via Testcontainers — `../gradlew :example-tests:containersTest` (needs Docker) |
+| `PlaywrightSmokeIT` | `Page` fixture injection + locator conventions on a real browser — `../gradlew :example-tests:browsersTest` |
+| `AppiumWiringTest` | appium factory wiring and fail-fast configuration check, no device farm needed |
 | `JsonContractValidatorTest` | validating API/queue/file payloads against a neutral message template |
 | `FlowRunnerTest` | state paths, role-based branching, `FlowStepDecorator` hooks |
 | `KafkaProbeTest` | finding buffered Kafka messages and validating their contracts offline |

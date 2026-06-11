@@ -33,12 +33,16 @@ dependencies {
     // Allure decorator/attachment examples (optional deps of the modules)
     testImplementation libs.allure.java.commons
     testImplementation libs.allure.junit5
+
+    // UI/mobile module examples
+    testImplementation project(":module-web-playwright")
+    testImplementation project(":module-mobile-appium")
 }
 
-// container tests need a Docker daemon — keep the default build offline
+// container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers"
+        excludeTags "containers", "browser"
     }
 }
 
@@ -49,6 +53,17 @@ tasks.register("containersTest", Test) {
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags "containers"
+    }
+    shouldRunAfter tasks.named("test")
+}
+
+tasks.register("browsersTest", Test) {
+    description = "Browser-backed UI examples (run :module-web:playwrightInstall first)"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "browser"
     }
     shouldRunAfter tasks.named("test")
 }

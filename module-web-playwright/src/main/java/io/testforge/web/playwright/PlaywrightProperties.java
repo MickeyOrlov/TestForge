@@ -2,18 +2,33 @@ package io.testforge.web.playwright;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "testforge.web.playwright")
+/**
+ * Browser settings for UI tests.
+ *
+ * <pre>
+ * forge:
+ *   playwright:
+ *     enabled: true          # opt-in: a browser process is expensive
+ *     browser-type: chromium # chromium | firefox | webkit
+ *     headless: true
+ *     default-timeout: 15000
+ * </pre>
+ */
+@ConfigurationProperties(prefix = "forge.playwright")
 public record PlaywrightProperties(
-        boolean headless,
+        Boolean headless,
         Double defaultTimeout,
-        String browserType
-) {
+        String browserType) {
+
     public PlaywrightProperties {
+        if (headless == null) {
+            headless = true;
+        }
         if (browserType == null) {
             browserType = "chromium";
         }
         if (defaultTimeout == null) {
-            defaultTimeout = 30000.0;
+            defaultTimeout = 30_000.0;
         }
     }
 }

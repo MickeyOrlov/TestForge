@@ -7,7 +7,8 @@ datasource-proxy = "1.10.1"
 json-schema-validator = "1.5.8"
 playwright = "1.59.0"
 rest-assured = "5.5.0"
-appium = "9.4.0"
+# 10.x is built against the Selenium line that Boot's BOM pins
+appium = "10.1.1"
 allure = "2.35.2"
 # 2.x line: artifacts renamed to testcontainers-<module>, classes in org.testcontainers.<module>
 testcontainers = "2.0.5"

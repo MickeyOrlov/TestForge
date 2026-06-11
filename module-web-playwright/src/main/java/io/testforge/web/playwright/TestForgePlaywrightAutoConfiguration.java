@@ -8,7 +8,8 @@ import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
 @EnableConfigurationProperties(PlaywrightProperties.class)
-@ConditionalOnProperty(prefix = "testforge.web.playwright", name = "enabled", havingValue = "true", matchIfMissing = true)
+// opt-in: creating the bean launches a browser process — never by default
+@ConditionalOnProperty(prefix = "forge.playwright", name = "enabled", havingValue = "true")
 public class TestForgePlaywrightAutoConfiguration {
 
     @Bean
