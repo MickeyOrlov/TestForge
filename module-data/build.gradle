@@ -3,4 +3,8 @@ dependencies {
 
     api project(":core")
     api "org.springframework.boot:spring-boot-autoconfigure"
+
+    // @Prepared parameter resolution for JUnit 5 tests
+    api "org.junit.jupiter:junit-jupiter-api"
+    implementation "org.springframework:spring-test"
 }

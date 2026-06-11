@@ -7,6 +7,7 @@ plays the service database.
 | Test | Demonstrates |
 |---|---|
 | `DataHelpersTest` | per-run unique values, `Generators` masks, `%{variable}%` templates |
+| `PreparedDataTest` | `@Prepared` fixture injection backed by the prepared-object pool |
 | `StateDiffTest` | `StateSnapshot`/`StateDiff` side-effect DB assertions |
 | `KafkaCollectorIntegrationTest` | live `KafkaPollingCollector` against embedded broker |
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |

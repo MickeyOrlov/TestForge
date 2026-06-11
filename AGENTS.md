@@ -63,6 +63,11 @@ update its example test in the same commit.
    payloads, this module decides whether the shape changed.
 6. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
+   For expensive domain states implement `PreparedDataProvider<T>` (drive the
+   product API, typically a module-flow run inside `prepare(tags)`), then
+   inject objects into tests with `@Prepared` + `PreparedParameterResolver`.
+   Stock hot variants with `pool.preload(...)` in a suite hook; wire refill
+   or metrics through `PoolEventListener`.
 7. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
    reach a deep state through deterministic transitions. Keep steps small and
    idempotent; the runner should make failures readable by showing the path.
