@@ -20,13 +20,13 @@ example-тест в том же коммите; перед коммитом гр
 | Этап | Тема | Статус |
 |------|------|--------|
 | 1 | Embedded-Kafka collector IT | ✅ закоммичен (`b45ab45`) |
-| 2 | StateDiff, Flow decorator, Generators | 🟡 код + README + role flow — готово локально, ждёт коммит |
-| 3 | module-contract v2 (JSON Schema) | ⬜ |
-| 4 | `@Prepared` data pools | ⬜ |
-| 5 | Документация и публикация | 🟡 частично (CI есть, AGENTS/README — ⬜) |
+| 2 | StateDiff, Flow decorator, Generators | ✅ закоммичен (`0a7edcf`) |
+| 3 | module-contract v2 (JSON Schema) | ✅ закоммичен (`4507f0b`, networknt 1.5.8 — 3.x ждёт Jackson 3) |
+| 4 | `@Prepared` data pools | ✅ закоммичен (`1f8c4c8`) |
+| 5 | Документация и публикация | ✅ доки (`e13f61b`); push отложен — нужен доступ к GitHub |
 | 6 | Open Source Readiness & Modernization | ⬜ |
-| 7 | UI & Mobile Expansion | ⬜ |
-| — | Production v1 gaps (P0) | ⬜ см. gap analysis |
+| 7 | UI & Mobile Expansion | 🟡 скелеты playwright/appium (`bca8e25`) |
+| — | Production v1 gaps (P0) | ✅ extension, scope helper, staging yml, checklist |
 
 ---
 
@@ -46,8 +46,8 @@ example-тест в том же коммите; перед коммитом гр
 
 **6.3 Community & Hygiene**
 - [ ] Add Open Source badges (License, Java version, CI status)
-- [ ] Implement `ScenarioContextExtension` for auto-cleanup (move from P0 gaps)
-- [ ] Integration: JSON Schema behind `MessageContract` (move from Stage 3)
+- [x] Implement `ScenarioContextExtension` for auto-cleanup (move from P0 gaps)
+- [x] Integration: JSON Schema behind `MessageContract` (move from Stage 3)
 
 **1.1 Embedded-Kafka тест `KafkaPollingCollector`** (идея: contract monitoring на
 брокере)
@@ -63,7 +63,7 @@ example-тест в том же коммите; перед коммитом гр
 
 ---
 
-## Этап 2 — идеи из архива (день) 🟡
+## Этап 2 — идеи из архива (день) ✅
 
 **2.1 `StateDiff` в core** (идея: side-effect assertions в gray-box DB)
 
@@ -89,51 +89,51 @@ example-тест в том же коммите; перед коммитом гр
 
 ---
 
-## Этап 3 — module-contract v2 (день) ⬜
+## Этап 3 — module-contract v2 (день) ✅
 
 **3.1 JSON Schema под API `MessageContract`**
 
-- [ ] Заменить начинку `JsonContractValidator` на
+- [x] Заменить начинку `JsonContractValidator` на
   `com.networknt:json-schema-validator`
-- [ ] Сохранить API `MessageContract` / `ContractViolation` / `assertValid`
-- [ ] Строгий пресет `ObjectMapper` (дубликаты ключей, без коэрсий)
-- [ ] Приоритизация reason-кодов (required > type > …, контроль кардинальности)
-- [ ] Сырые JSON-схемы из ресурсов рядом с DSL
-- [ ] `JsonContractValidatorTest` и `KafkaProbeTest` — assert'ы без изменений
+- [x] Сохранить API `MessageContract` / `ContractViolation` / `assertValid`
+- [x] Строгий пресет `ObjectMapper` (дубликаты ключей, без коэрсий)
+- [x] Приоритизация reason-кодов (required > type > …, контроль кардинальности)
+- [x] Сырые JSON-схемы из ресурсов рядом с DSL
+- [x] `JsonContractValidatorTest` и `KafkaProbeTest` — assert'ы без изменений
 
 Граница: не consumer-driven contracts — см. `module-contract/README.md`.
 
 ---
 
-## Этап 4 — module-data: пул и фикстуры (2–3 дня) ⬜
+## Этап 4 — module-data: пул и фикстуры (2–3 дня) ✅
 
 **4.1 `@Prepared` + SPI**
 
-- [ ] JUnit 5 `ParameterResolver` `@Prepared`
-- [ ] SPI `PreparedDataProvider<T>`
-- [ ] In-memory пул + `PoolEventListener` (выдан / возвращён / исчерпан)
-- [ ] Заглушка провайдера для адаптации
-- [ ] Шаг в `AGENTS.md` adaptation playbook
-- [ ] Example test
+- [x] JUnit 5 `ParameterResolver` `@Prepared`
+- [x] SPI `PreparedDataProvider<T>`
+- [x] In-memory пул + `PoolEventListener` (выдан / возвращён / исчерпан)
+- [x] Заглушка провайдера для адаптации
+- [x] Шаг в `AGENTS.md` adaptation playbook
+- [x] Example test
 
 Реинкарнация «пула подготовленных данных» как **класса в шаблоне**, не
 отдельного сервиса.
 
 ---
 
-## Этап 5 — документация и публикация (полдня) 🟡
+## Этап 5 — документация и публикация (полдня) ✅ (push отложен)
 
 **5.1 Roadmap в README / AGENTS** (будущие модули)
 
-- [ ] Gherkin-фрагменты (для Cucumber-компаний)
-- [ ] Multi-datasource routing в `module-db`
-- [ ] Обобщение kafka → messaging (RabbitMQ и т.д.)
-- [ ] Allure-интеграция (attachments: SQL, flow path, prewarm, resources)
+- [x] Gherkin-фрагменты (для Cucumber-компаний)
+- [x] Multi-datasource routing в `module-db`
+- [x] Обобщение kafka → messaging (RabbitMQ и т.д.)
+- [x] Allure-интеграция (attachments: SQL, flow path, prewarm, resources)
 - [x] Ссылка на `docs/ROADMAP.md` и gap analysis в README
 
 **5.2 Плейбук AGENTS.md — client/DTO артефакты**
 
-- [ ] Правило: продукт публикует client/DTO → тест-модуль зависит от них, не
+- [x] Правило: продукт публикует client/DTO → тест-модуль зависит от них, не
   дублирует (третий слой защиты от дрейфа рядом с `SchemaValidator` и
   `module-contract`)
 
@@ -145,16 +145,16 @@ example-тест в том же коммите; перед коммитом гр
 
 ---
 
-## Production v1 gaps (из gap analysis) ⬜
+## Production v1 gaps (из gap analysis) — P0 ✅, P1 ⬜
 
 Критично перед параллельным staging — не дублирует этапы 1–5, дополняет:
 
 | P0 | Описание |
 |----|----------|
-| [ ] | `ScenarioContextExtension` — auto `clear()` после теста |
-| [ ] | Test scope helper → `MockScope` correlation |
-| [ ] | `application-staging.example.yml` |
-| [ ] | `docs/adaptation-checklist.md` |
+| [x] | `ScenarioContextExtension` — auto `clear()` после теста |
+| [x] | Test scope helper → `MockScope` correlation |
+| [x] | `application-staging.example.yml` |
+| [x] | `docs/adaptation-checklist.md` |
 | [x] | Dockerfile — все `module-*/build.gradle` в warmup |
 
 | P1 | Описание |
@@ -184,28 +184,11 @@ git grep -iE 'previous-employer domain terms' || true
 
 ## Definition of Done — template v1.0.0
 
-- [ ] Этапы 1–2 закоммичены и зелёные
-- [ ] Этап 3 или явный defer с причиной в README contract module
-- [ ] P0 production gaps закрыты
-- [ ] `example-tests/README` = все тест-классы
-- [ ] `./gradlew build` без внешних сервисов (embedded Kafka в default build —
-  ок, брокер в JVM)
-
----
-
-*Living doc — обновлять статусы при merge.*
-ика идеи,
-не в `src/`.
-
----
-
-## Definition of Done — template v1.0.0
-
-- [ ] Этапы 1–2 закоммичены и зелёные
-- [ ] Этап 3 или явный defer с причиной в README contract module
-- [ ] P0 production gaps закрыты
-- [ ] `example-tests/README` = все тест-классы
-- [ ] `./gradlew build` без внешних сервисов (embedded Kafka в default build —
+- [x] Этапы 1–2 закоммичены и зелёные
+- [x] Этап 3 или явный defer с причиной в README contract module
+- [x] P0 production gaps закрыты
+- [x] `example-tests/README` = все тест-классы
+- [x] `./gradlew build` без внешних сервисов (embedded Kafka в default build —
   ок, брокер в JVM)
 
 ---

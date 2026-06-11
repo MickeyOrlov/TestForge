@@ -1,0 +1,53 @@
+# Environment profile TEMPLATE — copy to application-<env>.yml, fill in real
+# endpoints and select with -DtestEnv=<env> (forwarded to forked test JVMs as
+# spring.profiles.active).
+#
+# Secrets come from environment variables or a secret manager — NEVER commit
+# them. Every placeholder below falls back to a harmless default so the file
+# documents the full configuration surface.
+
+spring:
+  datasource:
+    url: ${TESTENV_DB_URL:jdbc:postgresql://db.staging.example.test:5432/app}
+    username: ${TESTENV_DB_USER:qa}
+    password: ${TESTENV_DB_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${TESTENV_KAFKA_BOOTSTRAP:kafka.staging.example.test:9092}
+    consumer:
+      group-id: testforge-probe
+      auto-offset-reset: latest
+
+forge:
+  wait:
+    timeout: 30s
+    poll-interval: 500ms
+  mock:
+    base-url: ${TESTENV_WIREMOCK_URL:http://wiremock.staging.example.test:8080}
+    # THE critical adaptation point: the request-body field that ties a
+    # downstream call to one scenario (see module-mock/README.md)
+    scope-json-path: "$.testScope"
+  db:
+    log-sql: true
+    repository-polling:
+      enabled: false
+  kafka:
+    enabled: false            # turn on only in profiles with broker access
+    topics: []
+    poll-timeout: 500ms
+    max-messages-per-topic: 1000
+    seek-to-beginning-on-start: false
+  contract:
+    fail-fast: false
+    max-violations: 100
+  data:
+    max-template-depth: 10
+  flow:
+    timeout: 60s
+    max-transitions: 100
+    max-visits-per-state: 5
+  reporting:
+    resource-monitor:
+      enabled: false
+  prewarm:
+    enabled: false
+    urls: []

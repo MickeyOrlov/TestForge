@@ -7,8 +7,9 @@ or more modules need it.
 
 - **`ScenarioContext` / `ContextKey<T>`** — typed thread-local storage for
   values produced during a scenario (ids, responses, expected values).
-  Parallel-safe as long as one scenario stays on one thread. Call
-  `ScenarioContext.clear()` in an after-hook.
+  Parallel-safe as long as one scenario stays on one thread. Register
+  `@ExtendWith(ScenarioContextExtension.class)` (JUnit 5) for automatic
+  cleanup between tests, or call `ScenarioContext.clear()` in an after-hook.
 - **`Waiter`** — the single entry point for waiting on asynchronous effects.
   Polls with a deadline instead of sleeping. Defaults come from `forge.wait.*`.
 

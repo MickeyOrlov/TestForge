@@ -39,6 +39,19 @@ try (MockScope scope = mocks.scope(scopeId)) {
 }
 ```
 
+When the scenario itself owns the id, let the client generate and publish it:
+
+```java
+try (MockScope scope = mocks.scope()) {   // generated id
+    // payload builders read it from the scenario context:
+    String scopeId = ScenarioContext.get(ScopedMockClient.TEST_SCOPE);
+    ...
+}
+```
+
+Pair with `ScenarioContextExtension` so the published id never leaks into the
+next test on a reused worker thread.
+
 ## Adapting to a project
 
 Find the field that uniquely ties a downstream request to one scenario — an

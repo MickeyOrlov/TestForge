@@ -9,10 +9,13 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.testforge.core.context.ScenarioContext;
+import io.testforge.core.context.ScenarioContextExtension;
 import io.testforge.mock.MockScope;
 import io.testforge.mock.ScopedMockClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -24,6 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * stub is narrowed by a request-body matcher on the scenario id.
  */
 @SpringBootTest
+@ExtendWith(ScenarioContextExtension.class)
 class ScopedMockIsolationTest {
 
     static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
@@ -65,6 +69,20 @@ class ScopedMockIsolationTest {
         }
 
         assertThat(callDownstreamStatus("scenario-A")).contains("default");
+    }
+
+    @Test
+    void generatedScopeIsPublishedToScenarioContext() {
+        try (MockScope scope = mocks.scope()) {
+            // payload builders elsewhere in the scenario read the id from here
+            String scopeId = ScenarioContext.get(ScopedMockClient.TEST_SCOPE);
+            assertThat(scope.scopeId()).isEqualTo(scopeId);
+
+            scope.stub(post(urlPathEqualTo("/downstream/status"))
+                    .willReturn(okJson("{\"result\":\"correlated\"}")));
+
+            assertThat(callDownstreamStatus(scopeId)).contains("correlated");
+        }
     }
 
     private String callDownstreamStatus(String scopeId) {
