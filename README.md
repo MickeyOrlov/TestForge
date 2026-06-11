@@ -131,6 +131,17 @@ test JVMs as `spring.profiles.active`.
    The only deliberate exception: prewarm failure logs a warning and lets the
    suite run — a cold environment makes tests slower, not wrong.
 
+## TestForge + Testcontainers + Pact
+
+These are layers, not competitors. TestForge owns the test-side toolkit
+(waits, scoped mocks, DB gray-box, flow setup, drift checks); Testcontainers
+owns disposable infrastructure (broker/DB in CI — see
+`PostgresSchemaValidationIT`); Pact / Spring Cloud Contract owns cross-team
+provider/consumer contracts. `module-contract` deliberately stays a cheap
+QA-side shape-drift check on real staging traffic — when two teams need a
+verified API contract, reach for Pact. The full comparison matrix lives in
+[docs/production-v1-gap-analysis.md](docs/production-v1-gap-analysis.md).
+
 ## Roadmap
 
 Master plan (archive ideas, production v1 gaps, future modules):

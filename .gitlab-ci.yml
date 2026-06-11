@@ -7,7 +7,7 @@ variables:
   # Default: public JDK image, dependencies download on every run.
   # After building the runner image (manual job below), override this in
   # CI/CD settings with $CI_REGISTRY_IMAGE/runner:latest for warm runs.
-  RUNNER_IMAGE: "eclipse-temurin:26-jdk"
+  RUNNER_IMAGE: "eclipse-temurin:26-jdk-noble"
   GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.console=plain"
 
 default:
@@ -48,6 +48,27 @@ environment-example:
   extends: .environment-test
   variables:
     TEST_ENV: "example"
+
+# Container-backed examples (real Postgres via Testcontainers). Manual /
+# nightly: the default build stays offline by design.
+containers-test:
+  stage: test
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_HOST_OVERRIDE: "docker"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: manual
+  script:
+    - chmod +x gradlew
+    - ./gradlew :example-tests:containersTest
+  artifacts:
+    when: always
+    reports:
+      junit: "**/build/test-results/containersTest/TEST-*.xml"
 
 # --- runner image ------------------------------------------------------------
 # Bakes JDK + Gradle dependency cache + Chromium into an image in the project

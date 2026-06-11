@@ -2,7 +2,9 @@
 # Build it once, point CI at it, and test jobs stop paying the dependency and
 # browser download cost on every run.
 
-FROM eclipse-temurin:26-jdk
+# noble (Ubuntu 24.04 LTS) pinned: Playwright's install-deps matrix lags
+# behind the newest Ubuntu the unsuffixed temurin tag may jump to
+FROM eclipse-temurin:26-jdk-noble
 
 ENV GRADLE_USER_HOME=/opt/gradle-home \
     GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.console=plain" \
@@ -23,7 +25,11 @@ COPY module-kafka/build.gradle module-kafka/build.gradle
 COPY module-mock/build.gradle module-mock/build.gradle
 COPY module-reporting/build.gradle module-reporting/build.gradle
 COPY module-web/build.gradle module-web/build.gradle
+COPY module-web-playwright/build.gradle module-web-playwright/build.gradle
+COPY module-mobile-appium/build.gradle module-mobile-appium/build.gradle
 COPY example-tests/build.gradle example-tests/build.gradle
+# NB: every module in settings.gradle needs its build.gradle here, or the
+# warmup `gradlew help` fails — checked by the docker-build CI job
 
 RUN ./gradlew --no-daemon help
 

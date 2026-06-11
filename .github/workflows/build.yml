@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * *" # nightly container-backed suite
 
 permissions:
   contents: read
@@ -42,6 +44,32 @@ jobs:
           path: |
             **/build/test-results/test/
             **/build/reports/tests/test/
+          if-no-files-found: ignore
+
+  containers:
+    name: Container-backed examples
+    runs-on: ubuntu-latest # Docker is available out of the box
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Testcontainers-backed suite
+        run: ./gradlew :example-tests:containersTest
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: containers-test-reports
+          path: "**/build/test-results/containersTest/"
           if-no-files-found: ignore
 
   docker-runner-image:
