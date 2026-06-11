@@ -17,6 +17,8 @@ module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ ResourceUsageMonitor for CI diagnostics
 module-web/    PrewarmRunner — warm key pages once per suite
+module-web-playwright/ [Planned] Full Playwright UI testing integration
+module-mobile-appium/  [Planned] Cross-platform Mobile testing (Android/iOS)
 example-tests/ reference suite, runs offline (embedded WireMock + H2)
 ```
 
@@ -75,6 +77,14 @@ update its example test in the same commit.
    `forge.prewarm.urls` for the CI profile.
 11. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
+12. **Client/DTO artifacts (drift layer 3).** When the product publishes a
+   versioned client or DTO module (OpenAPI-generated stubs, shared event
+   types), make the test module depend on it instead of duplicating JSON
+   shapes in test code. Keep `SchemaValidator` (DB mappings) and
+   `module-contract` (payload shape on the wire) as complementary checks —
+   not replacements for a shared artifact when one exists.
+
+Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Conventions
 

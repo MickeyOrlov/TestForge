@@ -15,8 +15,13 @@ WORKDIR /opt/warmup
 COPY gradle ./gradle
 COPY gradlew settings.gradle build.gradle gradle.properties ./
 COPY core/build.gradle core/build.gradle
+COPY module-contract/build.gradle module-contract/build.gradle
+COPY module-data/build.gradle module-data/build.gradle
 COPY module-db/build.gradle module-db/build.gradle
+COPY module-flow/build.gradle module-flow/build.gradle
+COPY module-kafka/build.gradle module-kafka/build.gradle
 COPY module-mock/build.gradle module-mock/build.gradle
+COPY module-reporting/build.gradle module-reporting/build.gradle
 COPY module-web/build.gradle module-web/build.gradle
 COPY example-tests/build.gradle example-tests/build.gradle
 

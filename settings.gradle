@@ -14,4 +14,6 @@ include "core",
         "module-reporting",
         "module-mock",
         "module-web",
+        "module-web-playwright",
+        "module-mobile-appium",
         "example-tests"

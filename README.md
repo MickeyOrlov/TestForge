@@ -1,13 +1,19 @@
 # TestForge
 
+**The first AI-native Test Automation Template for JVM.**
+
 A template test framework for JVM backend ecosystems (Spring services, REST,
 PostgreSQL, Kafka). Stack: Java 26, Spring Boot 4.x, Gradle 9.x, JUnit 5. Clone it, rename it, delete what you don't need — it is a
 **template repository**, not a published library. The goal is to start a new
 team's test automation from a skeleton that already encodes hard-won
 decisions, instead of from an empty directory.
 
-Designed to be adapted by AI coding agents: see [CLAUDE.md](CLAUDE.md) for the
-adaptation playbook.
+### Why TestForge?
+
+1. **AI-Native**: Designed from the ground up to be adapted and extended by AI coding agents (Claude, Cursor, Gemini). See [AGENTS.md](AGENTS.md).
+2. **Modern Concurrency**: Optimized for Virtual Threads (Java 26) with polling-based waits.
+3. **Modular**: Deletable modules, no "heavy" dependencies by default.
+4. **Offline-First**: Embedded Kafka/DB/Mocks in the reference suite for fast local feedback.
 
 ## Architecture
 
@@ -25,6 +31,8 @@ Boot auto-configuration: putting one on the classpath is all it takes.
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Resource usage monitor for JVM memory/CPU diagnostics in CI artifacts |
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
+| [module-web-playwright](module-web-playwright) | *(Coming soon)* Full-blown UI automation with Playwright |
+| [module-mobile-appium](module-mobile-appium) | *(Coming soon)* Cross-platform mobile automation (Appium) |
 | [example-tests](example-tests) | Self-contained reference suite (WireMock + H2), runs offline |
 
 ## Quick start
@@ -117,9 +125,19 @@ test JVMs as `spring.profiles.active`.
    The only deliberate exception: prewarm failure logs a warning and lets the
    suite run — a cold environment makes tests slower, not wrong.
 
-## Roadmap (modules worth adding as the need appears)
+## Roadmap
 
-- prepared data pools with background refill, so scenarios don't pay setup cost per test
+Master plan (archive ideas, production v1 gaps, future modules):
+[docs/ROADMAP.md](docs/ROADMAP.md). Production staging checklist:
+[docs/production-v1-gap-analysis.md](docs/production-v1-gap-analysis.md).
+
+Near-term modules worth adding as the need appears:
+
+- `@Prepared` data pools with background refill (see ROADMAP этап 4)
+- module-contract v2 — JSON Schema behind `MessageContract` (этап 3)
+- Gherkin fragments for Cucumber-heavy teams
+- multi-datasource routing in module-db
+- messaging generalization beyond Kafka
 - Allure integration (attachments for SQL log, scoped-stub diffs, prewarm timings)
 
 ## License
