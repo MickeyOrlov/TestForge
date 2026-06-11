@@ -1,5 +1,6 @@
 package io.testforge.db.schema;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.JoinColumn;
@@ -16,9 +17,11 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import javax.sql.DataSource;
 
@@ -29,8 +32,9 @@ import javax.sql.DataSource;
  * scheduled CI job) turns that silent rot into a readable diff.
  *
  * <p>Limitations (deliberate, to stay dependency-free): only field-level
- * mappings are inspected; {@code @Embedded}, inherited fields and custom
- * naming strategies other than camelCase&rarr;snake_case are not resolved.
+ * mappings are inspected; inherited fields and custom naming strategies other
+ * than camelCase&rarr;snake_case are not resolved. {@code @Embedded} fields
+ * are supported, including {@code @AttributeOverride} on the embedding field.
  */
 public class SchemaValidator {
 
@@ -73,8 +77,12 @@ public class SchemaValidator {
             if (Modifier.isStatic(field.getModifiers())
                     || field.isAnnotationPresent(Transient.class)
                     || field.isAnnotationPresent(OneToMany.class)
-                    || field.isAnnotationPresent(ManyToMany.class)
-                    || field.isAnnotationPresent(Embedded.class)) {
+                    || field.isAnnotationPresent(ManyToMany.class)) {
+                continue;
+            }
+
+            if (field.isAnnotationPresent(Embedded.class)) {
+                columns.addAll(embeddedColumns(field));
                 continue;
             }
 
@@ -97,6 +105,36 @@ public class SchemaValidator {
                     : camelToSnake(field.getName()));
         }
 
+        return columns;
+    }
+
+    /**
+     * Embeddable fields map onto the owning table; {@code @AttributeOverride}
+     * on the embedded field wins over the embeddable's own column names.
+     */
+    private List<String> embeddedColumns(Field embeddedField) {
+        Map<String, String> overrides = new HashMap<>();
+        for (AttributeOverride override : embeddedField.getAnnotationsByType(AttributeOverride.class)) {
+            overrides.put(override.name(), override.column().name());
+        }
+
+        List<String> columns = new ArrayList<>();
+        for (Field field : embeddedField.getType().getDeclaredFields()) {
+            if (Modifier.isStatic(field.getModifiers()) || field.isAnnotationPresent(Transient.class)) {
+                continue;
+            }
+
+            String overridden = overrides.get(field.getName());
+            if (overridden != null && !overridden.isBlank()) {
+                columns.add(overridden);
+                continue;
+            }
+
+            Column column = field.getAnnotation(Column.class);
+            columns.add(column != null && !column.name().isBlank()
+                    ? column.name()
+                    : camelToSnake(field.getName()));
+        }
         return columns;
     }
 

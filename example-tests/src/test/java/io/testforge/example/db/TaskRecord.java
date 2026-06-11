@@ -1,6 +1,8 @@
 package io.testforge.example.db;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -20,6 +22,10 @@ public class TaskRecord {
 
     private String status;
 
+    @Embedded
+    @AttributeOverride(name = "channel", column = @Column(name = "origin_channel"))
+    private AuditStamp audit;
+
     public Long getId() {
         return id;
     }
@@ -38,5 +44,13 @@ public class TaskRecord {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public AuditStamp getAudit() {
+        return audit;
+    }
+
+    public void setAudit(AuditStamp audit) {
+        this.audit = audit;
     }
 }

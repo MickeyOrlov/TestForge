@@ -161,9 +161,9 @@ example-тест в том же коммите; перед коммитом гр
 |----|----------|
 | [ ] | Optional Testcontainers example (`@Tag`) |
 | [ ] | Allure attachments |
-| [ ] | `SchemaValidator` — `@Embedded` |
-| [ ] | Parallel tests guide |
-| [ ] | RestAssured + scope HTTP example |
+| [x] | `SchemaValidator` — `@Embedded` |
+| [x] | Parallel tests guide (docs/parallel-tests.md) |
+| [x] | RestAssured + scope HTTP example (ScopedRequestTemplateTest) |
 
 Детали: [production-v1-gap-analysis.md](production-v1-gap-analysis.md).
 

@@ -51,6 +51,7 @@ interface TaskRecordRepository extends JpaRepository<TaskRecord, Long> {
 
 Add JPA entities + Spring Data repositories for the service tables your tests
 assert on. If there are many services, give each service DB its own Gradle
-module so teams can own their mappings. Known `SchemaValidator` limitations
-are listed in its Javadoc — extend it before relying on it for entities with
-`@Embedded`, inheritance or custom naming strategies.
+module so teams can own their mappings. `SchemaValidator` resolves `@Column`,
+`@JoinColumn` and `@Embedded` (with `@AttributeOverride`); inheritance and
+custom naming strategies are not resolved — extend it first for entities that
+use those (limitations listed in its Javadoc).

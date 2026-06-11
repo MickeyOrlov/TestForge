@@ -117,9 +117,9 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
 ## Known sharp edges
 
 - `SchemaValidator` resolves names reflectively (camelCase→snake_case,
-  `@Column`/`@JoinColumn` names). It does not understand `@Embedded`,
-  inheritance or custom naming strategies — extend it before relying on it
-  for entities that use those.
+  `@Column`/`@JoinColumn`/`@Embedded` with `@AttributeOverride`). It does not
+  understand inheritance or custom naming strategies — extend it before
+  relying on it for entities that use those.
 - `SqlLoggingDataSourcePostProcessor` wraps the DataSource bean, so beans
   expecting the concrete type (e.g. `HikariDataSource`) will break under it.
   Configure the pool through `spring.datasource.*` properties instead of
