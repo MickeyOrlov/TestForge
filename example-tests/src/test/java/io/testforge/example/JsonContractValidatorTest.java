@@ -7,6 +7,7 @@ import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.FieldType;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.contract.json.MessageContract;
+import io.testforge.contract.json.SchemaContract;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,6 +59,47 @@ class JsonContractValidatorTest {
                         tuple("$.payload.status", "missing"),
                         tuple("$.payload.details", "type"),
                         tuple("$.payload.items[0].sku", "missing"));
+    }
+
+    @Test
+    void validatesAgainstFullJsonSchema() {
+        SchemaContract schema = SchemaContract.fromResource(
+                "partner-event", "contracts/partner-event.schema.json");
+
+        String valid = """
+                {
+                  "eventId": "evt-1",
+                  "payload": { "status": "accepted", "amount": 12.5 }
+                }
+                """;
+        assertThat(contracts.validate(valid, schema)).isEmpty();
+    }
+
+    @Test
+    void schemaViolationsUseKeywordCodesOrderedByPriority() {
+        SchemaContract schema = SchemaContract.fromResource(
+                "partner-event", "contracts/partner-event.schema.json");
+
+        String drifted = """
+                {
+                  "eventId": "order-1",
+                  "unexpected": true,
+                  "payload": { "status": "parked" }
+                }
+                """;
+
+        assertThat(contracts.validate(drifted, schema))
+                .extracting(ContractViolation::code)
+                .containsExactly("enum", "pattern", "additionalProperties");
+    }
+
+    @Test
+    void strictParserRejectsDuplicateKeys() {
+        assertThat(contracts.validate(
+                "{\"eventId\":\"evt-1\",\"eventId\":\"evt-2\"}",
+                partnerStatusContract()))
+                .extracting(ContractViolation::code)
+                .containsExactly("invalid-json");
     }
 
     private MessageContract partnerStatusContract() {

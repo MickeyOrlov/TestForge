@@ -12,10 +12,12 @@ public class JsonContractValidator {
 
     private final ObjectMapper objectMapper;
     private final ContractProperties properties;
+    private final SchemaEngine schemaEngine;
 
     public JsonContractValidator(ObjectMapper objectMapper, ContractProperties properties) {
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.schemaEngine = new SchemaEngine(objectMapper);
     }
 
     public List<ContractViolation> validate(String json, MessageContract contract) {
@@ -69,6 +71,30 @@ public class JsonContractValidator {
     }
 
     public void assertValid(String json, MessageContract contract) {
+        List<ContractViolation> violations = validate(json, contract);
+        if (!violations.isEmpty()) {
+            throw new ContractValidationException(violations);
+        }
+    }
+
+    /** Validates against a full JSON Schema; codes are schema keywords. */
+    public List<ContractViolation> validate(String json, SchemaContract contract) {
+        try {
+            return schemaEngine.validate(objectMapper.readTree(json), contract, properties);
+        } catch (JsonProcessingException e) {
+            return List.of(new ContractViolation(
+                    contract.name(),
+                    "$",
+                    "invalid-json",
+                    "Payload is not valid JSON: " + e.getOriginalMessage()));
+        }
+    }
+
+    public List<ContractViolation> validate(JsonNode root, SchemaContract contract) {
+        return schemaEngine.validate(root, contract, properties);
+    }
+
+    public void assertValid(String json, SchemaContract contract) {
         List<ContractViolation> violations = validate(json, contract);
         if (!violations.isEmpty()) {
             throw new ContractValidationException(violations);
