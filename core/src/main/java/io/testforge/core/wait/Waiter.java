@@ -24,6 +24,13 @@ public class Waiter {
      * Polls {@code supplier} until its value satisfies {@code until},
      * then returns the last value. Exceptions thrown while polling are
      * treated as "not ready yet".
+     *
+     * <p>Polling happens on the calling thread ({@code pollInSameThread}):
+     * no extra poller thread per await — cheap on virtual threads — and the
+     * condition sees the caller's bindings (thread-locals like
+     * {@code ScenarioContext}, {@code ScopedValue} scopes). Trade-off: a
+     * condition that blocks forever cannot be interrupted by the timeout, so
+     * keep conditions to quick queries.
      */
     public <T> T await(String description, Supplier<T> supplier, Predicate<T> until) {
         AtomicReference<T> last = new AtomicReference<>();
@@ -31,6 +38,7 @@ public class Waiter {
         Awaitility.await(description)
                 .atMost(properties.timeout())
                 .pollInterval(properties.pollInterval())
+                .pollInSameThread()
                 .ignoreExceptions()
                 .until(() -> {
                     T value = supplier.get();
@@ -45,6 +53,7 @@ public class Waiter {
         Awaitility.await(description)
                 .atMost(properties.timeout())
                 .pollInterval(properties.pollInterval())
+                .pollInSameThread()
                 .ignoreExceptions()
                 .until(condition);
     }

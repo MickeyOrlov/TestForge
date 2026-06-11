@@ -35,4 +35,21 @@ class ScenarioContextCleanupTest {
     void extensionClearedContextBetweenTests() {
         assertThat(ScenarioContext.find(LEFTOVER)).isEmpty();
     }
+
+    @Test
+    @Order(3)
+    void scopedBlockGetsIsolatedContext() {
+        ScenarioContext.put(LEFTOVER, "outer");
+
+        ScenarioContext.runScoped(() -> {
+            // fresh store inside the scope, the outer value is not visible
+            assertThat(ScenarioContext.find(LEFTOVER)).isEmpty();
+
+            ScenarioContext.put(LEFTOVER, "inner");
+            assertThat(ScenarioContext.get(LEFTOVER)).isEqualTo("inner");
+        });
+
+        // the surrounding thread-local store is untouched by the scope
+        assertThat(ScenarioContext.get(LEFTOVER)).isEqualTo("outer");
+    }
 }

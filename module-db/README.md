@@ -55,3 +55,14 @@ module so teams can own their mappings. `SchemaValidator` resolves `@Column`,
 `@JoinColumn` and `@Embedded` (with `@AttributeOverride`); inheritance and
 custom naming strategies are not resolved — extend it first for entities that
 use those (limitations listed in its Javadoc).
+
+## Agent notes
+
+- One entity + repository per asserted table; a `SchemaValidator` test per
+  entity belongs in a scheduled CI job.
+- `SchemaValidator` resolves `@Column`/`@JoinColumn`/`@Embedded` (with
+  `@AttributeOverride`); it does NOT resolve inheritance or custom naming
+  strategies — extend it first if the project uses those.
+- `waitBy...` repository methods only work with
+  `forge.db.repository-polling.enabled: true`; the marker default method must
+  throw, never return a stub value.

@@ -32,3 +32,10 @@ Playwright downloads a browser on first use. Bake
 `npx playwright install chromium` (or the Java equivalent
 `mvn/gradle playwright install`) into the CI image to avoid paying the
 download on every run.
+
+## Agent notes
+
+- Prewarm runs once per JVM and must never fail the suite — a cold
+  environment makes tests slower, not wrong; keep that contract.
+- Browser binaries are baked into the CI runner image (see Dockerfile);
+  don't add per-run downloads to jobs.

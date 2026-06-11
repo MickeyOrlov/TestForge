@@ -64,3 +64,12 @@ How it fits together:
   exactly once — a used domain object is dirty by definition.
 - **`PoolEventListener`** — hooks (`onAcquired`/`onPrepared`/`onExhausted`)
   for metrics and background refill, default no-op.
+
+## Agent notes
+
+- `PreparedDataProvider<T>` is THE adaptation point — its `prepare(tags)`
+  should drive the product API (typically a module-flow run), never fabricate
+  rows directly in the DB unless the project explicitly allows it.
+- Pool objects are handed out exactly once; there is no release on purpose.
+- Uniqueness comes from `RunUniqueValues` + `Generators`; do not invent
+  ad-hoc random suffixes in tests.

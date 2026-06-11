@@ -47,3 +47,12 @@ FlowRunner<OrderState> timed = flowRunnerFactory.create(
 Branching example: put `role` or `amount` into `FlowContext` in a setup hook,
 then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`
 — see `FlowRunnerTest.roleBasedApprovalPath` in example-tests.
+
+## Agent notes
+
+- Keep steps small and idempotent; branching lives inside a step (return a
+  different next state), not in the runner.
+- Cross-cutting concerns (logging, Allure, metrics) go through
+  `FlowStepDecorator` — never edit steps for reporting.
+- `AllureFlowStepDecorator` needs allure-java-commons on the runtime
+  classpath; the module itself must keep Allure optional (compileOnly).

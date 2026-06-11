@@ -1,5 +1,11 @@
 # TestForge
 
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Java](https://img.shields.io/badge/Java-26-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F)
+<!-- after publishing, add the live CI badge:
+![CI](https://github.com/OWNER/REPO/actions/workflows/build.yml/badge.svg) -->
+
 **The first AI-native Test Automation Template for JVM.**
 
 A template test framework for JVM backend ecosystems (Spring services, REST,

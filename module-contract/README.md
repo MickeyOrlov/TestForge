@@ -62,3 +62,12 @@ SchemaContract schema = SchemaContract.fromResource(
         "partner-event", "contracts/partner-event.schema.json");
 validator.assertValid(payload, schema);
 ```
+
+## Agent notes
+
+- The field DSL is FROZEN. Anything richer than required/optional/nullable +
+  type goes through `SchemaContract` (JSON Schema) — do not extend the DSL.
+- Schema violation codes are schema keywords ordered by a fixed priority;
+  tests assert on them, keep them stable.
+- Never reintroduce a dependency on module-kafka; composition happens in the
+  test, not between modules.

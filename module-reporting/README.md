@@ -32,3 +32,9 @@ monitor.start(Duration.ofSeconds(1));
 // run test work
 ResourceUsageStats stats = monitor.stop().orElseThrow();
 ```
+
+## Agent notes
+
+- Keep Allure optional (compileOnly); `AllureResourceAttachments` is the only
+  class allowed to touch it.
+- The monitor must never fail a run — diagnostics are best-effort by design.

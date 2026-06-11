@@ -54,3 +54,12 @@ KafkaMessage message = kafkaProbe.awaitMessage(filter);
 // optional shape check — composes with module-contract when it is present
 contractValidator.assertValid(message.value(), contract);
 ```
+
+## Agent notes
+
+- Contract checks compose in the test (`awaitMessage` + validator) — never
+  add a module-contract dependency here.
+- The collector is enabled per environment profile only; example tests feed
+  the buffer directly and stay offline.
+- Search messages by scenario-unique ids/keys; never assert on buffer counts
+  under parallel execution.

@@ -24,7 +24,7 @@ example-тест в том же коммите; перед коммитом гр
 | 3 | module-contract v2 (JSON Schema) | ✅ закоммичен (`4507f0b`, networknt 1.5.8 — 3.x ждёт Jackson 3) |
 | 4 | `@Prepared` data pools | ✅ закоммичен (`1f8c4c8`) |
 | 5 | Документация и публикация | ✅ доки (`e13f61b`); push отложен — нужен доступ к GitHub |
-| 6 | Open Source Readiness & Modernization | ⬜ |
+| 6 | Open Source Readiness & Modernization | ✅ ScopedValue-гибрид, pollInSameThread, Agent notes, бейджи |
 | 7 | UI & Mobile Expansion | 🟡 скелеты playwright/appium (`bca8e25`) |
 | — | Production v1 gaps (P0) | ✅ extension, scope helper, staging yml, checklist |
 
@@ -33,19 +33,19 @@ example-тест в том же коммите; перед коммитом гр
 ## Этап 1 — технический долг (полдня) ✅
 ... (rest of Stage 1) ...
 
-## Этап 6 — Open Source Readiness & Modernization (2–3 дня) ⬜
+## Этап 6 — Open Source Readiness & Modernization (2–3 дня) ✅
 
 **6.1 Modernization (Java 26)**
-- [ ] Transition `ScenarioContext` from `ThreadLocal` to `ScopedValue` (Project Loom native)
-- [ ] Optimize `Waiter` for virtual threads
+- [x] Transition `ScenarioContext` from `ThreadLocal` to `ScopedValue` (hybrid: scoped via runScoped(), thread-local fallback)
+- [x] Optimize `Waiter` for virtual threads (pollInSameThread: no poller thread, bindings visible)
 
 **6.2 "AI-First" Positioning**
-- [ ] Update README: "The first AI-native Test Automation Template"
-- [ ] Add specific "Agent Instructions" sections to each module README
-- [ ] Create `docs/adaptation-checklist.md` for both humans and agents
+- [x] Update README: "The first AI-native Test Automation Template"
+- [x] Add specific "Agent Instructions" sections to each module README (## Agent notes)
+- [x] Create `docs/adaptation-checklist.md` for both humans and agents
 
 **6.3 Community & Hygiene**
-- [ ] Add Open Source badges (License, Java version, CI status)
+- [x] Add Open Source badges (License, Java, Boot; CI badge — placeholder до публикации)
 - [x] Implement `ScenarioContextExtension` for auto-cleanup (move from P0 gaps)
 - [x] Integration: JSON Schema behind `MessageContract` (move from Stage 3)
 

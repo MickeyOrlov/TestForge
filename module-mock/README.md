@@ -59,3 +59,12 @@ explicit test scope, correlation id or request id that the system under test
 echoes into mock-bound calls — and point `scope-json-path` at it. If no such
 field exists for some flow, those few tests must run serially; tag them
 explicitly rather than serializing the whole suite.
+
+## Agent notes
+
+- Isolation comes from the request-body matcher, priority only settles ties:
+  defaults are priority 10+, scoped stubs priority 1 WITH the scope matcher.
+- `forge.mock.scope-json-path` is THE adaptation point — find the field the
+  system under test echoes into downstream calls before anything else.
+- `scope()` (no args) publishes the generated id to `ScenarioContext` under
+  `ScopedMockClient.TEST_SCOPE`; pair with `ScenarioContextExtension`.

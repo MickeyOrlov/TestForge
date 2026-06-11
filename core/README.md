@@ -58,3 +58,13 @@ assertThat(diff.changed()).isEmpty();
 
 The second argument is a sameness predicate for entities without a
 content-based `equals`; omit it to compare with `Object#equals`.
+
+## Agent notes
+
+- Core earns a class only when two or more modules need it — otherwise the
+  class belongs in a module.
+- `ScenarioContext` has two carriers: thread-local by default,
+  `runScoped(Runnable)` for an isolated block (nested preparation must not
+  pollute the calling test's context).
+- Never add sleeps anywhere in this repo — `Waiter` polls on the calling
+  thread; conditions must stay quick queries.
