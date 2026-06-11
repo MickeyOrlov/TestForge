@@ -23,4 +23,32 @@ dependencies {
     // auto-configures the ConsumerFactory the collector needs
     testImplementation "org.springframework.boot:spring-boot-kafka"
     testImplementation "org.springframework.kafka:spring-kafka-test"
+
+    // container-backed tests (tag "containers", excluded from default build)
+    testImplementation "org.springframework.boot:spring-boot-testcontainers"
+    testImplementation libs.testcontainers.postgresql
+    testImplementation libs.testcontainers.junit.jupiter
+    testRuntimeOnly "org.postgresql:postgresql"
+
+    // Allure decorator/attachment examples (optional deps of the modules)
+    testImplementation libs.allure.java.commons
+    testImplementation libs.allure.junit5
+}
+
+// container tests need a Docker daemon — keep the default build offline
+test {
+    useJUnitPlatform {
+        excludeTags "containers"
+    }
+}
+
+tasks.register("containersTest", Test) {
+    description = "Container-backed integration tests (requires a running Docker daemon)"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "containers"
+    }
+    shouldRunAfter tasks.named("test")
 }

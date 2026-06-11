@@ -8,6 +8,9 @@ json-schema-validator = "1.5.8"
 playwright = "1.59.0"
 rest-assured = "5.5.0"
 appium = "9.4.0"
+allure = "2.35.2"
+# 2.x line: artifacts renamed to testcontainers-<module>, classes in org.testcontainers.<module>
+testcontainers = "2.0.5"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -18,3 +21,7 @@ json-schema-validator = { module = "com.networknt:json-schema-validator", versio
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "rest-assured" }
 appium = { module = "io.appium:java-client", version.ref = "appium" }
+allure-java-commons = { module = "io.qameta.allure:allure-java-commons", version.ref = "allure" }
+allure-junit5 = { module = "io.qameta.allure:allure-junit5", version.ref = "allure" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }

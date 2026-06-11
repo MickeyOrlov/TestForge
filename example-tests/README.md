@@ -16,6 +16,7 @@ plays the service database.
 | `DbWaiterTest` | waiting for a row written asynchronously, without sleeps |
 | `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
 | `SchemaValidatorTest` | detecting drift between entity mappings and the real schema |
+| `PostgresSchemaValidationIT` | same checks on real Postgres via Testcontainers — `../gradlew :example-tests:containersTest` (needs Docker) |
 | `JsonContractValidatorTest` | validating API/queue/file payloads against a neutral message template |
 | `FlowRunnerTest` | state paths, role-based branching, `FlowStepDecorator` hooks |
 | `KafkaProbeTest` | finding buffered Kafka messages and validating their contracts offline |

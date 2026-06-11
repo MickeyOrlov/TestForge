@@ -7,9 +7,13 @@ Diagnostics helpers for test runs.
 - **`ResourceUsageMonitor`** — lightweight JVM memory and CPU sampler.
 - **`ResourceUsageStats`** — min/max/average summary that CI reports can attach
   or print after a run.
+- **`AllureResourceAttachments.attach(stats)`** — one-liner to attach the
+  summary to the current Allure test. Optional: compiled against
+  `allure-java-commons` (`compileOnly`), add it to your test module's runtime
+  classpath to use this.
 
-The module intentionally has no hard dependency on Allure. Adapted projects can
-write `ResourceUsageStats` into Allure, logs, metrics, or CI artifacts.
+The module has no hard dependency on Allure — without it, write
+`ResourceUsageStats` into logs, metrics, or CI artifacts.
 
 ## Configuration
 

@@ -3,6 +3,7 @@ package io.testforge.example;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.testforge.flow.AllureFlowStepDecorator;
 import io.testforge.flow.FlowContext;
 import io.testforge.flow.FlowException;
 import io.testforge.flow.FlowRunner;
@@ -78,6 +79,20 @@ class FlowRunnerTest {
                 ApprovalState.SUBMITTED,
                 ApprovalState.MANAGER_REVIEW,
                 ApprovalState.APPROVED);
+    }
+
+    @Test
+    void allureDecoratorReportsFlowStepsWithoutChangingBehaviour() {
+        FlowRunner<DemoState> runner = flows.create(
+                List.of(
+                        new Step(DemoState.START, DemoState.AUTHORIZE),
+                        new Step(DemoState.AUTHORIZE, DemoState.READY)),
+                List.of(new AllureFlowStepDecorator<>()));
+
+        var result = runner.run(DemoState.START, DemoState.READY);
+
+        assertThat(result.path()).containsExactly(
+                DemoState.START, DemoState.AUTHORIZE, DemoState.READY);
     }
 
     @Test

@@ -159,8 +159,8 @@ example-тест в том же коммите; перед коммитом гр
 
 | P1 | Описание |
 |----|----------|
-| [ ] | Optional Testcontainers example (`@Tag`) |
-| [ ] | Allure attachments |
+| [x] | Optional Testcontainers example (`@Tag("containers")`, `containersTest`) |
+| [x] | Allure: AllureFlowStepDecorator + AllureResourceAttachments (optional deps) |
 | [x] | `SchemaValidator` — `@Embedded` |
 | [x] | Parallel tests guide (docs/parallel-tests.md) |
 | [x] | RestAssured + scope HTTP example (ScopedRequestTemplateTest) |

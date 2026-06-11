@@ -12,6 +12,10 @@ Small state-machine runner for preparing complex test states.
 - **`FlowStepDecorator`** — around-hook for logging, timing, reporting; steps
   stay unaware. **`LoggingFlowStepDecorator`** is the default when you call
   `create(steps)` without a decorator list.
+- **`AllureFlowStepDecorator`** — reports each transition as an Allure step
+  (preparation paths read as collapsible timelines). Optional: compiled
+  against `allure-java-commons` (`compileOnly`), add it to your test module's
+  runtime classpath to use this.
 
 Use this when a test needs the system to reach a deep state but the path can
 branch depending on service responses (role, amount threshold, API outcome). The

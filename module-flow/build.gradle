@@ -3,4 +3,7 @@ dependencies {
 
     api project(":core")
     api "org.springframework.boot:spring-boot-autoconfigure"
+
+    // optional: only AllureFlowStepDecorator needs it at runtime
+    compileOnly libs.allure.java.commons
 }
