@@ -3,6 +3,7 @@ package io.testforge.example;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.testforge.data.Generators;
 import io.testforge.data.RunUniqueValues;
 import io.testforge.data.TemplateRenderer;
 import java.util.Map;
@@ -43,6 +44,15 @@ class DataHelpersTest {
         assertThat(value).isEqualTo("5550002");
         assertThat(uniqueValues.snapshot().get("phone"))
                 .containsExactlyInAnyOrder("5550001", "5550002");
+    }
+
+    @Test
+    void generatorPresetsProduceMaskedUniqueValues() {
+        String phone = uniqueValues.generate("phone", Generators.phone("+8499", 7), 10);
+        String guid = uniqueValues.generate("guid", Generators.guid(), 10);
+
+        assertThat(phone).matches("\\+8499[1-9]\\d{6}");
+        assertThat(guid).matches("[0-9a-f-]{36}");
     }
 
     @Test

@@ -33,3 +33,27 @@ waiter.await("job becomes Completed",
         () -> jobClient.job(id),
         job -> "Completed".equals(job.status()));
 ```
+
+## StateSnapshot / StateDiff
+
+Side-effect assertions stronger than "the row exists": snapshot a collection
+before the action, diff after, and assert exactly what appeared, disappeared
+or changed. Catches duplicate inserts from retries, accidental updates of
+neighbouring rows and cascade deletes — the bug classes that "find the row"
+checks silently miss.
+
+```java
+var before = StateSnapshot.of(repository.findAll(), TaskRecord::getId);
+
+// ... the action under test ...
+
+StateDiff<TaskRecord> diff = before.diff(repository.findAll(),
+        (a, b) -> Objects.equals(a.getStatus(), b.getStatus()));
+
+assertThat(diff.added()).hasSize(1);
+assertThat(diff.removed()).isEmpty();
+assertThat(diff.changed()).isEmpty();
+```
+
+The second argument is a sameness predicate for entities without a
+content-based `equals`; omit it to compare with `Object#equals`.

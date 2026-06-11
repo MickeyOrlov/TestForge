@@ -6,13 +6,15 @@ plays the service database.
 
 | Test | Demonstrates |
 |---|---|
-| `DataHelpersTest` | per-run unique values and `%{variable}%` template rendering |
+| `DataHelpersTest` | per-run unique values, `Generators` masks, `%{variable}%` templates |
+| `StateDiffTest` | `StateSnapshot`/`StateDiff` side-effect DB assertions |
+| `KafkaCollectorIntegrationTest` | live `KafkaPollingCollector` against embedded broker |
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |
 | `DbWaiterTest` | waiting for a row written asynchronously, without sleeps |
 | `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
 | `SchemaValidatorTest` | detecting drift between entity mappings and the real schema |
 | `JsonContractValidatorTest` | validating API/queue/file payloads against a neutral message template |
-| `FlowRunnerTest` | running a deterministic state path with readable failure diagnostics |
+| `FlowRunnerTest` | state paths, role-based branching, `FlowStepDecorator` hooks |
 | `KafkaProbeTest` | finding buffered Kafka messages and validating their contracts offline |
 | `ResourceUsageMonitorTest` | collecting lightweight JVM resource metrics for run diagnostics |
 
