@@ -133,12 +133,17 @@ Master plan (archive ideas, production v1 gaps, future modules):
 
 Near-term modules worth adding as the need appears:
 
-- `@Prepared` data pools with background refill (see ROADMAP этап 4)
-- module-contract v2 — JSON Schema behind `MessageContract` (этап 3)
-- Gherkin fragments for Cucumber-heavy teams
-- multi-datasource routing in module-db
-- messaging generalization beyond Kafka
-- Allure integration (attachments for SQL log, scoped-stub diffs, prewarm timings)
+- background refill job for the prepared-object pool (`PoolEventListener`
+  already provides the hooks)
+- Allure integration (report steps via `FlowStepDecorator`, attachments for
+  SQL log, scoped-stub diffs, prewarm timings)
+- `module-gherkin` for Cucumber organizations: reusable scenario fragments
+  (`@fragment`-tagged scenarios as callable macros, dependency graph with
+  nested-fragment inlining and cycle detection)
+- multi-datasource routing in module-db: named DataSources per service,
+  `DbWaiter`/`SchemaValidator` with an explicit source
+- messaging generalization beyond Kafka: same buffer/filter/probe API,
+  pluggable collectors (Kafka, RabbitMQ)
 
 ## License
 

@@ -55,6 +55,10 @@ update its example test in the same commit.
    tables tests need to assert on (separate Gradle module per service DB if
    there are many). Write one `SchemaValidator` test per entity and schedule
    them in CI — they catch service migrations that silently break mappings.
+   If the product publishes client/DTO artifacts (a rest-client module,
+   generated OpenAPI models), DEPEND on them instead of duplicating classes:
+   the compiler then catches DTO drift, `SchemaValidator` catches DB drift,
+   module-contract catches runtime payload drift — three independent layers.
    Enable `forge.db.repository-polling.enabled` only when you want `waitBy...`
    default repository methods to poll matching `findBy...` queries.
 5. **module-contract**: encode external API/event/file payloads as
