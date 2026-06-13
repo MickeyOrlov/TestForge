@@ -1,222 +1,169 @@
-# TestForge — roadmap
+# TestForge Roadmap
 
-Единый план работ: идеи из архива (clean-room), gap analysis для production v1,
-и будущие модули. Статусы обновлять при закрытии этапов.
+This document describes where TestForge is today and what kinds of changes fit
+the project. It is intentionally conservative: the template should look boring
+in the right places, compose proven tools, and stay easy to delete or adapt.
+Architecture diagrams live in [architecture.md](architecture.md).
 
-**Verification (всегда):** `./gradlew build --rerun-tasks` зелёный; новая фича —
-example-тест в том же коммите; перед коммитом греп на доменные термины
-работодателей (см. [hygiene](#hygiene)).
+## Vision
 
-Связанные документы:
+TestForge is a JVM test automation template and accelerator, not a replacement
+for the tools teams already trust.
 
-- [production-v1-gap-analysis.md](production-v1-gap-analysis.md) — P0/P1 для
-  боевого staging, Testcontainers/Pact
-- [AGENTS.md](../AGENTS.md) — playbook адаптации
+- TestForge does not replace Spring Boot, JUnit, Playwright, Appium, Allure, or
+  REST Assured.
+- TestForge uses proven tools and provides an opinionated architecture around
+  them: module boundaries, configuration conventions, CI-safe defaults,
+  adaptation notes, and living examples.
+- `core` must stay thin. A class belongs there only when more than one module
+  needs it.
+- Modules must remain deletable. Removing an unused module and its
+  `settings.gradle` entry should not force unrelated refactoring.
+- Default behavior must be CI-safe: no hidden external service calls, no
+  surprise browser/device startup, no swallowed failures.
+- The default build must stay offline-first. Heavy or environment-backed suites
+  belong in explicit Gradle tasks, tags, profiles, or CI jobs.
 
----
+## Current Status
 
-## Статус по этапам
+Status reflects the current repository, not future intent.
 
-| Этап | Тема | Статус |
-|------|------|--------|
-| 1 | Embedded-Kafka collector IT | ✅ закоммичен (`b45ab45`) |
-| 1b | module-contract-monitor | ✅ Kafka probe + contract validation + shape snapshot/diff/report |
-| 2 | StateDiff, Flow decorator, Generators | ✅ закоммичен (`0a7edcf`) |
-| 3 | module-contract v2 (JSON Schema) | ✅ закоммичен (`4507f0b`, networknt 1.5.8 — 3.x ждёт Jackson 3) |
-| 4 | `@Prepared` data pools | ✅ закоммичен (`1f8c4c8`) |
-| 5 | Документация и публикация | ✅ доки (`e13f61b`); push отложен — нужен доступ к GitHub |
-| 6 | Open Source Readiness & Modernization | ✅ ScopedValue-гибрид, pollInSameThread, Agent notes, бейджи |
-| 7 | UI & Mobile Expansion | ✅ Playwright artifacts; Appium device matrix, extension, node lifecycle |
-| 8 | module-state поверх module-flow + @Prepared | ✅ StateRecipe, executor, PreparedDataProvider adapter, example |
-| — | Production v1 gaps (P0) | ✅ extension, scope helper, staging yml, checklist |
+### Stable
 
----
+These modules have a narrow scope, examples, and are suitable as default
+template building blocks.
 
-## Этап 1 — технический долг (полдня) ✅
-... (rest of Stage 1) ...
+| Module | Status note |
+|---|---|
+| `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
+| `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`. |
+| `module-data` | Unique values, template rendering, generators, `@Prepared` pool SPI. |
+| `module-db` | `DbWaiter`, repository polling, SQL logging, schema drift checks with documented limits. |
+| `module-flow` | Deterministic state-machine setup with path logging and decorators. |
+| `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
+| `module-mock` | Scenario-scoped WireMock stubs for shared mock servers. |
+| `module-reporting` | Lightweight resource usage monitor and optional Allure attachment helper. |
+| `module-web` | Playwright-powered environment prewarm, best-effort by design. |
 
-## Этап 1b — module-contract-monitor ✅
+### Beta
 
-Идея: полноценный CI monitor-цикл поверх существующих модулей:
-`find message → validate contract → normalize shape → compare baseline → write report`.
+These modules are implemented and covered by examples, but they are newer or
+depend on opt-in runtime integrations.
 
-- [x] Отдельный `module-contract-monitor`
-- [x] Bean registry: `ContractMonitorCase`
-- [x] Adapter: `JsonPayloadContract` для `MessageContract` и `SchemaContract`
-- [x] Shape snapshot без значений payload
-- [x] Baseline diff: added / removed / changed paths
-- [x] Artifacts: shape, redacted message envelope, `report.json`, `report.md`
-- [x] Example test без внешней Kafka
+| Module | Status note |
+|---|---|
+| `module-contract-monitor` | JUnit-friendly Kafka contract drift monitor with shape snapshots, baseline diffs, and reports. |
+| `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
+| `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
+| `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts. Real devices are opt-in. |
 
-## Этап 6 — Open Source Readiness & Modernization (2–3 дня) ✅
+### Experimental
 
-**6.1 Modernization (Java 26)**
-- [x] Transition `ScenarioContext` from `ThreadLocal` to `ScopedValue` (hybrid: scoped via runScoped(), thread-local fallback)
-- [x] Optimize `Waiter` for virtual threads (pollInSameThread: no poller thread, bindings visible)
+No experimental production module is currently wired into the build. Ideas such
+as API discovery or Gherkin fragments are documented as backlog candidates, not
+as implemented features.
 
-**6.2 "AI-First" Positioning**
-- [x] Update README: "The first AI-native Test Automation Template"
-- [x] Add specific "Agent Instructions" sections to each module README (## Agent notes)
-- [x] Create `docs/adaptation-checklist.md` for both humans and agents
+## Completed
 
-**6.3 Community & Hygiene**
-- [x] Add Open Source badges (License, Java, Boot; CI badge — placeholder до публикации)
-- [x] Implement `ScenarioContextExtension` for auto-cleanup (move from P0 gaps)
-- [x] Integration: JSON Schema behind `MessageContract` (move from Stage 3)
+- Multi-module Gradle template with Java 21 LTS toolchains and Spring Boot 3.5.x
+  auto-configuration modules.
+- Offline reference suite in `example-tests` using H2, embedded WireMock, and
+  direct in-memory fixtures.
+- CI definitions for GitHub Actions and GitLab CI.
+- Docker runner image for warmed Gradle dependencies and Playwright browser
+  assets.
+- Core polling primitives: `Waiter` and `DbWaiter`; no `Thread.sleep` contract.
+- Typed scenario context with JUnit cleanup support.
+- Side-effect assertions through `StateSnapshot` and `StateDiff`.
+- Scoped WireMock stubs for parallel tests against a shared mock server.
+- Kafka message buffer, filters, probe API, and optional polling collector.
+- JSON contract validation with JSON Schema support.
+- CI-style contract monitor that validates Kafka payloads, stores redacted
+  artifacts, and compares payload shapes against baselines.
+- Prepared data pool SPI and `@Prepared` parameter injection.
+- State recipes that compose reusable setup flows and prepared data.
+- Flow runner with guardrails, path reporting, and decorators.
+- Basic JVM resource diagnostics with optional Allure attachment helper.
+- UI environment prewarm.
+- Playwright page fixture and failure artifacts.
+- Appium session fixture, device matrix, capability mapping, optional node
+  lifecycle, and failure artifacts.
+- Adaptation documentation, staging configuration template, and parallel test
+  guidance.
 
-**1.1 Embedded-Kafka тест `KafkaPollingCollector`** (идея: contract monitoring на
-брокере)
+## In Progress
 
-- [x] `KafkaCollectorIntegrationTest` — `@EmbeddedKafka`, random port, produce →
-  `KafkaProbe.awaitMessage`
-- [x] Кейс `seek-to-beginning-on-start` после stop/start collector
-- [x] Без `@Disabled`, без хардкода портов
-- [x] Отдельные heavy-suite CI jobs (`containersTest` + `browsersTest`),
-  nightly + manual; default build остаётся offline
+No production-code implementation is currently marked as in progress in this
+repository.
 
-Файлы: `example-tests/.../KafkaCollectorIntegrationTest.java`
+The active documentation layer is this roadmap plus the short backlog in
+[`BACKLOG.md`](../BACKLOG.md). New implementation work should move from backlog to an
+issue or branch before being described here as in progress.
 
----
+## Planned
 
-## Этап 2 — идеи из архива (день) ✅
+The planned work below follows the existing philosophy: compose established
+tools, keep modules independently removable, and keep the default build
+offline-first.
 
-**2.1 `StateDiff` в core** (идея: side-effect assertions в gray-box DB)
+### Unified Reporting Artifacts
 
-- [x] `StateSnapshot` / `StateDiff` в `core/src/main/java/io/testforge/core/diff/`
-- [x] `StateDiffTest` — одна новая строка, соседи не тронуты; detect changed
-- [x] Строка в `example-tests/README.md`
+Target module: `module-reporting`
 
-**2.2 Декоратор шагов `module-flow`** (идея: cross-cutting без правки шагов)
+- Introduce a shared artifact/report abstraction for test diagnostics.
+- Keep Allure optional.
+- Collect module outputs such as resource stats, SQL logs, flow paths, mock
+  diagnostics, contract reports, Playwright screenshots, and Appium artifacts
+  into predictable CI directories.
 
-- [x] `FlowStepDecorator`, `LoggingFlowStepDecorator`
-- [x] `FlowRunnerFactory.create(steps, decorators)`; default — logging
-- [x] Тест custom decorator в `FlowRunnerTest`
-- [x] README module-flow: decorator API
-- [x] Канонический кейс: `FlowRunnerTest.roleBasedApprovalPath` (ветвление по
-  `role` в `FlowContext`)
+### Stronger Database Support
 
-**2.3 Маски-пресеты `module-data`** (идея: Object Mother «вкусы»)
+Target module: `module-db`
 
-- [x] `Generators.guid() / phone() / numeric() / alphanumeric()`
-- [x] Покрытие в `DataHelpersTest`
-- [x] README: Generators + ссылка на domain Object Mothers в адаптированном
-  проекте
+- Add named datasource support for multi-service test suites.
+- Allow `DbWaiter` and `SchemaValidator` to target an explicit datasource.
+- Expand schema drift checks beyond missing columns where it remains practical
+  and dependency-light.
 
----
+### Better Mock Failure Diagnostics
 
-## Этап 3 — module-contract v2 (день) ✅
+Target module: `module-mock`
 
-**3.1 JSON Schema под API `MessageContract`**
+- Support scope matching beyond request-body JSON paths where useful
+  (headers, query parameters, cookies).
+- Provide readable diagnostics for unmatched scoped requests.
+- Emit scoped stubs and request journal artifacts on failure.
 
-- [x] Заменить начинку `JsonContractValidator` на
-  `com.networknt:json-schema-validator`
-- [x] Сохранить API `MessageContract` / `ContractViolation` / `assertValid`
-- [x] Строгий пресет `ObjectMapper` (дубликаты ключей, без коэрсий)
-- [x] Приоритизация reason-кодов (required > type > …, контроль кардинальности)
-- [x] Сырые JSON-схемы из ресурсов рядом с DSL
-- [x] `JsonContractValidatorTest` и `KafkaProbeTest` — assert'ы без изменений
+### Messaging Abstraction
 
-Граница: не consumer-driven contracts — см. `module-contract/README.md`.
+Target modules: `module-kafka`, possible future `module-messaging`
 
----
+- Extract broker-neutral probe/buffer/filter concepts only if a second broker
+  adapter is actually added.
+- Keep Kafka as the first concrete implementation.
+- Preserve separation between message collection and contract validation.
 
-## Этап 4 — module-data: пул и фикстуры (2–3 дня) ✅
+### Prepared Data Pool Refill
 
-**4.1 `@Prepared` + SPI**
+Target module: `module-data`
 
-- [x] JUnit 5 `ParameterResolver` `@Prepared`
-- [x] SPI `PreparedDataProvider<T>`
-- [x] In-memory пул + `PoolEventListener` (выдан / возвращён / исчерпан)
-- [x] Заглушка провайдера для адаптации
-- [x] Шаг в `AGENTS.md` adaptation playbook
-- [x] Example test
+- Add optional preload/refill configuration for expensive prepared objects.
+- Publish pool metrics through `PoolEventListener`.
+- Report cold misses and exhausted variants in CI artifacts.
 
-Реинкарнация «пула подготовленных данных» как **класса в шаблоне**, не
-отдельного сервиса.
+## Explicitly Out Of Scope
 
----
+TestForge is not trying to create or replace:
 
-## Этап 5 — документация и публикация (полдня) ✅ (push отложен)
+- replacement for Spring;
+- replacement for JUnit;
+- replacement for Playwright;
+- replacement for Appium;
+- replacement for Allure;
+- replacement for REST Assured;
+- own browser engine;
+- own assertion library;
+- own HTTP client.
 
-**5.1 Roadmap в README / AGENTS** (будущие модули)
-
-- [x] Gherkin-фрагменты (для Cucumber-компаний)
-- [x] Multi-datasource routing в `module-db`
-- [x] Обобщение kafka → messaging (RabbitMQ и т.д.)
-- [x] Allure-интеграция (attachments: SQL, flow path, prewarm, resources)
-- [x] Ссылка на `docs/ROADMAP.md` и gap analysis в README
-
-**5.2 Плейбук AGENTS.md — client/DTO артефакты**
-
-- [x] Правило: продукт публикует client/DTO → тест-модуль зависит от них, не
-  дублирует (третий слой защиты от дрейфа рядом с `SchemaValidator` и
-  `module-contract`)
-
-**5.3 GitHub**
-
-- [x] GitHub Actions workflow (`build.yml`)
-- [ ] Репозиторий создан, push, зелёная страница Actions (если ещё не сделано
-  локально)
-
----
-
-## Этап 8 — module-state (сильный кусок из archive ideas) ✅
-
-Идея из старых фреймворков: тест не проходит 40 экранов/запросов ради setup,
-а просит доменный объект в состоянии X.
-
-- [x] `module-state` как отдельный Spring Boot auto-configuration module
-- [x] `StateRecipe<T, S>` — typed recipe поверх `FlowRunner`
-- [x] `StateRecipeExecutor` — возвращает объект и flow path
-- [x] `StatePreparedDataProvider` — bridge в `@Prepared`
-- [x] `StateRequest` — target-state tags (`approved` или `state:approved`)
-- [x] `StateRecipePreparedDataTest` в example-tests
-
----
-
-## Production v1 gaps (из gap analysis) — P0 ✅, P1 ⬜
-
-Критично перед параллельным staging — не дублирует этапы 1–5, дополняет:
-
-| P0 | Описание |
-|----|----------|
-| [x] | `ScenarioContextExtension` — auto `clear()` после теста |
-| [x] | Test scope helper → `MockScope` correlation |
-| [x] | `application-staging.example.yml` |
-| [x] | `docs/adaptation-checklist.md` |
-| [x] | Dockerfile — все `module-*/build.gradle` в warmup |
-
-| P1 | Описание |
-|----|----------|
-| [x] | Optional Testcontainers example (`@Tag("containers")`, `containersTest`) |
-| [x] | Allure: AllureFlowStepDecorator + AllureResourceAttachments (optional deps) |
-| [x] | `SchemaValidator` — `@Embedded` |
-| [x] | Parallel tests guide (docs/parallel-tests.md) |
-| [x] | RestAssured + scope HTTP example (ScopedRequestTemplateTest) |
-
-Детали: [production-v1-gap-analysis.md](production-v1-gap-analysis.md).
-
----
-
-## Hygiene
-
-Clean-room: код чужих проектов не переносится — только идеи. Перед коммитом
-грепом убедиться, что в дереве нет доменных/брендовых терминов прошлых
-работодателей, путей вида `/work/...` и их пакетных префиксов. Список
-конкретных терминов держать вне репозитория (личная заметка), чтобы сам
-шаблон не раскрывал, где автор работал.
-
----
-
-## Definition of Done — template v1.0.0
-
-- [x] Этапы 1–2 закоммичены и зелёные
-- [x] Этап 3 или явный defer с причиной в README contract module
-- [x] P0 production gaps закрыты
-- [x] `example-tests/README` = все тест-классы
-- [x] `./gradlew build` без внешних сервисов (embedded Kafka в default build —
-  ок, брокер в JVM)
-
----
-
-*Living doc — обновлять статусы при merge.*
+It should remain a template that arranges these tools into a maintainable test
+automation architecture.

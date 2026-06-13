@@ -1,30 +1,71 @@
 # TestForge
 
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
-![Java](https://img.shields.io/badge/Java-26-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F)
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)
 <!-- after publishing, add the live CI badge:
 ![CI](https://github.com/OWNER/REPO/actions/workflows/build.yml/badge.svg) -->
 
-**The first AI-native Test Automation Template for JVM.**
+**A pragmatic test automation template for JVM teams.**
 
 A template test framework for JVM backend ecosystems (Spring services, REST,
-PostgreSQL, Kafka). Stack: Java 26, Spring Boot 4.x, Gradle 9.x, JUnit 5. Clone it, rename it, delete what you don't need — it is a
-**template repository**, not a published library. The goal is to start a new
-team's test automation from a skeleton that already encodes hard-won
-decisions, instead of from an empty directory.
+PostgreSQL, Kafka). Stack: Java 21 LTS, Spring Boot 3.5.x, Gradle 9.x, JUnit 5.
+Clone it, rename it, delete what you don't need — it is a **template
+repository**, not a published library. The goal is to give a team a tested
+automation skeleton with clear module boundaries and CI-safe defaults, instead
+of starting from an empty directory.
 
 ### Why TestForge?
 
-1. **AI-Native**: Designed from the ground up to be adapted and extended by AI coding agents (Claude, Cursor, Gemini). See [AGENTS.md](AGENTS.md).
-2. **Modern Concurrency**: Optimized for Virtual Threads (Java 26) with polling-based waits.
-3. **Modular**: Deletable modules, no "heavy" dependencies by default.
-4. **Offline-First**: Embedded Kafka/DB/Mocks in the reference suite for fast local feedback.
+1. **Opinionated, not magical**: TestForge arranges proven tools into a
+   maintainable test architecture; it does not replace Spring, JUnit,
+   Playwright, Appium, Allure, or REST Assured.
+2. **Modular**: Deletable modules, no "heavy" dependencies by default.
+3. **CI-safe by default**: External services, browsers, and devices are opt-in.
+4. **Offline-first**: The default reference suite runs without external
+   infrastructure.
+5. **Agent-friendly**: Adaptation notes live in [AGENTS.md](AGENTS.md) and the
+   module READMEs.
 
 ## Architecture
 
 A deliberately thin core plus optional modules. Modules plug in through Spring
-Boot auto-configuration: putting one on the classpath is all it takes.
+Boot auto-configuration: putting one on the classpath is all it takes. TestForge
+uses Spring Boot, JUnit 5, Playwright, Appium, WireMock, Testcontainers and
+other established tools as integration points; it does not reimplement them.
+
+```mermaid
+flowchart LR
+    Core["core\nScenarioContext + Waiter"]
+    Data["module-data\nunique values + prepared fixtures"]
+    Flow["module-flow\nstate-machine setup"]
+    State["module-state\nstate recipes"]
+    DB["module-db\nDB waits + schema drift"]
+    Mock["module-mock\nscoped WireMock"]
+    Kafka["module-kafka\nmessage probe"]
+    Contract["module-contract\nJSON contracts"]
+    Monitor["module-contract-monitor\nKafka drift report"]
+    Web["module-web-playwright\nbrowser fixtures"]
+    Mobile["module-mobile-appium\nmobile fixtures"]
+    Examples["example-tests\nliving documentation"]
+
+    Core --> Data
+    Core --> Flow
+    Core --> DB
+    Core --> Mock
+    Core --> Kafka
+    Core --> Contract
+    Data --> State
+    Flow --> State
+    Kafka --> Monitor
+    Contract --> Monitor
+    Web --> Examples
+    Mobile --> Examples
+    State --> Examples
+    DB --> Examples
+    Mock --> Examples
+    Monitor --> Examples
+```
 
 | Module | What it gives you |
 |---|---|
@@ -35,7 +76,7 @@ Boot auto-configuration: putting one on the classpath is all it takes.
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
-| [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters, contract validation |
+| [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Resource usage monitor for JVM memory/CPU diagnostics in CI artifacts |
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
@@ -57,8 +98,19 @@ database".
 ## Docker and CI
 
 The repository has no long-running application container. The Docker image is a
-CI runner image: Java 26, warmed Gradle dependencies, and Chromium for
-`module-web` prewarm.
+CI runner image: Java 21 LTS, warmed Gradle dependencies, and Chromium for
+Playwright-powered prewarm/browser examples.
+
+```mermaid
+flowchart TD
+    Push["push / pull request"] --> Build["default build\n./gradlew build"]
+    Build --> Offline["offline examples\nH2 + WireMock + in-memory fixtures"]
+    Schedule["nightly / manual"] --> Heavy["heavy suites"]
+    Heavy --> Containers["Testcontainers examples"]
+    Heavy --> Browsers["Playwright browser examples"]
+    Main["main / manual"] --> Docker["runner image build"]
+    Docker --> Warm["Gradle cache + Chromium baked in"]
+```
 
 ```bash
 docker build -t testforge-runner .
@@ -169,28 +221,34 @@ owns disposable infrastructure (broker/DB in CI — see
 `PostgresSchemaValidationIT`); Pact / Spring Cloud Contract owns cross-team
 provider/consumer contracts. `module-contract` deliberately stays a cheap
 QA-side shape-drift check on real staging traffic — when two teams need a
-verified API contract, reach for Pact. The full comparison matrix lives in
-[docs/production-v1-gap-analysis.md](docs/production-v1-gap-analysis.md).
+verified API contract, reach for Pact.
+
+```mermaid
+flowchart TB
+    Tests["JUnit / REST Assured / Playwright / Appium tests"]
+    TF["TestForge\nopinionated test toolkit"]
+    Infra["Testcontainers\nlocal infrastructure"]
+    Contracts["Pact / SCC\ncross-team contracts"]
+    System["System under test"]
+    External["Shared staging services\nKafka, DB, WireMock"]
+
+    Tests --> TF
+    TF --> System
+    TF --> External
+    Tests --> Infra
+    Tests --> Contracts
+    Infra --> System
+    Contracts --> System
+```
 
 ## Roadmap
 
-Master plan (archive ideas, production v1 gaps, future modules):
-[docs/ROADMAP.md](docs/ROADMAP.md). Production staging checklist:
-[docs/production-v1-gap-analysis.md](docs/production-v1-gap-analysis.md).
-
-Near-term modules worth adding as the need appears:
-
-- background refill job for the prepared-object pool (`PoolEventListener`
-  already provides the hooks)
-- Allure integration (report steps via `FlowStepDecorator`, attachments for
-  SQL log, scoped-stub diffs, prewarm timings)
-- `module-gherkin` for Cucumber organizations: reusable scenario fragments
-  (`@fragment`-tagged scenarios as callable macros, dependency graph with
-  nested-fragment inlining and cycle detection)
-- multi-datasource routing in module-db: named DataSources per service,
-  `DbWaiter`/`SchemaValidator` with an explicit source
-- messaging generalization beyond Kafka: same buffer/filter/probe API,
-  pluggable collectors (Kafka, RabbitMQ)
+Project philosophy, module maturity, completed work, and planned scope live in
+[docs/ROADMAP.md](docs/ROADMAP.md). Architecture diagrams live in
+[docs/architecture.md](docs/architecture.md). The short implementation backlog lives in
+[BACKLOG.md](BACKLOG.md). Adaptation and parallel execution guides live in
+[docs/adaptation-checklist.md](docs/adaptation-checklist.md) and
+[docs/parallel-tests.md](docs/parallel-tests.md).
 
 ## Changelog
 

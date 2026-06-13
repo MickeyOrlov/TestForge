@@ -118,13 +118,11 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Conventions
 
-- Java 26 toolchain (auto-provisioned via foojay resolver), Spring Boot 4.x,
+- Java 21 LTS toolchain (auto-provisioned via foojay resolver), Spring Boot 3.5.x,
   Gradle 9.x. No Lombok in template code (adapters may add it).
-- Boot 4 modularized auto-configurations: classes like
-  `DataSourceAutoConfiguration` live in technology modules
-  (`org.springframework.boot.jdbc.autoconfigure.*`). When ordering against
-  them from a module that doesn't depend on that technology, use the
-  string-based `afterName` attribute, not a class reference.
+- When ordering against optional Spring Boot auto-configurations from a module
+  that does not depend on that technology, use the string-based `afterName`
+  attribute, not a class reference.
 - No `Thread.sleep` anywhere — use `Waiter`/`DbWaiter`. If you believe you
   need a sleep, you need a polling condition you have not written yet.
 - Test data must be unique per run (UUID/timestamp suffixes), never shared

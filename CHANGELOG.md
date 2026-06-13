@@ -21,6 +21,10 @@ semantic versioning for its git tags.
   jobs); README section on TestForge + Testcontainers + Pact as layers.
 
 ### Changed
+- Default Spring Boot baseline moved to 3.5.x for a calmer enterprise adoption
+  path while keeping Java 21 LTS and Gradle 9.x.
+- Default toolchain moved to Java 21 LTS for broader enterprise adoption;
+  `ScenarioContext.runScoped(...)` no longer depends on preview JDK APIs.
 - Repository hygiene: the personal employer-project analysis note was removed
   from the tree and purged from history; the roadmap hygiene section no longer
   lists concrete previous-employer terms.
@@ -42,9 +46,8 @@ semantic versioning for its git tags.
 - AI-first docs: `## Agent notes` in every module README, badges.
 
 ### Changed
-- `ScenarioContext`: hybrid thread-local + `ScopedValue` (`runScoped`) carrier;
-  `Waiter` polls in the calling thread (virtual-thread friendly, bindings
-  visible to conditions).
+- `ScenarioContext`: `runScoped` carrier for nested context isolation;
+  `Waiter` polls in the calling thread (bindings visible to conditions).
 
 ## [1.0.0]
 
