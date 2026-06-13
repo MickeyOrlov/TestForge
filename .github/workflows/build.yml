@@ -46,10 +46,10 @@ jobs:
             **/build/reports/tests/test/
           if-no-files-found: ignore
 
-  containers:
-    name: Container-backed examples
-    runs-on: ubuntu-latest # Docker is available out of the box
-    timeout-minutes: 20
+  heavy-suites:
+    name: Container- and browser-backed examples
+    runs-on: ubuntu-latest # Docker and browser deps available out of the box
+    timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
@@ -64,12 +64,18 @@ jobs:
       - name: Run Testcontainers-backed suite
         run: ./gradlew :example-tests:containersTest
 
+      - name: Install Chromium and run browser suite
+        run: ./gradlew :module-web-playwright:playwrightInstall :example-tests:browsersTest
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: containers-test-reports
-          path: "**/build/test-results/containersTest/"
+          name: heavy-suite-reports
+          path: |
+            **/build/test-results/containersTest/
+            **/build/test-results/browsersTest/
+            build/playwright-artifacts/
           if-no-files-found: ignore
 
   docker-runner-image:

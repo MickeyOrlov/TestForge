@@ -192,6 +192,10 @@ Near-term modules worth adding as the need appears:
 - messaging generalization beyond Kafka: same buffer/filter/probe API,
   pluggable collectors (Kafka, RabbitMQ)
 
+## Changelog
+
+Release history is in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

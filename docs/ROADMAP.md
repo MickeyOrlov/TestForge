@@ -71,8 +71,8 @@ example-тест в том же коммите; перед коммитом гр
   `KafkaProbe.awaitMessage`
 - [x] Кейс `seek-to-beginning-on-start` после stop/start collector
 - [x] Без `@Disabled`, без хардкода портов
-- [ ] (опционально) Gradle tag `containers` / отдельный CI job если CI станет
-  тяжёлым
+- [x] Отдельные heavy-suite CI jobs (`containersTest` + `browsersTest`),
+  nightly + manual; default build остаётся offline
 
 Файлы: `example-tests/.../KafkaCollectorIntegrationTest.java`
 
