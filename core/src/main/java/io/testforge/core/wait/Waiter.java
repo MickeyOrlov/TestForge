@@ -27,8 +27,8 @@ public class Waiter {
      *
      * <p>Polling happens on the calling thread ({@code pollInSameThread}):
      * no extra poller thread per await — cheap on virtual threads — and the
-     * condition sees the caller's bindings (thread-locals like
-     * {@code ScenarioContext}, {@code ScopedValue} scopes). Trade-off: a
+     * condition sees the caller's thread-bound context (for example,
+     * {@code ScenarioContext}). Trade-off: a
      * condition that blocks forever cannot be interrupted by the timeout, so
      * keep conditions to quick queries.
      */

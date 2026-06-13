@@ -21,9 +21,8 @@ dependencies {
     // Gradle 9 no longer injects the launcher onto the test runtime classpath
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
-    // embedded broker for the collector integration test; spring-boot-kafka
-    // auto-configures the ConsumerFactory the collector needs
-    testImplementation "org.springframework.boot:spring-boot-kafka"
+    // embedded broker for the collector integration test; Spring Boot's
+    // KafkaAutoConfiguration creates the ConsumerFactory when spring-kafka is present
     testImplementation "org.springframework.kafka:spring-kafka-test"
 
     // container-backed tests (tag "containers", excluded from default build)

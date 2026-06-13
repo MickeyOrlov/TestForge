@@ -4,7 +4,7 @@
 
 # noble (Ubuntu 24.04 LTS) pinned: Playwright's install-deps matrix lags
 # behind the newest Ubuntu the unsuffixed temurin tag may jump to
-FROM eclipse-temurin:26-jdk-noble
+FROM eclipse-temurin:21-jdk-noble
 
 ENV GRADLE_USER_HOME=/opt/gradle-home \
     GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.console=plain" \

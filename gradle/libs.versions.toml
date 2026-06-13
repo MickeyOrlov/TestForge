@@ -1,5 +1,5 @@
 [versions]
-spring-boot = "4.1.0"
+spring-boot = "3.5.15"
 wiremock = "3.13.1"
 datasource-proxy = "1.10.1"
 # 1.5.x is the last Jackson-2 line; 3.x switched to Jackson 3 (tools.jackson)

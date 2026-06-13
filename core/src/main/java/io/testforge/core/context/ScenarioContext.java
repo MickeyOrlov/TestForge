@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 /**
  * Storage for values produced during a scenario (ids, responses, expected
- * values). Two carriers, one API:
+ * values). Two usage modes, one API:
  *
  * <ul>
  *   <li><b>Default:</b> thread-local — each test thread sees its own store;
@@ -18,32 +18,36 @@ import java.util.stream.Collectors;
  *       {@link #clear()} in an after-hook) so reused worker threads start
  *       clean.</li>
  *   <li><b>Scoped:</b> inside {@link #runScoped(Runnable)} the store is
- *       carried by a {@link ScopedValue} binding — the block gets a fresh,
- *       isolated context and the surrounding thread-local store is untouched.
- *       Useful for nested preparation (a {@code PreparedDataProvider} driving
- *       its own flow must not pollute the calling test's context), and the
- *       forward-compatible path to structured concurrency: when
- *       {@code StructuredTaskScope} finalizes, forked virtual threads will
- *       inherit this binding automatically.</li>
+ *       replaced for the duration of the block — nested preparation gets a
+ *       fresh, isolated context and the caller's store is restored afterwards.
+ *       Useful when a {@code PreparedDataProvider} drives its own flow and
+ *       must not pollute the calling test's context.</li>
  * </ul>
  */
 public final class ScenarioContext {
 
-    private static final ScopedValue<Map<ContextKey<?>, Object>> SCOPED_STORE =
-            ScopedValue.newInstance();
-
-    private static final ThreadLocal<Map<ContextKey<?>, Object>> THREAD_STORE =
-            ThreadLocal.withInitial(HashMap::new);
+    private static final ThreadLocal<Map<ContextKey<?>, Object>> THREAD_STORE = new ThreadLocal<>();
 
     private ScenarioContext() {
     }
 
     /**
      * Runs the block with a fresh, isolated context store. The store is
-     * concurrency-safe, so structured-concurrency children may write to it.
+     * restored to the caller's previous state even when the block fails.
      */
     public static void runScoped(Runnable scenario) {
-        ScopedValue.where(SCOPED_STORE, new ConcurrentHashMap<>()).run(scenario);
+        Objects.requireNonNull(scenario, "scenario");
+        Map<ContextKey<?>, Object> previous = THREAD_STORE.get();
+        THREAD_STORE.set(new ConcurrentHashMap<>());
+        try {
+            scenario.run();
+        } finally {
+            if (previous == null) {
+                THREAD_STORE.remove();
+            } else {
+                THREAD_STORE.set(previous);
+            }
+        }
     }
 
     public static <T> void put(ContextKey<T> key, T value) {
@@ -62,15 +66,16 @@ public final class ScenarioContext {
     }
 
     public static void clear() {
-        if (SCOPED_STORE.isBound()) {
-            SCOPED_STORE.get().clear();
-        } else {
-            THREAD_STORE.remove();
-        }
+        THREAD_STORE.remove();
     }
 
     private static Map<ContextKey<?>, Object> store() {
-        return SCOPED_STORE.isBound() ? SCOPED_STORE.get() : THREAD_STORE.get();
+        Map<ContextKey<?>, Object> store = THREAD_STORE.get();
+        if (store == null) {
+            store = new HashMap<>();
+            THREAD_STORE.set(store);
+        }
+        return store;
     }
 
     private static String knownKeys() {

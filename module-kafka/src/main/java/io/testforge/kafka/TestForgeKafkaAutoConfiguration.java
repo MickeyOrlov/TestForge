@@ -13,7 +13,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 
 @AutoConfiguration(
         after = TestForgeCoreAutoConfiguration.class,
-        afterName = "org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration")
+        afterName = "org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration")
 @EnableConfigurationProperties(KafkaProbeProperties.class)
 public class TestForgeKafkaAutoConfiguration {
 

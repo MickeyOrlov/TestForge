@@ -7,7 +7,7 @@ variables:
   # Default: public JDK image, dependencies download on every run.
   # After building the runner image (manual job below), override this in
   # CI/CD settings with $CI_REGISTRY_IMAGE/runner:latest for warm runs.
-  RUNNER_IMAGE: "eclipse-temurin:26-jdk-noble"
+  RUNNER_IMAGE: "eclipse-temurin:21-jdk-noble"
   GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.console=plain"
 
 default:

@@ -15,11 +15,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-// DataSourceAutoConfiguration referenced by name: it lives in the optional
-// spring-boot-jdbc module (Boot 4 modularization) and may be absent here
 @AutoConfiguration(
         after = TestForgeCoreAutoConfiguration.class,
-        afterName = "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration")
+        afterName = "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration")
 @EnableConfigurationProperties(RepositoryPollingProperties.class)
 public class TestForgeDbAutoConfiguration {
 
