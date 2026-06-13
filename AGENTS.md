@@ -10,15 +10,17 @@ probably one of: (a) adapt the template to a concrete project/system,
 ```
 core/          ScenarioContext (typed thread-local), Waiter (polling, no sleeps)
 module-contract/ JSON message contracts for API/queue/file drift checks
+module-contract-monitor/ Kafka drift monitor: contract validation + shape diff report
 module-data/   RunUniqueValues, TemplateRenderer for generated test data
 module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
+module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ ResourceUsageMonitor for CI diagnostics
 module-web/    PrewarmRunner — warm key pages once per suite
-module-web-playwright/ [Planned] Full Playwright UI testing integration
-module-mobile-appium/  [Planned] Cross-platform Mobile testing (Android/iOS)
+module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
+module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
 example-tests/ reference suite, runs offline (embedded WireMock + H2)
 ```
 
@@ -65,28 +67,47 @@ update its example test in the same commit.
    `MessageContract`s and validate them in scheduled checks. This is the
    neutral core for Kafka/topic drift monitoring: the consumer adapter pulls
    payloads, this module decides whether the shape changed.
-6. **module-data**: use `RunUniqueValues` around domain generators and
+6. **module-contract-monitor**: for scheduled Kafka drift checks, register
+   `ContractMonitorCase` beans and run `ContractMonitorRunner.assertHealthy()`
+   from a JUnit job. Enable Kafka topics only in the environment profile that
+   has broker access. Keep baseline artifacts as CI artifacts or explicit
+   inputs; do not auto-rewrite `src/test/resources`. Shape snapshots must
+   contain types only, never real payload values.
+7. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the
    product API, typically a module-flow run inside `prepare(tags)`), then
    inject objects into tests with `@Prepared` + `PreparedParameterResolver`.
    Stock hot variants with `pool.preload(...)` in a suite hook; wire refill
    or metrics through `PoolEventListener`.
-7. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
+8. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
    reach a deep state through deterministic transitions. Keep steps small and
    idempotent; the runner should make failures readable by showing the path.
-8. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
+9. **module-state**: for reusable business setup, implement
+   `StateRecipe<T, S>` and expose it through `StatePreparedDataProvider`. Tests
+   then ask for `@Prepared(tags = "approved")` or
+   `@Prepared(tags = {"state:approved", "tenant:demo"})` instead of repeating
+   setup calls. Recipes should use product/test-support APIs and `FlowRunner`;
+   direct DB writes are an explicit project decision, not the default.
+10. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
    broker access. Use `KafkaProbe` to find messages by topic/key/header/JSON
    path; shape checks compose with `module-contract` (await the message, then
    `assertValid` its value) — never reintroduce a hard dependency between the
    two modules.
-9. **module-reporting**: enable `forge.reporting.resource-monitor.enabled` in
+11. **module-reporting**: enable `forge.reporting.resource-monitor.enabled` in
    CI profiles when you need JVM memory/CPU diagnostics for slow or flaky runs.
-10. **module-web**: list the 2–4 heaviest pages of the system under test in
+12. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile.
-11. **Delete what is not needed.** Unused modules: remove the directory and its
+13. **module-mobile-appium**: put real devices in explicit mobile profiles,
+   never in the default build. `forge.mobile.appium.enabled=true` only creates
+   beans; sessions open lazily when a test requests `AppiumSession` or
+   `AppiumDriver`. Use `devices.<id>` + `@MobileDevice("id")` for matrix
+   selection, keep local node startup opt-in with `node.auto-start=true`, and
+   upload `build/appium-artifacts` from mobile CI jobs. Screen objects and
+   provider-specific clients stay in the adapted project.
+14. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
-12. **Client/DTO artifacts (drift layer 3).** When the product publishes a
+15. **Client/DTO artifacts (drift layer 3).** When the product publishes a
    versioned client or DTO module (OpenAPI-generated stubs, shared event
    types), make the test module depend on it instead of duplicating JSON
    shapes in test code. Keep `SchemaValidator` (DB mappings) and

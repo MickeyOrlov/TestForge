@@ -29,9 +29,8 @@ forge:
 ## CI note
 
 Playwright downloads a browser on first use. Bake
-`npx playwright install chromium` (or the Java equivalent
-`mvn/gradle playwright install`) into the CI image to avoid paying the
-download on every run.
+`./gradlew :module-web-playwright:playwrightInstall` into the CI image to
+avoid paying the download on every run.
 
 ## Agent notes
 

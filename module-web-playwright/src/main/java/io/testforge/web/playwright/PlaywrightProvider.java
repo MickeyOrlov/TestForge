@@ -22,7 +22,10 @@ public class PlaywrightProvider {
         BrowserType browserType = switch (properties.browserType().toLowerCase()) {
             case "firefox" -> playwright.firefox();
             case "webkit" -> playwright.webkit();
-            default -> playwright.chromium();
+            case "chromium" -> playwright.chromium();
+            default -> throw new IllegalArgumentException(
+                    "Unknown forge.playwright.browser-type '%s'. Use chromium, firefox or webkit."
+                            .formatted(properties.browserType()));
         };
 
         this.browser = browserType.launch(new BrowserType.LaunchOptions()

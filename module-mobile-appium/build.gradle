@@ -4,4 +4,11 @@ dependencies {
     api project(":core")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api libs.appium
+
+    // AppiumExtension: fixture injection for JUnit 5 mobile tests
+    api "org.junit.jupiter:junit-jupiter-api"
+    implementation "org.springframework:spring-test"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }

@@ -57,7 +57,9 @@ How it fits together:
 
 - **`PreparedDataProvider<T>`** — THE adaptation point: implement it to drive
   the product API into the requested state (a `module-flow` run is the
-  natural body of `prepare(tags)`).
+  natural body of `prepare(tags)`). When that setup is reusable, prefer
+  `module-state`: write a `StateRecipe<T, S>` and expose it through
+  `StatePreparedDataProvider`.
 - **`PreparedDataPool`** — stock variants up front with
   `preload(type, tags, count)` (suite hook or scheduled job); `acquire` falls
   back to on-the-spot preparation on a cold miss. Objects are handed out
@@ -68,8 +70,9 @@ How it fits together:
 ## Agent notes
 
 - `PreparedDataProvider<T>` is THE adaptation point — its `prepare(tags)`
-  should drive the product API (typically a module-flow run), never fabricate
-  rows directly in the DB unless the project explicitly allows it.
+  should drive the product API (typically through `module-state` +
+  `module-flow`), never fabricate rows directly in the DB unless the project
+  explicitly allows it.
 - Pool objects are handed out exactly once; there is no release on purpose.
 - Uniqueness comes from `RunUniqueValues` + `Generators`; do not invent
   ad-hoc random suffixes in tests.

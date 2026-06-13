@@ -18,9 +18,11 @@ COPY gradle ./gradle
 COPY gradlew settings.gradle build.gradle gradle.properties ./
 COPY core/build.gradle core/build.gradle
 COPY module-contract/build.gradle module-contract/build.gradle
+COPY module-contract-monitor/build.gradle module-contract-monitor/build.gradle
 COPY module-data/build.gradle module-data/build.gradle
 COPY module-db/build.gradle module-db/build.gradle
 COPY module-flow/build.gradle module-flow/build.gradle
+COPY module-state/build.gradle module-state/build.gradle
 COPY module-kafka/build.gradle module-kafka/build.gradle
 COPY module-mock/build.gradle module-mock/build.gradle
 COPY module-reporting/build.gradle module-reporting/build.gradle
@@ -36,8 +38,9 @@ RUN ./gradlew --no-daemon help
 COPY . .
 
 # testClasses resolves compile/test configurations into GRADLE_USER_HOME;
-# playwrightInstall bakes Chromium and Linux packages used by PrewarmRunner.
-RUN ./gradlew --no-daemon testClasses :module-web:playwrightInstall \
+# playwrightInstall bakes Chromium and Linux packages used by Playwright tests
+# and PrewarmRunner.
+RUN ./gradlew --no-daemon testClasses :module-web-playwright:playwrightInstall \
     && chmod -R a+rX /opt/gradle-home /opt/ms-playwright \
     && cd / \
     && rm -rf /opt/warmup

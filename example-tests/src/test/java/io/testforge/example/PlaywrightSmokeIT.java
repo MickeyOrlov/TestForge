@@ -22,7 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * <p>Tagged {@code browser}, excluded from the default build — run with
  * {@code ./gradlew :example-tests:browsersTest} after
- * {@code ./gradlew :module-web:playwrightInstall}.
+ * {@code ./gradlew :module-web-playwright:playwrightInstall}.
  */
 @SpringBootTest(properties = "forge.playwright.enabled=true")
 @Tag("browser")

@@ -8,10 +8,12 @@ plays the service database.
 |---|---|
 | `DataHelpersTest` | per-run unique values, `Generators` masks, `%{variable}%` templates |
 | `PreparedDataTest` | `@Prepared` fixture injection backed by the prepared-object pool |
+| `StateRecipePreparedDataTest` | `module-state` recipe driving `module-flow` and feeding `@Prepared` fixtures |
 | `ScenarioContextCleanupTest` | `ScenarioContextExtension` auto-clear between tests on reused threads |
 | `ScopedRequestTemplateTest` | payload template embeds the generated scope id; request lands on the scenario's stub |
 | `StateDiffTest` | `StateSnapshot`/`StateDiff` side-effect DB assertions |
 | `KafkaCollectorIntegrationTest` | live `KafkaPollingCollector` against embedded broker |
+| `ContractMonitorExampleTest` | CI-style Kafka contract monitor: buffer message, validate contract, write shape/report artifacts |
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |
 | `DbWaiterTest` | waiting for a row written asynchronously, without sleeps |
 | `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
@@ -19,6 +21,7 @@ plays the service database.
 | `PostgresSchemaValidationIT` | same checks on real Postgres via Testcontainers — `../gradlew :example-tests:containersTest` (needs Docker) |
 | `PlaywrightSmokeIT` | `Page` fixture injection + locator conventions on a real browser — `../gradlew :example-tests:browsersTest` |
 | `AppiumWiringTest` | appium factory wiring and fail-fast configuration check, no device farm needed |
+| `AppiumExtensionWiringTest` | mobile fixture injection for `AppiumSession`/`AppiumDriver` with a fake factory, no device needed |
 | `JsonContractValidatorTest` | validating API/queue/file payloads against a neutral message template |
 | `FlowRunnerTest` | state paths, role-based branching, `FlowStepDecorator` hooks |
 | `KafkaProbeTest` | finding buffered Kafka messages and validating their contracts offline |

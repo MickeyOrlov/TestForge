@@ -3,9 +3,11 @@ dependencies {
 
     testImplementation project(":core")
     testImplementation project(":module-contract")
+    testImplementation project(":module-contract-monitor")
     testImplementation project(":module-data")
     testImplementation project(":module-db")
     testImplementation project(":module-flow")
+    testImplementation project(":module-state")
     testImplementation project(":module-kafka")
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")
@@ -58,7 +60,7 @@ tasks.register("containersTest", Test) {
 }
 
 tasks.register("browsersTest", Test) {
-    description = "Browser-backed UI examples (run :module-web:playwrightInstall first)"
+    description = "Browser-backed UI examples (run :module-web-playwright:playwrightInstall first)"
     group = "verification"
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath

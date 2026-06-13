@@ -20,18 +20,33 @@ example-тест в том же коммите; перед коммитом гр
 | Этап | Тема | Статус |
 |------|------|--------|
 | 1 | Embedded-Kafka collector IT | ✅ закоммичен (`b45ab45`) |
+| 1b | module-contract-monitor | ✅ Kafka probe + contract validation + shape snapshot/diff/report |
 | 2 | StateDiff, Flow decorator, Generators | ✅ закоммичен (`0a7edcf`) |
 | 3 | module-contract v2 (JSON Schema) | ✅ закоммичен (`4507f0b`, networknt 1.5.8 — 3.x ждёт Jackson 3) |
 | 4 | `@Prepared` data pools | ✅ закоммичен (`1f8c4c8`) |
 | 5 | Документация и публикация | ✅ доки (`e13f61b`); push отложен — нужен доступ к GitHub |
 | 6 | Open Source Readiness & Modernization | ✅ ScopedValue-гибрид, pollInSameThread, Agent notes, бейджи |
-| 7 | UI & Mobile Expansion | ✅ Page-фикстура, browsersTest, AppiumSession; page/screen-объекты — в адаптации |
+| 7 | UI & Mobile Expansion | ✅ Playwright artifacts; Appium device matrix, extension, node lifecycle |
+| 8 | module-state поверх module-flow + @Prepared | ✅ StateRecipe, executor, PreparedDataProvider adapter, example |
 | — | Production v1 gaps (P0) | ✅ extension, scope helper, staging yml, checklist |
 
 ---
 
 ## Этап 1 — технический долг (полдня) ✅
 ... (rest of Stage 1) ...
+
+## Этап 1b — module-contract-monitor ✅
+
+Идея: полноценный CI monitor-цикл поверх существующих модулей:
+`find message → validate contract → normalize shape → compare baseline → write report`.
+
+- [x] Отдельный `module-contract-monitor`
+- [x] Bean registry: `ContractMonitorCase`
+- [x] Adapter: `JsonPayloadContract` для `MessageContract` и `SchemaContract`
+- [x] Shape snapshot без значений payload
+- [x] Baseline diff: added / removed / changed paths
+- [x] Artifacts: shape, redacted message envelope, `report.json`, `report.md`
+- [x] Example test без внешней Kafka
 
 ## Этап 6 — Open Source Readiness & Modernization (2–3 дня) ✅
 
@@ -142,6 +157,20 @@ example-тест в том же коммите; перед коммитом гр
 - [x] GitHub Actions workflow (`build.yml`)
 - [ ] Репозиторий создан, push, зелёная страница Actions (если ещё не сделано
   локально)
+
+---
+
+## Этап 8 — module-state (сильный кусок из archive ideas) ✅
+
+Идея из старых фреймворков: тест не проходит 40 экранов/запросов ради setup,
+а просит доменный объект в состоянии X.
+
+- [x] `module-state` как отдельный Spring Boot auto-configuration module
+- [x] `StateRecipe<T, S>` — typed recipe поверх `FlowRunner`
+- [x] `StateRecipeExecutor` — возвращает объект и flow path
+- [x] `StatePreparedDataProvider` — bridge в `@Prepared`
+- [x] `StateRequest` — target-state tags (`approved` или `state:approved`)
+- [x] `StateRecipePreparedDataTest` в example-tests
 
 ---
 

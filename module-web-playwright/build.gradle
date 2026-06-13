@@ -10,3 +10,11 @@ dependencies {
     api "org.junit.jupiter:junit-jupiter-api"
     implementation "org.springframework:spring-test"
 }
+
+tasks.register("playwrightInstall", JavaExec) {
+    description = "Downloads the browser bundle used by module-web-playwright"
+    group = "setup"
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = "com.microsoft.playwright.CLI"
+    args "install", "--with-deps", "chromium"
+}

@@ -1,0 +1,12 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    api project(":module-kafka")
+    api project(":module-contract")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

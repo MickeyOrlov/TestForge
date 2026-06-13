@@ -1,15 +1,27 @@
 # module-mobile-appium
 
-Appium bootstrap for mobile tests: a configured driver factory and a
-try-with-resources session wrapper.
+Appium lifecycle for mobile tests: device matrix, fixture injection, optional
+local node startup and failure artifacts.
 
 ## What's inside
 
-- **`AppiumDriverFactory`** — builds platform-appropriate drivers
-  (Android/iOS) from properties; fails fast with a readable message on a
-  broken hub URL.
-- **`AppiumSession`** — `AutoCloseable` wrapper: one session = one test,
-  `close()` quits the driver and releases the device slot even on failure.
+- **`AppiumDeviceRegistry` / `ResolvedAppiumDevice`** — resolves the selected
+  device from `devices.<id>`, `default-device`, or legacy flat properties.
+- **`AppiumCapabilitiesMapper`** — maps YAML properties to W3C/Appium
+  capabilities and preserves raw `extra-capabilities` for remote providers.
+- **`AppiumDriverFactory`** — starts Android/iOS sessions from resolved
+  devices.
+- **`AppiumSession`** — one session = one test; stores driver, device metadata
+  and artifact root, then quits the driver on close.
+- **`AppiumExtension` / `@MobileDevice`** — JUnit fixture injection for
+  `AppiumSession` or `AppiumDriver`.
+- **`AppiumArtifactCollector`** — captures `screenshot.png` and
+  `page-source.xml` on failure when enabled.
+- **`AppiumNodeManager`** — optional local `appium` process lifecycle; disabled
+  unless `node.auto-start=true`.
+
+`forge.mobile.appium.enabled=true` only creates beans. A real session starts
+only when a test requests `AppiumSession`/`AppiumDriver` or calls the factory.
 
 ## Configuration
 
@@ -17,35 +29,92 @@ try-with-resources session wrapper.
 forge:
   mobile:
     appium:
-      enabled: true                      # opt-in
-      hub-url: http://localhost:4723    # Appium server / device farm endpoint
-      platform-name: Android            # Android | iOS
-      device-name: emulator-5554
-      app-path: /path/to/app.apk
-      automation-name: UiAutomator2
+      enabled: true
+      hub-url: http://localhost:4723
+      default-device: android-local
+      artifacts-on-failure: true
+      artifacts-dir: build/appium-artifacts
+      node:
+        auto-start: true
+        command: appium
+        args: ["--base-path", "/"]
+        startup-timeout: 30s
+        status-path: /status
+      devices:
+        android-local:
+          platform-name: Android
+          device-name: emulator-5554
+          automation-name: UiAutomator2
+          app-path: /apps/demo.apk
+        remote-android:
+          platform-name: Android
+          device-name: Google Pixel 8
+          automation-name: UiAutomator2
+          app-path: storage:filename=demo.apk
+          extra-capabilities:
+            appium:platformVersion: "15"
+            provider:options:
+              projectName: TestForge
+              buildName: mobile-ci
 ```
 
-Device-farm credentials are environment configuration (env vars / secret
-manager), never code.
+Legacy flat properties still work for simple projects:
+
+```yaml
+forge:
+  mobile:
+    appium:
+      enabled: true
+      hub-url: http://localhost:4723
+      platform-name: Android
+      device-name: emulator-5554
+      app-path: /apps/demo.apk
+      automation-name: UiAutomator2
+```
 
 ## Usage
 
 ```java
-try (AppiumSession session = appiumDriverFactory.startSession()) {
-    AppiumDriver driver = session.driver();
-    // screen objects work with the driver
+@SpringBootTest(properties = "forge.mobile.appium.enabled=true")
+@ExtendWith(AppiumExtension.class)
+class LoginMobileIT {
+
+    @Test
+    void logsIn(@MobileDevice("android-local") AppiumSession session) {
+        AppiumDriver driver = session.driver();
+        // screen objects work with the driver
+    }
+
+    @Test
+    void opensHome(@MobileDevice("android-local") AppiumDriver driver) {
+        // direct driver injection is also supported
+    }
 }
 ```
 
-A template cannot assume an Appium server or devices, so example-tests only
-verify the wiring (`AppiumWiringTest`); real mobile suites belong to the
-adapted project.
+For explicit lifecycle control:
+
+```java
+try (AppiumSession session = appiumDriverFactory.startSession("android-local")) {
+    AppiumDriver driver = session.driver();
+}
+```
+
+## Validation
+
+- Android requires `app-path` or `app-package` + `app-activity`.
+- iOS requires `app-path` or `bundle-id`.
+- `app-path` is a string on purpose: remote providers often use values such as
+  `storage:filename=demo.apk`.
 
 ## Agent notes
 
 - Keep the module deletable: no other module may depend on it.
-- Never start sessions in the default build — there is no server to talk to.
-- Screen-object conventions live in the adapted project; this module only
-  owns driver lifecycle. Pair each session with try-with-resources.
-- java-client major versions track Selenium majors pinned by the Boot BOM —
-  bump them together (see gradle/libs.versions.toml note).
+- Real devices belong in explicit mobile profiles/tags, not the default build.
+- `enabled=true` does not open a session; tests do that lazily.
+- Local node startup is opt-in (`node.auto-start=true`) and never installs
+  Appium/npm.
+- Screen-object conventions live in the adapted project; do not add base
+  screen/page classes to the template.
+- Remote providers use `extra-capabilities`; do not add provider-specific
+  clients in v1.

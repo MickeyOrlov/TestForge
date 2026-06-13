@@ -30,15 +30,17 @@ Boot auto-configuration: putting one on the classpath is all it takes.
 |---|---|
 | [core](core) | Typed thread-local `ScenarioContext`, `Waiter` (polling instead of sleeps), config conventions |
 | [module-contract](module-contract) | Lightweight JSON contract validation for API/queue/file payloads, useful for schema-drift checks |
+| [module-contract-monitor](module-contract-monitor) | CI-style Kafka drift monitor: find messages, validate contracts, snapshot payload shape, report diffs |
 | [module-data](module-data) | Per-run unique value registry and `%{variable}%` template rendering for data-heavy tests |
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
+| [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters, contract validation |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Resource usage monitor for JVM memory/CPU diagnostics in CI artifacts |
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
-| [module-web-playwright](module-web-playwright) | *(Coming soon)* Full-blown UI automation with Playwright |
-| [module-mobile-appium](module-mobile-appium) | *(Coming soon)* Cross-platform mobile automation (Appium) |
+| [module-web-playwright](module-web-playwright) | Playwright lifecycle: shared browser, per-test context, `Page` fixture, failure artifacts |
+| [module-mobile-appium](module-mobile-appium) | Appium lifecycle: device matrix, session/driver fixtures, optional local node, failure artifacts |
 | [example-tests](example-tests) | Self-contained reference suite (WireMock + H2), runs offline |
 
 ## Quick start
@@ -93,12 +95,21 @@ forge:
   contract:
     fail-fast: false
     max-violations: 100
+  contract-monitor:
+    enabled: false
+    output-dir: build/contract-monitor/current
+    baseline-dir: build/contract-monitor/baseline
+    fail-on-contract-violation: true
+    fail-on-shape-diff: true
+    fail-on-missing-message: true
   data:
     max-template-depth: 10
   flow:
     timeout: 60s
     max-transitions: 100
     max-visits-per-state: 5
+  state:
+    target-tag-prefix: "state:"
   kafka:
     enabled: false
     topics: []
@@ -112,6 +123,25 @@ forge:
     enabled: true
     urls:
       - https://staging.example.test/
+  mobile:
+    appium:
+      enabled: false
+      hub-url: http://localhost:4723
+      default-device: android-local
+      artifacts-on-failure: true
+      artifacts-dir: build/appium-artifacts
+      node:
+        auto-start: false
+        command: appium
+        args: []
+        startup-timeout: 30s
+        status-path: /status
+      devices:
+        android-local:
+          platform-name: Android
+          device-name: emulator-5554
+          automation-name: UiAutomator2
+          app-path: /apps/demo.apk
 ```
 
 Select an environment with `-DtestEnv=staging`; Gradle forwards it into forked

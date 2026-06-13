@@ -22,6 +22,10 @@ branch depending on service responses (role, amount threshold, API outcome). The
 runner logs and returns the path, and fails loudly if the flow loops or exceeds
 limits.
 
+For reusable domain setup, put the flow behind `module-state`: a
+`StateRecipe<T, S>` maps tags such as `approved` to a target state and
+`StatePreparedDataProvider` feeds the resulting object into `@Prepared`.
+
 ## Configuration
 
 ```yaml
@@ -52,6 +56,8 @@ then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`
 
 - Keep steps small and idempotent; branching lives inside a step (return a
   different next state), not in the runner.
+- If the same flow prepares fixtures for several tests, wrap it in
+  `module-state` instead of duplicating `FlowRunner.run(...)` calls.
 - Cross-cutting concerns (logging, Allure, metrics) go through
   `FlowStepDecorator` — never edit steps for reporting.
 - `AllureFlowStepDecorator` needs allure-java-commons on the runtime
