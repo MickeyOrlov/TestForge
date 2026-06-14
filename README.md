@@ -3,8 +3,7 @@
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Java](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)
-<!-- after publishing, add the live CI badge:
-![CI](https://github.com/OWNER/REPO/actions/workflows/build.yml/badge.svg) -->
+[![CI](https://github.com/MickeyOrlov/TestForge/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/MickeyOrlov/TestForge/actions/workflows/build.yml)
 
 **A pragmatic test automation template for JVM teams.**
 
