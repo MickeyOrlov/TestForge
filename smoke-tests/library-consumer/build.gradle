@@ -1,0 +1,44 @@
+plugins {
+    id "java"
+}
+
+group = "io.testforge.smoke"
+version = "1.0.0"
+
+def testforgeRepositoryUri = uri(providers.gradleProperty("testforgeRepositoryUrl")
+        .orElse(rootProject.file("../../build/test-maven-repository").toURI().toString())
+        .get())
+
+repositories {
+    maven {
+        name = "testForgeTestRepository"
+        url = testforgeRepositoryUri
+    }
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+def testforgeVersion = providers.gradleProperty("testforgeVersion")
+        .orElse(libs.versions.testforge)
+        .get()
+
+dependencies {
+    testImplementation "io.testforge:module-http:${testforgeVersion}"
+    testImplementation "io.testforge:module-api-discovery:${testforgeVersion}"
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${libs.versions.spring.boot.get()}"
+    testImplementation libs.wiremock
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = "full"
+    }
+}

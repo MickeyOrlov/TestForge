@@ -1,4 +1,5 @@
 [versions]
+testforge = "1.2.0-SNAPSHOT"
 spring-boot = "3.5.15"
 wiremock = "3.13.1"
 datasource-proxy = "1.10.1"

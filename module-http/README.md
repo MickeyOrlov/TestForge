@@ -75,6 +75,18 @@ project that has to keep them in sync by hand eventually will not.
 
 ## Usage
 
+As a published library:
+
+```groovy
+dependencies {
+    testImplementation "io.testforge:module-http:1.2.0-SNAPSHOT"
+}
+```
+
+`core`, Spring Boot auto-configuration, and REST Assured are transitive
+dependencies. The consuming test project still owns its Spring Boot test
+version and environment configuration.
+
 ```java
 @Autowired
 ApiClient api;

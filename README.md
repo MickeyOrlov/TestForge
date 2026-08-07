@@ -9,10 +9,11 @@
 
 A template test framework for JVM backend ecosystems (Spring services, REST,
 PostgreSQL, Kafka). Stack: Java 21 LTS, Spring Boot 3.5.x, Gradle 9.x, JUnit 5.
-Clone it, rename it, delete what you don't need — it is a **template
-repository**, not a published library. The goal is to give a team a tested
-automation skeleton with clear module boundaries and CI-safe defaults, instead
-of starting from an empty directory.
+Clone and adapt the whole template, or consume only the modules a project needs
+as Maven artifacts. The repository does not publish to a public registry by
+default. Its goal is to give a team a tested automation skeleton with clear
+module boundaries and CI-safe defaults instead of starting from an empty
+directory.
 
 ### Why TestForge?
 
@@ -101,6 +102,33 @@ flowchart LR
 The example suite needs no external services: it spins up an embedded
 WireMock as the "system under test" and an in-memory H2 as the "service
 database".
+
+## Use as a library
+
+All production modules publish independently; `example-tests` is not an
+artifact. The default development version is `1.2.0-SNAPSHOT`.
+
+```bash
+./gradlew publishTestForgeLibraries
+./gradlew -p smoke-tests/library-consumer test
+```
+
+```groovy
+repositories {
+    maven { url = uri("/path/to/TestForge/build/test-maven-repository") }
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation "io.testforge:module-http:1.2.0-SNAPSHOT"
+    testImplementation "io.testforge:module-api-discovery:1.2.0-SNAPSHOT"
+}
+```
+
+Project dependencies such as `core` are transitive. Spring Boot finds module
+auto-configurations through the metadata packaged in each JAR. See
+[Library consumption](docs/library-consumption.md) for local and remote
+repository setup.
 
 ## Docker and CI
 

@@ -12,6 +12,9 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- Maven publication for every production module, including POM, Gradle module
+  metadata, sources and javadocs; standalone consumer smoke-tests for a real
+  `module-http` request and offline `module-api-discovery` report generation.
 - `module-api-discovery`: OpenAPI endpoint catalog, request/response schema
   shape snapshots, baseline diffs, report artifacts, and offline example test.
 - `module-http`: preconfigured REST Assured specification through `ApiClient` —
