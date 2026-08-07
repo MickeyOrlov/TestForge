@@ -53,6 +53,7 @@ depend on opt-in runtime integrations.
 | Module | Status note |
 |---|---|
 | `module-contract-monitor` | JUnit-friendly Kafka contract drift monitor with shape snapshots, baseline diffs, and reports. |
+| `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks. |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
@@ -61,8 +62,8 @@ depend on opt-in runtime integrations.
 ### Experimental
 
 No experimental production module is currently wired into the build. Ideas such
-as API discovery or Gherkin fragments are documented as backlog candidates, not
-as implemented features.
+as Gherkin fragments are documented as backlog candidates, not as implemented
+features.
 
 ## Completed
 
@@ -83,6 +84,8 @@ as implemented features.
 - JSON contract validation with JSON Schema support.
 - CI-style contract monitor that validates Kafka payloads, stores redacted
   artifacts, and compares payload shapes against baselines.
+- OpenAPI discovery module that writes endpoint catalogs, request/response
+  schema shape snapshots, and baseline diffs without runtime HTTP calls.
 - Prepared data pool SPI and `@Prepared` parameter injection.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.

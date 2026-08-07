@@ -19,6 +19,7 @@ COPY gradlew settings.gradle build.gradle gradle.properties ./
 COPY core/build.gradle core/build.gradle
 COPY module-contract/build.gradle module-contract/build.gradle
 COPY module-contract-monitor/build.gradle module-contract-monitor/build.gradle
+COPY module-api-discovery/build.gradle module-api-discovery/build.gradle
 COPY module-data/build.gradle module-data/build.gradle
 COPY module-db/build.gradle module-db/build.gradle
 COPY module-flow/build.gradle module-flow/build.gradle

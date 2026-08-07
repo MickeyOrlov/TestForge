@@ -8,6 +8,7 @@ rootProject.name = "testforge"
 include "core",
         "module-contract",
         "module-contract-monitor",
+        "module-api-discovery",
         "module-data",
         "module-db",
         "module-flow",

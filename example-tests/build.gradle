@@ -4,6 +4,7 @@ dependencies {
     testImplementation project(":core")
     testImplementation project(":module-contract")
     testImplementation project(":module-contract-monitor")
+    testImplementation project(":module-api-discovery")
     testImplementation project(":module-data")
     testImplementation project(":module-db")
     testImplementation project(":module-flow")

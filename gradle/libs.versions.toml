@@ -5,6 +5,7 @@ datasource-proxy = "1.10.1"
 # 1.5.x is the last Jackson-2 line; 3.x switched to Jackson 3 (tools.jackson)
 # — bump together with a module-wide Jackson 3 migration
 json-schema-validator = "1.5.8"
+swagger-parser = "2.1.45"
 playwright = "1.59.0"
 rest-assured = "5.5.0"
 # 10.x is built against the Selenium line that Boot's BOM pins
@@ -19,6 +20,7 @@ spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-depe
 wiremock = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
 datasource-proxy = { module = "net.ttddyy:datasource-proxy", version.ref = "datasource-proxy" }
 json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
+swagger-parser-v3 = { module = "io.swagger.parser.v3:swagger-parser-v3", version.ref = "swagger-parser" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "rest-assured" }
 appium = { module = "io.appium:java-client", version.ref = "appium" }

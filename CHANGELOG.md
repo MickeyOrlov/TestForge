@@ -12,6 +12,8 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- `module-api-discovery`: OpenAPI endpoint catalog, request/response schema
+  shape snapshots, baseline diffs, report artifacts, and offline example test.
 - `module-http`: preconfigured REST Assured specification through `ApiClient` —
   base URLs per environment and per service, connect/read timeouts, default
   headers. Filters add the scenario mock scope to outgoing JSON bodies, stamp a

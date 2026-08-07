@@ -45,6 +45,7 @@ flowchart LR
     Kafka["module-kafka\nmessage probe"]
     Contract["module-contract\nJSON contracts"]
     Monitor["module-contract-monitor\nKafka drift report"]
+    ApiDiscovery["module-api-discovery\nOpenAPI catalog + shapes"]
     Web["module-web-playwright\nbrowser fixtures"]
     Mobile["module-mobile-appium\nmobile fixtures"]
     Examples["example-tests\nliving documentation"]
@@ -56,10 +57,12 @@ flowchart LR
     Core --> Http
     Core --> Kafka
     Core --> Contract
+    Core --> ApiDiscovery
     Data --> State
     Flow --> State
     Kafka --> Monitor
     Contract --> Monitor
+    ApiDiscovery --> Examples
     Web --> Examples
     Mobile --> Examples
     Http --> Examples
@@ -74,6 +77,7 @@ flowchart LR
 | [core](core) | Typed thread-local `ScenarioContext`, `Waiter` (polling instead of sleeps), config conventions |
 | [module-contract](module-contract) | Lightweight JSON contract validation for API/queue/file payloads, useful for schema-drift checks |
 | [module-contract-monitor](module-contract-monitor) | CI-style Kafka drift monitor: find messages, validate contracts, snapshot payload shape, report diffs |
+| [module-api-discovery](module-api-discovery) | OpenAPI catalog and schema shape snapshots for endpoint/schema drift checks |
 | [module-data](module-data) | Per-run unique value registry and `%{variable}%` template rendering for data-heavy tests |
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
@@ -157,6 +161,13 @@ forge:
     fail-on-contract-violation: true
     fail-on-shape-diff: true
     fail-on-missing-message: true
+  api-discovery:
+    enabled: false
+    output-dir: build/api-discovery/current
+    baseline-dir: build/api-discovery/baseline
+    fail-on-catalog-diff: true
+    fail-on-shape-diff: true
+    specs: {}
   data:
     max-template-depth: 10
   flow:
