@@ -209,9 +209,18 @@ public record ApiDiscoveryProperties(
             operations = Map.copyOf(copied);
         }
 
-        /** Operation-specific value first, then the shared default. */
+        /**
+         * Operation-specific value first, then the shared default. An
+         * operation without an {@code operationId} is common in real
+         * documents, so a null id must resolve to the defaults rather than
+         * blow up.
+         */
         public String find(String operationId, String parameterName) {
-            String specific = operations.getOrDefault(operationId, Map.of()).get(parameterName);
+            Map<String, String> forOperation = operationId == null
+                    ? Map.of()
+                    : operations.getOrDefault(operationId, Map.of());
+
+            String specific = forOperation.get(parameterName);
             return specific != null ? specific : defaults.get(parameterName);
         }
     }
