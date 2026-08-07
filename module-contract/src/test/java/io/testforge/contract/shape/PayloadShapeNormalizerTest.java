@@ -1,4 +1,4 @@
-package io.testforge.contract.monitor;
+package io.testforge.contract.shape;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -2,6 +2,7 @@ package io.testforge.contract.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.json.JsonContractValidator;
+import io.testforge.contract.shape.PayloadShapeNormalizer;
 import io.testforge.kafka.KafkaProbe;
 import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
@@ -16,12 +17,6 @@ import org.springframework.context.annotation.Bean;
 })
 @EnableConfigurationProperties(ContractMonitorProperties.class)
 public class TestForgeContractMonitorAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public PayloadShapeNormalizer payloadShapeNormalizer() {
-        return new PayloadShapeNormalizer();
-    }
 
     @Bean
     @ConditionalOnMissingBean

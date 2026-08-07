@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.JsonContractValidator;
+import io.testforge.contract.shape.PayloadShapeNormalizer;
+import io.testforge.contract.shape.ShapeDiff;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaProbe;
 import java.io.IOException;

@@ -6,6 +6,7 @@ plugins {
 rootProject.name = "testforge"
 
 include "core",
+        "module-api-discovery",
         "module-contract",
         "module-contract-monitor",
         "module-data",

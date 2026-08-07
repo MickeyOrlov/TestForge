@@ -10,10 +10,13 @@ CI-friendly Kafka contract drift monitoring.
   `SchemaContract`.
 - **`ContractMonitorRunner`** — runs all registered cases, writes artifacts and
   fails loudly from JUnit via `assertHealthy()`.
-- **`PayloadShapeNormalizer`** — converts JSON into `jsonPath -> type` shape
-  snapshots. Values are not stored in shape files.
 - **`ContractMonitorReport`** — structured result with contract violations,
   missing messages, shape diffs and artifact paths.
+
+Shape snapshots themselves come from `module-contract`
+(`io.testforge.contract.shape.PayloadShapeNormalizer` and `ShapeDiff`) — they
+are plain JSON utilities with no Kafka in them, and `module-api-discovery`
+needs the same ones for HTTP responses.
 
 This module composes `module-kafka` and `module-contract`. It is deliberately
 separate so those lower-level modules stay deletable.

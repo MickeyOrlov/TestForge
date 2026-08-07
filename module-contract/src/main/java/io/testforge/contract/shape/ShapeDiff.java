@@ -1,4 +1,4 @@
-package io.testforge.contract.monitor;
+package io.testforge.contract.shape;
 
 import java.util.List;
 import java.util.Map;

@@ -9,6 +9,8 @@ import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.FieldType;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.contract.json.MessageContract;
+import io.testforge.contract.shape.PayloadShapeNormalizer;
+import io.testforge.contract.shape.ShapeDiff;
 import io.testforge.core.wait.WaitProperties;
 import io.testforge.core.wait.Waiter;
 import io.testforge.kafka.KafkaMessage;

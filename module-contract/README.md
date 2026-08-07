@@ -18,9 +18,15 @@ Message contract validation for event/API payload drift checks.
 - **`ContractMappers.strict()`** — parser preset used by the validator:
   duplicate keys and trailing garbage are violations (`invalid-json`), not
   silently repaired input.
+- **`PayloadShapeNormalizer` / `ShapeDiff`** (package `shape`) — turn a JSON
+  document into a sorted `jsonPath -> type` map and compare two of them.
+  **Types only; values are never stored.** Contracts say what a payload should
+  look like, shapes record what it does look like — so drift can be reported
+  where no contract exists yet.
 
-This is the neutral core for Kafka contract monitoring: a Kafka adapter can
-poll messages from a topic, then pass each payload to this validator.
+This is the neutral core for payload drift checks: `module-contract-monitor`
+feeds it Kafka messages, `module-api-discovery` feeds it HTTP responses, and
+neither knows about the other.
 
 ## Configuration
 

@@ -1,0 +1,18 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    api project(":module-http")
+    api project(":module-contract")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    // OpenAPI documents are served as JSON but stored as YAML at least as often;
+    // the version is managed by the Boot BOM, so no version-catalog entry
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
+    // AntPathMatcher for the probe include/deny globs
+    implementation "org.springframework:spring-core"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

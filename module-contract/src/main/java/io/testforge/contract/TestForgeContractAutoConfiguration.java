@@ -3,6 +3,7 @@ package io.testforge.contract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.json.ContractMappers;
 import io.testforge.contract.json.JsonContractValidator;
+import io.testforge.contract.shape.PayloadShapeNormalizer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,5 +25,15 @@ public class TestForgeContractAutoConfiguration {
         // deliberately NOT the context mapper: a validator must not inherit
         // lenient application-level parsing customizations
         return new JsonContractValidator(ContractMappers.strict(), properties);
+    }
+
+    /**
+     * Shared by every module that snapshots payload shapes — the Kafka drift
+     * monitor and the OpenAPI discovery run both consume it.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PayloadShapeNormalizer payloadShapeNormalizer() {
+        return new PayloadShapeNormalizer();
     }
 }

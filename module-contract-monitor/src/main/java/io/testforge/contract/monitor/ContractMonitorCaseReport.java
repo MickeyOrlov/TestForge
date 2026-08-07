@@ -1,6 +1,7 @@
 package io.testforge.contract.monitor;
 
 import io.testforge.contract.json.ContractViolation;
+import io.testforge.contract.shape.ShapeDiff;
 import java.util.List;
 
 public record ContractMonitorCaseReport(

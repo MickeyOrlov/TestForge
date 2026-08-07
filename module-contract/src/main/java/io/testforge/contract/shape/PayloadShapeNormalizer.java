@@ -1,4 +1,4 @@
-package io.testforge.contract.monitor;
+package io.testforge.contract.shape;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
