@@ -83,8 +83,13 @@ These are useful, but should stay behind the core CI/staging improvements.
 
 - `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
   already standardize on feature files.
-- `module-api-scaffold`: generate reviewable RestAssured/JUnit smoke-test
-  skeletons from the `module-api-discovery` endpoint catalog.
+- `module-api-explorer`: opt-in safe runtime exploration from the discovery
+  catalog, with GET/HEAD/OPTIONS enabled by default, mutation allowlists,
+  redacted observations, and OpenAPI/runtime comparison.
+- `module-api-fuzz`: deterministic schema-aware boundary generation with a
+  recorded seed, after safe exploration is stable.
+- TestForge Gradle bootstrap plugin: compose discovery, code generation,
+  exploration, and fuzzing only after each remains useful independently.
 
 ## Keep Stable For Now
 

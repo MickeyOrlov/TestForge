@@ -61,9 +61,12 @@ depend on opt-in runtime integrations.
 
 ### Experimental
 
-No experimental production module is currently wired into the build. Ideas such
-as Gherkin fragments are documented as backlog candidates, not as implemented
-features.
+These modules are wired and tested, but their public API or supported schema
+surface is still expected to evolve.
+
+| Module | Status note |
+|---|---|
+| `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
 
 ## Completed
 
@@ -89,6 +92,9 @@ features.
   artifacts, and compares payload shapes against baselines.
 - OpenAPI discovery module that writes endpoint catalogs, request/response
   schema shape snapshots, and baseline diffs without runtime HTTP calls.
+- OpenAPI code generation module that writes Java records and typed REST
+  Assured client skeletons to a generated source directory without calling the
+  target API or overwriting hand-written tests.
 - Prepared data pool SPI and `@Prepared` parameter injection.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.
@@ -159,6 +165,20 @@ Target module: `module-data`
 - Add optional preload/refill configuration for expensive prepared objects.
 - Publish pool metrics through `PoolEventListener`.
 - Report cold misses and exhausted variants in CI artifacts.
+
+### API Bootstrap Path
+
+Target modules: `module-api-discovery`, `module-api-codegen`, possible future
+`module-api-explorer` and `module-api-fuzz`
+
+- Add safe runtime exploration as a separate opt-in module: GET, HEAD, and
+  OPTIONS by default; mutation methods only through an explicit allowlist.
+- Store redacted request/response observations and compare runtime shapes with
+  OpenAPI without using observations as the primary model source.
+- Add deterministic schema-aware fuzz cases only after safe exploration is
+  stable; every failure must be reproducible from a recorded seed.
+- Consider a Gradle bootstrap plugin only after discovery, code generation,
+  exploration, and fuzzing remain useful as independent removable modules.
 
 ## Explicitly Out Of Scope
 

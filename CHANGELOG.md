@@ -18,6 +18,10 @@ semantic versioning for its git tags.
 - Maven publication for every production module, including POM, Gradle module
   metadata, sources and javadocs; standalone consumer smoke-tests for a real
   `module-http` request and offline `module-api-discovery` report generation.
+- `module-api-codegen`: OpenAPI-first Java records and typed `ApiClient`
+  skeletons, deterministic generated source directories, JSON/Markdown report,
+  stale-output cleanup, offline example, and compile verification of generated
+  sources.
 - `module-api-discovery`: OpenAPI endpoint catalog, request/response schema
   shape snapshots, baseline diffs, report artifacts, and offline example test.
 - `module-http`: preconfigured REST Assured specification through `ApiClient` —

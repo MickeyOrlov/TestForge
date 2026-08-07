@@ -13,8 +13,9 @@ OpenAPI catalog and schema shape snapshots for CI drift checks.
 - **`ApiDiscoveryReport`** — structured result with catalog diffs, shape diffs
   and artifact paths.
 
-This module is an inventory/drift layer. It does not send HTTP requests and it
-does not generate client code or tests.
+This module is an inventory/drift layer. It does not send HTTP requests or
+generate tests. OpenAPI-first records and client skeletons belong to the
+separate `module-api-codegen` module.
 
 ## Configuration
 

@@ -15,6 +15,7 @@ graph TD
     Contract["module-contract"]
     ContractMonitor["module-contract-monitor"]
     ApiDiscovery["module-api-discovery"]
+    ApiCodegen["module-api-codegen"]
     Flow["module-flow"]
     State["module-state"]
     Reporting["module-reporting"]
@@ -32,6 +33,7 @@ graph TD
     Spring --> Contract
     Spring --> ContractMonitor
     Spring --> ApiDiscovery
+    Spring --> ApiCodegen
     Spring --> Flow
     Spring --> State
     Spring --> Reporting
@@ -46,6 +48,7 @@ graph TD
     Core -. shared thin foundation .-> Data
     Core -. shared thin foundation .-> Contract
     Core -. shared thin foundation .-> ApiDiscovery
+    Core -. shared thin foundation .-> ApiCodegen
     Core -. shared thin foundation .-> Flow
     Core -. shared thin foundation .-> State
     Core -. shared thin foundation .-> Reporting
@@ -159,6 +162,28 @@ graph TD
     Baseline --> Diff
     Diff --> Report
     Report --> JUnit
+```
+
+## API Code Generation Flow
+
+```mermaid
+graph TD
+    Spec["OpenAPI spec"]
+    Parser["module-api-discovery parser"]
+    Models["Java records"]
+    Clients["Typed ApiClient skeletons"]
+    Sources["Build-owned generated source directory"]
+    Report["JSON / Markdown report"]
+    Project["Adapted test project"]
+
+    Spec --> Parser
+    Parser --> Models
+    Parser --> Clients
+    Models --> Sources
+    Clients --> Sources
+    Sources --> Project
+    Models --> Report
+    Clients --> Report
 ```
 
 ## Project Philosophy

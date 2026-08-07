@@ -47,6 +47,7 @@ flowchart LR
     Contract["module-contract\nJSON contracts"]
     Monitor["module-contract-monitor\nKafka drift report"]
     ApiDiscovery["module-api-discovery\nOpenAPI catalog + shapes"]
+    ApiCodegen["module-api-codegen\nOpenAPI records + clients"]
     Web["module-web-playwright\nbrowser fixtures"]
     Mobile["module-mobile-appium\nmobile fixtures"]
     Examples["example-tests\nliving documentation"]
@@ -59,11 +60,14 @@ flowchart LR
     Core --> Kafka
     Core --> Contract
     Core --> ApiDiscovery
+    ApiDiscovery --> ApiCodegen
+    Http --> ApiCodegen
     Data --> State
     Flow --> State
     Kafka --> Monitor
     Contract --> Monitor
     ApiDiscovery --> Examples
+    ApiCodegen --> Examples
     Web --> Examples
     Mobile --> Examples
     Http --> Examples
@@ -79,6 +83,7 @@ flowchart LR
 | [module-contract](module-contract) | Lightweight JSON contract validation for API/queue/file payloads, useful for schema-drift checks |
 | [module-contract-monitor](module-contract-monitor) | CI-style Kafka drift monitor: find messages, validate contracts, snapshot payload shape, report diffs |
 | [module-api-discovery](module-api-discovery) | OpenAPI catalog and schema shape snapshots for endpoint/schema drift checks |
+| [module-api-codegen](module-api-codegen) | OpenAPI-first Java records and typed `ApiClient` skeletons written to a generated source directory |
 | [module-data](module-data) | Per-run unique value registry and `%{variable}%` template rendering for data-heavy tests |
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
@@ -199,6 +204,10 @@ forge:
     fail-on-catalog-diff: true
     fail-on-shape-diff: true
     specs: {}
+  api-codegen:
+    enabled: false
+    output-dir: build/generated/testforge
+    base-package: io.testforge.generated
   data:
     max-template-depth: 10
   flow:
