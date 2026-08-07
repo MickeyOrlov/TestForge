@@ -10,6 +10,7 @@ graph TD
     DB["module-db"]
     Kafka["module-kafka"]
     Mock["module-mock"]
+    Http["module-http"]
     Data["module-data"]
     Contract["module-contract"]
     ContractMonitor["module-contract-monitor"]
@@ -25,6 +26,7 @@ graph TD
     Spring --> DB
     Spring --> Kafka
     Spring --> Mock
+    Spring --> Http
     Spring --> Data
     Spring --> Contract
     Spring --> ContractMonitor
@@ -38,6 +40,7 @@ graph TD
     Core -. shared thin foundation .-> DB
     Core -. shared thin foundation .-> Kafka
     Core -. shared thin foundation .-> Mock
+    Core -. shared thin foundation .-> Http
     Core -. shared thin foundation .-> Data
     Core -. shared thin foundation .-> Contract
     Core -. shared thin foundation .-> Flow
@@ -90,6 +93,28 @@ graph TD
     Factory --> Device
     Factory --> Driver
     Session --> Collector
+```
+
+## API Request Flow
+
+```mermaid
+graph TD
+    Test["JUnit test"]
+    Client["ApiClient.request()"]
+    Correlation["CorrelationIdFilter\nX-Request-Id per scenario"]
+    Scope["ScenarioScopeFilter\nscope id into the JSON body"]
+    Logging["HttpLoggingFilter\nforge.http, redacted"]
+    Retry["RetryFilter\nopt-in, safe methods"]
+    System["System under test"]
+    Mock["Shared WireMock\nscoped stub matches the id"]
+
+    Test --> Client
+    Client --> Correlation
+    Correlation --> Scope
+    Scope --> Logging
+    Logging --> Retry
+    Retry --> System
+    System --> Mock
 ```
 
 ## Kafka Verification Flow

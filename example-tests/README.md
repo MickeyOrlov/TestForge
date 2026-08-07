@@ -15,6 +15,9 @@ plays the service database.
 | `KafkaCollectorIntegrationTest` | live `KafkaPollingCollector` against embedded broker |
 | `ContractMonitorExampleTest` | CI-style Kafka contract monitor: buffer message, validate contract, write shape/report artifacts |
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |
+| `ApiClientExampleTest` | `ApiClient` embeds the scenario scope and request id automatically; payloads stay untouched without an open scope |
+| `ApiRetryExampleTest` | opt-in retry recovers a 503 on a safe method and never repeats a POST |
+| `HttpRedactionTest` | credentials masked in headers, nested JSON and form bodies before anything is logged |
 | `DbWaiterTest` | waiting for a row written asynchronously, without sleeps |
 | `RepositoryPollingAspectTest` | using an opt-in repository waitBy... method backed by findBy... polling |
 | `SchemaValidatorTest` | detecting drift between entity mappings and the real schema |

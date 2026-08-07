@@ -74,6 +74,13 @@ Goal: make expensive prepared objects more reliable in long CI runs.
 
 These are useful, but should stay behind the core CI/staging improvements.
 
+- `module-auth`: token providers per role with caching, `@AsUser`-style
+  injection, local JWT signing for tests that must not depend on a real
+  identity provider. `module-http` already exposes the seam
+  (`ApiRequestCustomizer` and `Filter` beans) — the module would fill it
+  instead of every adapted project writing the same token cache, and usually
+  leaking it into a log on the first try.
+
 - `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
   already standardize on feature files.
 - `module-api-discovery` / `module-api-scaffold`: discover endpoints from owned

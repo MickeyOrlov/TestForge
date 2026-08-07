@@ -12,6 +12,17 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- `module-http`: preconfigured REST Assured specification through `ApiClient` —
+  base URLs per environment and per service, connect/read timeouts, default
+  headers. Filters add the scenario mock scope to outgoing JSON bodies, stamp a
+  per-scenario request id, log every call to the `forge.http` logger with
+  credentials masked, and optionally retry infrastructure statuses on safe
+  methods only (off by default, waits through `Waiter`). `ApiRequestCustomizer`
+  and REST Assured `Filter` beans are the extension points for authentication.
+- `core`: `ScenarioKeys` holds the correlation ids shared by more than one
+  module (`TEST_SCOPE`, `CORRELATION_ID`). `ScopedMockClient.TEST_SCOPE` now
+  refers to it, so `module-mock` and `module-http` agree on the scope id
+  without depending on each other.
 - `module-mobile-appium` acceptance tests: page source survives a screenshot
   failure, extra-capabilities override mapped ones, positive validation
   (Android via app-package+app-activity, iOS via bundle-id), `@MobileDevice`
