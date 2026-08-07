@@ -24,6 +24,12 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
 - [ ] **module-mock**: find the request field that ties a downstream call to
       one scenario; point `forge.mock.scope-json-path` at it. Without it
       parallel runs WILL fight over shared stubs
+- [ ] **module-http**: `forge.http.base-url` per environment (plus
+      `services.<id>` for several backends); extend
+      `forge.http.logging.redact-*` with this product's credential field names
+      BEFORE the first CI run uploads a log; add authentication as an
+      `ApiRequestCustomizer`. Leave `scope.json-path` unset — it follows
+      `forge.mock.scope-json-path`
 - [ ] **module-db**: add entities + repositories for asserted tables; one
       `SchemaValidator` test per entity in a scheduled CI job. If the product
       publishes client/DTO artifacts — depend on them, never duplicate

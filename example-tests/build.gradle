@@ -9,6 +9,7 @@ dependencies {
     testImplementation project(":module-db")
     testImplementation project(":module-flow")
     testImplementation project(":module-state")
+    testImplementation project(":module-http")
     testImplementation project(":module-kafka")
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")

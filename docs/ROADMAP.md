@@ -54,6 +54,7 @@ depend on opt-in runtime integrations.
 |---|---|
 | `module-contract-monitor` | JUnit-friendly Kafka contract drift monitor with shape snapshots, baseline diffs, and reports. |
 | `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks. |
+| `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
 | `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts. Real devices are opt-in. |
@@ -77,6 +78,8 @@ features.
 - Typed scenario context with JUnit cleanup support.
 - Side-effect assertions through `StateSnapshot` and `StateDiff`.
 - Scoped WireMock stubs for parallel tests against a shared mock server.
+- API client layer: environment-aware REST Assured specifications, automatic
+  scope/correlation propagation, redacted HTTP logging, opt-in retry.
 - Kafka message buffer, filters, probe API, and optional polling collector.
 - JSON contract validation with JSON Schema support.
 - CI-style contract monitor that validates Kafka payloads, stores redacted
