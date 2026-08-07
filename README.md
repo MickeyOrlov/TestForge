@@ -10,10 +10,10 @@
 A template test framework for JVM backend ecosystems (Spring services, REST,
 PostgreSQL, Kafka). Stack: Java 21 LTS, Spring Boot 3.5.x, Gradle 9.x, JUnit 5.
 Clone and adapt the whole template, or consume only the modules a project needs
-as Maven artifacts. The repository does not publish to a public registry by
-default. Its goal is to give a team a tested automation skeleton with clear
-module boundaries and CI-safe defaults instead of starting from an empty
-directory.
+as Maven artifacts. Publishing to GitHub Packages is an explicit manual action;
+normal pushes never deploy artifacts. Its goal is to give a team a tested
+automation skeleton with clear module boundaries and CI-safe defaults instead
+of starting from an empty directory.
 
 ### Why TestForge?
 
@@ -106,7 +106,9 @@ database".
 ## Use as a library
 
 All production modules publish independently; `example-tests` is not an
-artifact. The default development version is `1.2.0-SNAPSHOT`.
+artifact. The default development version is `1.2.0-SNAPSHOT`; the published
+preview is `io.github.mickeyorlov.testforge:<module>:1.2.0-beta.1` on GitHub
+Packages.
 
 ```bash
 ./gradlew publishTestForgeLibraries
@@ -128,7 +130,8 @@ dependencies {
 Project dependencies such as `core` are transitive. Spring Boot finds module
 auto-configurations through the metadata packaged in each JAR. See
 [Library consumption](docs/library-consumption.md) for local and remote
-repository setup.
+repository setup, IntelliJ import, GitHub Packages authentication, and direct
+artifact URLs.
 
 ## Docker and CI
 

@@ -66,5 +66,14 @@ gh repo edit --add-topic java --add-topic spring-boot --add-topic qa \
 ```
 
 Before creating `v1.2.0`, check local and remote tags and verify the target
-Maven repository coordinates. Maven Central additionally requires a verified
-namespace, signed artifacts, and repository-specific release configuration.
+Maven repository coordinates. The public GitHub Packages coordinates are
+`io.github.mickeyorlov.testforge:<module>:<version>`.
+
+Run the manual `Publish Maven packages` workflow only after the release commit
+has passed local verification. For a local deployment, use a classic PAT with
+`write:packages`; consumers need `read:packages`. Verify the deployed modules
+through `smoke-tests/library-consumer` using the remote repository URL from
+`docs/library-consumption.md`.
+
+Maven Central additionally requires a verified namespace, signed artifacts,
+and repository-specific release configuration.

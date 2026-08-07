@@ -8,11 +8,23 @@ version = "1.0.0"
 def testforgeRepositoryUri = uri(providers.gradleProperty("testforgeRepositoryUrl")
         .orElse(rootProject.file("../../build/test-maven-repository").toURI().toString())
         .get())
+def testforgeRepositoryUsername = providers.gradleProperty("testforgeRepositoryUsername")
+        .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_USERNAME"))
+        .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+def testforgeRepositoryPassword = providers.gradleProperty("testforgeRepositoryPassword")
+        .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_PASSWORD"))
+        .orElse(providers.environmentVariable("GITHUB_TOKEN"))
 
 repositories {
     maven {
         name = "testForgeTestRepository"
         url = testforgeRepositoryUri
+        if (testforgeRepositoryUri.scheme in ["http", "https"]) {
+            credentials {
+                username = testforgeRepositoryUsername.getOrNull()
+                password = testforgeRepositoryPassword.getOrNull()
+            }
+        }
     }
     mavenCentral()
 }
@@ -26,10 +38,13 @@ java {
 def testforgeVersion = providers.gradleProperty("testforgeVersion")
         .orElse(libs.versions.testforge)
         .get()
+def testforgeGroup = providers.gradleProperty("testforgeGroup")
+        .orElse("io.testforge")
+        .get()
 
 dependencies {
-    testImplementation "io.testforge:module-http:${testforgeVersion}"
-    testImplementation "io.testforge:module-api-discovery:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-http:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-api-discovery:${testforgeVersion}"
     testImplementation "org.springframework.boot:spring-boot-starter-test:${libs.versions.spring.boot.get()}"
     testImplementation libs.wiremock
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

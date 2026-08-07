@@ -12,6 +12,9 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- GitHub Packages distribution for all production modules under
+  `io.github.mickeyorlov.testforge`, with manual publishing, authenticated
+  Gradle/Maven consumer setup, and remote consumer verification.
 - Maven publication for every production module, including POM, Gradle module
   metadata, sources and javadocs; standalone consumer smoke-tests for a real
   `module-http` request and offline `module-api-discovery` report generation.

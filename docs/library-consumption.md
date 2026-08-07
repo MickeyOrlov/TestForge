@@ -53,23 +53,115 @@ both a live REST Assured request and offline OpenAPI discovery. It does not
 participate in the root multi-project build and cannot fall back to a Gradle
 `project(...)` dependency.
 
-## Remote repository
+## GitHub Packages
 
-Set the repository URL as a Gradle property. Credentials come from environment
-variables so they do not appear in source files or command history:
+GitHub Packages is the public distribution target. Publishing is deliberately
+manual: a normal push or pull request never deploys artifacts. Run the
+`Publish Maven packages` workflow from the Actions tab and provide a version,
+or publish locally with a classic personal access token that has
+`write:packages`:
 
 ```bash
-export TESTFORGE_REPOSITORY_USERNAME=<repository-user>
-export TESTFORGE_REPOSITORY_PASSWORD=<repository-token>
+export TESTFORGE_REPOSITORY_USERNAME=MickeyOrlov
+export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat>
 
 ./gradlew publishTestForgeLibraries \
-  -PtestforgeRepositoryUrl=https://maven.pkg.github.com/MickeyOrlov/TestForge \
-  -PtestforgeVersion=1.2.0
+  -PtestforgeGroup=io.github.mickeyorlov.testforge \
+  -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge \
+  -PtestforgeVersion=1.2.0-beta.1
 ```
 
-This is sufficient for an authenticated Maven repository such as GitHub
-Packages. A public Maven Central release still needs a verified namespace,
-artifact signing, and Central Portal publication configuration.
+The workflow uses its repository-scoped `GITHUB_TOKEN`; no long-lived secret is
+stored in the repository. GitHub's Maven/Gradle registry requires
+authentication for downloads even when both the repository and package are
+public. Consumers need a classic token with `read:packages`.
+
+### Gradle consumer
+
+Keep credentials in `~/.gradle/gradle.properties`:
+
+```properties
+testforgeRepositoryUsername=YOUR_GITHUB_LOGIN
+testforgeRepositoryPassword=YOUR_CLASSIC_PAT
+```
+
+Then configure the repository and dependency:
+
+```groovy
+repositories {
+    maven {
+        url = uri("https://maven.pkg.github.com/mickeyorlov/TestForge")
+        credentials {
+            username = providers.gradleProperty("testforgeRepositoryUsername").get()
+            password = providers.gradleProperty("testforgeRepositoryPassword").get()
+        }
+    }
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation "io.github.mickeyorlov.testforge:module-http:1.2.0-beta.1"
+}
+```
+
+The standalone consumer can verify the remote package without a Gradle project
+dependency:
+
+```bash
+./gradlew -p smoke-tests/library-consumer test \
+  -PtestforgeGroup=io.github.mickeyorlov.testforge \
+  -PtestforgeVersion=1.2.0-beta.1 \
+  -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge
+```
+
+### Maven consumer and `settings.xml`
+
+Maven users can start from
+[`docs/examples/github-packages-settings.xml`](examples/github-packages-settings.xml).
+It reads credentials from `GITHUB_ACTOR` and `GITHUB_TOKEN`; the token needs
+`read:packages`.
+
+```xml
+<repositories>
+  <repository>
+    <id>github-testforge</id>
+    <url>https://maven.pkg.github.com/mickeyorlov/TestForge</url>
+  </repository>
+</repositories>
+
+<dependency>
+  <groupId>io.github.mickeyorlov.testforge</groupId>
+  <artifactId>module-http</artifactId>
+  <version>1.2.0-beta.1</version>
+  <scope>test</scope>
+</dependency>
+```
+
+### Direct artifact URL
+
+GitHub Packages exposes the standard Maven layout, so an individual artifact
+has a stable URL. Authentication is still mandatory:
+
+```bash
+curl --fail --location \
+  --user "$GITHUB_ACTOR:$GITHUB_TOKEN" \
+  --output module-http-1.2.0-beta.1.jar \
+  https://maven.pkg.github.com/mickeyorlov/TestForge/io/github/mickeyorlov/testforge/module-http/1.2.0-beta.1/module-http-1.2.0-beta.1.jar
+```
+
+For anonymous downloads, use Maven Central or attach the JARs to a GitHub
+Release. GitHub's Maven registry does not allow anonymous package downloads.
+
+## IntelliJ IDEA
+
+Open the repository root as a Gradle project and select JDK 21. IntelliJ imports
+every TestForge module as a Java library module. To inspect the real external
+consumer boundary separately, open `smoke-tests/library-consumer` in a second
+IDEA window; that build resolves Maven coordinates and cannot fall back to
+`project(...)` dependencies. Do not commit `.idea` files.
+
+A public Maven Central release still needs a verified namespace, artifact
+signing, and Central Portal publication configuration.
 
 ## Published artifacts
 

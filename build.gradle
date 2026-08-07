@@ -53,6 +53,12 @@ configure(subprojects.findAll { it.name != "example-tests" }) {
                 it.asFile.toURI().toString()
             })
             .get())
+    def publicationRepositoryUsername = providers.gradleProperty("testforgeRepositoryUsername")
+            .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_USERNAME"))
+            .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+    def publicationRepositoryPassword = providers.gradleProperty("testforgeRepositoryPassword")
+            .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_PASSWORD"))
+            .orElse(providers.environmentVariable("GITHUB_TOKEN"))
 
     def sourcesJarTask = tasks.register("sourcesJar", Jar) {
         archiveClassifier = "sources"
@@ -116,12 +122,8 @@ configure(subprojects.findAll { it.name != "example-tests" }) {
 
                 if (publicationRepositoryUri.scheme in ["http", "https"]) {
                     credentials {
-                        username = providers.gradleProperty("testforgeRepositoryUsername")
-                                .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_USERNAME"))
-                                .getOrNull()
-                        password = providers.gradleProperty("testforgeRepositoryPassword")
-                                .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_PASSWORD"))
-                                .getOrNull()
+                        username = publicationRepositoryUsername.getOrNull()
+                        password = publicationRepositoryPassword.getOrNull()
                     }
                 }
             }
