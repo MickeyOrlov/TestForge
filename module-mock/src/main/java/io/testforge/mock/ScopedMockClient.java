@@ -1,9 +1,10 @@
 package io.testforge.mock;
 
+import java.util.UUID;
+
 import com.github.tomakehurst.wiremock.client.WireMock;
 import io.testforge.core.context.ContextKey;
 import io.testforge.core.context.ScenarioContext;
-import java.util.UUID;
 
 /**
  * Entry point for scenario-scoped stubbing on a shared WireMock server.

@@ -1,11 +1,12 @@
 package io.testforge.contract.monitor;
 
+import java.util.Map;
+import java.util.TreeMap;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.json.ContractMappers;
-import java.util.Map;
-import java.util.TreeMap;
 
 public class PayloadShapeNormalizer {
 

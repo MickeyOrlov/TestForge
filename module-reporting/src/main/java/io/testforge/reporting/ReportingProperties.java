@@ -1,6 +1,7 @@
 package io.testforge.reporting;
 
 import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

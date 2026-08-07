@@ -1,7 +1,8 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.Map;
 
 import io.appium.java_client.AppiumDriver;
 import io.testforge.mobile.appium.AppiumArtifactCollector;
@@ -11,15 +12,15 @@ import io.testforge.mobile.appium.AppiumProperties;
 import io.testforge.mobile.appium.AppiumSession;
 import io.testforge.mobile.appium.MobileDevice;
 import io.testforge.mobile.appium.ResolvedAppiumDevice;
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 @SpringBootTest(properties = {
         "forge.mobile.appium.enabled=true",

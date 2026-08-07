@@ -1,21 +1,22 @@
 package io.testforge.mobile.appium;
 
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+
+import io.appium.java_client.AppiumDriver;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.WebDriverException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
-import io.appium.java_client.AppiumDriver;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.WebDriverException;
 
 class AppiumArtifactCollectorTest {
 

@@ -1,6 +1,7 @@
 package io.testforge.kafka;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.KafkaException;

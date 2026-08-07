@@ -1,21 +1,22 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.testforge.data.prepared.PoolEventListener;
 import io.testforge.data.prepared.Prepared;
 import io.testforge.data.prepared.PreparedDataPool;
 import io.testforge.data.prepared.PreparedDataProvider;
 import io.testforge.data.prepared.PreparedParameterResolver;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates module-data's prepared-object pool: a test declares what it

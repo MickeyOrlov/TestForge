@@ -1,11 +1,10 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 import io.testforge.db.schema.SchemaValidator;
 import io.testforge.example.db.TaskRecord;
 import io.testforge.example.db.TaskRecordRepository;
-import java.util.UUID;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +13,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Same example suite, real database: the H2 examples prove the logic, this

@@ -1,12 +1,13 @@
 package io.testforge.mobile.appium;
 
-import io.testforge.core.wait.WaitProperties;
-import io.testforge.core.wait.Waiter;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.testforge.core.wait.WaitProperties;
+import io.testforge.core.wait.Waiter;
 import org.springframework.context.SmartLifecycle;
 
 public class AppiumNodeManager implements SmartLifecycle {

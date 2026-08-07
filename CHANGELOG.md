@@ -12,6 +12,11 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- Repository quality gates: Spotless import/whitespace checks, a compact
+  Checkstyle ruleset, per-module JaCoCo reports, and an aggregate coverage
+  report task.
+- `module-web-playwright`: `playwrightInstall` can install multiple browser
+  bundles via `-PplaywrightBrowsers=chromium,firefox,webkit`.
 - `module-mobile-appium` acceptance tests: page source survives a screenshot
   failure, extra-capabilities override mapped ones, positive validation
   (Android via app-package+app-activity, iOS via bundle-id), `@MobileDevice`

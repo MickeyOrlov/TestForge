@@ -1,7 +1,8 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 
 import io.testforge.flow.AllureFlowStepDecorator;
 import io.testforge.flow.FlowContext;
@@ -10,12 +11,12 @@ import io.testforge.flow.FlowRunner;
 import io.testforge.flow.FlowRunnerFactory;
 import io.testforge.flow.FlowStep;
 import io.testforge.flow.FlowStepDecorator;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Demonstrates module-flow: encode a long business path as small deterministic

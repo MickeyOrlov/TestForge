@@ -1,7 +1,8 @@
 package io.testforge.contract.monitor;
 
-import io.testforge.contract.json.ContractViolation;
 import java.util.List;
+
+import io.testforge.contract.json.ContractViolation;
 
 public record ContractMonitorCaseReport(
         String name,

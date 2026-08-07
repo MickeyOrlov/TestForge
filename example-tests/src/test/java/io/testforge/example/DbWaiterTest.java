@@ -1,16 +1,17 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import io.testforge.db.DbWaiter;
 import io.testforge.example.db.TaskRecord;
 import io.testforge.example.db.TaskRecordRepository;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates module-db: instead of sleeping and hoping, the test polls for

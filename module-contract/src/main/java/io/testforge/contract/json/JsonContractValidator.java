@@ -1,12 +1,13 @@
 package io.testforge.contract.json;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.ContractProperties;
 import io.testforge.core.json.JsonPath;
-import java.util.ArrayList;
-import java.util.List;
 
 public class JsonContractValidator {
 

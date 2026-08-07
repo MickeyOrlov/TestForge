@@ -1,6 +1,7 @@
 package io.testforge.mobile.appium;
 
 import java.nio.file.Path;
+
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

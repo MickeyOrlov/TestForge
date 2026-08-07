@@ -121,6 +121,8 @@ CI follows the template definition of done:
 
 - GitHub Actions runs `./gradlew build` on pushes and pull requests, uploads
   test reports, and can validate the Docker runner image on `main` or manually.
+- The default build includes Spotless formatting checks, Checkstyle guardrails,
+  JUnit tests, and per-module JaCoCo reports.
 - GitLab CI runs the same build job for pushes and merge requests, has manual
   environment jobs (`-DtestEnv=<name>`), and includes a manual job that
   publishes the warmed runner image to the project registry.

@@ -1,17 +1,18 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.testforge.data.Generators;
 import io.testforge.data.RunUniqueValues;
 import io.testforge.data.TemplateRenderer;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Demonstrates module-data: generated values are guarded for run uniqueness,

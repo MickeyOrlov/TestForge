@@ -1,13 +1,12 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
 import io.testforge.kafka.KafkaMessageFilter;
 import io.testforge.kafka.KafkaPollingCollector;
 import io.testforge.kafka.KafkaProbe;
-import java.util.UUID;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -18,6 +17,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Exercises the real collector path — subscription, rebalance, polling,

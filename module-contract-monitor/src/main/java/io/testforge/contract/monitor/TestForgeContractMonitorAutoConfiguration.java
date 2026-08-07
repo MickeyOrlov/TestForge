@@ -1,9 +1,10 @@
 package io.testforge.contract.monitor;
 
+import java.util.List;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.kafka.KafkaProbe;
-import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

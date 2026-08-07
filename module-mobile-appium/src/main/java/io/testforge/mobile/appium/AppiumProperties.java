@@ -3,6 +3,7 @@ package io.testforge.mobile.appium;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "forge.mobile.appium")

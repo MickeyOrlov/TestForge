@@ -1,15 +1,16 @@
 package io.testforge.mobile.appium;
 
+import java.lang.reflect.Parameter;
+
+import io.appium.java_client.AppiumDriver;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import io.appium.java_client.AppiumDriver;
-import java.lang.reflect.Parameter;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.api.extension.ParameterResolutionException;
 
 class AppiumExtensionTest {
 

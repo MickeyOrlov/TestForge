@@ -73,7 +73,8 @@ public class PreparedDataPool {
         PreparedDataProvider<T> provider = (PreparedDataProvider<T>) providers.get(type);
         if (provider == null) {
             throw new IllegalStateException(
-                    "No PreparedDataProvider for %s. Register a bean implementing PreparedDataProvider<%s> — see module-data README."
+                    ("No PreparedDataProvider for %s. Register a bean implementing "
+                            + "PreparedDataProvider<%s> — see module-data README.")
                             .formatted(type.getName(), type.getSimpleName()));
         }
         T prepared = provider.prepare(tags);

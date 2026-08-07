@@ -1,9 +1,10 @@
 package io.testforge.state;
 
+import java.util.Collection;
+
 import io.testforge.flow.FlowContext;
 import io.testforge.flow.FlowResult;
 import io.testforge.flow.FlowStep;
-import java.util.Collection;
 
 /**
  * Adapts a product-specific setup path into a reusable state fixture. A recipe

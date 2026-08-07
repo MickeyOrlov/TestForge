@@ -1,7 +1,8 @@
 package io.testforge.flow;
 
-import io.qameta.allure.Allure;
 import java.util.function.Supplier;
+
+import io.qameta.allure.Allure;
 
 /**
  * Reports every flow transition as an Allure step, so a long preparation

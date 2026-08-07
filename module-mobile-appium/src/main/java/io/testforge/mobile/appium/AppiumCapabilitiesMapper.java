@@ -1,6 +1,7 @@
 package io.testforge.mobile.appium;
 
 import java.util.Map;
+
 import org.openqa.selenium.remote.DesiredCapabilities;
 
 public class AppiumCapabilitiesMapper {

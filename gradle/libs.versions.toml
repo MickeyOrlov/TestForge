@@ -1,5 +1,7 @@
 [versions]
 spring-boot = "3.5.15"
+spotless = "8.8.0"
+checkstyle = "13.7.0"
 wiremock = "3.13.1"
 datasource-proxy = "1.10.1"
 # 1.5.x is the last Jackson-2 line; 3.x switched to Jackson 3 (tools.jackson)
@@ -26,3 +28,6 @@ allure-java-commons = { module = "io.qameta.allure:allure-java-commons", version
 allure-junit5 = { module = "io.qameta.allure:allure-junit5", version.ref = "allure" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

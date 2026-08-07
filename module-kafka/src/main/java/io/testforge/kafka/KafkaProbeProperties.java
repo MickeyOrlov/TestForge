@@ -2,6 +2,7 @@ package io.testforge.kafka;
 
 import java.time.Duration;
 import java.util.List;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

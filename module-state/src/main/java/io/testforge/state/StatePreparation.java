@@ -1,7 +1,8 @@
 package io.testforge.state;
 
-import io.testforge.flow.FlowResult;
 import java.util.Objects;
+
+import io.testforge.flow.FlowResult;
 
 public record StatePreparation<T, S>(
         T object,

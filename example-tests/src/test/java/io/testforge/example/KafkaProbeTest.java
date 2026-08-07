@@ -1,8 +1,7 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.groups.Tuple.tuple;
+import java.time.Instant;
+import java.util.Map;
 
 import io.testforge.contract.json.ContractValidationException;
 import io.testforge.contract.json.ContractViolation;
@@ -11,14 +10,16 @@ import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.contract.json.MessageContract;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
-import io.testforge.kafka.KafkaProbe;
 import io.testforge.kafka.KafkaMessageFilter;
-import java.time.Instant;
-import java.util.Map;
+import io.testforge.kafka.KafkaProbe;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
 /**
  * Demonstrates module-kafka without a broker: the collector fills the same

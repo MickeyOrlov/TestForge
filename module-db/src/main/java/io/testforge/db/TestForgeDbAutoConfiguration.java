@@ -1,12 +1,13 @@
 package io.testforge.db;
 
+import javax.sql.DataSource;
+
 import io.testforge.core.TestForgeCoreAutoConfiguration;
 import io.testforge.core.wait.Waiter;
 import io.testforge.db.logging.SqlLoggingDataSourcePostProcessor;
 import io.testforge.db.repository.RepositoryPollingAspect;
 import io.testforge.db.repository.RepositoryPollingProperties;
 import io.testforge.db.schema.SchemaValidator;
-import javax.sql.DataSource;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

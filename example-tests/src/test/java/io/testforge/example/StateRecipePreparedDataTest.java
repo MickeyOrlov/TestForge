@@ -1,6 +1,7 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Collection;
+import java.util.List;
 
 import io.testforge.data.Generators;
 import io.testforge.data.RunUniqueValues;
@@ -15,15 +16,14 @@ import io.testforge.state.StatePreparedDataProvider;
 import io.testforge.state.StateRecipe;
 import io.testforge.state.StateRecipeExecutor;
 import io.testforge.state.StateRequest;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ExtendWith(PreparedParameterResolver.class)

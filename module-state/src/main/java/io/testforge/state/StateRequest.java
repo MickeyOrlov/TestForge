@@ -34,7 +34,8 @@ public record StateRequest(List<String> tags, String targetTagPrefix) {
 
     public String requireTargetTag() {
         return targetTag().orElseThrow(() -> new StateRecipeException(
-                "No target state tag found. Use a single tag like 'approved' or a prefixed tag like '%sapproved'. Tags: %s"
+                ("No target state tag found. Use a single tag like 'approved' "
+                        + "or a prefixed tag like '%sapproved'. Tags: %s")
                         .formatted(targetTagPrefix, tags)));
     }
 }

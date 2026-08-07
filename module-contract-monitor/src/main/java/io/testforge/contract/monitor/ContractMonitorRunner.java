@@ -1,11 +1,5 @@
 package io.testforge.contract.monitor;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.testforge.contract.json.ContractViolation;
-import io.testforge.contract.json.JsonContractValidator;
-import io.testforge.kafka.KafkaMessage;
-import io.testforge.kafka.KafkaProbe;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.contract.json.ContractViolation;
+import io.testforge.contract.json.JsonContractValidator;
+import io.testforge.kafka.KafkaMessage;
+import io.testforge.kafka.KafkaProbe;
 
 public class ContractMonitorRunner {
 

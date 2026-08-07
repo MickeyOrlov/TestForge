@@ -11,10 +11,12 @@ dependencies {
     implementation "org.springframework:spring-test"
 }
 
+// -PplaywrightBrowsers=chromium,firefox,webkit downloads more than the default
 tasks.register("playwrightInstall", JavaExec) {
-    description = "Downloads the browser bundle used by module-web-playwright"
+    description = "Downloads the browser bundle(s) used by module-web-playwright"
     group = "setup"
     classpath = sourceSets.main.runtimeClasspath
     mainClass = "com.microsoft.playwright.CLI"
-    args "install", "--with-deps", "chromium"
+    String browsers = providers.gradleProperty("playwrightBrowsers").getOrElse("chromium")
+    args(["install", "--with-deps"] + browsers.split(",")*.trim())
 }

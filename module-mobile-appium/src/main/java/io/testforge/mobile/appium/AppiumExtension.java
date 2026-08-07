@@ -1,10 +1,11 @@
 package io.testforge.mobile.appium;
 
-import io.appium.java_client.AppiumDriver;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import io.appium.java_client.AppiumDriver;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;

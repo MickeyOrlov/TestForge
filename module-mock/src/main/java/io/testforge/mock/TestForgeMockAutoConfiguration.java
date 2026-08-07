@@ -1,7 +1,8 @@
 package io.testforge.mock;
 
-import com.github.tomakehurst.wiremock.client.WireMock;
 import java.net.URI;
+
+import com.github.tomakehurst.wiremock.client.WireMock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

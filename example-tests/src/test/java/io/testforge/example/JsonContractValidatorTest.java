@@ -1,8 +1,5 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.groups.Tuple.tuple;
-
 import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.FieldType;
 import io.testforge.contract.json.JsonContractValidator;
@@ -11,6 +8,9 @@ import io.testforge.contract.json.SchemaContract;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.groups.Tuple.tuple;
 
 /**
  * Demonstrates module-contract: describe the message shape once and validate

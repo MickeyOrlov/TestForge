@@ -1,10 +1,11 @@
 package io.testforge.mock;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A scenario-scoped view of a shared WireMock instance.

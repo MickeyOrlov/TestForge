@@ -1,12 +1,12 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.testforge.db.schema.SchemaValidator;
 import io.testforge.example.db.TaskRecord;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates schema-drift detection: every column mapped by the entity must

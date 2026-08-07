@@ -32,6 +32,7 @@ or CI jobs.
 ## Definition of Done
 
 - `./gradlew build --warning-mode all` is green.
+- Spotless and Checkstyle pass without local suppressions for new code.
 - New behavior has an example or focused test in `example-tests` or the owning
   module.
 - README, module README, roadmap, and changelog are updated when public behavior

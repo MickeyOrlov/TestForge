@@ -1,8 +1,9 @@
 package io.testforge.kafka;
 
+import java.util.Optional;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.core.wait.Waiter;
-import java.util.Optional;
 
 /**
  * Search-and-wait API over the message buffer.

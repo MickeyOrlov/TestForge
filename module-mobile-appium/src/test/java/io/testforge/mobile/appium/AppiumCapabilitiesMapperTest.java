@@ -1,12 +1,13 @@
 package io.testforge.mobile.appium;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.net.URI;
 import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.remote.DesiredCapabilities;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 class AppiumCapabilitiesMapperTest {
 

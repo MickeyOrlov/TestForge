@@ -1,7 +1,5 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.testforge.core.context.ContextKey;
 import io.testforge.core.context.ScenarioContext;
 import io.testforge.core.context.ScenarioContextExtension;
@@ -10,6 +8,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates ScenarioContextExtension: worker threads are reused between

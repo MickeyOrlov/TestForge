@@ -1,10 +1,11 @@
 package io.testforge.contract.monitor;
 
+import java.util.List;
+
 import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.contract.json.MessageContract;
 import io.testforge.contract.json.SchemaContract;
-import java.util.List;
 
 public interface JsonPayloadContract {
 

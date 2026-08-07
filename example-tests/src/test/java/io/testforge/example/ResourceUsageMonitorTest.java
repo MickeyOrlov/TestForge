@@ -1,14 +1,15 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.time.Duration;
 
 import io.testforge.core.wait.Waiter;
 import io.testforge.reporting.ResourceUsageMonitor;
 import io.testforge.reporting.ResourceUsageStats;
-import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates module-reporting: collect lightweight resource metrics during a

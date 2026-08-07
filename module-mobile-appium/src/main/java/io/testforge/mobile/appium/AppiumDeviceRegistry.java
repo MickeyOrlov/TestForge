@@ -78,7 +78,8 @@ public class AppiumDeviceRegistry {
         if (isAndroid(device)) {
             if (!hasText(device.appPath()) && !(hasText(device.appPackage()) && hasText(device.appActivity()))) {
                 throw new IllegalArgumentException(
-                        "Appium device '%s' is missing required Android fields: set app-path or app-package + app-activity"
+                        ("Appium device '%s' is missing required Android fields: "
+                                + "set app-path or app-package + app-activity")
                                 .formatted(device.deviceId()));
             }
             return device;

@@ -1,10 +1,11 @@
 package io.testforge.db;
 
-import io.testforge.core.wait.Waiter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import io.testforge.core.wait.Waiter;
 
 /**
  * Waits for rows that backend services write asynchronously (after a Kafka

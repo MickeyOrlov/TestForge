@@ -1,8 +1,9 @@
 package io.testforge.mobile.appium;
 
-import io.appium.java_client.AppiumDriver;
 import java.nio.file.Path;
 import java.util.Optional;
+
+import io.appium.java_client.AppiumDriver;
 
 /**
  * One mobile session = one test. Closing quits the driver, releasing the

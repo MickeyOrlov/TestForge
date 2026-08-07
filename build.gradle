@@ -1,6 +1,11 @@
+plugins {
+    alias(libs.plugins.spotless) apply false
+    id "jacoco-report-aggregation"
+}
+
 allprojects {
     group = "io.testforge"
-    version = "0.1.0"
+    version = "1.2.0-SNAPSHOT"
 
     repositories {
         mavenCentral()
@@ -9,6 +14,9 @@ allprojects {
 
 subprojects {
     apply plugin: "java-library"
+    apply plugin: "checkstyle"
+    apply plugin: "jacoco"
+    apply plugin: "com.diffplug.spotless"
 
     java {
         toolchain {
@@ -18,6 +26,21 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+    }
+
+    checkstyle {
+        toolVersion = libs.versions.checkstyle.get()
+        configFile = rootProject.file("config/checkstyle/checkstyle.xml")
+        maxWarnings = 0
+    }
+
+    spotless {
+        java {
+            importOrder("java", "javax", "jakarta", "", "\\#")
+            removeUnusedImports()
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
     }
 
     tasks.withType(Test).configureEach {
@@ -31,9 +54,40 @@ subprojects {
             systemProperty "spring.profiles.active", testEnv
         }
 
+        // -Dforge.playwright.browser-type=<browser> drives the CI browser matrix
+        String browserType = System.getProperty("forge.playwright.browser-type")
+        if (browserType != null) {
+            systemProperty "forge.playwright.browser-type", browserType
+        }
+
         testLogging {
             events "passed", "skipped", "failed"
             exceptionFormat = "full"
         }
     }
+
+    tasks.named("test") {
+        finalizedBy tasks.named("jacocoTestReport")
+    }
+
+    tasks.named("jacocoTestReport") {
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+}
+
+// one merged coverage report over every module, fed by all subproject test runs
+// (the example suite exercises module code, so its run counts toward module coverage)
+reporting {
+    reports {
+        testCodeCoverageReport(JacocoCoverageReport) {
+            testSuiteName = "test"
+        }
+    }
+}
+
+dependencies {
+    subprojects.forEach { jacocoAggregation it }
 }

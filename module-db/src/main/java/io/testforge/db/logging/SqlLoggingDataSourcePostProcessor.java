@@ -1,6 +1,7 @@
 package io.testforge.db.logging;
 
 import javax.sql.DataSource;
+
 import net.ttddyy.dsproxy.listener.logging.SLF4JLogLevel;
 import net.ttddyy.dsproxy.support.ProxyDataSource;
 import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;

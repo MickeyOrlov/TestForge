@@ -1,7 +1,8 @@
 package io.testforge.state;
 
-import io.testforge.data.prepared.PreparedDataProvider;
 import java.util.List;
+
+import io.testforge.data.prepared.PreparedDataProvider;
 
 /**
  * Adapter from state recipes to {@code @Prepared}. Register one bean per domain

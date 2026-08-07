@@ -1,15 +1,16 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-import io.testforge.example.db.TaskRecord;
-import io.testforge.example.db.TaskRecordRepository;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import io.testforge.example.db.TaskRecord;
+import io.testforge.example.db.TaskRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates the opt-in repository waiter: a waitBy... repository method is
