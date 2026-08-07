@@ -68,7 +68,7 @@ export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat>
 ./gradlew publishTestForgeLibraries \
   -PtestforgeGroup=io.github.mickeyorlov.testforge \
   -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge \
-  -PtestforgeVersion=1.2.0-beta.1
+  -PtestforgeVersion=1.2.0-beta.2
 ```
 
 The workflow uses its repository-scoped `GITHUB_TOKEN`; no long-lived secret is
@@ -100,7 +100,8 @@ repositories {
 }
 
 dependencies {
-    testImplementation "io.github.mickeyorlov.testforge:module-http:1.2.0-beta.1"
+    testImplementation "io.github.mickeyorlov.testforge:module-http:1.2.0-beta.2"
+    testImplementation "io.github.mickeyorlov.testforge:module-api-codegen:1.2.0-beta.2"
 }
 ```
 
@@ -110,7 +111,7 @@ dependency:
 ```bash
 ./gradlew -p smoke-tests/library-consumer test \
   -PtestforgeGroup=io.github.mickeyorlov.testforge \
-  -PtestforgeVersion=1.2.0-beta.1 \
+  -PtestforgeVersion=1.2.0-beta.2 \
   -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge
 ```
 
@@ -132,7 +133,7 @@ It reads credentials from `GITHUB_ACTOR` and `GITHUB_TOKEN`; the token needs
 <dependency>
   <groupId>io.github.mickeyorlov.testforge</groupId>
   <artifactId>module-http</artifactId>
-  <version>1.2.0-beta.1</version>
+  <version>1.2.0-beta.2</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -145,8 +146,8 @@ has a stable URL. Authentication is still mandatory:
 ```bash
 curl --fail --location \
   --user "$GITHUB_ACTOR:$GITHUB_TOKEN" \
-  --output module-http-1.2.0-beta.1.jar \
-  https://maven.pkg.github.com/mickeyorlov/TestForge/io/github/mickeyorlov/testforge/module-http/1.2.0-beta.1/module-http-1.2.0-beta.1.jar
+  --output module-http-1.2.0-beta.2.jar \
+  https://maven.pkg.github.com/mickeyorlov/TestForge/io/github/mickeyorlov/testforge/module-http/1.2.0-beta.2/module-http-1.2.0-beta.2.jar
 ```
 
 For anonymous downloads, use Maven Central or attach the JARs to a GitHub
