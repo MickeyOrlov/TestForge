@@ -6,6 +6,22 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-api-explorer`: runs an OpenAPI document against a live environment and
+  reports what the API actually does. Safe by default — GET/HEAD/OPTIONS need no
+  opt-in, anything else needs both the method listed and
+  `allow-unsafe-methods=true`. Request values resolve in a fixed order
+  (configured override, example, default, enum, deterministic generated value);
+  an operation whose required values cannot be resolved is skipped with a reason
+  rather than guessed at. Runtime contract verification covers undocumented
+  status, unexpected content type, missing required fields, undocumented fields,
+  incompatible field types and malformed bodies. Per-operation observations,
+  `report.json` and `report.md` are written under `build/api-explorer` with
+  deterministic names. Reuses `module-api-discovery` for parsing and the spec
+  registry and `module-http` for transport and redaction; adds no second parser
+  and no second HTTP client. Stateful sequences, value extraction, replay and
+  fuzzing are deliberately out of v1.
+
 ### Fixed
 - `module-mobile-appium`: failure-artifact capture no longer aborts the page
   source when the screenshot fails — each artifact is captured independently

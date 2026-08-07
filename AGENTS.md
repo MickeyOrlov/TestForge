@@ -13,6 +13,7 @@ module-contract/ JSON message contracts for API/queue/file drift checks
 module-contract-monitor/ Kafka drift monitor: contract validation + shape diff report
 module-api-discovery/ OpenAPI catalog + schema shape snapshots
 module-api-codegen/ OpenAPI-first Java records + typed ApiClient skeletons
+module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report
 module-data/   RunUniqueValues, TemplateRenderer for generated test data
 module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
@@ -107,41 +108,52 @@ must not replace each other. `example-tests` is never published.
    never point generation at a hand-maintained source directory. Generated
    records and clients are transport scaffolding, not business tests. V1 does
    not attach its output to a Gradle source set automatically.
-10. **module-data**: use `RunUniqueValues` around domain generators and
+10. **module-api-explorer**: reuse the same `forge.api-discovery.specs`
+   registry and set `forge.http.base-url` for the environment. Leave
+   `forge.api-explorer.methods` at its default — GET/HEAD/OPTIONS need no
+   opt-in, and anything else needs BOTH the method listed and
+   `allow-unsafe-methods=true`. Never enable write methods against a shared
+   environment. Run `ApiExplorerRunner.assertHealthy()` from an environment
+   profile job, never the default build; `fail-on.contract-mismatch` stays
+   false until the first report has been reviewed. Feed missing identifiers
+   through `forge.api-explorer.parameters` — the report prints the block to
+   paste. Redaction follows `forge.http.logging.redact-*`; extend it before the
+   first run uploads artifacts.
+11. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the
    product API, typically a module-flow run inside `prepare(tags)`), then
    inject objects into tests with `@Prepared` + `PreparedParameterResolver`.
    Stock hot variants with `pool.preload(...)` in a suite hook; wire refill
    or metrics through `PoolEventListener`.
-11. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
+12. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
    reach a deep state through deterministic transitions. Keep steps small and
    idempotent; the runner should make failures readable by showing the path.
-12. **module-state**: for reusable business setup, implement
+13. **module-state**: for reusable business setup, implement
    `StateRecipe<T, S>` and expose it through `StatePreparedDataProvider`. Tests
    then ask for `@Prepared(tags = "approved")` or
    `@Prepared(tags = {"state:approved", "tenant:demo"})` instead of repeating
    setup calls. Recipes should use product/test-support APIs and `FlowRunner`;
    direct DB writes are an explicit project decision, not the default.
-13. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
+14. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
    broker access. Use `KafkaProbe` to find messages by topic/key/header/JSON
    path; shape checks compose with `module-contract` (await the message, then
    `assertValid` its value) — never reintroduce a hard dependency between the
    two modules.
-14. **module-reporting**: enable `forge.reporting.resource-monitor.enabled` in
+15. **module-reporting**: enable `forge.reporting.resource-monitor.enabled` in
    CI profiles when you need JVM memory/CPU diagnostics for slow or flaky runs.
-15. **module-web**: list the 2–4 heaviest pages of the system under test in
+16. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile.
-16. **module-mobile-appium**: put real devices in explicit mobile profiles,
+17. **module-mobile-appium**: put real devices in explicit mobile profiles,
    never in the default build. `forge.mobile.appium.enabled=true` only creates
    beans; sessions open lazily when a test requests `AppiumSession` or
    `AppiumDriver`. Use `devices.<id>` + `@MobileDevice("id")` for matrix
    selection, keep local node startup opt-in with `node.auto-start=true`, and
    upload `build/appium-artifacts` from mobile CI jobs. Screen objects and
    provider-specific clients stay in the adapted project.
-17. **Delete what is not needed.** Unused modules: remove the directory and its
+18. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
-18. **Client/DTO artifacts (drift layer 3).** When the product publishes a
+19. **Client/DTO artifacts (drift layer 3).** When the product publishes a
    versioned client or DTO module (OpenAPI-generated stubs, shared event
    types), make the test module depend on it instead of duplicating JSON
    shapes in test code. Keep `SchemaValidator` (DB mappings) and
@@ -179,7 +191,10 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
   casting the bean.
 - Prewarm downloads a Chromium on first run (`playwright install chromium`
   in CI images avoids the per-run download).
-- `module-http` scope injection rewrites JSON bodies sent as a string or byte
+- `module-api-explorer` sends real traffic. It is inert unless
+  `forge.api-explorer.enabled=true`, and write methods need two keys, not one.
+  Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.
+- - `module-http` scope injection rewrites JSON bodies sent as a string or byte
   array. REST Assured serializes object/POJO bodies *after* filters run, so
   those requests need `forge.http.scope.header` instead of the JSON path.
 - A `RequestSpecification` built by `RequestSpecBuilder` cannot be sent on its

@@ -6,6 +6,7 @@ dependencies {
     testImplementation project(":module-contract-monitor")
     testImplementation project(":module-api-discovery")
     testImplementation project(":module-api-codegen")
+    testImplementation project(":module-api-explorer")
     testImplementation project(":module-data")
     testImplementation project(":module-db")
     testImplementation project(":module-flow")
@@ -46,7 +47,7 @@ dependencies {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "browser"
+        excludeTags "containers", "browser", "live-api"
     }
 }
 
@@ -68,6 +69,17 @@ tasks.register("browsersTest", Test) {
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform {
         includeTags "browser"
+    }
+    shouldRunAfter tasks.named("test")
+}
+
+tasks.register("liveApiTest", Test) {
+    description = "Explores a public live API (needs network and TESTFORGE_LIVE_API_BASE_URL)"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "live-api"
     }
     shouldRunAfter tasks.named("test")
 }

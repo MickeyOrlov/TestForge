@@ -70,6 +70,31 @@ Goal: make expensive prepared objects more reliable in long CI runs.
 - Report cold misses and exhausted variants in CI artifacts.
 - Keep prepared objects one-use only; do not add release/reuse semantics.
 
+## Priority: stateful exploration on top of module-api-explorer
+
+**Module:** `module-api-explorer` (v1 shipped: stateless, safe-by-default)
+
+V1 explores each operation independently. The next useful step is the one
+RESTler earns its value from — using what one operation returned to reach the
+next one.
+
+- Extract values from recorded responses through a declarative rule, not a
+  heuristic. The observation model already stores the redacted body and the
+  resolved identity of every call.
+- Infer producer/consumer links between operations (an id a `POST` returns
+  satisfying a `GET`'s path parameter) and expose an inferred value as a new
+  `ValueSource` — nothing that reads an observation should need to change.
+- Sequence requests only once inference exists. An ordering with no data flow
+  between steps is just a slower independent run.
+- Reproducible replay from recorded observations, as a second
+  `ExchangeExecutor` implementation. The interface is already that seam.
+- Deterministic schema-aware fuzzing last, with every failure reproducible from
+  a recorded seed (see `module-api-fuzz` below).
+
+Request bodies stay out of the explorer until extraction lands. Synthesizing
+one means guessing at business meaning, and a wrong guess against a write
+endpoint is exactly what the safety policy exists to prevent.
+
 ## Future modules
 
 These are useful, but should stay behind the core CI/staging improvements.
@@ -83,9 +108,6 @@ These are useful, but should stay behind the core CI/staging improvements.
 
 - `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
   already standardize on feature files.
-- `module-api-explorer`: opt-in safe runtime exploration from the discovery
-  catalog, with GET/HEAD/OPTIONS enabled by default, mutation allowlists,
-  redacted observations, and OpenAPI/runtime comparison.
 - `module-api-fuzz`: deterministic schema-aware boundary generation with a
   recorded seed, after safe exploration is stable.
 - TestForge Gradle bootstrap plugin: compose discovery, code generation,
