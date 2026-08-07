@@ -43,6 +43,15 @@ Definition of done for any change: `./gradlew build` is green. The example
 suite is the living documentation — when you change a module's behaviour,
 update its example test in the same commit.
 
+Production modules can also be consumed as Maven libraries. Run
+`./gradlew publishTestForgeLibraries` and then
+`./gradlew -p smoke-tests/library-consumer test` to verify the published JAR,
+POM, transitive dependencies, and Spring Boot auto-configuration from an
+independent build. `example-tests` is living integration documentation inside
+the TestForge source tree; `smoke-tests/library-consumer` validates external
+Maven consumption without project dependencies. They are complementary and
+must not replace each other. `example-tests` is never published.
+
 ## Adaptation playbook (new project)
 
 1. **Rename**: group `io.testforge` and packages → target namespace;

@@ -69,6 +69,9 @@ features.
 
 - Multi-module Gradle template with Java 21 LTS toolchains and Spring Boot 3.5.x
   auto-configuration modules.
+- Independent Maven publications for all production modules, verified by a
+  standalone external Gradle consumer of `module-http` and
+  `module-api-discovery`.
 - Offline reference suite in `example-tests` using H2, embedded WireMock, and
   direct in-memory fixtures.
 - CI definitions for GitHub Actions and GitLab CI.

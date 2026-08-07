@@ -18,9 +18,15 @@ This checklist keeps publication boring and repeatable.
 rg -n --hidden --glob '!.git/**' --glob '!**/build/**' 'secret|password|token' .
 ```
 
-## Day 1: first GitHub release
+## Library release
 
-Recommended first public release: `v0.1.0`.
+The next release after the existing `v1.1.0` tag is `v1.2.0`. Keep the default
+development version at `1.2.0-SNAPSHOT`, then override it for the release:
+
+```bash
+./gradlew publishTestForgeLibraries -PtestforgeVersion=1.2.0
+./gradlew -p smoke-tests/library-consumer test -PtestforgeVersion=1.2.0
+```
 
 Release highlights:
 
@@ -59,5 +65,6 @@ gh repo edit --add-topic java --add-topic spring-boot --add-topic qa \
   --add-topic kafka --add-topic testing --add-topic junit5
 ```
 
-Before creating `v0.1.0`, check local and remote tags. A public first release
-should not conflict with existing published tags.
+Before creating `v1.2.0`, check local and remote tags and verify the target
+Maven repository coordinates. Maven Central additionally requires a verified
+namespace, signed artifacts, and repository-specific release configuration.

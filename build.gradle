@@ -1,6 +1,13 @@
+def testforgeGroup = providers.gradleProperty("testforgeGroup")
+        .orElse("io.testforge")
+        .get()
+def testforgeVersion = providers.gradleProperty("testforgeVersion")
+        .orElse(libs.versions.testforge)
+        .get()
+
 allprojects {
-    group = "io.testforge"
-    version = "0.1.0"
+    group = testforgeGroup
+    version = testforgeVersion
 
     repositories {
         mavenCentral()
@@ -36,4 +43,96 @@ subprojects {
             exceptionFormat = "full"
         }
     }
+}
+
+configure(subprojects.findAll { it.name != "example-tests" }) {
+    apply plugin: "maven-publish"
+
+    def publicationRepositoryUri = uri(providers.gradleProperty("testforgeRepositoryUrl")
+            .orElse(rootProject.layout.buildDirectory.dir("test-maven-repository").map {
+                it.asFile.toURI().toString()
+            })
+            .get())
+
+    def sourcesJarTask = tasks.register("sourcesJar", Jar) {
+        archiveClassifier = "sources"
+        from sourceSets.main.allSource
+    }
+    def javadocTask = tasks.named("javadoc", Javadoc)
+    def javadocJarTask = tasks.register("javadocJar", Jar) {
+        dependsOn javadocTask
+        archiveClassifier = "javadoc"
+        from { javadocTask.get().destinationDir }
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                artifact sourcesJarTask
+                artifact javadocJarTask
+
+                versionMapping {
+                    usage("java-api") {
+                        fromResolutionOf("runtimeClasspath")
+                    }
+                    usage("java-runtime") {
+                        fromResolutionResult()
+                    }
+                }
+
+                pom {
+                    name = "TestForge ${project.name}"
+                    description = "A removable TestForge automation module: ${project.name}."
+                    url = "https://github.com/MickeyOrlov/TestForge"
+
+                    licenses {
+                        license {
+                            name = "The Apache License, Version 2.0"
+                            url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                            distribution = "repo"
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = "MickeyOrlov"
+                            name = "Mikhail Orlov"
+                            url = "https://github.com/MickeyOrlov"
+                        }
+                    }
+                    scm {
+                        connection = "scm:git:https://github.com/MickeyOrlov/TestForge.git"
+                        developerConnection = "scm:git:ssh://git@github.com/MickeyOrlov/TestForge.git"
+                        url = "https://github.com/MickeyOrlov/TestForge"
+                    }
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = "testForge"
+                url = publicationRepositoryUri
+
+                if (publicationRepositoryUri.scheme in ["http", "https"]) {
+                    credentials {
+                        username = providers.gradleProperty("testforgeRepositoryUsername")
+                                .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_USERNAME"))
+                                .getOrNull()
+                        password = providers.gradleProperty("testforgeRepositoryPassword")
+                                .orElse(providers.environmentVariable("TESTFORGE_REPOSITORY_PASSWORD"))
+                                .getOrNull()
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.register("publishTestForgeLibraries") {
+    group = "publishing"
+    description = "Publishes every TestForge library module to the configured Maven repository."
+    dependsOn subprojects
+            .findAll { it.name != "example-tests" }
+            .collect { "${it.path}:publishMavenJavaPublicationToTestForgeRepository" }
 }
