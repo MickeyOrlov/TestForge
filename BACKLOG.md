@@ -76,9 +76,8 @@ These are useful, but should stay behind the core CI/staging improvements.
 
 - `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
   already standardize on feature files.
-- `module-api-discovery` / `module-api-scaffold`: discover endpoints from owned
-  frontend bundles, save an endpoint catalog, and generate reviewable
-  RestAssured/JUnit smoke-test skeletons.
+- `module-api-scaffold`: generate reviewable RestAssured/JUnit smoke-test
+  skeletons from the `module-api-discovery` endpoint catalog.
 
 ## Keep Stable For Now
 

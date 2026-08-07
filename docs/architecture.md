@@ -13,6 +13,7 @@ graph TD
     Data["module-data"]
     Contract["module-contract"]
     ContractMonitor["module-contract-monitor"]
+    ApiDiscovery["module-api-discovery"]
     Flow["module-flow"]
     State["module-state"]
     Reporting["module-reporting"]
@@ -28,6 +29,7 @@ graph TD
     Spring --> Data
     Spring --> Contract
     Spring --> ContractMonitor
+    Spring --> ApiDiscovery
     Spring --> Flow
     Spring --> State
     Spring --> Reporting
@@ -40,6 +42,7 @@ graph TD
     Core -. shared thin foundation .-> Mock
     Core -. shared thin foundation .-> Data
     Core -. shared thin foundation .-> Contract
+    Core -. shared thin foundation .-> ApiDiscovery
     Core -. shared thin foundation .-> Flow
     Core -. shared thin foundation .-> State
     Core -. shared thin foundation .-> Reporting
@@ -108,6 +111,29 @@ graph TD
     Kafka --> Probe
     Probe --> Contract
     Contract --> Assertions
+```
+
+## API Discovery Flow
+
+```mermaid
+graph TD
+    Spec["OpenAPI spec"]
+    Parser["OpenAPI parser"]
+    Catalog["Endpoint catalog"]
+    Shapes["Request/response shape snapshots"]
+    Baseline["Baseline artifacts"]
+    Diff["Catalog + shape diff"]
+    Report["JSON / Markdown report"]
+    JUnit["JUnit assertion"]
+
+    Spec --> Parser
+    Parser --> Catalog
+    Parser --> Shapes
+    Catalog --> Diff
+    Shapes --> Diff
+    Baseline --> Diff
+    Diff --> Report
+    Report --> JUnit
 ```
 
 ## Project Philosophy

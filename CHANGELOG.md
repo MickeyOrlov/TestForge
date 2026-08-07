@@ -12,6 +12,8 @@ semantic versioning for its git tags.
   and errors are surfaced as one (suppressed) exception.
 
 ### Added
+- `module-api-discovery`: OpenAPI endpoint catalog, request/response schema
+  shape snapshots, baseline diffs, report artifacts, and offline example test.
 - `module-mobile-appium` acceptance tests: page source survives a screenshot
   failure, extra-capabilities override mapped ones, positive validation
   (Android via app-package+app-activity, iOS via bundle-id), `@MobileDevice`
