@@ -41,6 +41,7 @@ flowchart LR
     State["module-state\nstate recipes"]
     DB["module-db\nDB waits + schema drift"]
     Mock["module-mock\nscoped WireMock"]
+    Http["module-http\nAPI client + correlation"]
     Kafka["module-kafka\nmessage probe"]
     Contract["module-contract\nJSON contracts"]
     Monitor["module-contract-monitor\nKafka drift report"]
@@ -52,6 +53,7 @@ flowchart LR
     Core --> Flow
     Core --> DB
     Core --> Mock
+    Core --> Http
     Core --> Kafka
     Core --> Contract
     Data --> State
@@ -60,6 +62,7 @@ flowchart LR
     Contract --> Monitor
     Web --> Examples
     Mobile --> Examples
+    Http --> Examples
     State --> Examples
     DB --> Examples
     Mock --> Examples
@@ -75,6 +78,7 @@ flowchart LR
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
+| [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Resource usage monitor for JVM memory/CPU diagnostics in CI artifacts |
@@ -161,6 +165,17 @@ forge:
     max-visits-per-state: 5
   state:
     target-tag-prefix: "state:"
+  http:
+    base-url: https://api.staging.example.test
+    connect-timeout: 5s
+    read-timeout: 30s
+    correlation:
+      header: X-Request-Id
+    logging:
+      bodies: true
+      redact-headers: [authorization, cookie, x-api-key]
+    retry:
+      enabled: false
   kafka:
     enabled: false
     topics: []

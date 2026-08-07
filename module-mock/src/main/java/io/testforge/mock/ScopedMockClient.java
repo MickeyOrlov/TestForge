@@ -3,6 +3,7 @@ package io.testforge.mock;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import io.testforge.core.context.ContextKey;
 import io.testforge.core.context.ScenarioContext;
+import io.testforge.core.context.ScenarioKeys;
 import java.util.UUID;
 
 /**
@@ -21,10 +22,11 @@ public class ScopedMockClient {
     /**
      * Where the generated scope id is published for the rest of the scenario:
      * payload builders read it to embed the id into requests so they match
-     * the scoped stubs. Cleared with the scenario context (pair with
+     * the scoped stubs, and {@code module-http} injects it automatically.
+     * Cleared with the scenario context (pair with
      * {@code ScenarioContextExtension}).
      */
-    public static final ContextKey<String> TEST_SCOPE = ContextKey.of("TEST_SCOPE", String.class);
+    public static final ContextKey<String> TEST_SCOPE = ScenarioKeys.TEST_SCOPE;
 
     private final WireMock wireMock;
     private final String scopeJsonPath;

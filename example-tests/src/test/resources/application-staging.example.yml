@@ -26,6 +26,19 @@ forge:
     # THE critical adaptation point: the request-body field that ties a
     # downstream call to one scenario (see module-mock/README.md)
     scope-json-path: "$.testScope"
+  http:
+    base-url: ${TESTENV_API_URL:https://api.staging.example.test}
+    connect-timeout: 5s
+    read-timeout: 30s
+    # scope.json-path is intentionally absent: it follows forge.mock.scope-json-path
+    correlation:
+      header: X-Request-Id
+    logging:
+      bodies: true
+      # extend with this product's own credential field names
+      redact-json-fields: [password, secret, token, access_token, refresh_token]
+    retry:
+      enabled: false          # turn on only where infrastructure noise is real
   db:
     log-sql: true
     repository-polling:
