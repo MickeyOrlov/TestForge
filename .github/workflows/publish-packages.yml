@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Maven version, for example 1.2.0 or 1.2.0-beta.1
+        description: Maven version, for example 1.2.0 or 1.2.0-beta.2
         required: true
-        default: 1.2.0-beta.1
+        default: 1.2.0-beta.2
 
 permissions:
   contents: read

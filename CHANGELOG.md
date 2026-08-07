@@ -21,7 +21,8 @@ semantic versioning for its git tags.
 - `module-api-codegen`: OpenAPI-first Java records and typed `ApiClient`
   skeletons, deterministic generated source directories, JSON/Markdown report,
   stale-output cleanup, offline example, and compile verification of generated
-  sources.
+  sources; the standalone Maven consumer verifies its published
+  auto-configuration and generation path.
 - `module-api-discovery`: OpenAPI endpoint catalog, request/response schema
   shape snapshots, baseline diffs, report artifacts, and offline example test.
 - `module-http`: preconfigured REST Assured specification through `ApiClient` —

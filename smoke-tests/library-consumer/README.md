@@ -10,11 +10,12 @@ From the repository root:
 ./gradlew -p smoke-tests/library-consumer test
 ```
 
-The tests resolve `io.testforge:module-http` and
-`io.testforge:module-api-discovery` from `build/test-maven-repository`. They
-load Spring Boot auto-configuration from the published JARs, call WireMock
-through `ApiClient`, verify the generated correlation header, and build an
-OpenAPI endpoint/shape report from a classpath specification.
+The tests resolve `io.testforge:module-http`,
+`io.testforge:module-api-discovery`, and `io.testforge:module-api-codegen` from
+`build/test-maven-repository`. They load Spring Boot auto-configuration from
+the published JARs, call WireMock through `ApiClient`, verify the generated
+correlation header, build an OpenAPI endpoint/shape report, and generate Java
+records plus a typed API client from a classpath specification.
 
 The same build can verify GitHub Packages after a release:
 
@@ -24,7 +25,7 @@ export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat-with-read-packages>
 
 ./gradlew -p smoke-tests/library-consumer test \
   -PtestforgeGroup=io.github.mickeyorlov.testforge \
-  -PtestforgeVersion=1.2.0-beta.1 \
+  -PtestforgeVersion=1.2.0-beta.2 \
   -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge
 ```
 

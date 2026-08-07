@@ -112,7 +112,7 @@ database".
 
 All production modules publish independently; `example-tests` is not an
 artifact. The default development version is `1.2.0-SNAPSHOT`; the published
-preview is `io.github.mickeyorlov.testforge:<module>:1.2.0-beta.1` on GitHub
+preview is `io.github.mickeyorlov.testforge:<module>:1.2.0-beta.2` on GitHub
 Packages.
 
 ```bash
