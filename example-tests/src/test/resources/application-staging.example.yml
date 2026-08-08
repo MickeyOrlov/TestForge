@@ -58,7 +58,9 @@ forge:
     max-cases-per-operation: 20
     fail-on:
       server-error: true      # a crash on bad input is always a defect
+      transport-failure: true
       over-permissive: false  # widen after reading the first report
+      over-strict: false
   db:
     log-sql: true
     repository-polling:

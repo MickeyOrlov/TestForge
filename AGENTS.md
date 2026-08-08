@@ -206,7 +206,10 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
   gates plus its own `enabled` flag. Generating a request body does NOT make
   write methods reachable — the gates are still the only thing that does.
   A `REJECT` expectation may only be issued when a declared constraint forbids
-  the value; anything heuristic is a probe. Only crashes fail a build by default; a
+  the value; anything heuristic is a probe. Every operation is proved reachable
+  by a valid control request first — without an accepted control, no case may
+  claim anything about validation, and 401/403/429/redirects are never evidence
+  that a schema refused input. Only crashes fail a build by default; a
   case id is the whole reproduction, and the seed only matters when the budget
   caps the matrix.
   Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.

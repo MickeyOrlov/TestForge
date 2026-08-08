@@ -2,6 +2,7 @@ package io.testforge.example;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -11,8 +12,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.testforge.api.fuzz.ApiFuzzReport;
+import io.testforge.api.fuzz.ControlOutcome;
 import io.testforge.api.fuzz.ApiFuzzRunner;
 import io.testforge.api.fuzz.FuzzObservation;
+import io.testforge.api.fuzz.FuzzEvidenceKind;
 import io.testforge.api.fuzz.FuzzVerdict;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -76,7 +79,7 @@ class ApiFuzzExampleTest {
         ApiFuzzReport report = fuzz.run();
 
         FuzzObservation crash = report.findings().stream()
-                .filter(finding -> finding.verdict() == FuzzVerdict.SERVER_ERROR)
+                .filter(finding -> finding.has(FuzzEvidenceKind.SERVER_ERROR))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("expected the over-long identifier to crash the service"));
 
@@ -105,6 +108,41 @@ class ApiFuzzExampleTest {
         assertThat(report.findings())
                 .extracting(FuzzObservation::verdict)
                 .contains(FuzzVerdict.OVER_PERMISSIVE);
+    }
+
+    @Test
+    void anEndpointBehindAuthProducesNoValidationVerdictsAtAll() {
+        // the trap v1.1 fell into: 401 to valid data, 401 to invalid data, and
+        // a page of green "the service rejected bad input" results
+        server.resetAll();
+        server.stubFor(get(urlPathMatching("/api/v1/tasks/.*"))
+                .willReturn(aResponse().withStatus(401)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"unauthorized\"}")));
+
+        ApiFuzzReport report = fuzz.run();
+
+        assertThat(report.specs().getFirst().operations())
+                .filteredOn(operation -> operation.operationId().equals("getTask"))
+                .singleElement()
+                .satisfies(operation -> {
+                    assertThat(operation.control().outcome()).isEqualTo(ControlOutcome.BLOCKED);
+                    assertThat(operation.cases()).isZero();
+                    assertThat(operation.skipReason()).contains("control request not accepted");
+                });
+
+        assertThat(report.findings())
+                .describedAs("nothing about validation can be claimed when the door is locked")
+                .isEmpty();
+    }
+
+    @Test
+    void oneControlRequestPerOperationNotOnePerCase() {
+        fuzz.run();
+
+        // the baseline id is eight characters, the declared maximum; every
+        // longer request is a case, and exactly one control was sent
+        server.verify(1, getRequestedFor(urlPathEqualTo("/api/v1/tasks/testforg")));
     }
 
     @Test

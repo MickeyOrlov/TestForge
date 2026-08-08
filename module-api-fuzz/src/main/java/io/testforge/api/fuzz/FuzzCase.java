@@ -25,6 +25,7 @@ public record FuzzCase(
         String in,
         FuzzCaseKind kind,
         FuzzExpectation expectation,
+        String constraint,
         String value,
         boolean omitted) {
 
@@ -33,24 +34,29 @@ public record FuzzCase(
 
     public static FuzzCase parameter(String specId, String operationId, String operationKey,
                                      String parameterName, String in, FuzzCaseKind kind,
-                                     FuzzExpectation expectation, String value) {
+                                     FuzzExpectation expectation, String constraint, String value) {
         return new FuzzCase(id(operationId, in, parameterName, kind), specId, operationId, operationKey,
-                parameterName, in, kind, expectation, value, false);
+                parameterName, in, kind, expectation, constraint, value, false);
     }
 
     /** {@code parameterName} is a JSON path into the body, such as {@code $.profile.age}. */
     public static FuzzCase body(String specId, String operationId, String operationKey,
                                 String jsonPath, FuzzCaseKind kind,
-                                FuzzExpectation expectation, String value) {
+                                FuzzExpectation expectation, String constraint, String value) {
         return new FuzzCase(id(operationId, BODY, jsonPath, kind), specId, operationId, operationKey,
-                jsonPath, BODY, kind, expectation, value, false);
+                jsonPath, BODY, kind, expectation, constraint, value, false);
     }
 
     public static FuzzCase omitting(String specId, String operationId, String operationKey,
                                     String name, String in) {
         return new FuzzCase(id(operationId, in, name, FuzzCaseKind.OMITTED_REQUIRED), specId,
                 operationId, operationKey, name, in, FuzzCaseKind.OMITTED_REQUIRED,
-                FuzzExpectation.REJECT, null, true);
+                FuzzExpectation.REJECT, "required", null, true);
+    }
+
+    /** Where in the document the case's location sits, for coverage reporting. */
+    public String location() {
+        return bodyCase() ? parameterName() : in() + ":" + parameterName();
     }
 
     public boolean bodyCase() {

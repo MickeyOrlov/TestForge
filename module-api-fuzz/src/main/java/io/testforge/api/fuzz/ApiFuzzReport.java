@@ -31,20 +31,32 @@ public record ApiFuzzReport(
                 .toList();
     }
 
+    /** Cases the run could not draw a conclusion from, and why. */
+    public List<FuzzObservation> inconclusive() {
+        return specs.stream()
+                .flatMap(spec -> spec.operations().stream())
+                .flatMap(operation -> operation.observations().stream())
+                .filter(observation -> observation.verdict() == FuzzVerdict.INCONCLUSIVE)
+                .toList();
+    }
+
     /** One spec's worth of fuzzing. */
     public record SpecFuzzReport(
             String specId,
             String location,
             String baseUrl,
+            String fingerprint,
             boolean failed,
             int operationCount,
             int cases,
             int findings,
             List<OperationFuzzReport> operationReports,
+            List<ReproductionManifest> reproduction,
             String error) {
 
         public SpecFuzzReport {
             operationReports = List.copyOf(operationReports == null ? List.of() : operationReports);
+            reproduction = List.copyOf(reproduction == null ? List.of() : reproduction);
         }
 
         public List<OperationFuzzReport> operations() {
@@ -52,7 +64,8 @@ public record ApiFuzzReport(
         }
 
         public static SpecFuzzReport broken(String specId, String location, String baseUrl, String error) {
-            return new SpecFuzzReport(specId, location, baseUrl, true, 0, 0, 0, List.of(), error);
+            return new SpecFuzzReport(specId, location, baseUrl, null, true, 0, 0, 0,
+                    List.of(), List.of(), error);
         }
     }
 }
