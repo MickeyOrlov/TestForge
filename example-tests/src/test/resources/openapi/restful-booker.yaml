@@ -1,0 +1,76 @@
+# A deliberately small slice of the public Restful Booker API, used by the
+# opt-in live example. Only read operations are described: the explorer would
+# refuse the write ones anyway, and a document that does not mention them keeps
+# the example honest about what it exercises.
+openapi: 3.0.3
+info:
+  title: Restful Booker (read-only slice)
+  version: 1.0.0
+paths:
+  /ping:
+    get:
+      operationId: healthCheck
+      responses:
+        '201':
+          description: Created
+          content:
+            text/plain:
+              schema:
+                type: string
+  /booking:
+    get:
+      operationId: getBookingIds
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [bookingid]
+                  properties:
+                    bookingid:
+                      type: integer
+  /booking/{id}:
+    get:
+      operationId: getBooking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [firstname, lastname, totalprice, depositpaid]
+                properties:
+                  firstname:
+                    type: string
+                  lastname:
+                    type: string
+                  totalprice:
+                    type: integer
+                  depositpaid:
+                    type: boolean
+                  additionalneeds:
+                    type: string
+                  bookingdates:
+                    type: object
+                    properties:
+                      checkin:
+                        type: string
+                      checkout:
+                        type: string
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                type: string

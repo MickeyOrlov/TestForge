@@ -102,6 +102,7 @@ repositories {
 dependencies {
     testImplementation "io.github.mickeyorlov.testforge:module-http:1.2.0-beta.2"
     testImplementation "io.github.mickeyorlov.testforge:module-api-codegen:1.2.0-beta.2"
+    testImplementation "io.github.mickeyorlov.testforge:module-api-explorer:1.2.0-beta.2"
 }
 ```
 

@@ -16,6 +16,7 @@ graph TD
     ContractMonitor["module-contract-monitor"]
     ApiDiscovery["module-api-discovery"]
     ApiCodegen["module-api-codegen"]
+    ApiExplorer["module-api-explorer"]
     Flow["module-flow"]
     State["module-state"]
     Reporting["module-reporting"]
@@ -34,6 +35,7 @@ graph TD
     Spring --> ContractMonitor
     Spring --> ApiDiscovery
     Spring --> ApiCodegen
+    Spring --> ApiExplorer
     Spring --> Flow
     Spring --> State
     Spring --> Reporting
@@ -49,6 +51,7 @@ graph TD
     Core -. shared thin foundation .-> Contract
     Core -. shared thin foundation .-> ApiDiscovery
     Core -. shared thin foundation .-> ApiCodegen
+    Core -. shared thin foundation .-> ApiExplorer
     Core -. shared thin foundation .-> Flow
     Core -. shared thin foundation .-> State
     Core -. shared thin foundation .-> Reporting

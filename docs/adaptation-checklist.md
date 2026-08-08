@@ -30,6 +30,10 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
       BEFORE the first CI run uploads a log; add authentication as an
       `ApiRequestCustomizer`. Leave `scope.json-path` unset — it follows
       `forge.mock.scope-json-path`
+- [ ] **module-api-explorer**: same `forge.api-discovery.specs` registry plus
+      `forge.http.base-url`; keep `methods` at the GET/HEAD/OPTIONS default and
+      never enable `allow-unsafe-methods` against a shared environment. Run it
+      from an environment profile job, not the default build
 - [ ] **module-db**: add entities + repositories for asserted tables; one
       `SchemaValidator` test per entity in a scheduled CI job. If the product
       publishes client/DTO artifacts — depend on them, never duplicate

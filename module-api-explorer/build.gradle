@@ -1,0 +1,15 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    // the OpenAPI parser, spec registry and swagger model all come from here —
+    // this module never parses a document itself
+    api project(":module-api-discovery")
+    // the HTTP client, its filters and its redaction — no second client
+    api project(":module-http")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

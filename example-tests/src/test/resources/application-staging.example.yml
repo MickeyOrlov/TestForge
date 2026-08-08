@@ -39,6 +39,17 @@ forge:
       redact-json-fields: [password, secret, token, access_token, refresh_token]
     retry:
       enabled: false          # turn on only where infrastructure noise is real
+  api-explorer:
+    enabled: false            # sends real traffic — turn on per environment only
+    output-dir: build/api-explorer
+    methods: [GET, HEAD, OPTIONS]
+    allow-unsafe-methods: false   # write methods need this AND the method listed
+    # parameters:
+    #   defaults:
+    #     id: "00000000-0000-0000-0000-000000000001"
+    fail-on:
+      contract-mismatch: false  # review the first report before turning this on
+      failure: true
   db:
     log-sql: true
     repository-polling:
