@@ -142,7 +142,7 @@ class CoverageAndReproductionTest {
     private ApiFuzzReport run(Path output, String operationId, int controlStatus) {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 true, output.toString(), null, List.of(), 20260101L, Set.of("GET", "POST"), true,
-                null, null, null, 500, null, List.of(), null, null);
+                null, null, null, 500, null, 0, false, 0, List.of(), null, null);
 
         ExchangeExecutor executor = new ExchangeExecutor() {
             private boolean controlSent;
@@ -170,6 +170,12 @@ class CoverageAndReproductionTest {
         };
 
         JsonBodyFactory bodyFactory = new JsonBodyFactory(MAPPER);
+        ResponseClassifier classifier = new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER);
+        FindingConfirmer confirmer = new FindingConfirmer(executor, classifier, properties);
+        RequestShrinker shrinker = new RequestShrinker(MAPPER, new ConstraintInventory(bodyFactory),
+                bodyFactory, confirmer, properties);
+        ObjectMapper objectMapper = MAPPER;
+
         return new ApiFuzzRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),
@@ -184,9 +190,12 @@ class CoverageAndReproductionTest {
                 new JsonBodyMutator(MAPPER),
                 new ConstraintInventory(bodyFactory),
                 new BaselineSelfCheck(),
+                confirmer,
+                shrinker,
+                new ReproductionWriter(objectMapper),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
                 executor,
-                new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER),
+                classifier,
                 new ObservationFactory(new Redactor(MAPPER, List.of("authorization"), List.of("token")), 4000),
                 MAPPER,
                 new ApiDiscoveryProperties(true, null, null, null, null,

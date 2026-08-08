@@ -35,6 +35,7 @@ final class FuzzReportMarkdown {
         }
 
         renderFindings(out, report);
+        renderFlaky(out, report);
         renderInconclusive(out, report);
         report.specs().forEach(spec -> renderSpec(out, spec));
         return out.toString();
@@ -49,8 +50,9 @@ final class FuzzReportMarkdown {
             return;
         }
 
-        out.append("| verdict | evidence | operation | field | mutation | expected | control | fuzz | sent | case id |\n");
-        out.append("|---|---|---|---|---|---|---|---|---|---|\n");
+        out.append("| verdict | evidence | operation | field | mutation | expected | control | fuzz "
+                + "| reproducibility | shrink | case id |\n");
+        out.append("|---|---|---|---|---|---|---|---|---|---|---|\n");
         findings.forEach(finding -> out
                 .append("| **").append(finding.verdict()).append("** | ")
                 .append(evidence(finding)).append(" | `")
@@ -60,8 +62,12 @@ final class FuzzReportMarkdown {
                 .append(" | ").append(finding.expectation())
                 .append(" | ").append(controlStatus(report, finding))
                 .append(" | ").append(finding.status() == null ? "-" : finding.status())
-                .append(" | `").append(escape(finding.requestFragment()))
-                .append("` | `").append(finding.fuzzCase().id()).append("` |\n"));
+                .append(" | ").append(finding.confirmation().summary())
+                .append(" | ").append(finding.shrink().summary())
+                .append(" | `").append(finding.fuzzCase().id()).append("` |\n"));
+
+        out.append("\nEvery finding has a folder under `reproductions/` with the minimal request, what the "
+                + "document promised, and the snippet that runs it again.\n");
 
         out.append("\n### Reproduce a single case\n\n```yaml\nforge:\n  api-fuzz:\n    seed: ")
                 .append(report.seed())
@@ -70,6 +76,32 @@ final class FuzzReportMarkdown {
         out.append("```\n");
         out.append("\nFull manifests, including the spec fingerprint each finding was made against, are in "
                 + "`<spec>/reproduction.json`.\n");
+    }
+
+    /**
+     * Findings whose response varied between identical requests. Kept in the
+     * report rather than dropped: an intermittent 500 is usually the most
+     * interesting one there is, and hiding it because it did not repeat cleanly
+     * is how a fuzzer becomes reassuring instead of useful.
+     */
+    private static void renderFlaky(StringBuilder out, ApiFuzzReport report) {
+        List<FuzzObservation> flaky = report.findings().stream()
+                .filter(FuzzObservation::flaky)
+                .toList();
+        if (flaky.isEmpty()) {
+            return;
+        }
+
+        out.append("\n## Flaky findings (").append(flaky.size()).append(")\n\n");
+        out.append("| operation | field | mutation | seen | case id |\n");
+        out.append("|---|---|---|---|---|\n");
+        flaky.forEach(finding -> out
+                .append("| `").append(finding.fuzzCase().operationKey()).append("` | `")
+                .append(finding.fuzzCase().location()).append("` | ")
+                .append(finding.fuzzCase().kind()).append(" | ")
+                .append(finding.confirmation().matches()).append('/')
+                .append(finding.confirmation().attempts()).append(" | `")
+                .append(finding.fuzzCase().id()).append("` |\n"));
     }
 
     /**

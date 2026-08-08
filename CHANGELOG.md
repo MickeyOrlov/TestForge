@@ -7,6 +7,21 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-fuzz` v1.3: findings are confirmed and minimized into ready-made
+  reproducers. An optional bounded confirmation phase re-sends a finding's
+  request and reports REPRODUCIBLE, FLAKY, DISAPPEARED or NOT_CONFIRMED; a
+  flaky finding stays in the report rather than being dropped. Minimization
+  then strips the request to the smallest one that still shows the same finding
+  — optional fields removed, arrays shrunk to minItems, optional query
+  parameters dropped — while required fields, the target and every other
+  declared constraint are preserved. "The same finding" is decided by a
+  FindingSignature (verdict, strongest evidence, status family), not by the
+  status code. Each finding gets build/api-fuzz/reproductions/<case-id>/ with a
+  manifest, the redacted minimal request and a reproduce.md that answers what
+  was sent, what the document promised, what came back, whether it is stable,
+  whether it is minimized and how to run it again. Both phases are off by
+  default, so the increment costs zero extra requests until enabled, and
+  repeating a write method requires its own allow-unsafe-confirmation key.
 - `module-api-fuzz` v1.2: a valid control request per operation, and
   differential classification against it. Before any mutation, one fully valid
   request built from the same schema and the same configured values proves the

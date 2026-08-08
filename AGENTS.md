@@ -209,7 +209,10 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
   the value; anything heuristic is a probe. Every operation is proved reachable
   by a valid control request first — without an accepted control, no case may
   claim anything about validation, and 401/403/429/redirects are never evidence
-  that a schema refused input. Only crashes fail a build by default; a
+  that a schema refused input. Confirmation and minimization are off by default
+  and cost live requests; repeating a write method needs
+  `allow-unsafe-confirmation`, which is deliberately separate from
+  `allow-unsafe-methods`. Only crashes fail a build by default; a
   case id is the whole reproduction, and the seed only matters when the budget
   caps the matrix.
   Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.
