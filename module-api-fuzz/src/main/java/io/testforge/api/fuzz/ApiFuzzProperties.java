@@ -41,6 +41,7 @@ public record ApiFuzzProperties(
         Integer confirmationRuns,
         Boolean allowUnsafeConfirmation,
         Integer maxShrinkAttempts,
+        Boolean protocolMutations,
         List<String> onlyCases,
         ApiExplorerProperties.ParameterProperties parameters,
         FailureProperties failOn) {
@@ -83,6 +84,14 @@ public record ApiFuzzProperties(
         }
         if (maxShrinkAttempts == null || maxShrinkAttempts < 0) {
             maxShrinkAttempts = 0;
+        }
+        // on by default, unlike the phases above: these cost no extra requests
+        // beyond the case budget already agreed, they only apply to operations
+        // that carry a request body — which already need the unsafe-method key
+        // turned — and they reach the layer of a service least likely to have
+        // been tested by anything else
+        if (protocolMutations == null) {
+            protocolMutations = true;
         }
         onlyCases = List.copyOf(onlyCases == null ? List.of() : onlyCases);
         if (parameters == null) {

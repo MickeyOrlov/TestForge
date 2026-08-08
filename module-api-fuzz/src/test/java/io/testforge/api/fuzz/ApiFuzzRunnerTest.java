@@ -3,21 +3,9 @@ package io.testforge.api.fuzz;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.testforge.api.discovery.ApiDiscoveryProperties;
-import io.testforge.api.discovery.OpenApiSpecParser;
-import io.testforge.api.explorer.ApiExplorerProperties;
 import io.testforge.api.explorer.ExchangeExecutor;
-import io.testforge.api.explorer.ObservationFactory;
-import io.testforge.api.explorer.OperationSelector;
 import io.testforge.api.explorer.PreparedRequest;
-import io.testforge.api.explorer.RequestPlanner;
-import io.testforge.api.explorer.RequestValueResolver;
-import io.testforge.api.explorer.ResponseContractChecker;
 import io.testforge.api.explorer.RuntimeExchange;
-import io.testforge.api.explorer.SafetyPolicy;
-import io.testforge.api.explorer.SchemaValueFactory;
-import io.testforge.http.Redactor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -149,42 +137,9 @@ class ApiFuzzRunnerTest {
     private ApiFuzzRunner runner(Path output, List<String> onlyCases, boolean enabled) {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 enabled, output.toString(), null, List.of(), 20260101L, null, null, null, null,
-                null, 100, null, 0, false, 0, onlyCases, null, null);
+                null, 100, null, 0, false, 0, null, onlyCases, null, null);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        JsonBodyFactory bodyFactory = new JsonBodyFactory(objectMapper);
-        ResponseClassifier classifier = new ResponseClassifier(
-                new ResponseContractChecker(objectMapper), objectMapper);
-        ExchangeExecutor exchangeExecutor = executor();
-        FindingConfirmer confirmer = new FindingConfirmer(exchangeExecutor, classifier, properties);
-        RequestShrinker shrinker = new RequestShrinker(objectMapper,
-                new ConstraintInventory(bodyFactory), bodyFactory, confirmer, properties);
-
-        return new ApiFuzzRunner(
-                new OpenApiSpecParser(),
-                new OperationSelector(),
-                new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
-                        properties.includePaths(), properties.excludePaths()),
-                new RequestPlanner(new RequestValueResolver(
-                        new ApiExplorerProperties.ParameterProperties(Map.of("q", "query"), Map.of()),
-                        new ConstraintAwareValueFactory()), true),
-                new FuzzCaseGenerator(),
-                new BodyCaseGenerator(objectMapper, new JsonBodyFactory(objectMapper)),
-                new JsonBodyFactory(objectMapper),
-                new JsonBodyMutator(objectMapper),
-                new ConstraintInventory(new JsonBodyFactory(objectMapper)),
-                new BaselineSelfCheck(),
-                confirmer,
-                shrinker,
-                new ReproductionWriter(objectMapper),
-                new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
-                exchangeExecutor,
-                classifier,
-                new ObservationFactory(new Redactor(objectMapper, List.of("authorization"), List.of("token")), 4000),
-                objectMapper,
-                new ApiDiscoveryProperties(true, null, null, null, null,
-                        Map.of(FuzzFixtures.SPEC_ID, new ApiDiscoveryProperties.Spec(FuzzFixtures.LOCATION))),
-                properties);
+        return FuzzFixtures.runner(properties, executor(), Map.of("q", "query"));
     }
 
     /**

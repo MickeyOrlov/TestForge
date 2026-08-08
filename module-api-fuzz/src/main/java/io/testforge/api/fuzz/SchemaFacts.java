@@ -127,6 +127,36 @@ final class SchemaFacts {
         return pattern(schema).map(pattern -> pattern.matcher(value).find()).orElse(true);
     }
 
+    static boolean uniqueItems(Schema<?> schema) {
+        return schema != null && Boolean.TRUE.equals(schema.getUniqueItems());
+    }
+
+    /**
+     * Whether the schema forbids properties it did not declare.
+     *
+     * <p>Only the literal {@code additionalProperties: false} proves that. A
+     * schema-valued {@code additionalProperties} constrains extra properties
+     * rather than banning them, and its absence — by far the common case —
+     * permits them outright, so neither can justify a {@code REJECT}.
+     */
+    static boolean additionalPropertiesForbidden(Schema<?> schema) {
+        return schema != null && Boolean.FALSE.equals(schema.getAdditionalProperties());
+    }
+
+    /**
+     * A property the document says belongs to responses only. OpenAPI's word is
+     * "SHOULD NOT" be sent in a request, which is guidance rather than a rule —
+     * so sending one is a probe, and leaving one out of the control is simply
+     * doing what the document asks.
+     */
+    static boolean readOnly(Schema<?> schema) {
+        return schema != null && Boolean.TRUE.equals(schema.getReadOnly());
+    }
+
+    static boolean writeOnly(Schema<?> schema) {
+        return schema != null && Boolean.TRUE.equals(schema.getWriteOnly());
+    }
+
     static Optional<List<String>> enumValues(Schema<?> schema) {
         if (schema == null || schema.getEnum() == null || schema.getEnum().isEmpty()) {
             return Optional.empty();

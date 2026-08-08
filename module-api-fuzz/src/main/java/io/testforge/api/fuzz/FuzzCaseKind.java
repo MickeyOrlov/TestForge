@@ -1,7 +1,7 @@
 package io.testforge.api.fuzz;
 
 /**
- * What a case does to a value.
+ * What a case does to a request.
  *
  * <p>The kind says <em>what was changed</em>, never what the service ought to
  * do about it. That judgement is {@link FuzzExpectation}, and it belongs to the
@@ -14,6 +14,10 @@ package io.testforge.api.fuzz;
  * findings — a long string was reported as {@code OVER_PERMISSIVE} even when
  * nothing in the document forbade it. Keeping the two apart is what stops that
  * from coming back.
+ *
+ * <p>Each kind also carries its {@link FuzzCaseCategory}, so a reader — and the
+ * coverage report — can tell a broken value from a broken envelope without
+ * consulting a list kept somewhere else.
  */
 public enum FuzzCaseKind {
 
@@ -64,11 +68,45 @@ public enum FuzzCaseKind {
     TOO_MANY_ITEMS,
     /** An element whose type the item schema does not declare. */
     INVALID_ITEM_TYPE,
+    /** The same element twice, against a declared {@code uniqueItems}. */
+    DUPLICATE_ITEM,
+
+    // --- objects ---
+
+    /** A property the schema never declared, against {@code additionalProperties}. */
+    UNDECLARED_PROPERTY,
+    /** A {@code readOnly} property sent in a request, where it does not belong. */
+    READ_ONLY_IN_REQUEST,
 
     // --- robustness probes ---
 
     /** Structural characters, to probe escaping and encoding. */
     ENCODING_PROBE,
     /** Multi-byte characters, for services that assume one byte per character. */
-    UNICODE
+    UNICODE,
+
+    // --- protocol ---
+
+    /** Syntactically broken JSON where the document declares a JSON body. */
+    MALFORMED_JSON(FuzzCaseCategory.PROTOCOL_MUTATION),
+    /** A media type the operation does not declare. */
+    UNSUPPORTED_CONTENT_TYPE(FuzzCaseCategory.PROTOCOL_MUTATION),
+    /** A body with no {@code Content-Type} header at all. */
+    MISSING_CONTENT_TYPE(FuzzCaseCategory.PROTOCOL_MUTATION),
+    /** No body where the document marks the request body required. */
+    EMPTY_BODY(FuzzCaseCategory.PROTOCOL_MUTATION);
+
+    private final FuzzCaseCategory category;
+
+    FuzzCaseKind() {
+        this(FuzzCaseCategory.SCHEMA_MUTATION);
+    }
+
+    FuzzCaseKind(FuzzCaseCategory category) {
+        this.category = category;
+    }
+
+    public FuzzCaseCategory category() {
+        return category;
+    }
 }

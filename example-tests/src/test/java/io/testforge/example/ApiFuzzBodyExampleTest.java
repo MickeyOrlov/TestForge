@@ -116,9 +116,35 @@ class ApiFuzzBodyExampleTest {
     }
 
     @Test
+    void theEnvelopeIsProbedSeparatelyFromTheSchema() {
+        ApiFuzzReport report = fuzz.run();
+
+        // broken JSON reaches the body parser rather than the validation the
+        // team wrote, which is where a stack trace tends to escape
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/tasks"))
+                .withRequestBody(com.github.tomakehurst.wiremock.client.WireMock
+                        .equalTo("{\"testforge\": ")));
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/tasks"))
+                .withHeader("Content-Type", com.github.tomakehurst.wiremock.client.WireMock
+                        .containing("text/plain")));
+
+        // and they are counted apart, so constraint coverage keeps meaning
+        // what it says
+        assertThat(report.specs().getFirst().operations())
+                .filteredOn(operation -> "createTask".equals(operation.operationId()))
+                .singleElement()
+                .satisfies(operation -> {
+                    assertThat(operation.coverage().outcomes().protocolMutations()).isPositive();
+                    assertThat(operation.coverage().outcomes().schemaMutations()).isPositive();
+                });
+    }
+
+    @Test
     void everyRequestCarriesAJsonContentType() {
         fuzz.run();
 
+        // every schema case does, at least: the one request that deliberately
+        // does not is the UNSUPPORTED_CONTENT_TYPE protocol case above
         server.verify(postRequestedFor(urlPathEqualTo("/api/v1/tasks"))
                 .withHeader("Content-Type", com.github.tomakehurst.wiremock.client.WireMock
                         .containing("application/json")));
