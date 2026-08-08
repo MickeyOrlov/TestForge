@@ -33,6 +33,12 @@ public record ReproductionManifest(
         Integer controlStatus,
         Integer fuzzStatus,
         FuzzVerdict verdict,
+        Reproducibility reproducibility,
+        String confirmation,
+        String minimization,
+        Integer originalSize,
+        Integer minimalSize,
+        String minimalBody,
         List<FuzzEvidenceKind> evidence,
         Map<String, String> resolvedInputs) {
 
@@ -61,6 +67,12 @@ public record ReproductionManifest(
                 control.status(),
                 observation.status(),
                 observation.verdict(),
+                observation.confirmation().reproducibility(),
+                observation.confirmation().summary(),
+                observation.shrink().summary(),
+                observation.shrink().originalSize(),
+                observation.shrink().minimalSize(),
+                observation.shrink().minimalBody(),
                 observation.evidence().stream().map(FuzzEvidence::kind).toList(),
                 new TreeMap<>(resolvedInputs));
     }

@@ -185,6 +185,83 @@ Listed, not scored. A percentage would invite comparing APIs that declare
 wildly different amounts and would reward a vague document for being vague.
 What a reader needs is the second list: that is where the run is blind.
 
+## Confirmation and minimization
+
+A finding is only useful if an engineer can act on it. Two optional phases turn
+"this case failed once" into a reproducer:
+
+**Confirmation** re-sends the finding's request a bounded number of times and
+reports what happened:
+
+| Reproducibility | Meaning |
+|---|---|
+| `NOT_CONFIRMED` | Confirmation was off — the default |
+| `REPRODUCIBLE` | Every attempt showed the same finding |
+| `FLAKY` | Some did, some did not — reported, never hidden |
+| `DISAPPEARED` | No attempt showed it again |
+| `NOT_ATTEMPTED` | A write method without the separate opt-in |
+
+**Minimization** then strips the request down to the smallest one that still
+shows the same finding: optional fields removed, arrays shrunk to `minItems`,
+optional query parameters dropped. Required fields, the target itself, and
+every other declared constraint are left alone, so each candidate stays "the
+valid baseline except the one mutation".
+
+```
+original: {"title":"aaa","priority":6,"note":"aaaa","tags":["aaaa"]}
+minimal:  {"title":"aaa","priority":6}
+4 → 2 fields in 2 attempts
+```
+
+"Still the same finding" is decided by a `FindingSignature` — verdict, the
+strongest evidence, and the status family — not by the status code alone. A
+shrink that accidentally destroys the finding is rejected rather than
+celebrated.
+
+### What it costs
+
+Both phases are **off by default**, so v1.3 adds exactly zero requests until a
+project asks for it. When enabled, the worst case per run is:
+
+```
+findings × (confirmation-runs + max-shrink-attempts)
+```
+
+on top of one control per fuzzed operation and one request per case. Nothing is
+retried in a loop and nothing searches: the shrink order is fixed and the
+budget is a hard stop.
+
+Repeating a write method needs its own key. Sending a `POST` once because two
+gates were opened is not consent to send it four more times:
+
+```yaml
+forge:
+  api-fuzz:
+    confirmation-runs: 2
+    max-shrink-attempts: 25
+    allow-unsafe-confirmation: false   # required for POST/PUT/PATCH/DELETE
+```
+
+## The reproduction folder
+
+Every finding gets one:
+
+```
+build/api-fuzz/reproductions/<case-id>/
+  manifest.json    case id, seed, spec fingerprint, control, verdict, sizes
+  request.json     the minimal request, redacted
+  reproduce.md     seven sections, in the order an engineer reads them
+```
+
+`reproduce.md` answers: which case, what was sent, what the document promised,
+what the service answered, whether it is stable, whether it is minimized, and
+how to run exactly this case again.
+
+There is deliberately **no `curl`**. The request went out through `ApiClient`
+with the project's authentication, correlation and retry; a command line that
+silently drops all of that fails differently and sends the reader hunting for a
+bug in the wrong place.
+
 ## Reproducing a finding
 
 Every case has a stable, readable id — `getTask/path:taskId/TOO_LONG` — and the
@@ -247,6 +324,14 @@ document; it is not a safety mechanism.
   `BACKLOG.md`.
 - **No replay engine.** The manifest records what was done; re-running is still
   `only-cases` plus the seed.
+- **Minimization is greedy, not exhaustive.** One pass in a fixed order, one
+  request per candidate, a hard budget. It will not find the globally smallest
+  payload and does not try to.
+- **Value shrinking is narrow.** Only values this module invented — an
+  unconstrained long string, an arbitrary huge number — are reduced. A case
+  derived from a declared bound is already minimal.
+- **Confirmation is not statistics.** Two or three attempts distinguish stable
+  from intermittent; they do not measure a rate.
 - Reflection detection compares decoded JSON string values and raw text. It
   reports an echo; deciding whether it is exploitable is not a test framework's
   job.
@@ -276,3 +361,10 @@ document; it is not a safety mechanism.
   strongest will start erasing the rest.
 - `INCONCLUSIVE` is a feature. A fuzzer that always concludes something is a
   fuzzer that sometimes lies.
+- Every shrink candidate must remain the valid baseline except the one
+  mutation. Required fields and `minItems` are floors, not suggestions —
+  breaking a second constraint turns one finding into an unattributable mess.
+- Repeating a request is a separate consent from sending it. Keep
+  `allow-unsafe-confirmation` distinct from `allow-unsafe-methods`.
+- A flaky finding stays in the report. The intermittent 500 is usually the
+  interesting one.

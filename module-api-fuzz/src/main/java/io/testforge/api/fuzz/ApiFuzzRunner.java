@@ -61,6 +61,9 @@ public class ApiFuzzRunner {
     private final JsonBodyMutator bodyMutator;
     private final ConstraintInventory inventory;
     private final BaselineSelfCheck selfCheck;
+    private final FindingConfirmer confirmer;
+    private final RequestShrinker shrinker;
+    private final ReproductionWriter reproductions;
     private final FuzzCaseSelector cases;
     private final ExchangeExecutor executor;
     private final ResponseClassifier classifier;
@@ -80,6 +83,9 @@ public class ApiFuzzRunner {
             JsonBodyMutator bodyMutator,
             ConstraintInventory inventory,
             BaselineSelfCheck selfCheck,
+            FindingConfirmer confirmer,
+            RequestShrinker shrinker,
+            ReproductionWriter reproductions,
             FuzzCaseSelector cases,
             ExchangeExecutor executor,
             ResponseClassifier classifier,
@@ -97,6 +103,9 @@ public class ApiFuzzRunner {
         this.bodyMutator = bodyMutator;
         this.inventory = inventory;
         this.selfCheck = selfCheck;
+        this.confirmer = confirmer;
+        this.shrinker = shrinker;
+        this.reproductions = reproductions;
         this.cases = cases;
         this.executor = executor;
         this.classifier = classifier;
@@ -178,7 +187,8 @@ public class ApiFuzzRunner {
                 continue;
             }
 
-            OperationFuzzReport report = fuzzOperation(operation, baseUrl, specDir);
+            OperationFuzzReport report = fuzzOperation(operation, baseUrl, specDir, outputDir,
+                    source.id(), fingerprint);
             operations.add(report);
             if (report.cases() > 0) {
                 fuzzed++;
@@ -204,7 +214,8 @@ public class ApiFuzzRunner {
                 operations.size(), totalCases, findings, operations, reproduction, null);
     }
 
-    private OperationFuzzReport fuzzOperation(ExplorableOperation operation, String baseUrl, Path specDir) {
+    private OperationFuzzReport fuzzOperation(ExplorableOperation operation, String baseUrl, Path specDir,
+                                              Path outputDir, String specId, String fingerprint) {
         var refusal = safety.refuse(operation);
         if (refusal.isPresent()) {
             return OperationFuzzReport.skipped(operation.operationId(), operation.key(),
@@ -255,10 +266,22 @@ public class ApiFuzzRunner {
                     control, ConstraintCoverage.of(declared, List.of()));
         }
 
+        Map<String, PreparedRequest> requests = new LinkedHashMap<>();
         List<FuzzObservation> observations = new ArrayList<>();
         for (FuzzCase fuzzCase : selected) {
-            observations.add(execute(operation, baseline.request(), bodyPlan, control, fuzzCase, baseUrl));
+            PreparedRequest request = mutate(baseline.request(), bodyPlan, fuzzCase);
+            if (request == null) {
+                observations.add(FuzzObservation.notApplicable(redact(fuzzCase),
+                        baseUrl + baseline.request().resolvedTarget()));
+                continue;
+            }
+            requests.put(fuzzCase.id(), request);
+            observations.add(execute(operation, control, fuzzCase, request, baseUrl));
         }
+
+        // only findings are worth extra requests, and only once the sweep is done
+        observations = analyse(operation, control, bodyPlan, observations, requests,
+                outputDir, specId, fingerprint);
 
         Path artifact = specDir.resolve(safeName(operation.operationId()) + ".json");
         writeJson(artifact, observations);
@@ -287,14 +310,45 @@ public class ApiFuzzRunner {
         }
     }
 
-    /** One case. Anything that goes wrong here is a verdict, never an interruption. */
-    private FuzzObservation execute(ExplorableOperation operation, PreparedRequest baseline, BodyPlan bodyPlan,
-                                    ControlResult control, FuzzCase fuzzCase, String baseUrl) {
-        PreparedRequest request = mutate(baseline, bodyPlan, fuzzCase);
-        if (request == null) {
-            return FuzzObservation.notApplicable(redact(fuzzCase), baseUrl + baseline.resolvedTarget());
-        }
+    /**
+     * Confirms and minimizes the findings, leaving everything else untouched.
+     * Both phases cost live requests, so neither runs for a healthy case and
+     * neither runs at all unless a project asked for it.
+     */
+    private List<FuzzObservation> analyse(ExplorableOperation operation, ControlResult control, BodyPlan bodyPlan,
+                                          List<FuzzObservation> observations,
+                                          Map<String, PreparedRequest> requests,
+                                          Path outputDir, String specId, String fingerprint) {
 
+        List<FuzzObservation> analysed = new ArrayList<>();
+        for (FuzzObservation observation : observations) {
+            PreparedRequest request = requests.get(observation.fuzzCase().id());
+            if (!observation.finding() || request == null) {
+                analysed.add(observation);
+                continue;
+            }
+
+            FindingSignature signature = FindingSignature.of(observation);
+            ConfirmationResult confirmation =
+                    confirmer.confirm(operation, control, observation.fuzzCase(), request, signature);
+            ShrinkOutcome shrink = confirmation.worthMinimizing()
+                    ? shrinker.shrink(operation, control, observation.fuzzCase(), request, bodyPlan, signature)
+                    : ShrinkOutcome.notAttempted();
+
+            FuzzObservation complete = observation.analysed(confirmation, shrink);
+            analysed.add(complete);
+
+            reproductions.write(outputDir, complete,
+                    ReproductionManifest.of(complete, control, specId, fingerprint, properties.seed(),
+                            resolvedInputs(complete)),
+                    control, request);
+        }
+        return analysed;
+    }
+
+    /** One case. Anything that goes wrong here is a verdict, never an interruption. */
+    private FuzzObservation execute(ExplorableOperation operation, ControlResult control,
+                                    FuzzCase fuzzCase, PreparedRequest request, String baseUrl) {
         RuntimeExchange exchange;
         try {
             exchange = executor.execute(request);
@@ -318,7 +372,9 @@ public class ApiFuzzRunner {
                 classification.reason(),
                 classification.mismatches(),
                 exchange.completed() ? null : exchange.error(),
-                fragment(fuzzCase));
+                fragment(fuzzCase),
+                ConfirmationResult.notConfirmed(),
+                ShrinkOutcome.notAttempted());
     }
 
     /** The smallest thing a reader needs to see what was sent, already redacted. */

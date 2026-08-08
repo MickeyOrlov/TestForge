@@ -78,6 +78,12 @@ public class TestForgeApiFuzzAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ReproductionWriter reproductionWriter(ObjectMapper objectMapper) {
+        return new ReproductionWriter(objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public FuzzCaseSelector fuzzCaseSelector(ApiFuzzProperties properties) {
         return new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation());
     }
@@ -103,6 +109,7 @@ public class TestForgeApiFuzzAutoConfiguration {
             JsonBodyMutator bodyMutator,
             ConstraintInventory inventory,
             BaselineSelfCheck selfCheck,
+            ReproductionWriter reproductions,
             FuzzCaseSelector cases,
             ResponseClassifier classifier,
             ApiClient apiClient,
@@ -118,6 +125,12 @@ public class TestForgeApiFuzzAutoConfiguration {
         RequestPlanner planner = new RequestPlanner(
                 new RequestValueResolver(properties.parameters(), new ConstraintAwareValueFactory()), true);
 
+        FindingConfirmer confirmer = new FindingConfirmer(
+                executors.getIfAvailable(() -> new ApiClientExchangeExecutor(apiClient, properties.service())),
+                classifier, properties);
+        RequestShrinker shrinker = new RequestShrinker(objectMapper, inventory, bodyFactory,
+                confirmer, properties);
+
         return new ApiFuzzRunner(
                 parser,
                 selectors.getIfAvailable(OperationSelector::new),
@@ -129,6 +142,9 @@ public class TestForgeApiFuzzAutoConfiguration {
                 bodyMutator,
                 inventory,
                 selfCheck,
+                confirmer,
+                shrinker,
+                reproductions,
                 cases,
                 executors.getIfAvailable(() -> new ApiClientExchangeExecutor(apiClient, properties.service())),
                 classifier,

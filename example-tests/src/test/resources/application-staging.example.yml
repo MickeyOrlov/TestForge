@@ -56,6 +56,9 @@ forge:
     methods: [GET, HEAD, OPTIONS]
     allow-unsafe-methods: false
     max-cases-per-operation: 20
+    confirmation-runs: 0          # >0 re-sends findings to prove they repeat
+    max-shrink-attempts: 0        # >0 minimizes the reproducing request
+    allow-unsafe-confirmation: false  # repeating a POST is its own decision
     fail-on:
       server-error: true      # a crash on bad input is always a defect
       transport-failure: true

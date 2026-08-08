@@ -33,18 +33,39 @@ public record FuzzObservation(
         String reason,
         List<ContractMismatch> mismatches,
         String error,
-        String requestFragment) {
+        String requestFragment,
+        ConfirmationResult confirmation,
+        ShrinkOutcome shrink) {
 
     public FuzzObservation {
         evidence = List.copyOf(evidence == null ? List.of() : evidence);
         mismatches = List.copyOf(mismatches == null ? List.of() : mismatches);
+        confirmation = confirmation == null ? ConfirmationResult.notConfirmed() : confirmation;
+        shrink = shrink == null ? ShrinkOutcome.notAttempted() : shrink;
+    }
+
+    /** The same observation with what confirmation and minimization learned. */
+    public FuzzObservation analysed(ConfirmationResult confirmation, ShrinkOutcome shrink) {
+        return new FuzzObservation(fuzzCase, resolvedUrl, verdict, expectation, status, contentType,
+                responseBody, durationMillis, evidence, reason, mismatches, error, requestFragment,
+                confirmation, shrink);
+    }
+
+    public boolean flaky() {
+        return confirmation.reproducibility() == Reproducibility.FLAKY;
+    }
+
+    /** A finding that confirmation showed was not there after all. */
+    public boolean disappeared() {
+        return confirmation.reproducibility() == Reproducibility.DISAPPEARED;
     }
 
     /** A case that could not be applied to this operation's baseline. */
     public static FuzzObservation notApplicable(FuzzCase fuzzCase, String resolvedUrl) {
         return new FuzzObservation(fuzzCase, resolvedUrl, FuzzVerdict.NOT_APPLICABLE, fuzzCase.expectation(),
                 null, null, null, null, List.of(), "the case does not apply to the baseline body",
-                List.of(), null, fuzzCase.parameterName() + " <not applicable>");
+                List.of(), null, fuzzCase.parameterName() + " <not applicable>",
+                ConfirmationResult.notConfirmed(), ShrinkOutcome.notAttempted());
     }
 
     /**
