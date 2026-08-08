@@ -7,6 +7,19 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-fuzz` v1.2: a valid control request per operation, and
+  differential classification against it. Before any mutation, one fully valid
+  request built from the same schema and the same configured values proves the
+  operation is reachable; only an accepted control lets the run conclude
+  anything about validation. Control outcomes are ACCEPTED, REJECTED, BLOCKED,
+  FAILED and UNREACHABLE. Verdicts now say only what can be concluded about
+  validation — PASSED, OVER_PERMISSIVE, OVER_STRICT, INCONCLUSIVE — while
+  crashes, echoes, undocumented shapes and infrastructure answers are recorded
+  separately as evidence, so a response with several problems reports all of
+  them. Every operation reports which declared constraints the run exercised
+  and which it did not, and every finding gets a reproduction manifest carrying
+  the case id, seed, control status and a fingerprint of the document it was
+  made against.
 - `module-api-fuzz` v1.1: schema-aware fuzzing of `application/json` request
   bodies, addressed by JSON path (`createUser/body:$.profile.age/BELOW_MINIMUM`).
   Each case starts from a baseline body built to satisfy every declared
@@ -46,6 +59,15 @@ semantic versioning for its git tags.
   fuzzing are deliberately out of v1.
 
 ### Fixed
+- `module-api-fuzz`: an endpoint behind authentication produced a page of green
+  validation results. A `401` to valid data and a `401` to invalid data was read
+  as "the service rejected bad input"; the same held for 403, 429, redirects and
+  5xx. Those responses now make a case INCONCLUSIVE with the reason, and only
+  400/422 counts as a validation refusal.
+- `module-api-fuzz`: the control request exposed that baseline values for path
+  and query parameters ignored their own constraints — the generated
+  `"testforge"` is nine characters against a parameter declared `maxLength: 8`.
+  Baselines are now constraint-aware and verified before the control is sent.
 - `module-api-fuzz`: expectations moved from the case *kind* to the individual
   case, which removed three sources of false findings. A long string was
   reported as `OVER_PERMISSIVE` even when no `maxLength` was declared; a huge

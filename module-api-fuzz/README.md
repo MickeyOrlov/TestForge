@@ -83,22 +83,57 @@ Deliberately not supported, and reported rather than guessed at:
   skips the operation rather than sending a body the service would reject
   anyway, which would make every verdict meaningless.
 
-## Verdicts
+## The control request
+
+Before any mutation, one **fully valid** request is sent per operation, built
+from the same schema and the same configured values. Its answer decides whether
+anything the mutations produce can be interpreted:
+
+| Control outcome | Meaning | Cases below it |
+|---|---|---|
+| `ACCEPTED` | 2xx — the operation is reachable with valid data | interpreted |
+| `REJECTED` | 400/422 — the service refuses data the document calls valid | inconclusive |
+| `BLOCKED` | 401, 403, 429 or a redirect — the request never reached validation | inconclusive |
+| `FAILED` | 5xx — the endpoint is broken regardless of input | inconclusive |
+| `UNREACHABLE` | the control never completed | not fuzzed |
+
+This is the difference between v1.1 and v1.2. An endpoint behind authentication
+answers `401` to valid data and `401` to invalid data; v1.1 read the second
+response alone and called it a passing validation case. A page of green results
+meant the door was locked.
+
+One control per operation, per run — and only for operations that will actually
+be fuzzed, so replaying a single case does not probe the rest of the document.
+
+## Verdicts and evidence
+
+The verdict says one thing only: what can be concluded about **validation**.
 
 | Verdict | Meaning |
 |---|---|
-| `SERVER_ERROR` | 5xx. Malformed input should be refused, not fatal. |
-| `OVER_PERMISSIVE` | The document forbids this value and the service took it. |
-| `UNDOCUMENTED_RESPONSE` | A status or shape the document never describes. |
-| `INPUT_REFLECTED` | The value came back verbatim — an escaping question. |
-| `OVER_STRICT` | A valid boundary value was refused. |
-| `TRANSPORT_FAILURE` | The request never completed. |
-| `PASSED` | The service did what the document implies. |
+| `PASSED` | The service treated the value the way the document implies. |
+| `OVER_PERMISSIVE` | A value the document forbids was accepted. |
+| `OVER_STRICT` | A value the document permits was refused. |
+| `INCONCLUSIVE` | Nothing can be concluded — the control was not accepted, the response came from infrastructure, or the service crashed. |
+| `NOT_APPLICABLE` | The case does not apply to this baseline. |
 
-Only `SERVER_ERROR` and `TRANSPORT_FAILURE` fail the build by default. The
-others are conversations to have with the service team first: the opening sweep
-of an unfamiliar API finds enough of them that failing immediately teaches
-people to switch the module off.
+Everything else is **evidence**: an independent fact about the response,
+recorded whatever the verdict concluded.
+
+| Evidence | Meaning |
+|---|---|
+| `SERVER_ERROR` | 5xx. Always reported; never a validation verdict. |
+| `TRANSPORT_FAILURE` | The request did not complete. |
+| `UNDOCUMENTED_RESPONSE` | A status or shape the document never describes. |
+| `INPUT_REFLECTED` | The value came back verbatim. |
+| `INFRASTRUCTURE_RESPONSE` | 401/403/429/3xx — the answer did not come from validation. |
+| `CONTROL_NOT_ACCEPTED` | The operation's control request failed. |
+
+v1.1 folded all of these into one enum and ranked them, so a `500` that also
+echoed the input reported only the `500`. Now a response with three problems
+reports three.
+
+Only `SERVER_ERROR` and `TRANSPORT_FAILURE` fail the build by default.
 
 ## Configuration
 
@@ -124,6 +159,32 @@ forge:
       input-reflected: false
 ```
 
+## Constraint coverage
+
+Every operation reports which of the document's promises the run actually
+tested:
+
+```
+### POST /users
+- control: 201 ACCEPTED
+- cases: 18, findings: 2, inconclusive: 0
+- constraints: 12 declared, 10 exercised
+
+  exercised:
+  - $.age maximum
+  - $.age minimum
+  - $.name maxLength
+  ...
+
+  not exercised:
+  - $.payload oneOf
+  - $.code pattern
+```
+
+Listed, not scored. A percentage would invite comparing APIs that declare
+wildly different amounts and would reward a vague document for being vague.
+What a reader needs is the second list: that is where the run is blind.
+
 ## Reproducing a finding
 
 Every case has a stable, readable id — `getTask/path:taskId/TOO_LONG` — and the
@@ -141,6 +202,14 @@ That is what the seed is for. Generation itself is fully deterministic; the
 seed decides which subset runs when the case matrix exceeds
 `max-cases-per-operation`, so a capped run is still reproducible. Change the
 seed on a scheduled job and a different slice gets covered over time.
+
+Each finding also gets a manifest in `<spec>/reproduction.json`: the case id,
+seed, operation, mutation, JSON path, expectation, the control status it was
+interpreted against, the fuzz status, and a **fingerprint of the document**.
+That last field is the one that matters months later — a replay against a
+document that has since changed is not a replay, and without the fingerprint
+nobody notices. Resolved inputs are redacted like everything else; no manifest
+ever carries a credential.
 
 ## Safety
 
@@ -172,6 +241,12 @@ document; it is not a safety mechanism.
   the module can only test what was written down.
 - **Numeric neighbours are whole units.** The value next to an exclusive bound
   is `bound + 1`, not the smallest representable step.
+- **The control is one request, not a warm-up.** An endpoint that needs prior
+  state — a resource created by another call — will refuse the control and be
+  reported inconclusive rather than fuzzed. That is the stateful work in
+  `BACKLOG.md`.
+- **No replay engine.** The manifest records what was done; re-running is still
+  `only-cases` plus the seed.
 - Reflection detection compares decoded JSON string values and raw text. It
   reports an echo; deciding whether it is exploitable is not a test framework's
   job.
@@ -193,4 +268,11 @@ document; it is not a safety mechanism.
   the kind and quietly produced false findings; if a mutation's meaning ever
   depends only on its name again, that bug is back.
 - The baseline body must satisfy the schema. If it cannot, skip the operation
-  with the reason — never send a plausible-looking guess.
+  with the reason — never send a plausible-looking guess. `BaselineSelfCheck`
+  verifies this before the control goes out; it already caught a generated
+  parameter longer than its own `maxLength`.
+- A verdict is about validation. A crash, an echo and an undocumented shape are
+  evidence, never verdicts. If they ever compete for one slot again, the
+  strongest will start erasing the rest.
+- `INCONCLUSIVE` is a feature. A fuzzer that always concludes something is a
+  fuzzer that sometimes lies.

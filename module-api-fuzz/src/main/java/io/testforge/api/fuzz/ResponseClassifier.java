@@ -6,21 +6,25 @@ import io.testforge.api.explorer.ContractMismatch;
 import io.testforge.api.explorer.ExplorableOperation;
 import io.testforge.api.explorer.ResponseContractChecker;
 import io.testforge.api.explorer.RuntimeExchange;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Turns one response into one verdict.
+ * Turns a <em>pair</em> of responses into a verdict: what the operation
+ * answered with valid data, and what it answered with one field changed.
  *
- * <p>The interesting judgement is the middle one. A {@code 500} is obviously a
- * finding and a documented {@code 400} obviously is not, but a {@code 200} for
- * a value the document forbids is the finding a generic fuzzer cannot produce:
- * it means the service is not enforcing its own contract, and every consumer
- * generated from that document is built on a promise nobody keeps.
+ * <p>The pair is the whole point. A {@code 401} to an invalid payload looks
+ * like successful validation until you notice the valid payload got {@code 401}
+ * too. v1.1 read the mutated response alone and would have called that a
+ * passing validation case — the defect this version exists to remove.
  *
- * <p>Reflection is checked because a value that comes back verbatim is a
- * question worth asking — about escaping, about content types, about what else
- * the response will echo. The module reports it and stops there; deciding
- * whether it is exploitable is not a test framework's job.
+ * <p>The rule underneath every branch: never claim more than was proven. If the
+ * control was not accepted, or the mutated request was answered by
+ * infrastructure rather than by the handler, the verdict is
+ * {@link FuzzVerdict#INCONCLUSIVE} and the reason is recorded. Evidence about
+ * the response — a crash, an echo, an undocumented shape — is collected
+ * regardless, because those facts are true whether or not validation can be
+ * judged.
  */
 public class ResponseClassifier {
 
@@ -35,31 +39,82 @@ public class ResponseClassifier {
         this.objectMapper = objectMapper;
     }
 
-    public Classification classify(ExplorableOperation operation, FuzzCase fuzzCase, RuntimeExchange exchange) {
+    public Classification classify(ExplorableOperation operation, ControlResult control,
+                                   FuzzCase fuzzCase, RuntimeExchange exchange) {
+
+        List<FuzzEvidence> evidence = new ArrayList<>();
+
         if (!exchange.completed()) {
-            return new Classification(FuzzVerdict.TRANSPORT_FAILURE, List.of(), false);
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.TRANSPORT_FAILURE, exchange.error()));
+            // the control reached the service and this did not: that is a fact
+            // about the mutation, but it is not a validation verdict
+            return new Classification(FuzzVerdict.INCONCLUSIVE, evidence,
+                    "the mutated request did not complete", List.of());
         }
 
+        int status = exchange.status();
         List<ContractMismatch> mismatches = mismatches(operation, exchange);
         boolean reflected = reflected(fuzzCase, exchange);
-        int status = exchange.status();
 
-        if (status >= 500) {
-            return new Classification(FuzzVerdict.SERVER_ERROR, mismatches, reflected);
-        }
-        if (fuzzCase.expectation() == FuzzExpectation.REJECT && status < 300) {
-            return new Classification(FuzzVerdict.OVER_PERMISSIVE, mismatches, reflected);
+        if (HttpFacts.serverError(status)) {
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.SERVER_ERROR,
+                    "status %d for a request the document describes".formatted(status)));
         }
         if (!mismatches.isEmpty()) {
-            return new Classification(FuzzVerdict.UNDOCUMENTED_RESPONSE, mismatches, reflected);
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.UNDOCUMENTED_RESPONSE,
+                    mismatches.getFirst().kind() + " at " + mismatches.getFirst().location()));
         }
         if (reflected) {
-            return new Classification(FuzzVerdict.INPUT_REFLECTED, mismatches, true);
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.INPUT_REFLECTED,
+                    "the mutated value came back in the response body"));
         }
-        if (fuzzCase.expectation() == FuzzExpectation.ACCEPT && status >= 400 && status < 500) {
-            return new Classification(FuzzVerdict.OVER_STRICT, mismatches, false);
+
+        return new Classification(verdict(control, fuzzCase, status, evidence),
+                evidence, inconclusiveReason(control, status), mismatches);
+    }
+
+    private FuzzVerdict verdict(ControlResult control, FuzzCase fuzzCase, int status, List<FuzzEvidence> evidence) {
+        if (!control.conclusive()) {
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.CONTROL_NOT_ACCEPTED, control.reason()));
+            return FuzzVerdict.INCONCLUSIVE;
         }
-        return new Classification(FuzzVerdict.PASSED, mismatches, false);
+        if (HttpFacts.infrastructure(status)) {
+            // the control got through and this did not: a gateway, a rate
+            // limiter or a redirect answered, so nothing was validated
+            evidence.add(FuzzEvidence.of(FuzzEvidenceKind.INFRASTRUCTURE_RESPONSE,
+                    "status %d did not come from validation".formatted(status)));
+            return FuzzVerdict.INCONCLUSIVE;
+        }
+        if (HttpFacts.serverError(status)) {
+            // a crash is recorded as evidence; what the service would have
+            // decided about the value remains unknown
+            return FuzzVerdict.INCONCLUSIVE;
+        }
+
+        boolean accepted = HttpFacts.success(status);
+        boolean refused = HttpFacts.validationShaped(status);
+
+        return switch (fuzzCase.expectation()) {
+            case REJECT -> accepted ? FuzzVerdict.OVER_PERMISSIVE
+                    : refused ? FuzzVerdict.PASSED : FuzzVerdict.INCONCLUSIVE;
+            case ACCEPT -> refused ? FuzzVerdict.OVER_STRICT
+                    : accepted ? FuzzVerdict.PASSED : FuzzVerdict.INCONCLUSIVE;
+            // the document said nothing, so no status proves anything either way
+            case UNSPECIFIED -> FuzzVerdict.PASSED;
+        };
+    }
+
+    private String inconclusiveReason(ControlResult control, int status) {
+        if (!control.conclusive()) {
+            return "control %s: %s".formatted(control.outcome(), control.reason());
+        }
+        if (HttpFacts.infrastructure(status)) {
+            return "status %d came from infrastructure, not validation".formatted(status);
+        }
+        if (HttpFacts.serverError(status)) {
+            return "the service crashed, so its validation decision is unknown";
+        }
+        return null;
     }
 
     /** A checker that throws must not turn one bad response into a broken run. */
@@ -107,14 +162,20 @@ public class ResponseClassifier {
         return false;
     }
 
-    /** Verdict plus the evidence behind it. */
+    /** The verdict, why it is what it is, and every fact behind it. */
     public record Classification(
             FuzzVerdict verdict,
-            List<ContractMismatch> mismatches,
-            boolean inputReflected) {
+            List<FuzzEvidence> evidence,
+            String reason,
+            List<ContractMismatch> mismatches) {
 
         public Classification {
+            evidence = List.copyOf(evidence == null ? List.of() : evidence);
             mismatches = List.copyOf(mismatches == null ? List.of() : mismatches);
+        }
+
+        public boolean has(FuzzEvidenceKind kind) {
+            return evidence.stream().anyMatch(item -> item.kind() == kind);
         }
     }
 }

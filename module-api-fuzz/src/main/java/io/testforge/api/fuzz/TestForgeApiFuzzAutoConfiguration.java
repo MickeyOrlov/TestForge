@@ -66,6 +66,18 @@ public class TestForgeApiFuzzAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ConstraintInventory constraintInventory(JsonBodyFactory bodyFactory) {
+        return new ConstraintInventory(bodyFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public BaselineSelfCheck baselineSelfCheck() {
+        return new BaselineSelfCheck();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public FuzzCaseSelector fuzzCaseSelector(ApiFuzzProperties properties) {
         return new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation());
     }
@@ -89,6 +101,8 @@ public class TestForgeApiFuzzAutoConfiguration {
             BodyCaseGenerator bodyCases,
             JsonBodyFactory bodyFactory,
             JsonBodyMutator bodyMutator,
+            ConstraintInventory inventory,
+            BaselineSelfCheck selfCheck,
             FuzzCaseSelector cases,
             ResponseClassifier classifier,
             ApiClient apiClient,
@@ -102,7 +116,7 @@ public class TestForgeApiFuzzAutoConfiguration {
         // bodies are this module's job, so the planner stops refusing the
         // operations that need one and leaves the body to the caller
         RequestPlanner planner = new RequestPlanner(
-                new RequestValueResolver(properties.parameters(), new SchemaValueFactory()), true);
+                new RequestValueResolver(properties.parameters(), new ConstraintAwareValueFactory()), true);
 
         return new ApiFuzzRunner(
                 parser,
@@ -113,6 +127,8 @@ public class TestForgeApiFuzzAutoConfiguration {
                 bodyCases,
                 bodyFactory,
                 bodyMutator,
+                inventory,
+                selfCheck,
                 cases,
                 executors.getIfAvailable(() -> new ApiClientExchangeExecutor(apiClient, properties.service())),
                 classifier,

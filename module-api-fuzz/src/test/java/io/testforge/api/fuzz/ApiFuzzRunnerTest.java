@@ -42,9 +42,9 @@ class ApiFuzzRunnerTest {
         assertThat(report.findings())
                 .extracting(finding -> finding.fuzzCase().id())
                 .contains(CRASHING_CASE);
+        // a crash is evidence about the response, not a verdict about validation
         assertThat(report.findings())
-                .extracting(FuzzObservation::verdict)
-                .contains(FuzzVerdict.SERVER_ERROR);
+                .anySatisfy(finding -> assertThat(finding.has(FuzzEvidenceKind.SERVER_ERROR)).isTrue());
 
         // the crash did not stop the operations after it
         assertThat(report.specs().getFirst().operations())
@@ -85,7 +85,8 @@ class ApiFuzzRunnerTest {
         assertThat(report.specs().getFirst().cases()).isEqualTo(1);
         assertThat(report.findings()).singleElement().satisfies(finding -> {
             assertThat(finding.fuzzCase().id()).isEqualTo(CRASHING_CASE);
-            assertThat(finding.verdict()).isEqualTo(FuzzVerdict.SERVER_ERROR);
+            assertThat(finding.has(FuzzEvidenceKind.SERVER_ERROR)).isTrue();
+            assertThat(finding.verdict()).isEqualTo(FuzzVerdict.INCONCLUSIVE);
         });
 
         // the other operations report why they contributed nothing
@@ -158,11 +159,13 @@ class ApiFuzzRunnerTest {
                         properties.includePaths(), properties.excludePaths()),
                 new RequestPlanner(new RequestValueResolver(
                         new ApiExplorerProperties.ParameterProperties(Map.of("q", "query"), Map.of()),
-                        new SchemaValueFactory()), true),
+                        new ConstraintAwareValueFactory()), true),
                 new FuzzCaseGenerator(),
                 new BodyCaseGenerator(objectMapper, new JsonBodyFactory(objectMapper)),
                 new JsonBodyFactory(objectMapper),
                 new JsonBodyMutator(objectMapper),
+                new ConstraintInventory(new JsonBodyFactory(objectMapper)),
+                new BaselineSelfCheck(),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
                 executor(),
                 new ResponseClassifier(new ResponseContractChecker(objectMapper), objectMapper),

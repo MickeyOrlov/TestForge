@@ -1,49 +1,42 @@
 package io.testforge.api.fuzz;
 
 /**
- * What one case found, in the order that matters when several apply.
+ * The conclusion about <em>validation behaviour</em>, and nothing else.
  *
- * <p>Ordered deliberately: a crash outranks a validation gap, which outranks a
- * documentation gap, which outranks an echo. A report that leads with the
- * strongest signal is one people keep reading.
+ * <p>v1.1 folded independent facts into this enum: a {@code 500} and an
+ * undocumented response and an echoed value all competed for the same slot, so
+ * whichever ranked highest erased the others. Those are now
+ * {@link FuzzEvidence} — facts about the response, recorded alongside whatever
+ * this verdict concludes.
+ *
+ * <p>What remains here is only what the run can defend about validation, and
+ * it can defend nothing at all unless the control request was accepted. That
+ * is what {@link #INCONCLUSIVE} is for, and it is the honest answer far more
+ * often than a fuzzer's output usually admits.
  */
 public enum FuzzVerdict {
 
-    /** The request never completed — connection dropped, timed out, unreadable. */
-    TRANSPORT_FAILURE(true),
+    /** The service treated the value the way the document implies it should. */
+    PASSED,
 
-    /** 5xx. Malformed input should produce a 4xx; a 500 is the service failing, not refusing. */
-    SERVER_ERROR(true),
+    /** A value the document forbids was accepted. */
+    OVER_PERMISSIVE,
 
-    /** The document forbids this value and the service took it anyway. */
-    OVER_PERMISSIVE(true),
-
-    /** The response status or shape is not one the document describes. */
-    UNDOCUMENTED_RESPONSE(true),
-
-    /** The value came back verbatim in the response — an escaping question worth answering. */
-    INPUT_REFLECTED(true),
-
-    /** The value is valid per the document and the service refused it. */
-    OVER_STRICT(true),
-
-    /** The service did what the document implies it should. */
-    PASSED(false),
+    /** A value the document permits was refused. */
+    OVER_STRICT,
 
     /**
-     * The case did not apply to this baseline — a body path a chosen
-     * {@code oneOf} branch does not contain, for instance. Recorded rather than
-     * dropped so the case count in the report stays honest.
+     * Nothing about validation can be concluded — the control request was not
+     * accepted, or the mutated request was answered by infrastructure rather
+     * than by the handler.
      */
-    NOT_APPLICABLE(false);
+    INCONCLUSIVE,
 
-    private final boolean finding;
+    /** The case did not apply to this operation's baseline. */
+    NOT_APPLICABLE;
 
-    FuzzVerdict(boolean finding) {
-        this.finding = finding;
-    }
-
+    /** Only these two are claims that the service got validation wrong. */
     public boolean finding() {
-        return finding;
+        return this == OVER_PERMISSIVE || this == OVER_STRICT;
     }
 }

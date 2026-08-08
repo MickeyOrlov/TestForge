@@ -89,7 +89,7 @@ public class BodyCaseGenerator {
     private void addMutations(ExplorableOperation operation, Schema<?> schema, String path, List<FuzzCase> cases) {
         for (SchemaMutations.Mutation mutation : SchemaMutations.forSchema(schema, true)) {
             cases.add(FuzzCase.body(operation.specId(), operation.operationId(), operation.key(),
-                    path, mutation.kind(), mutation.expectation(), render(mutation)));
+                    path, mutation.kind(), mutation.expectation(), mutation.constraint(), render(mutation)));
         }
     }
 

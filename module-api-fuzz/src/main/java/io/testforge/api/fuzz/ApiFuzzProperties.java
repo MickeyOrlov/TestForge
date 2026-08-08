@@ -75,7 +75,7 @@ public record ApiFuzzProperties(
             parameters = new ApiExplorerProperties.ParameterProperties(null, null);
         }
         if (failOn == null) {
-            failOn = new FailureProperties(null, null, null, null, null);
+            failOn = new FailureProperties(null, null, null, null, null, null);
         }
     }
 
@@ -85,16 +85,20 @@ public record ApiFuzzProperties(
     }
 
     /**
-     * Only a crash fails the build out of the box. The other verdicts are
-     * conversations to have with the service team first: an over-permissive
-     * parameter is usually a real defect, but the first sweep of an unfamiliar
-     * API finds enough of them that failing immediately teaches people to turn
-     * the module off.
+     * Only a crash fails the build out of the box. The rest are conversations
+     * to have with the service team first: an over-permissive field is usually
+     * a real defect, but the first sweep of an unfamiliar API finds enough of
+     * them that failing immediately teaches people to turn the module off.
+     *
+     * <p>Keyed by verdict for validation conclusions and by evidence for facts
+     * about the response, because those are different things — a 500 is not a
+     * verdict about validation, it is a crash that happened to occur during one.
      */
     public record FailureProperties(
             Boolean serverError,
             Boolean transportFailure,
             Boolean overPermissive,
+            Boolean overStrict,
             Boolean undocumentedResponse,
             Boolean inputReflected) {
 
@@ -108,6 +112,9 @@ public record ApiFuzzProperties(
             if (overPermissive == null) {
                 overPermissive = false;
             }
+            if (overStrict == null) {
+                overStrict = false;
+            }
             if (undocumentedResponse == null) {
                 undocumentedResponse = false;
             }
@@ -116,15 +123,18 @@ public record ApiFuzzProperties(
             }
         }
 
-        public boolean fails(FuzzVerdict verdict) {
-            return switch (verdict) {
-                case SERVER_ERROR -> serverError;
-                case TRANSPORT_FAILURE -> transportFailure;
-                case OVER_PERMISSIVE -> overPermissive;
-                case UNDOCUMENTED_RESPONSE -> undocumentedResponse;
-                case INPUT_REFLECTED -> inputReflected;
-                case OVER_STRICT, PASSED, NOT_APPLICABLE -> false;
-            };
+        /** An inconclusive case never fails a build: it is an admission, not a defect. */
+        public boolean fails(FuzzObservation observation) {
+            if (observation.verdict() == FuzzVerdict.OVER_PERMISSIVE && overPermissive) {
+                return true;
+            }
+            if (observation.verdict() == FuzzVerdict.OVER_STRICT && overStrict) {
+                return true;
+            }
+            return (serverError && observation.has(FuzzEvidenceKind.SERVER_ERROR))
+                    || (transportFailure && observation.has(FuzzEvidenceKind.TRANSPORT_FAILURE))
+                    || (undocumentedResponse && observation.has(FuzzEvidenceKind.UNDOCUMENTED_RESPONSE))
+                    || (inputReflected && observation.has(FuzzEvidenceKind.INPUT_REFLECTED));
         }
     }
 }
