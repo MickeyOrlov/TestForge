@@ -23,8 +23,9 @@ import java.util.TreeMap;
  * one field is wrong"; that claim is only true if everything else in the
  * document was right. So the baseline is built to satisfy every constraint the
  * schema declares, and when it cannot be — a pattern nothing this module can
- * generate will match, a {@code oneOf} at the root — the operation is skipped
- * with a reason instead of being sent a plausible-looking guess.
+ * generate will match, a {@code oneOf} nothing pins to one branch — the
+ * operation is skipped with a reason instead of being sent a plausible-looking
+ * guess.
  *
  * <p>Generation is deterministic. The same document produces the same baseline,
  * so the same case produces the same request on every run.
@@ -34,6 +35,7 @@ public class JsonBodyFactory {
     private static final int MAX_DEPTH = 8;
 
     private final ObjectMapper objectMapper;
+    private final Compositions compositions = new Compositions(this::effective);
 
     public JsonBodyFactory(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -42,23 +44,26 @@ public class JsonBodyFactory {
     /**
      * A body the schema would accept, or the reason none could be built.
      *
-     * <p>{@code unfuzzablePaths} are places the baseline had to choose a branch
-     * of a {@code oneOf}/{@code anyOf}. A value invalid for the chosen branch
-     * may be valid for another, so no {@code REJECT} can be proven there and no
-     * case is generated.
+     * <p>{@code unfuzzablePaths} are places no mutation can be defended —
+     * unpinned composition branches, and the discriminator property of a pinned
+     * one. {@code unsupported} carries the same information as reportable
+     * constraints, so the coverage report can say what was skipped and why
+     * rather than silently listing fewer promises.
      */
-    public record Baseline(JsonNode body, String unsupportedReason, Set<String> unfuzzablePaths) {
+    public record Baseline(JsonNode body, String unsupportedReason, Set<String> unfuzzablePaths,
+                           List<UnsupportedConstraint> unsupported) {
 
         public Baseline {
             unfuzzablePaths = Set.copyOf(unfuzzablePaths == null ? Set.of() : unfuzzablePaths);
+            unsupported = List.copyOf(unsupported == null ? List.of() : unsupported);
         }
 
-        static Baseline of(JsonNode body, Set<String> unfuzzablePaths) {
-            return new Baseline(body, null, unfuzzablePaths);
+        static Baseline of(JsonNode body, Set<String> unfuzzablePaths, List<UnsupportedConstraint> unsupported) {
+            return new Baseline(body, null, unfuzzablePaths, unsupported);
         }
 
         static Baseline unsupported(String reason) {
-            return new Baseline(null, reason, Set.of());
+            return new Baseline(null, reason, Set.of(), List.of());
         }
 
         public boolean usable() {
@@ -70,17 +75,13 @@ public class JsonBodyFactory {
         if (schema == null) {
             return Baseline.unsupported("the request body declares no schema");
         }
-        if (branching(schema)) {
-            return Baseline.unsupported(
-                    "the request body schema is a oneOf/anyOf; no single valid baseline can be proven");
-        }
 
-        Set<String> unfuzzable = new LinkedHashSet<>();
+        Limits limits = new Limits();
         try {
-            JsonNode body = value(schema, "$", unfuzzable, 0);
+            JsonNode body = value(schema, "$", limits, 0);
             return body == null
                     ? Baseline.unsupported("no value satisfying the request body schema could be built")
-                    : Baseline.of(body, unfuzzable);
+                    : Baseline.of(body, limits.unfuzzablePaths, limits.unsupported);
         } catch (UnbuildableException e) {
             return Baseline.unsupported(e.getMessage());
         }
@@ -126,28 +127,37 @@ public class JsonBodyFactory {
 
         merged.setProperties(properties);
         merged.setRequired(required);
+        // additionalProperties is deliberately not carried across an allOf. Each
+        // subschema sees only its own properties, so a merged "false" would
+        // forbid fields a sibling declares and manufacture findings out of a
+        // JSON Schema subtlety rather than out of the service's behaviour
         return merged;
     }
 
-    private boolean branching(Schema<?> schema) {
-        return (schema.getOneOf() != null && !schema.getOneOf().isEmpty())
-                || (schema.getAnyOf() != null && !schema.getAnyOf().isEmpty());
-    }
-
-    private JsonNode value(Schema<?> raw, String path, Set<String> unfuzzable, int depth) {
+    private JsonNode value(Schema<?> raw, String path, Limits limits, int depth) {
         if (depth > MAX_DEPTH) {
             throw new UnbuildableException("schema nests deeper than " + MAX_DEPTH + " levels at " + path);
         }
 
         Schema<?> schema = raw;
-        if (branching(schema)) {
-            // one branch is enough for a valid body, but nothing inside it can
-            // be proven invalid afterwards
-            unfuzzable.add(path);
-            List<Schema> branches = schema.getOneOf() != null && !schema.getOneOf().isEmpty()
-                    ? schema.getOneOf()
-                    : schema.getAnyOf();
-            schema = branches.getFirst();
+        if (Compositions.branching(schema)) {
+            Compositions.Choice choice = compositions.choose(schema);
+            if (choice.fuzzable()) {
+                // the discriminator pins the branch, so the rest of it is fair
+                // game — but the discriminator itself is not: changing it would
+                // hand the request to a schema the case was never derived from
+                limits.unfuzzablePaths.add(BodyPaths.child(path, choice.discriminatorProperty()));
+            } else {
+                limits.unfuzzablePaths.add(path);
+                limits.unsupported.add(new UnsupportedConstraint(path, Compositions.keyword(schema),
+                        choice.unsupportedReason()));
+            }
+            if (path.equals("$") && !choice.fuzzable()) {
+                // nothing at all could be fuzzed in this body, and a control
+                // request alone is not what the operation was selected for
+                throw new UnbuildableException(choice.unsupportedReason());
+            }
+            schema = choice.branch();
         }
         schema = effective(schema);
         if (schema == null) {
@@ -165,8 +175,8 @@ public class JsonBodyFactory {
         }
 
         return switch (type) {
-            case "object" -> object(schema, path, unfuzzable, depth);
-            case "array" -> array(schema, path, unfuzzable, depth);
+            case "object" -> object(schema, path, limits, depth);
+            case "array" -> array(schema, path, limits, depth);
             case "integer", "number" -> number(schema, path);
             case "boolean" -> objectMapper.getNodeFactory().booleanNode(true);
             case "null" -> objectMapper.getNodeFactory().nullNode();
@@ -174,7 +184,7 @@ public class JsonBodyFactory {
         };
     }
 
-    private JsonNode object(Schema<?> schema, String path, Set<String> unfuzzable, int depth) {
+    private JsonNode object(Schema<?> schema, String path, Limits limits, int depth) {
         ObjectNode node = objectMapper.createObjectNode();
         Map<String, Schema> properties = schema.getProperties();
         if (properties == null || properties.isEmpty()) {
@@ -185,19 +195,33 @@ public class JsonBodyFactory {
         // an optional field absent from the baseline could never be fuzzed
         Map<String, Schema> ordered = new LinkedHashMap<>(properties);
         for (Map.Entry<String, Schema> property : ordered.entrySet()) {
-            JsonNode child = value(property.getValue(), BodyPaths.child(path, property.getKey()),
-                    unfuzzable, depth + 1);
+            String childPath = BodyPaths.child(path, property.getKey());
+
+            if (SchemaFacts.readOnly(property.getValue())) {
+                if (required(schema, property.getKey())) {
+                    // OpenAPI resolves this itself — a readOnly property in
+                    // required applies to responses only — but a document that
+                    // says both leaves no request this module can call correct
+                    limits.unsupported.add(new UnsupportedConstraint(childPath, "readOnly",
+                            "the property is both required and readOnly, so no request can satisfy the document "
+                                    + "as written; it is left out of the control"));
+                }
+                // a control that sends response-only fields is not the valid
+                // request the document describes
+                continue;
+            }
+
+            JsonNode child = value(property.getValue(), childPath, limits, depth + 1);
             if (child != null) {
                 node.set(property.getKey(), child);
             } else if (required(schema, property.getKey())) {
-                throw new UnbuildableException(
-                        "no valid value could be built for required field " + BodyPaths.child(path, property.getKey()));
+                throw new UnbuildableException("no valid value could be built for required field " + childPath);
             }
         }
         return node;
     }
 
-    private JsonNode array(Schema<?> schema, String path, Set<String> unfuzzable, int depth) {
+    private JsonNode array(Schema<?> schema, String path, Limits limits, int depth) {
         ArrayNode node = objectMapper.createArrayNode();
         int size = Math.max(schema.getMinItems() == null ? 1 : schema.getMinItems(), 1);
         if (schema.getMaxItems() != null) {
@@ -208,14 +232,106 @@ public class JsonBodyFactory {
         if (items == null) {
             return node;
         }
-        JsonNode element = value(items, BodyPaths.element(path, 0), unfuzzable, depth + 1);
+        JsonNode element = value(items, BodyPaths.element(path, 0), limits, depth + 1);
         if (element == null) {
             throw new UnbuildableException("no valid element could be built for array " + path);
         }
-        for (int index = 0; index < size; index++) {
-            node.add(element.deepCopy());
+
+        if (!SchemaFacts.uniqueItems(schema)) {
+            for (int index = 0; index < size; index++) {
+                node.add(element.deepCopy());
+            }
+            return node;
+        }
+
+        // uniqueItems and a minItems above one is the case v1.3 got wrong: the
+        // baseline filled the array with copies, so the control itself violated
+        // the document and every case under it meant nothing
+        Set<String> seen = new LinkedHashSet<>();
+        node.add(element.deepCopy());
+        seen.add(element.toString());
+        for (int index = 1; index < size; index++) {
+            JsonNode distinct = distinct(items, element, index, seen);
+            if (distinct == null) {
+                throw new UnbuildableException(
+                        "uniqueItems requires " + size + " different elements at " + path
+                                + ", and the item schema does not allow that many");
+            }
+            node.add(distinct);
+            seen.add(distinct.toString());
         }
         return node;
+    }
+
+    /** A second, third, nth element that differs from the ones already placed. */
+    private JsonNode distinct(Schema<?> raw, JsonNode first, int index, Set<String> seen) {
+        Schema<?> items = effective(raw);
+
+        Optional<List<String>> enumValues = SchemaFacts.enumValues(items);
+        if (enumValues.isPresent()) {
+            return enumValues.get().stream()
+                    .map(value -> (JsonNode) objectMapper.getNodeFactory().textNode(value))
+                    .filter(candidate -> !seen.contains(candidate.toString()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        String type = Schemas.type(items);
+        if ("boolean".equals(type)) {
+            JsonNode candidate = objectMapper.getNodeFactory().booleanNode(false);
+            return seen.contains(candidate.toString()) ? null : candidate;
+        }
+        if ("integer".equals(type) || "number".equals(type)) {
+            return distinctNumber(items, first, index, seen);
+        }
+        if (type == null || "string".equals(type)) {
+            return distinctString(items, first, index, seen);
+        }
+        // objects and nested arrays: varying one leaf would need a second copy
+        // of the whole generator, and getting it wrong means an invalid control
+        return null;
+    }
+
+    private JsonNode distinctNumber(Schema<?> items, JsonNode first, int index, Set<String> seen) {
+        BigDecimal step = SchemaFacts.multipleOf(items).orElse(BigDecimal.ONE);
+        BigDecimal base = first.decimalValue();
+        for (int attempt = 1; attempt <= index + 4; attempt++) {
+            BigDecimal candidate = base.add(step.multiply(BigDecimal.valueOf(attempt)));
+            if (!SchemaFacts.satisfiesNumeric(items, candidate)) {
+                continue;
+            }
+            JsonNode node = SchemaFacts.integer(items)
+                    ? objectMapper.getNodeFactory().numberNode(candidate.longValueExact())
+                    : objectMapper.getNodeFactory().numberNode(candidate);
+            if (!seen.contains(node.toString())) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode distinctString(Schema<?> items, JsonNode first, int index, Set<String> seen) {
+        String base = first.asText();
+        List<String> candidates = new ArrayList<>();
+        // vary in place first: same length keeps minLength, maxLength and most
+        // patterns satisfied, which appending would not
+        if (!base.isEmpty()) {
+            char replacement = (char) ('a' + ((base.charAt(base.length() - 1) - 'a' + index) % 26));
+            candidates.add(base.substring(0, base.length() - 1) + replacement);
+        }
+        candidates.add(base + index);
+        candidates.add("a".repeat(index + 1));
+
+        for (String candidate : candidates) {
+            if (!SchemaFacts.satisfiesString(items, candidate)) {
+                continue;
+            }
+            JsonNode node = objectMapper.getNodeFactory().textNode(candidate);
+            if (!seen.contains(node.toString())) {
+                return node;
+            }
+        }
+        return null;
     }
 
     private JsonNode number(Schema<?> schema, String path) {
@@ -275,6 +391,12 @@ public class JsonBodyFactory {
 
     private boolean required(Schema<?> schema, String property) {
         return schema.getRequired() != null && schema.getRequired().contains(property);
+    }
+
+    /** What the walk learned it may not touch, collected as it goes. */
+    private static final class Limits {
+        private final Set<String> unfuzzablePaths = new LinkedHashSet<>();
+        private final List<UnsupportedConstraint> unsupported = new ArrayList<>();
     }
 
     /** Signals that no valid body exists for this schema, with the reason to report. */

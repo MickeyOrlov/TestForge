@@ -4,19 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.testforge.api.discovery.ApiDiscoveryProperties;
-import io.testforge.api.discovery.OpenApiSpecParser;
-import io.testforge.api.explorer.ApiExplorerProperties;
 import io.testforge.api.explorer.ExchangeExecutor;
-import io.testforge.api.explorer.ObservationFactory;
-import io.testforge.api.explorer.OperationSelector;
 import io.testforge.api.explorer.PreparedRequest;
-import io.testforge.api.explorer.RequestPlanner;
-import io.testforge.api.explorer.RequestValueResolver;
-import io.testforge.api.explorer.ResponseContractChecker;
 import io.testforge.api.explorer.RuntimeExchange;
-import io.testforge.api.explorer.SafetyPolicy;
-import io.testforge.http.Redactor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -441,39 +431,9 @@ class ConfirmationAndShrinkTest {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 true, output.toString(), null, List.of("demo"), 20260101L, Set.of("POST"), true,
                 List.of("/users"), null, null, 500, null,
-                options.confirmationRuns(), options.allowUnsafeConfirmation(), options.shrinkAttempts(),
+                options.confirmationRuns(), options.allowUnsafeConfirmation(), options.shrinkAttempts(), null,
                 List.of(), null, null);
 
-        JsonBodyFactory bodyFactory = new JsonBodyFactory(MAPPER);
-        ResponseClassifier classifier = new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER);
-        FindingConfirmer confirmer = new FindingConfirmer(executor, classifier, properties);
-        RequestShrinker shrinker = new RequestShrinker(MAPPER, new ConstraintInventory(bodyFactory),
-                bodyFactory, confirmer, properties);
-
-        return new ApiFuzzRunner(
-                new OpenApiSpecParser(),
-                new OperationSelector(),
-                new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
-                        properties.includePaths(), properties.excludePaths()),
-                new RequestPlanner(new RequestValueResolver(
-                        new ApiExplorerProperties.ParameterProperties(Map.of(), Map.of()),
-                        new ConstraintAwareValueFactory()), true),
-                new FuzzCaseGenerator(),
-                new BodyCaseGenerator(MAPPER, bodyFactory),
-                bodyFactory,
-                new JsonBodyMutator(MAPPER),
-                new ConstraintInventory(bodyFactory),
-                new BaselineSelfCheck(),
-                confirmer,
-                shrinker,
-                new ReproductionWriter(MAPPER),
-                new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
-                executor,
-                classifier,
-                new ObservationFactory(new Redactor(MAPPER, List.of("authorization"), List.of("token")), 4000),
-                MAPPER,
-                new ApiDiscoveryProperties(true, null, null, null, null,
-                        Map.of(FuzzFixtures.SPEC_ID, new ApiDiscoveryProperties.Spec(FuzzFixtures.LOCATION))),
-                properties).run();
+        return FuzzFixtures.runner(properties, executor).run();
     }
 }

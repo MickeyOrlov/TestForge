@@ -57,6 +57,7 @@ public class ApiFuzzRunner {
     private final RequestPlanner planner;
     private final FuzzCaseGenerator generator;
     private final BodyCaseGenerator bodyCases;
+    private final ProtocolCaseGenerator protocolCases;
     private final JsonBodyFactory bodyFactory;
     private final JsonBodyMutator bodyMutator;
     private final ConstraintInventory inventory;
@@ -79,6 +80,7 @@ public class ApiFuzzRunner {
             RequestPlanner planner,
             FuzzCaseGenerator generator,
             BodyCaseGenerator bodyCases,
+            ProtocolCaseGenerator protocolCases,
             JsonBodyFactory bodyFactory,
             JsonBodyMutator bodyMutator,
             ConstraintInventory inventory,
@@ -99,6 +101,7 @@ public class ApiFuzzRunner {
         this.planner = planner;
         this.generator = generator;
         this.bodyCases = bodyCases;
+        this.protocolCases = protocolCases;
         this.bodyFactory = bodyFactory;
         this.bodyMutator = bodyMutator;
         this.inventory = inventory;
@@ -235,6 +238,7 @@ public class ApiFuzzRunner {
         }
 
         List<DeclaredConstraint> declared = inventory.of(operation, bodyPlan);
+        List<UnsupportedConstraint> unsupported = inventory.unsupported(operation, bodyPlan);
 
         // never send a control this module cannot defend as valid: an accepted
         // invalid control would prove laxity, and a refused one would be blamed
@@ -248,9 +252,20 @@ public class ApiFuzzRunner {
         if (bodyPlan.usable()) {
             generated.addAll(bodyCases.generate(operation, bodyPlan.schema(), bodyPlan.unfuzzablePaths()));
         }
-        List<FuzzCase> selected = properties.replaying()
+        List<FuzzCase> selected = new ArrayList<>(properties.replaying()
                 ? cases.only(generated, properties.onlyCases())
-                : cases.select(generated);
+                : cases.select(generated));
+
+        // added after the budget rather than into it. There are at most four of
+        // them, they exercise no declared constraint, and letting them compete
+        // for the same slots would mean turning the flag on silently changed
+        // which schema constraints a run tested
+        if (bodyPlan.usable() && properties.protocolMutations()) {
+            List<FuzzCase> protocol = protocolCases.generate(operation, bodyPlan);
+            selected.addAll(properties.replaying()
+                    ? cases.only(protocol, properties.onlyCases())
+                    : protocol);
+        }
 
         if (selected.isEmpty()) {
             return OperationFuzzReport.skipped(operation.operationId(), operation.key(),
@@ -263,7 +278,7 @@ public class ApiFuzzRunner {
         ControlResult control = sendControl(baseline.request(), bodyPlan);
         if (!control.conclusive()) {
             return OperationFuzzReport.controlFailed(operation.operationId(), operation.key(),
-                    control, ConstraintCoverage.of(declared, List.of()));
+                    control, ConstraintCoverage.of(declared, unsupported, List.of(), List.of()));
         }
 
         Map<String, PreparedRequest> requests = new LinkedHashMap<>();
@@ -293,7 +308,7 @@ public class ApiFuzzRunner {
 
         return new OperationFuzzReport(operation.operationId(), operation.key(), control,
                 observations.size(), findings, inconclusive, observations,
-                ConstraintCoverage.of(declared, selected), artifact.toString(), null);
+                ConstraintCoverage.of(declared, unsupported, selected, observations), artifact.toString(), null);
     }
 
     /**
@@ -358,6 +373,15 @@ public class ApiFuzzRunner {
             exchange = RuntimeExchange.failed(Map.of(), e.toString(), 0L);
         }
 
+        // a request without a Content-Type is something the HTTP client, not
+        // this module, has the last word on. If one was added anyway, the case
+        // did not test what it claims and says so instead of scoring the answer
+        if (fuzzCase.kind() == FuzzCaseKind.MISSING_CONTENT_TYPE && sentContentType(exchange) != null) {
+            return FuzzObservation.notApplicable(redact(fuzzCase), baseUrl + request.resolvedTarget(),
+                    "the HTTP client supplied Content-Type: " + sentContentType(exchange)
+                            + ", so this request was never sent without one");
+        }
+
         ResponseClassifier.Classification classification =
                 classifier.classify(operation, control, fuzzCase, exchange);
 
@@ -377,6 +401,15 @@ public class ApiFuzzRunner {
                 fragment(fuzzCase),
                 ConfirmationResult.notConfirmed(),
                 ShrinkOutcome.notAttempted());
+    }
+
+    private String sentContentType(RuntimeExchange exchange) {
+        return exchange.requestHeaders().entrySet().stream()
+                .filter(header -> "content-type".equalsIgnoreCase(header.getKey()))
+                .map(Map.Entry::getValue)
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     /** The smallest thing a reader needs to see what was sent, already redacted. */
@@ -400,6 +433,9 @@ public class ApiFuzzRunner {
         Map<String, String> queryParameters = new LinkedHashMap<>(baseline.queryParameters());
         String body = bodyPlan.usable() ? bodyPlan.baseline().toString() : null;
 
+        if (fuzzCase.protocolCase()) {
+            return protocolRequest(baseline, bodyPlan, fuzzCase, body);
+        }
         if (fuzzCase.bodyCase()) {
             Optional<String> mutated = bodyMutator.apply(bodyPlan.baseline(), fuzzCase);
             if (mutated.isEmpty()) {
@@ -418,11 +454,29 @@ public class ApiFuzzRunner {
                 body, body == null ? null : bodyPlan.contentType());
     }
 
+    /**
+     * The envelope cases. Each keeps the valid body and breaks exactly one thing
+     * around it, except {@code MALFORMED_JSON}, where the body is the point.
+     */
+    private PreparedRequest protocolRequest(PreparedRequest baseline, BodyPlan bodyPlan,
+                                            FuzzCase fuzzCase, String body) {
+        return switch (fuzzCase.kind()) {
+            case MALFORMED_JSON -> withBody(baseline, fuzzCase.value(), bodyPlan.contentType());
+            case UNSUPPORTED_CONTENT_TYPE -> withBody(baseline, body, fuzzCase.value());
+            case MISSING_CONTENT_TYPE -> withBody(baseline, body, null);
+            case EMPTY_BODY -> withBody(baseline, "", bodyPlan.contentType());
+            default -> null;
+        };
+    }
+
     private PreparedRequest withBody(PreparedRequest baseline, BodyPlan bodyPlan) {
         String body = bodyPlan.usable() ? bodyPlan.baseline().toString() : null;
+        return withBody(baseline, body, body == null ? null : bodyPlan.contentType());
+    }
+
+    private PreparedRequest withBody(PreparedRequest baseline, String body, String contentType) {
         return new PreparedRequest(baseline.method(), baseline.pathTemplate(),
-                baseline.pathParameters(), baseline.queryParameters(),
-                body, body == null ? null : bodyPlan.contentType());
+                baseline.pathParameters(), baseline.queryParameters(), body, contentType);
     }
 
     /** A case built on a credential-named parameter must not print the credential. */
@@ -432,8 +486,8 @@ public class ApiFuzzRunner {
             return fuzzCase;
         }
         return new FuzzCase(fuzzCase.id(), fuzzCase.specId(), fuzzCase.operationId(), fuzzCase.operationKey(),
-                fuzzCase.parameterName(), fuzzCase.in(), fuzzCase.kind(), fuzzCase.expectation(),
-                fuzzCase.constraint(), value, fuzzCase.omitted());
+                fuzzCase.parameterName(), fuzzCase.in(), fuzzCase.location(), fuzzCase.kind(),
+                fuzzCase.expectation(), fuzzCase.constraint(), value, fuzzCase.omitted());
     }
 
     private String safeName(String name) {

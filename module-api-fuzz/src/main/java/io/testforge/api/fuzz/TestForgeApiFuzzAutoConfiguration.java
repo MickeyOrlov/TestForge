@@ -60,6 +60,12 @@ public class TestForgeApiFuzzAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ProtocolCaseGenerator protocolCaseGenerator() {
+        return new ProtocolCaseGenerator();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public JsonBodyMutator jsonBodyMutator(ObjectMapper objectMapper) {
         return new JsonBodyMutator(objectMapper);
     }
@@ -105,6 +111,7 @@ public class TestForgeApiFuzzAutoConfiguration {
             ObjectProvider<ObservationFactory> observationFactories,
             FuzzCaseGenerator generator,
             BodyCaseGenerator bodyCases,
+            ProtocolCaseGenerator protocolCases,
             JsonBodyFactory bodyFactory,
             JsonBodyMutator bodyMutator,
             ConstraintInventory inventory,
@@ -121,9 +128,11 @@ public class TestForgeApiFuzzAutoConfiguration {
         SafetyPolicy safety = new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
                 properties.includePaths(), properties.excludePaths());
         // bodies are this module's job, so the planner stops refusing the
-        // operations that need one and leaves the body to the caller
+        // operations that need one and leaves the body to the caller. The
+        // resolver also serializes array parameters, which exploration declines
+        // to invent
         RequestPlanner planner = new RequestPlanner(
-                new RequestValueResolver(properties.parameters(), new ConstraintAwareValueFactory()), true);
+                new SerializingValueResolver(properties.parameters(), new ConstraintAwareValueFactory()), true);
 
         FindingConfirmer confirmer = new FindingConfirmer(
                 executors.getIfAvailable(() -> new ApiClientExchangeExecutor(apiClient, properties.service())),
@@ -138,6 +147,7 @@ public class TestForgeApiFuzzAutoConfiguration {
                 planner,
                 generator,
                 bodyCases,
+                protocolCases,
                 bodyFactory,
                 bodyMutator,
                 inventory,

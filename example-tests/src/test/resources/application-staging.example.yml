@@ -56,6 +56,7 @@ forge:
     methods: [GET, HEAD, OPTIONS]
     allow-unsafe-methods: false
     max-cases-per-operation: 20
+    protocol-mutations: true      # malformed JSON, wrong Content-Type, empty body
     confirmation-runs: 0          # >0 re-sends findings to prove they repeat
     max-shrink-attempts: 0        # >0 minimizes the reproducing request
     allow-unsafe-confirmation: false  # repeating a POST is its own decision

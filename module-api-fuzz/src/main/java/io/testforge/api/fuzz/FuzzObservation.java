@@ -62,8 +62,17 @@ public record FuzzObservation(
 
     /** A case that could not be applied to this operation's baseline. */
     public static FuzzObservation notApplicable(FuzzCase fuzzCase, String resolvedUrl) {
+        return notApplicable(fuzzCase, resolvedUrl, "the case does not apply to the baseline body");
+    }
+
+    /**
+     * A case that went out but did not end up testing what it claims — the
+     * transport supplied something the mutation meant to remove. Recorded rather
+     * than scored, because the response is about a request nobody designed.
+     */
+    public static FuzzObservation notApplicable(FuzzCase fuzzCase, String resolvedUrl, String reason) {
         return new FuzzObservation(fuzzCase, resolvedUrl, FuzzVerdict.NOT_APPLICABLE, fuzzCase.expectation(),
-                null, null, null, null, List.of(), "the case does not apply to the baseline body",
+                null, null, null, null, List.of(), reason,
                 List.of(), null, fuzzCase.parameterName() + " <not applicable>",
                 ConfirmationResult.notConfirmed(), ShrinkOutcome.notAttempted());
     }

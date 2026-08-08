@@ -2,6 +2,7 @@ package io.testforge.api.fuzz;
 
 import io.testforge.api.fuzz.ApiFuzzReport.SpecFuzzReport;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Renders findings first, then what could not be concluded, then what was
@@ -166,23 +167,51 @@ final class FuzzReportMarkdown {
      * Constraint coverage, listed rather than scored. A percentage would invite
      * comparing APIs that declare wildly different amounts, and would reward a
      * vague document for being vague.
+     *
+     * <p>Four layers, and the third is the one worth reading: a constraint
+     * nothing could honestly attack is a different problem from one the case
+     * budget did not reach, and only the reason distinguishes them.
      */
     private static void renderCoverage(StringBuilder out, ConstraintCoverage coverage) {
-        if (coverage.declared().isEmpty()) {
+        if (coverage.declared().isEmpty() && coverage.outcomes().total() == 0) {
             return;
         }
 
         out.append("- constraints: ").append(coverage.declared().size())
-                .append(" declared, ").append(coverage.exercised().size()).append(" exercised\n");
+                .append(" declared, ").append(coverage.exercised().size()).append(" exercised, ")
+                .append(coverage.unsupported().size()).append(" unsupported, ")
+                .append(coverage.unexercised().size()).append(" not exercised\n");
 
         if (!coverage.exercised().isEmpty()) {
             out.append("\n  exercised:\n");
             coverage.exercised().forEach(constraint -> out.append("  - ").append(constraint).append('\n'));
         }
+        if (!coverage.unsupported().isEmpty()) {
+            out.append("\n  unsupported — no mutation here could be proven invalid:\n");
+            coverage.unsupported().forEach(constraint -> out.append("  - ").append(constraint).append('\n'));
+        }
         if (!coverage.unexercised().isEmpty()) {
             out.append("\n  not exercised:\n");
             coverage.unexercised().forEach(constraint -> out.append("  - ").append(constraint).append('\n'));
         }
+        renderOutcomes(out, coverage.outcomes());
+    }
+
+    /** Raw counts. Anything averaged into a single figure would hide a crash. */
+    private static void renderOutcomes(StringBuilder out, MutationOutcomes outcomes) {
+        if (outcomes.total() == 0) {
+            return;
+        }
+
+        out.append("\n  mutation outcomes: ").append(outcomes.schemaMutations()).append(" schema, ")
+                .append(outcomes.protocolMutations()).append(" protocol\n");
+        counts(out, "  - expectation ", outcomes.byExpectation());
+        counts(out, "  - verdict ", outcomes.byVerdict());
+        counts(out, "  - evidence ", outcomes.byEvidence());
+    }
+
+    private static void counts(StringBuilder out, String prefix, Map<?, Integer> counts) {
+        counts.forEach((key, count) -> out.append(prefix).append(key).append(": ").append(count).append('\n'));
     }
 
     private static String control(OperationFuzzReport operation) {

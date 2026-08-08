@@ -66,6 +66,17 @@ final class SchemaMutations {
         static Mutation probe(FuzzCaseKind kind, Object value) {
             return new Mutation(kind, FuzzExpectation.UNSPECIFIED, value, null);
         }
+
+        /**
+         * Touches a named declaration the document makes without proving what
+         * the answer should be — {@code readOnly}, which OpenAPI phrases as a
+         * "SHOULD NOT" rather than a rule. It counts towards coverage because
+         * the declaration was tested; it cannot produce {@code OVER_PERMISSIVE}
+         * because no promise was broken.
+         */
+        static Mutation unspecified(FuzzCaseKind kind, Object value, String constraint) {
+            return new Mutation(kind, FuzzExpectation.UNSPECIFIED, value, constraint);
+        }
     }
 
     /**
@@ -233,6 +244,13 @@ final class SchemaMutations {
         if (maxItems != null && maxItems > 0) {
             mutations.add(Mutation.valid(FuzzCaseKind.AT_UPPER_BOUND, maxItems, "maxItems"));
             mutations.add(Mutation.proven(FuzzCaseKind.TOO_MANY_ITEMS, maxItems + 1, "maxItems"));
+        }
+
+        // a duplicate has to fit without breaking maxItems as well: a case that
+        // violates two constraints at once cannot say which one the service
+        // objected to, which is the whole point of one mutation per case
+        if (SchemaFacts.uniqueItems(schema) && (maxItems == null || maxItems >= 2)) {
+            mutations.add(Mutation.proven(FuzzCaseKind.DUPLICATE_ITEM, null, "uniqueItems"));
         }
 
         if (Schemas.type(schema.getItems()) != null) {

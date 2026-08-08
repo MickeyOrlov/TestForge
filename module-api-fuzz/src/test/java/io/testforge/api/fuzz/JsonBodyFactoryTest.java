@@ -71,7 +71,9 @@ class JsonBodyFactoryTest {
         JsonBodyFactory.Baseline baseline = factory.build(schema("eitherBody"));
 
         assertThat(baseline.usable()).isFalse();
-        assertThat(baseline.unsupportedReason()).contains("oneOf/anyOf");
+        assertThat(baseline.unsupportedReason())
+                .contains("oneOf")
+                .contains("no discriminator");
     }
 
     @Test

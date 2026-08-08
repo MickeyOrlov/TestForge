@@ -45,7 +45,14 @@ public class ApiClientExchangeExecutor implements ExchangeExecutor {
             request.pathParameters().forEach(specification::pathParam);
             request.queryParameters().forEach(specification::queryParam);
             if (request.body() != null) {
-                specification.contentType(request.contentType()).body(request.body());
+                // a null content type is a request, not an oversight: a fuzz
+                // case may deliberately send a body without declaring one, and
+                // passing null through to REST Assured would fail the call
+                // rather than send it
+                if (request.contentType() != null) {
+                    specification.contentType(request.contentType());
+                }
+                specification.body(request.body());
             }
 
             Response response = specification.request(request.method(), request.pathTemplate());

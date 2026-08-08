@@ -7,6 +7,25 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-fuzz` v1.4: complete mutation semantics for the supported OpenAPI
+  constraints, and an explicit refusal for everything else. Adds `uniqueItems`,
+  `additionalProperties`, `readOnly`/`writeOnly` request semantics and nested
+  item constraints; the baseline now builds distinct array elements and leaves
+  response-only properties out, so a control that violated the document can no
+  longer invalidate a run silently. `oneOf`/`anyOf` are fuzzed only where a
+  `discriminator` provably pins one branch and every sibling excludes its value
+  — otherwise the subtree is reported unsupported with the reason, because a
+  mutant that stays valid through another branch produces a confident false
+  OVER_PERMISSIVE. Array parameters are serialized according to their own
+  `style`/`explode`, and a style with no single-valued wire form is refused
+  rather than comma-joined, so a serialization defect is never mistaken for a
+  validation finding. Four PROTOCOL_MUTATION cases — malformed JSON, an
+  undeclared media type, no `Content-Type`, an empty body against a required
+  requestBody — are counted apart from SCHEMA_MUTATION and added after the case
+  budget, so enabling them cannot change which declared constraints a run
+  tested. Coverage now reports four layers — declared, exercised,
+  unsupported/blocked with a reason, and not exercised — plus raw mutation
+  outcome counts, and deliberately no aggregate hardening score.
 - `module-api-fuzz` v1.3: findings are confirmed and minimized into ready-made
   reproducers. An optional bounded confirmation phase re-sends a finding's
   request and reports REPRODUCIBLE, FLAKY, DISAPPEARED or NOT_CONFIRMED; a
