@@ -104,7 +104,7 @@ class ApiExplorerRunnerTest {
         ApiExplorerRunner runner = new ApiExplorerRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),
-                new SafetyPolicy(properties(output, false)),
+                SafetyPolicy.from(properties(output, false)),
                 new RequestPlanner(new RequestValueResolver(
                         new ApiExplorerProperties.ParameterProperties(Map.of(), Map.of()), new SchemaValueFactory())),
                 executor(),
@@ -130,7 +130,7 @@ class ApiExplorerRunnerTest {
         return new ApiExplorerRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),
-                new SafetyPolicy(properties),
+                SafetyPolicy.from(properties),
                 new RequestPlanner(new RequestValueResolver(properties.parameters(), new SchemaValueFactory())),
                 executor,
                 new ResponseContractChecker(new ObjectMapper()),

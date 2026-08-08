@@ -34,6 +34,9 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
       `forge.http.base-url`; keep `methods` at the GET/HEAD/OPTIONS default and
       never enable `allow-unsafe-methods` against a shared environment. Run it
       from an environment profile job, not the default build
+- [ ] **module-api-fuzz**: same registry and base URL; run it against an
+      environment you own, never a shared one with write methods enabled. Only
+      crashes fail the build until the first report has been reviewed
 - [ ] **module-db**: add entities + repositories for asserted tables; one
       `SchemaValidator` test per entity in a scheduled CI job. If the product
       publishes client/DTO artifacts — depend on them, never duplicate

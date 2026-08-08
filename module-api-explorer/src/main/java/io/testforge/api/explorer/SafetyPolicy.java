@@ -1,6 +1,8 @@
 package io.testforge.api.explorer;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.util.AntPathMatcher;
 
 /**
@@ -21,30 +23,47 @@ public class SafetyPolicy {
 
     private static final AntPathMatcher MATCHER = new AntPathMatcher();
 
-    private final ApiExplorerProperties properties;
+    private final Set<String> methods;
+    private final boolean allowUnsafeMethods;
+    private final List<String> includePaths;
+    private final List<String> excludePaths;
 
-    public SafetyPolicy(ApiExplorerProperties properties) {
-        this.properties = properties;
+    /**
+     * Takes the four values rather than a properties record so more than one
+     * module can enforce the same rule from its own configuration. The gate is
+     * a property of exploring a live API, not of any single module's YAML.
+     */
+    public SafetyPolicy(Set<String> methods, boolean allowUnsafeMethods,
+                        List<String> includePaths, List<String> excludePaths) {
+        this.methods = Set.copyOf(methods);
+        this.allowUnsafeMethods = allowUnsafeMethods;
+        this.includePaths = List.copyOf(includePaths);
+        this.excludePaths = List.copyOf(excludePaths);
     }
 
-    /** Empty when the operation may be explored. */
+    public static SafetyPolicy from(ApiExplorerProperties properties) {
+        return new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
+                properties.includePaths(), properties.excludePaths());
+    }
+
+    /** Empty when the operation may be called. */
     public Optional<SkipReason> refuse(ExplorableOperation operation) {
-        if (!properties.methods().contains(operation.method())) {
+        if (!methods.contains(operation.method())) {
             return Optional.of(SkipReason.METHOD_NOT_ENABLED);
         }
-        if (!ApiExplorerProperties.SAFE_METHODS.contains(operation.method()) && !properties.allowUnsafeMethods()) {
+        if (!ApiExplorerProperties.SAFE_METHODS.contains(operation.method()) && !allowUnsafeMethods) {
             return Optional.of(SkipReason.UNSAFE_METHOD_NOT_ALLOWED);
         }
-        if (matchesAny(properties.excludePaths(), operation.pathTemplate())) {
+        if (matchesAny(excludePaths, operation.pathTemplate())) {
             return Optional.of(SkipReason.PATH_EXCLUDED);
         }
-        if (!matchesAny(properties.includePaths(), operation.pathTemplate())) {
+        if (!matchesAny(includePaths, operation.pathTemplate())) {
             return Optional.of(SkipReason.PATH_NOT_INCLUDED);
         }
         return Optional.empty();
     }
 
-    private boolean matchesAny(java.util.List<String> patterns, String path) {
+    private boolean matchesAny(List<String> patterns, String path) {
         return patterns.stream().anyMatch(pattern -> MATCHER.match(pattern, path));
     }
 }

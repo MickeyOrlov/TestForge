@@ -1,0 +1,13 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    // the operation model, safety gate, value resolution, executor and contract
+    // checker all come from the explorer — this module adds cases, not plumbing
+    api project(":module-api-explorer")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

@@ -50,6 +50,15 @@ forge:
     fail-on:
       contract-mismatch: false  # review the first report before turning this on
       failure: true
+  api-fuzz:
+    enabled: false            # sends malformed traffic — own the environment first
+    seed: 0
+    methods: [GET, HEAD, OPTIONS]
+    allow-unsafe-methods: false
+    max-cases-per-operation: 20
+    fail-on:
+      server-error: true      # a crash on bad input is always a defect
+      over-permissive: false  # widen after reading the first report
   db:
     log-sql: true
     repository-polling:

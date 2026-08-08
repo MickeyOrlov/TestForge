@@ -47,6 +47,7 @@ dependencies {
     testImplementation "${testforgeGroup}:module-api-discovery:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-codegen:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-explorer:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-api-fuzz:${testforgeVersion}"
     testImplementation "org.springframework.boot:spring-boot-starter-test:${libs.versions.spring.boot.get()}"
     testImplementation libs.wiremock
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

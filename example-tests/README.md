@@ -17,6 +17,7 @@ plays the service database.
 | `ScopedMockIsolationTest` | scoped stubs on a shared mock don't leak between scenarios |
 | `ApiExplorerExampleTest` | explores an OpenAPI document against embedded WireMock: availability map, runtime contract mismatches, deterministic artifacts |
 | `ApiExplorerLiveIT` | the same pipeline against a public live API — `TESTFORGE_LIVE_API_BASE_URL=... ../gradlew :example-tests:liveApiTest` |
+| `ApiFuzzExampleTest` | schema-aware boundary cases find a crash on an over-long identifier and an over-permissive endpoint; the write endpoint is never called |
 | `ApiClientExampleTest` | `ApiClient` embeds the scenario scope and request id automatically; payloads stay untouched without an open scope |
 | `ApiRetryExampleTest` | opt-in retry recovers a 503 on a safe method and never repeats a POST |
 | `HttpRedactionTest` | credentials masked in headers, nested JSON and form bodies before anything is logged |

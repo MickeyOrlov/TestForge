@@ -39,7 +39,7 @@ public class TestForgeApiExplorerAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SafetyPolicy apiExplorerSafetyPolicy(ApiExplorerProperties properties) {
-        return new SafetyPolicy(properties);
+        return SafetyPolicy.from(properties);
     }
 
     @Bean
