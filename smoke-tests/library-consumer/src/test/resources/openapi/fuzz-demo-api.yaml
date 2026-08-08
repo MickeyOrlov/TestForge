@@ -1,0 +1,54 @@
+# A document with real constraints, so the fuzz example has something to test
+# against. Without a declared maximum there is no boundary to cross, and the
+# module can only report crashes rather than contract violations.
+openapi: 3.0.3
+info:
+  title: Fuzz Demo API
+  version: 1.0.0
+paths:
+  /api/v1/tasks/{taskId}:
+    get:
+      operationId: getTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 8
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /api/v1/tasks:
+    post:
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        '201':
+          description: Created

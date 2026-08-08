@@ -7,17 +7,20 @@ import java.util.Set;
 /**
  * The handful of schema questions this module asks, in one place.
  *
+ * <p>Public because {@code module-api-fuzz} asks the same questions of the
+ * same schemas, and a second copy of these rules would drift.
+ *
  * <p>OpenAPI 3.0 declares {@code type} as a single string; 3.1 declares
  * {@code types} as a set, because it is JSON Schema 2020-12. Every call site
  * would otherwise have to remember that.
  */
-final class Schemas {
+public final class Schemas {
 
     private Schemas() {
     }
 
     /** The declared type, ignoring a {@code null} member of a 3.1 union. */
-    static String type(Schema<?> schema) {
+    public static String type(Schema<?> schema) {
         if (schema == null) {
             return null;
         }
@@ -37,7 +40,7 @@ final class Schemas {
     }
 
     /** True when the schema permits an explicit JSON null. */
-    static boolean nullable(Schema<?> schema) {
+    public static boolean nullable(Schema<?> schema) {
         if (schema == null) {
             return true;
         }
@@ -48,7 +51,7 @@ final class Schemas {
         return types != null && types.stream().anyMatch("null"::equalsIgnoreCase);
     }
 
-    static String format(Schema<?> schema) {
+    public static String format(Schema<?> schema) {
         return schema == null || schema.getFormat() == null
                 ? null
                 : schema.getFormat().toLowerCase(Locale.ROOT);
