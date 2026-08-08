@@ -14,7 +14,18 @@ forbids — which means every consumer generated from that document is built on
 a promise nobody keeps.
 
 Every case is derived from what the document declares, and carries the
-expectation that declaration implies:
+expectation that declaration implies. Cases fall into three groups, and the
+difference between them is the difference between a finding and a false
+accusation:
+
+- **schema-proven invalid** (`REJECT`) — a declared constraint forbids the
+  value. Accepting it is `OVER_PERMISSIVE`.
+- **valid boundary** (`ACCEPT`) — the value is legal, if extreme. Refusing it
+  is `OVER_STRICT`.
+- **robustness probe** (`UNSPECIFIED`) — the document says nothing. Only a
+  crash or an echo is a finding; the status code proves nothing.
+
+Which group a case lands in depends on the schema, never on the mutation:
 
 | The document says | The case sends | It should |
 |---|---|---|
@@ -24,11 +35,53 @@ expectation that declaration implies:
 | `enum: [asc, desc]` | something else | reject |
 | `format: date` | `2024-13-45` | reject |
 | `required: true` (query) | nothing | reject |
+| `exclusiveMinimum: 1` | `1` | reject |
+| `exclusiveMinimum: 1` | `2` | accept |
+| `multipleOf: 5` | `11` | reject |
+| `nullable: false` (body) | `null` | reject |
+| `minItems: 1` | `[]` | reject |
+| **no** `maxLength` | 4096 characters | either |
+| **no** `maximum` | a huge number | either |
 | nothing in particular | empty string, unicode, structural characters | either |
 
-The last row is why the module reports crashes and reflections separately from
-validation gaps: where the document is silent, only a crash or an echo is a
-finding.
+The last three rows are the ones that matter most. A long string against a
+schema that declares no length breaks no promise, so reporting the service for
+accepting it would be this module's bug, not the service's.
+
+## Request bodies
+
+`application/json` request bodies are fuzzed the same way, addressed by JSON
+path:
+
+```
+createUser/body:$.profile.age/BELOW_MINIMUM
+createUser/body:$.name/OMITTED_REQUIRED
+createUser/body:$.tags/TOO_MANY_ITEMS
+```
+
+Each case starts from a **baseline body built to satisfy every constraint the
+schema declares** — required and optional fields, nested objects, arrays sized
+to `minItems`, numbers nudged onto `multipleOf` and past exclusive bounds,
+strings long enough for `minLength` and matching `format`. Then exactly one
+field is changed. A case claims one field is wrong; that claim is only true if
+everything else was right.
+
+Supported: `object`, nested objects, `array` with `minItems`/`maxItems` and
+item types, `string` with `minLength`/`maxLength`/`pattern`/`format`,
+`integer`/`number` with `minimum`/`maximum`/`exclusiveMinimum`/
+`exclusiveMaximum`/`multipleOf`, `boolean`, `enum`, `required`, `nullable`, and
+`allOf` (merged into one object).
+
+Deliberately not supported, and reported rather than guessed at:
+
+- `oneOf`/`anyOf` at the root — no single baseline can be proven valid, so the
+  operation is skipped with that reason. Nested branches get a baseline from
+  the first alternative and produce **no cases**: a value invalid for the
+  chosen branch may be valid for another.
+- Media types other than JSON — skipped with the declared types named.
+- Schemas nothing can satisfy — a `pattern` no generated candidate matches
+  skips the operation rather than sending a body the service would reject
+  anyway, which would make every verdict meaningless.
 
 ## Verdicts
 
@@ -98,24 +151,27 @@ running service, so the gates are the explorer's, unchanged:
 - `GET`, `HEAD` and `OPTIONS` only, unless **both** the method is listed and
   `allow-unsafe-methods=true`;
 - capped per operation and in total, sequential, never concurrent;
-- no request bodies are ever sent.
+- a request body is only ever sent to a method that passed both gates. Adding
+  body generation did **not** make `POST`, `PUT`, `PATCH` or `DELETE`
+  reachable; a body is built for them and then never sent unless the project
+  opted in.
 
 Point it at a staging environment you own. `exclude-paths` narrows a large
 document; it is not a safety mechanism.
 
-## Limits of v1
+## Limits of v1.1
 
-- **Parameters only.** Request bodies are not fuzzed, because the explorer does
-  not synthesize them — that waits for value extraction.
-- **One parameter per case**, so findings stay attributable. Combinations are
-  not explored.
+- **One field per case**, so findings stay attributable. Combinations — an
+  invalid name *and* an invalid age — are not generated.
+- **Bodies are JSON only**, and only where a valid baseline exists.
 - **No state between calls**, so anything reachable only after a `POST` is out
   of reach. That is the stateful work recorded in `BACKLOG.md`, and it is what
   would make this module find deep defects rather than surface ones.
-- **No mutation of the document's own valid values** — cases come from
-  constraints, so an operation whose parameters are declared as bare strings
-  produces blunt cases. That is honest: the module can only test what was
-  written down.
+- **Cases come from constraints**, so an operation whose fields are declared as
+  bare strings produces blunt probes and few provable cases. That is honest:
+  the module can only test what was written down.
+- **Numeric neighbours are whole units.** The value next to an exclusive bound
+  is `bound + 1`, not the smallest representable step.
 - Reflection detection compares decoded JSON string values and raw text. It
   reports an echo; deciding whether it is exploitable is not a test framework's
   job.
@@ -133,3 +189,8 @@ document; it is not a safety mechanism.
   the markdown and the JSON. Do not change their shape casually.
 - Only crashes fail the build by default. Widening that is a project's
   decision, not this module's.
+- `FuzzExpectation` belongs to the case, never to the kind. v1 attached it to
+  the kind and quietly produced false findings; if a mutation's meaning ever
+  depends only on its name again, that bug is back.
+- The baseline body must satisfy the schema. If it cannot, skip the operation
+  with the reason — never send a plausible-looking guess.

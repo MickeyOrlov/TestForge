@@ -158,8 +158,11 @@ class ApiFuzzRunnerTest {
                         properties.includePaths(), properties.excludePaths()),
                 new RequestPlanner(new RequestValueResolver(
                         new ApiExplorerProperties.ParameterProperties(Map.of("q", "query"), Map.of()),
-                        new SchemaValueFactory())),
+                        new SchemaValueFactory()), true),
                 new FuzzCaseGenerator(),
+                new BodyCaseGenerator(objectMapper, new JsonBodyFactory(objectMapper)),
+                new JsonBodyFactory(objectMapper),
+                new JsonBodyMutator(objectMapper),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
                 executor(),
                 new ResponseClassifier(new ResponseContractChecker(objectMapper), objectMapper),

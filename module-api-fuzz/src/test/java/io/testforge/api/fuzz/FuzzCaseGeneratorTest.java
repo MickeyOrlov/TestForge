@@ -38,7 +38,49 @@ class FuzzCaseGeneratorTest {
 
         assertThat(kind(cases, FuzzCaseKind.AT_UPPER_BOUND).expectation()).isEqualTo(FuzzExpectation.ACCEPT);
         assertThat(kind(cases, FuzzCaseKind.TOO_LONG).expectation()).isEqualTo(FuzzExpectation.REJECT);
-        assertThat(kind(cases, FuzzCaseKind.EMPTY_STRING).expectation()).isEqualTo(FuzzExpectation.UNSPECIFIED);
+        // minLength: 2 is declared, so an empty string is schema-proven invalid
+        assertThat(kind(cases, FuzzCaseKind.EMPTY_STRING).expectation()).isEqualTo(FuzzExpectation.REJECT);
+    }
+
+    @Test
+    void anUnconstrainedStringYieldsProbesRatherThanAccusations() {
+        // /search q declares only minLength, so length above and emptiness
+        // below are the only things the document actually promises
+        List<FuzzCase> cases = forParameter("search", "q");
+
+        assertThat(kind(cases, FuzzCaseKind.TOO_LONG).expectation())
+                .describedAs("no maxLength is declared, so a long string breaks no promise")
+                .isEqualTo(FuzzExpectation.UNSPECIFIED);
+        assertThat(kind(cases, FuzzCaseKind.ENCODING_PROBE).expectation()).isEqualTo(FuzzExpectation.UNSPECIFIED);
+        assertThat(kind(cases, FuzzCaseKind.UNICODE).expectation()).isEqualTo(FuzzExpectation.UNSPECIFIED);
+    }
+
+    @Test
+    void aPatternCaseIsOnlyEmittedWhenTheValueProvablyFailsIt() {
+        // itemId's pattern is ^[a-z0-9-]+$, which the old fixed probe string
+        // satisfied — v1 accused the service of accepting a value the document
+        // allowed
+        List<FuzzCase> cases = forParameter("getItem", "itemId");
+
+        assertThat(cases)
+                .filteredOn(fuzzCase -> fuzzCase.kind() == FuzzCaseKind.PATTERN_VIOLATION)
+                .singleElement()
+                .satisfies(fuzzCase -> {
+                    assertThat(fuzzCase.value()).doesNotMatch("^[a-z0-9-]+$");
+                    assertThat(fuzzCase.expectation()).isEqualTo(FuzzExpectation.REJECT);
+                });
+    }
+
+    @Test
+    void anUnboundedNumberYieldsAProbeNotAViolation() {
+        // /search limit declares minimum and maximum, so both are provable...
+        assertThat(kind(forParameter("search", "limit"), FuzzCaseKind.ABOVE_MAXIMUM).expectation())
+                .isEqualTo(FuzzExpectation.REJECT);
+
+        // ...while an unbounded number can only be probed
+        assertThat(forParameter("search", "limit"))
+                .extracting(FuzzCase::kind)
+                .doesNotContain(FuzzCaseKind.HUGE_NUMBER);
     }
 
     @Test

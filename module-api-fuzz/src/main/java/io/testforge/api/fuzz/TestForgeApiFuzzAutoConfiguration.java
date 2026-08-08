@@ -48,6 +48,24 @@ public class TestForgeApiFuzzAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public JsonBodyFactory jsonBodyFactory(ObjectMapper objectMapper) {
+        return new JsonBodyFactory(objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public BodyCaseGenerator bodyCaseGenerator(ObjectMapper objectMapper, JsonBodyFactory bodyFactory) {
+        return new BodyCaseGenerator(objectMapper, bodyFactory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JsonBodyMutator jsonBodyMutator(ObjectMapper objectMapper) {
+        return new JsonBodyMutator(objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public FuzzCaseSelector fuzzCaseSelector(ApiFuzzProperties properties) {
         return new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation());
     }
@@ -68,6 +86,9 @@ public class TestForgeApiFuzzAutoConfiguration {
             ObjectProvider<ExchangeExecutor> executors,
             ObjectProvider<ObservationFactory> observationFactories,
             FuzzCaseGenerator generator,
+            BodyCaseGenerator bodyCases,
+            JsonBodyFactory bodyFactory,
+            JsonBodyMutator bodyMutator,
             FuzzCaseSelector cases,
             ResponseClassifier classifier,
             ApiClient apiClient,
@@ -78,8 +99,10 @@ public class TestForgeApiFuzzAutoConfiguration {
 
         SafetyPolicy safety = new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
                 properties.includePaths(), properties.excludePaths());
+        // bodies are this module's job, so the planner stops refusing the
+        // operations that need one and leaves the body to the caller
         RequestPlanner planner = new RequestPlanner(
-                new RequestValueResolver(properties.parameters(), new SchemaValueFactory()));
+                new RequestValueResolver(properties.parameters(), new SchemaValueFactory()), true);
 
         return new ApiFuzzRunner(
                 parser,
@@ -87,6 +110,9 @@ public class TestForgeApiFuzzAutoConfiguration {
                 safety,
                 planner,
                 generator,
+                bodyCases,
+                bodyFactory,
+                bodyMutator,
                 cases,
                 executors.getIfAvailable(() -> new ApiClientExchangeExecutor(apiClient, properties.service())),
                 classifier,

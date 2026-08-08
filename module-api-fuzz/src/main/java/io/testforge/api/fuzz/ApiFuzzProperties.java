@@ -123,7 +123,7 @@ public record ApiFuzzProperties(
                 case OVER_PERMISSIVE -> overPermissive;
                 case UNDOCUMENTED_RESPONSE -> undocumentedResponse;
                 case INPUT_REFLECTED -> inputReflected;
-                case OVER_STRICT, PASSED -> false;
+                case OVER_STRICT, PASSED, NOT_APPLICABLE -> false;
             };
         }
     }
