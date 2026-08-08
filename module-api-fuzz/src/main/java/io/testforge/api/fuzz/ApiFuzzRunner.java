@@ -280,8 +280,8 @@ public class ApiFuzzRunner {
         }
 
         // only findings are worth extra requests, and only once the sweep is done
-        observations = analyse(operation, control, bodyPlan, observations, requests,
-                outputDir, specId, fingerprint);
+        observations = analyse(operation, control, bodyPlan, withBody(baseline.request(), bodyPlan),
+                observations, requests, outputDir, specId, fingerprint);
 
         Path artifact = specDir.resolve(safeName(operation.operationId()) + ".json");
         writeJson(artifact, observations);
@@ -316,6 +316,7 @@ public class ApiFuzzRunner {
      * neither runs at all unless a project asked for it.
      */
     private List<FuzzObservation> analyse(ExplorableOperation operation, ControlResult control, BodyPlan bodyPlan,
+                                          PreparedRequest controlRequest,
                                           List<FuzzObservation> observations,
                                           Map<String, PreparedRequest> requests,
                                           Path outputDir, String specId, String fingerprint) {
@@ -330,7 +331,8 @@ public class ApiFuzzRunner {
 
             FindingSignature signature = FindingSignature.of(observation);
             ConfirmationResult confirmation =
-                    confirmer.confirm(operation, control, observation.fuzzCase(), request, signature);
+                    confirmer.confirm(operation, control, observation.fuzzCase(), request,
+                            controlRequest, signature);
             ShrinkOutcome shrink = confirmation.worthMinimizing()
                     ? shrinker.shrink(operation, control, observation.fuzzCase(), request, bodyPlan, signature)
                     : ShrinkOutcome.notAttempted();

@@ -22,6 +22,11 @@ public record ConfirmationResult(
         return new ConfirmationResult(Reproducibility.NOT_ATTEMPTED, 0, 0, reason);
     }
 
+    public static ConfirmationResult of(int attempts, int matches, String reason) {
+        ConfirmationResult result = of(attempts, matches);
+        return new ConfirmationResult(result.reproducibility(), attempts, matches, reason);
+    }
+
     public static ConfirmationResult of(int attempts, int matches) {
         Reproducibility reproducibility;
         if (matches == 0) {

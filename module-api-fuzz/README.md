@@ -201,11 +201,20 @@ reports what happened:
 | `DISAPPEARED` | No attempt showed it again |
 | `NOT_ATTEMPTED` | A write method without the separate opt-in |
 
+The control is re-checked between attempts. A mutant can leave the backend
+unable to serve even valid requests — a created resource, a tripped breaker, a
+filled quota — and without that check the remaining attempts read as a
+confident `FLAKY` that says nothing about the defect.
+
 **Minimization** then strips the request down to the smallest one that still
 shows the same finding: optional fields removed, arrays shrunk to `minItems`,
-optional query parameters dropped. Required fields, the target itself, and
+optional query parameters dropped, and unrelated values shortened to the
+smallest form their own schema still allows. Required fields, the target itself, and
 every other declared constraint are left alone, so each candidate stays "the
-valid baseline except the one mutation".
+valid baseline except the one mutation". A `oneOf`/`anyOf` node may be dropped
+whole when it is optional, but nothing is ever removed from *inside* the branch
+the baseline picked — that would produce a request the document never
+described.
 
 ```
 original: {"title":"aaa","priority":6,"note":"aaaa","tags":["aaaa"]}

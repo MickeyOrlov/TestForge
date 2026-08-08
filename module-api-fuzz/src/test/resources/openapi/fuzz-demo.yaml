@@ -139,10 +139,22 @@ paths:
                   maxItems: 3
                   items:
                     type: string
+                payment:
+                  oneOf:
+                    - type: object
+                      properties:
+                        card:
+                          type: string
+                    - type: object
+                      properties:
+                        iban:
+                          type: string
                 profile:
                   type: object
-                  required: [city]
+                  required: [city, locale]
                   properties:
+                    locale:
+                      type: string
                     city:
                       type: string
                       minLength: 2

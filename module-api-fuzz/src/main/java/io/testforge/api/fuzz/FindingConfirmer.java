@@ -34,7 +34,7 @@ public class FindingConfirmer {
 
     public ConfirmationResult confirm(ExplorableOperation operation, ControlResult control,
                                       FuzzCase fuzzCase, PreparedRequest request,
-                                      FindingSignature original) {
+                                      PreparedRequest controlRequest, FindingSignature original) {
 
         if (properties.confirmationRuns() <= 0) {
             return ConfirmationResult.notConfirmed();
@@ -45,14 +45,39 @@ public class FindingConfirmer {
                             .formatted(operation.method()));
         }
 
-        int attempts = properties.confirmationRuns();
+        int planned = properties.confirmationRuns();
+        int attempts = 0;
         int matches = 0;
-        for (int attempt = 0; attempt < attempts; attempt++) {
+
+        for (int attempt = 0; attempt < planned; attempt++) {
+            attempts++;
             if (FindingSignature.of(observe(operation, control, fuzzCase, request)).matches(original)) {
                 matches++;
             }
+
+            // the mutant may have changed the backend underneath us — a created
+            // resource, a tripped circuit breaker, a filled quota. Re-checking
+            // the control catches that; without it a poisoned environment turns
+            // into a confident FLAKY or DISAPPEARED that says nothing about the
+            // defect
+            if (attempt < planned - 1) {
+                ControlResult recheck = ControlResult.of(send(controlRequest));
+                if (!recheck.conclusive()) {
+                    return ConfirmationResult.of(attempts, matches,
+                            ("the control stopped being accepted after %d attempt(s) (%s); the environment "
+                                    + "changed underneath the confirmation").formatted(attempts, recheck.outcome()));
+                }
+            }
         }
         return ConfirmationResult.of(attempts, matches);
+    }
+
+    private RuntimeExchange send(PreparedRequest request) {
+        try {
+            return executor.execute(request);
+        } catch (RuntimeException e) {
+            return RuntimeExchange.failed(Map.of(), e.toString(), 0L);
+        }
     }
 
     /**
@@ -61,12 +86,7 @@ public class FindingConfirmer {
      */
     FuzzObservation observe(ExplorableOperation operation, ControlResult control,
                             FuzzCase fuzzCase, PreparedRequest request) {
-        RuntimeExchange exchange;
-        try {
-            exchange = executor.execute(request);
-        } catch (RuntimeException e) {
-            exchange = RuntimeExchange.failed(Map.of(), e.toString(), 0L);
-        }
+        RuntimeExchange exchange = send(request);
 
         ResponseClassifier.Classification classification =
                 classifier.classify(operation, control, fuzzCase, exchange);

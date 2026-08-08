@@ -78,6 +78,7 @@ public class RequestShrinker {
             best = removeOptionalBodyFields(operation, control, fuzzCase, best, bodyPlan, signature,
                     budget, removed);
             best = shrinkArrays(operation, control, fuzzCase, best, bodyPlan, signature, budget, removed);
+            best = minimizeUnrelatedValues(operation, control, fuzzCase, best, bodyPlan, signature, budget);
         }
         best = shrinkTargetValue(operation, control, fuzzCase, best, bodyPlan, signature, budget);
 
@@ -127,6 +128,9 @@ public class RequestShrinker {
             if (budget.exhausted()) {
                 break;
             }
+            if (underComposition(path, bodyPlan)) {
+                continue;
+            }
             JsonNode candidateBody = parse(best.body());
             if (candidateBody == null || !BodyPaths.remove(candidateBody, path)) {
                 continue;
@@ -148,7 +152,7 @@ public class RequestShrinker {
 
         PreparedRequest best = request;
         for (String path : arrayPaths(parse(best.body()), "$", new ArrayList<>())) {
-            if (budget.exhausted() || onTargetPath(path, fuzzCase)) {
+            if (budget.exhausted() || onTargetPath(path, fuzzCase) || underComposition(path, bodyPlan)) {
                 continue;
             }
 
@@ -171,6 +175,59 @@ public class RequestShrinker {
             }
         }
         return best;
+    }
+
+    /**
+     * Replaces the values of unrelated string fields with the shortest the
+     * schema still allows. Structure is what makes a payload hard to read, but
+     * a forty-character filler string next to the one field that matters is
+     * noise too — and unlike removal this keeps the field, so a required one
+     * can be shortened rather than left as is.
+     */
+    private PreparedRequest minimizeUnrelatedValues(
+            ExplorableOperation operation, ControlResult control, FuzzCase fuzzCase,
+            PreparedRequest request, BodyPlan bodyPlan, FindingSignature signature, Budget budget) {
+
+        PreparedRequest best = request;
+        for (String path : removablePaths(best.body(), fuzzCase, Set.of())) {
+            if (budget.exhausted() || underComposition(path, bodyPlan)) {
+                continue;
+            }
+
+            JsonNode candidateBody = parse(best.body());
+            JsonNode current = candidateBody == null ? null : BodyPaths.resolve(candidateBody, path).orElse(null);
+            if (current == null || !current.isTextual()) {
+                continue;
+            }
+
+            Schema<?> schema = schemaAt(bodyFactory.effective(bodyPlan.schema()), path);
+            String smallest = smallestValid(schema, current.asText());
+            if (smallest == null || smallest.equals(current.asText())) {
+                continue;
+            }
+
+            BodyPaths.set(candidateBody, path, objectMapper.getNodeFactory().textNode(smallest));
+            PreparedRequest attempt = withBody(best, candidateBody.toString());
+            if (stillReproduces(operation, control, fuzzCase, attempt, signature, budget)) {
+                best = attempt;
+            }
+        }
+        return best;
+    }
+
+    /** The shortest string this schema still accepts, or null when nothing shorter is provable. */
+    private String smallestValid(Schema<?> schema, String current) {
+        if (schema == null || schema.getEnum() != null || schema.getFormat() != null) {
+            // an enum member or a formatted value is already as small as it is
+            // allowed to be; shortening it would break a second constraint
+            return null;
+        }
+        int minLength = schema.getMinLength() == null ? 1 : Math.max(schema.getMinLength(), 1);
+        if (current.length() <= minLength) {
+            return null;
+        }
+        String candidate = "a".repeat(minLength);
+        return SchemaFacts.satisfiesString(schema, candidate) ? candidate : null;
     }
 
     // --- value shrinking -----------------------------------------------------
@@ -251,6 +308,20 @@ public class RequestShrinker {
         budget.spend();
         return FindingSignature.of(confirmer.observe(operation, control, fuzzCase, candidate))
                 .matches(signature);
+    }
+
+    /**
+     * A path inside a {@code oneOf}/{@code anyOf} subtree is left alone. The
+     * baseline picked one branch there, and removing a field that branch needs
+     * would silently turn the request into something the document never
+     * described — a candidate that is no longer "valid except the mutation".
+     */
+    private boolean underComposition(String path, BodyPlan bodyPlan) {
+        // strictly inside, not the node itself: dropping an optional oneOf
+        // wholesale is a legitimate simplification, reaching into the branch
+        // the baseline happened to pick is not
+        return bodyPlan.unfuzzablePaths().stream()
+                .anyMatch(prefix -> path.startsWith(prefix + ".") || path.startsWith(prefix + "["));
     }
 
     /** Optional leaves and branches, shallowest first, never the target or its ancestors. */

@@ -192,6 +192,47 @@ class ConfirmationAndShrinkTest {
                         .replace(first.toString(), second.toString()));
     }
 
+    @Test
+    void aPoisonedEnvironmentStopsConfirmationInsteadOfMislabellingIt(@TempDir Path output) {
+        // the mutant leaves the backend unable to serve even valid requests.
+        // Without re-checking the control, the remaining attempts would read as
+        // a confident FLAKY that says nothing about the defect
+        Recorder recorder = new Recorder(new Poisoning());
+        ApiFuzzReport report = run(output, recorder,
+                options().confirmationRuns(3).allowUnsafeConfirmation(true).build());
+
+        FuzzObservation finding = finding(report, AGE_CASE);
+        assertThat(finding.confirmation().reason()).contains("control stopped being accepted");
+        assertThat(finding.confirmation().attempts()).isLessThan(3);
+    }
+
+    @Test
+    void unrelatedValuesAreShortenedToTheirSmallestValidForm(@TempDir Path output) {
+        Recorder recorder = new Recorder(request -> ageIs(request, 17) ? 500 : 201);
+        JsonNode minimal = parse(finding(run(output, recorder, shrinking()), AGE_CASE).shrink().minimalBody());
+
+        // profile.locale is required, so it cannot be removed — but nothing in
+        // the document says it has to be four characters long
+        assertThat(minimal.path("profile").path("locale").asText()).isEqualTo("a");
+        // city declares minLength 2 and is already there
+        assertThat(minimal.path("profile").path("city").asText()).hasSize(2);
+    }
+
+    @Test
+    void aCompositionIsDroppedWholeOrLeftAloneButNeverReachedInto(@TempDir Path output) {
+        Recorder recorder = new Recorder(request -> ageIs(request, 17) ? 500 : 201);
+        FuzzObservation finding = finding(run(output, recorder, shrinking()), AGE_CASE);
+
+        // payment is a oneOf: the baseline picked one branch, so removing a
+        // field from inside it would produce a request the document never
+        // described
+        assertThat(finding.shrink().removed())
+                .noneSatisfy(path -> assertThat(path).startsWith("$.payment."));
+
+        JsonNode minimal = parse(finding.shrink().minimalBody());
+        assertThat(minimal.has("payment") && minimal.path("payment").isEmpty()).isFalse();
+    }
+
     // --- artifact -------------------------------------------------------------
 
     @Test
@@ -358,6 +399,21 @@ class ConfirmationAndShrinkTest {
 
         private boolean isTarget(PreparedRequest request) {
             return request.body() != null && request.body().contains("\"age\":17");
+        }
+    }
+
+    /** Serves the control until the first mutation, then fails everything. */
+    private static final class Poisoning implements Function<PreparedRequest, Integer> {
+        private boolean mutated;
+
+        @Override
+        public Integer apply(PreparedRequest request) {
+            boolean isMutation = request.body() != null && request.body().contains("\"age\":17");
+            if (isMutation) {
+                mutated = true;
+                return 500;
+            }
+            return mutated ? 503 : 201;
         }
     }
 
