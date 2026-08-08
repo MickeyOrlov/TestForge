@@ -21,32 +21,32 @@ class ResponseClassifierTest {
 
     @Test
     void rejectingAnInvalidValueIsTheExpectedOutcome() {
-        assertThat(classify(FuzzCaseKind.TOO_LONG, "aaaaaaaaa", 400, "{\"message\":\"too long\"}").verdict())
+        assertThat(classify(FuzzCaseKind.TOO_LONG, FuzzExpectation.REJECT, "aaaaaaaaa", 400, "{\"message\":\"too long\"}").verdict())
                 .isEqualTo(FuzzVerdict.PASSED);
     }
 
     @Test
     void acceptingAnInvalidValueIsAFinding() {
-        assertThat(classify(FuzzCaseKind.TOO_LONG, "aaaaaaaaa", 200, "{\"id\":\"x\"}").verdict())
+        assertThat(classify(FuzzCaseKind.TOO_LONG, FuzzExpectation.REJECT, "aaaaaaaaa", 200, "{\"id\":\"x\"}").verdict())
                 .isEqualTo(FuzzVerdict.OVER_PERMISSIVE);
     }
 
     @Test
     void aServerErrorOutranksEverythingElse() {
-        assertThat(classify(FuzzCaseKind.TOO_LONG, "aaaaaaaaa", 500, "boom").verdict())
+        assertThat(classify(FuzzCaseKind.TOO_LONG, FuzzExpectation.REJECT, "aaaaaaaaa", 500, "boom").verdict())
                 .isEqualTo(FuzzVerdict.SERVER_ERROR);
     }
 
     @Test
     void anUndocumentedStatusIsReportedWhenNothingWorseHappened() {
-        assertThat(classify(FuzzCaseKind.EMPTY_STRING, "", 418, "{}").verdict())
+        assertThat(classify(FuzzCaseKind.EMPTY_STRING, FuzzExpectation.UNSPECIFIED, "", 418, "{}").verdict())
                 .isEqualTo(FuzzVerdict.UNDOCUMENTED_RESPONSE);
     }
 
     @Test
     void aValueEchoedBackVerbatimIsReported() {
         ResponseClassifier.Classification classification =
-                classify(FuzzCaseKind.ENCODING_PROBE, "tf'\"<>&", 400,
+                classify(FuzzCaseKind.ENCODING_PROBE, FuzzExpectation.UNSPECIFIED, "tf'\"<>&", 400,
                         "{\"message\":\"bad value tf'\\\"<>&\"}");
 
         assertThat(classification.verdict()).isEqualTo(FuzzVerdict.INPUT_REFLECTED);
@@ -55,7 +55,7 @@ class ResponseClassifierTest {
 
     @Test
     void refusingAValidBoundaryIsOverStrict() {
-        assertThat(classify(FuzzCaseKind.AT_UPPER_BOUND, "aaaaaaaa", 400, "{\"message\":\"nope\"}").verdict())
+        assertThat(classify(FuzzCaseKind.AT_UPPER_BOUND, FuzzExpectation.ACCEPT, "aaaaaaaa", 400, "{\"message\":\"nope\"}").verdict())
                 .isEqualTo(FuzzVerdict.OVER_STRICT);
     }
 
@@ -63,8 +63,8 @@ class ResponseClassifierTest {
     void aDroppedConnectionIsATransportFailure() {
         ResponseClassifier.Classification classification = classifier.classify(
                 getItem,
-                FuzzCase.of("demo", "getItem", "GET /items/{itemId}", "itemId", "path",
-                        FuzzCaseKind.TOO_LONG, "aaaaaaaaa"),
+                FuzzCase.parameter("demo", "getItem", "GET /items/{itemId}", "itemId", "path",
+                        FuzzCaseKind.TOO_LONG, FuzzExpectation.REJECT, "aaaaaaaaa"),
                 RuntimeExchange.failed(Map.of(), "java.net.SocketTimeoutException", 30_000L));
 
         assertThat(classification.verdict()).isEqualTo(FuzzVerdict.TRANSPORT_FAILURE);
@@ -74,13 +74,15 @@ class ResponseClassifierTest {
     void aShortValueIsNotTreatedAsReflectionByCoincidence() {
         // "ab" appearing in a response means nothing
         ResponseClassifier.Classification classification =
-                classify(FuzzCaseKind.TOO_SHORT, "a", 400, "{\"message\":\"a is too short\"}");
+                classify(FuzzCaseKind.TOO_SHORT, FuzzExpectation.REJECT, "a", 400, "{\"message\":\"a is too short\"}");
 
         assertThat(classification.inputReflected()).isFalse();
     }
 
-    private ResponseClassifier.Classification classify(FuzzCaseKind kind, String value, int status, String body) {
-        FuzzCase fuzzCase = FuzzCase.of("demo", "getItem", "GET /items/{itemId}", "itemId", "path", kind, value);
+    private ResponseClassifier.Classification classify(FuzzCaseKind kind, FuzzExpectation expectation,
+                                                       String value, int status, String body) {
+        FuzzCase fuzzCase = FuzzCase.parameter("demo", "getItem", "GET /items/{itemId}", "itemId", "path",
+                kind, expectation, value);
         RuntimeExchange exchange = new RuntimeExchange(
                 Map.of(), null, status, "application/json", Map.of(), body, 5L, null);
         return classifier.classify(getItem, fuzzCase, exchange);

@@ -16,7 +16,20 @@ public record PreparedRequest(
         String method,
         String pathTemplate,
         Map<String, String> pathParameters,
-        Map<String, String> queryParameters) {
+        Map<String, String> queryParameters,
+        String body,
+        String contentType) {
+
+    /**
+     * A request with no body — what exploration always builds, since it never
+     * synthesizes one. The body fields exist for {@code module-api-fuzz}, which
+     * does derive bodies from the schema; putting them here rather than in a
+     * parallel type keeps a single request shape and a single executor.
+     */
+    public PreparedRequest(String method, String pathTemplate,
+                           Map<String, String> pathParameters, Map<String, String> queryParameters) {
+        this(method, pathTemplate, pathParameters, queryParameters, null, null);
+    }
 
     public PreparedRequest {
         // sorted rather than Map.copyOf: an immutable map has no defined

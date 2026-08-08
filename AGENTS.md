@@ -203,7 +203,10 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
 - `module-api-explorer` sends real traffic. It is inert unless
   `forge.api-explorer.enabled=true`, and write methods need two keys, not one.
 - `module-api-fuzz` sends deliberately malformed traffic, under the same two
-  gates plus its own `enabled` flag. Only crashes fail a build by default; a
+  gates plus its own `enabled` flag. Generating a request body does NOT make
+  write methods reachable — the gates are still the only thing that does.
+  A `REJECT` expectation may only be issued when a declared constraint forbids
+  the value; anything heuristic is a probe. Only crashes fail a build by default; a
   case id is the whole reproduction, and the seed only matters when the budget
   caps the matrix.
   Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.

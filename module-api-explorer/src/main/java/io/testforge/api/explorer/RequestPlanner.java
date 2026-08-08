@@ -27,16 +27,29 @@ import java.util.Optional;
 public class RequestPlanner {
 
     private final RequestValueResolver values;
+    private final boolean bodySuppliedByCaller;
 
     public RequestPlanner(RequestValueResolver values) {
+        this(values, false);
+    }
+
+    /**
+     * {@code bodySuppliedByCaller} is the seam for {@code module-api-fuzz},
+     * which derives request bodies from the schema and attaches them itself.
+     * Exploration leaves it false and keeps refusing those operations: planning
+     * the path and query of a request whose body it cannot build would be
+     * planning half a request.
+     */
+    public RequestPlanner(RequestValueResolver values, boolean bodySuppliedByCaller) {
         this.values = values;
+        this.bodySuppliedByCaller = bodySuppliedByCaller;
     }
 
     public PlannedRequest plan(ExplorableOperation operation) {
         List<ParameterBinding> bindings = new ArrayList<>();
 
         RequestBody body = operation.operation().getRequestBody();
-        if (body != null && Boolean.TRUE.equals(body.getRequired())) {
+        if (!bodySuppliedByCaller && body != null && Boolean.TRUE.equals(body.getRequired())) {
             return PlannedRequest.skip(SkipReason.REQUEST_BODY_REQUIRED,
                     "v1 does not synthesize request bodies", bindings);
         }
