@@ -40,6 +40,9 @@ Which group a case lands in depends on the schema, never on the mutation:
 | `multipleOf: 5` | `11` | reject |
 | `nullable: false` (body) | `null` | reject |
 | `minItems: 1` | `[]` | reject |
+| `uniqueItems: true` | the same element twice | reject |
+| `additionalProperties: false` | an undeclared property | reject |
+| `readOnly: true` (body) | the property, in a request | either |
 | **no** `maxLength` | 4096 characters | either |
 | **no** `maximum` | a huge number | either |
 | nothing in particular | empty string, unicode, structural characters | either |
@@ -82,6 +85,98 @@ Deliberately not supported, and reported rather than guessed at:
 - Schemas nothing can satisfy — a `pattern` no generated candidate matches
   skips the operation rather than sending a body the service would reject
   anyway, which would make every verdict meaningless.
+
+## Objects, arrays and compositions
+
+A few constraints only mean something in a body, and each has one rule.
+
+`uniqueItems` is built into the baseline before it is tested against: an array
+declared unique with `minItems: 2` gets two *different* elements, and the
+mutation repeats one. Filling it with copies — which is what v1.3 did — made
+the control itself violate the document and every case beneath it meaningless.
+
+`additionalProperties: false` earns an undeclared-property case. Nothing else
+does: an absent `additionalProperties` permits extras outright, and a
+schema-valued one constrains rather than bans them, so a service accepting an
+extra field there is obeying its document.
+
+`readOnly` properties are left out of the control, because that is what the
+document asks for, and put back by one probe. OpenAPI phrases it as "SHOULD
+NOT", so a service that quietly accepts one is not breaking a promise — a crash
+still is. A property that is both `required` and `readOnly` describes a request
+nobody can send, and is reported as unsupported rather than guessed at.
+
+`oneOf` and `anyOf` are the interesting case, because they break the assumption
+every `REJECT` rests on. The baseline has to pick a branch, and a value invalid
+for that branch may be valid under a sibling — so the document was never broken,
+and a service accepting it is correct. Reporting that as `OVER_PERMISSIVE` is
+worse than reporting nothing.
+
+So a composition is fuzzed only when the branch is provably the only one in
+play. A `discriminator` does that, but only when the discriminating property is
+pinned to a single value in the chosen branch and every sibling provably
+excludes it:
+
+```yaml
+method:
+  discriminator: { propertyName: kind }
+  oneOf:
+    - properties: { kind: { enum: [card] }, card: { minLength: 4 } }   # chosen
+    - properties: { kind: { enum: [iban] }, iban: { type: string } }
+```
+
+Here `$.method.card` is fuzzable and `$.method.kind` is not — changing the
+discriminator hands the request to a schema the case was never derived from.
+Without that proof the whole subtree is reported unsupported, with the reason.
+
+## Parameter serialization
+
+An array parameter is assembled according to its own `style` and `explode`,
+because a serialization defect that reaches the wire is indistinguishable from a
+validation finding. A `tags` array sent as the literal string `testforge` is
+malformed before it arrives; whatever comes back says nothing about the service.
+
+| Declared | Sent as |
+|---|---|
+| `style: form, explode: false` | `?status=open,closed` |
+| `style: spaceDelimited` | `?status=open%20closed` |
+| `style: pipeDelimited` | `?status=open|closed` |
+| `style: simple` (path) | `/reports/open,closed` |
+| `style: form, explode: true` | **refused** — repeats the name per element |
+| `style: deepObject`, object-valued | **refused** |
+| `style: label`, `style: matrix` | **refused** — rewrites the path segment |
+
+A refusal is not silence: every constraint the parameter declared appears in the
+report's unsupported layer with the reason. Array cases come in two layers —
+the size constraints of the array itself, and the constraints of one element
+mutated in place, reported as `query:status[0]`.
+
+## Protocol mutations
+
+Four cases attack the envelope rather than a value inside it:
+
+```
+createUser/protocol/MALFORMED_JSON
+createUser/protocol/UNSUPPORTED_CONTENT_TYPE
+createUser/protocol/MISSING_CONTENT_TYPE
+createUser/protocol/EMPTY_BODY
+```
+
+They reach a different layer of a service — the body parser, content
+negotiation, the error handler — code nobody on the team wrote and few have
+read, which is where a stack trace tends to escape into a response body.
+
+Two of them can claim a `REJECT`: broken JSON cannot be an instance of any
+schema, and a media type the operation does not list is not described at all. A
+missing `Content-Type` is a probe, because a recipient is entitled to guess —
+and if the HTTP client puts one back, the case reports `NOT_APPLICABLE` with
+what was actually sent rather than scoring a request nobody designed.
+
+They are counted separately from schema mutations and exercise no declared
+constraint, so coverage keeps meaning what it says. They are also added *after*
+the case budget rather than into it: at most four, and turning them off must not
+change which schema constraints a run tested. `protocol-mutations: false` turns
+them off.
 
 ## The control request
 
@@ -150,6 +245,7 @@ forge:
     allow-unsafe-methods: false     # required for anything else
     max-operations: 50
     max-cases-per-operation: 20
+    protocol-mutations: true    # malformed JSON, wrong Content-Type, empty body
     only-cases: []              # replay exactly these
     fail-on:
       server-error: true
@@ -167,8 +263,8 @@ tested:
 ```
 ### POST /users
 - control: 201 ACCEPTED
-- cases: 18, findings: 2, inconclusive: 0
-- constraints: 12 declared, 10 exercised
+- cases: 22, findings: 2, inconclusive: 0
+- constraints: 14 declared, 10 exercised, 2 unsupported, 2 not exercised
 
   exercised:
   - $.age maximum
@@ -176,14 +272,41 @@ tested:
   - $.name maxLength
   ...
 
+  unsupported — no mutation here could be proven invalid:
+  - $.payment oneOf — the oneOf declares no discriminator, so a value invalid
+    for the chosen branch may still satisfy another and no rejection can be
+    proven
+  - query:owner minItems — style 'form' with explode=true repeats the parameter
+    name per element, and the request model carries one value per name
+
   not exercised:
-  - $.payload oneOf
   - $.code pattern
+
+  mutation outcomes: 18 schema, 4 protocol
+  - expectation REJECT: 14
+  - expectation ACCEPT: 5
+  - expectation UNSPECIFIED: 3
+  - verdict PASSED: 20
+  - verdict OVER_PERMISSIVE: 2
+  - evidence SERVER_ERROR: 1
 ```
 
-Listed, not scored. A percentage would invite comparing APIs that declare
-wildly different amounts and would reward a vague document for being vague.
-What a reader needs is the second list: that is where the run is blind.
+Four layers, listed rather than scored. A percentage would invite comparing
+APIs that declare wildly different amounts and would reward a vague document
+for being vague.
+
+The third layer is the one worth reading. "Not exercised" and "unsupported"
+look alike in a count and mean opposite things: the first is a constraint the
+case budget did not reach, the second is one nothing could honestly attack, and
+only the reason tells them apart. Faced with a construct it cannot mutate, the
+module has two options — say so there, or guess — and a guess produces a
+request the document never described, which makes whatever comes back
+unattributable.
+
+There is deliberately no aggregate hardening score. Any single number averages a
+crash together with an unanswered probe, and the three counts a reader actually
+needs — how many cases were schema-proven invalid, how many of those were
+accepted anyway, and what crashed — are three numbers.
 
 ## Confirmation and minimization
 
@@ -314,11 +437,26 @@ running service, so the gates are the explorer's, unchanged:
 Point it at a staging environment you own. `exclude-paths` narrows a large
 document; it is not a safety mechanism.
 
-## Limits of v1.1
+## Limits
 
 - **One field per case**, so findings stay attributable. Combinations — an
   invalid name *and* an invalid age — are not generated.
 - **Bodies are JSON only**, and only where a valid baseline exists.
+- **A composition without a usable discriminator is not fuzzed at all**, not
+  even shallowly. Proving a mutant invalid against every branch would need a
+  full JSON Schema validator, and a wrong proof here produces exactly the
+  confident false finding the module exists to avoid.
+- **Array parameters need a single-valued wire form.** `explode: true` — the
+  OpenAPI default for a query array — repeats the parameter name per element,
+  and the shared request model carries one value per name. Those parameters are
+  reported unsupported rather than comma-joined into a shape the document never
+  described. Multi-valued parameters are the next increment.
+- **`additionalProperties` is not carried across an `allOf`.** Each subschema
+  sees only its own properties, so a merged `false` would forbid fields a
+  sibling declares and manufacture findings out of a JSON Schema subtlety.
+- **Protocol mutations are four fixed cases**, not a transport fuzzer. Chunked
+  encoding, header injection, oversized bodies and HTTP smuggling are a
+  different tool with a different threat model.
 - **No state between calls**, so anything reachable only after a `POST` is out
   of reach. That is the stateful work recorded in `BACKLOG.md`, and it is what
   would make this module find deep defects rather than surface ones.
@@ -377,3 +515,18 @@ document; it is not a safety mechanism.
   `allow-unsafe-confirmation` distinct from `allow-unsafe-methods`.
 - A flaky finding stays in the report. The intermittent 500 is usually the
   interesting one.
+- A constraint the module cannot attack goes in `unsupported` with a reason,
+  never in `unexercised` and never silently absent. The reason is the whole
+  value of the layer; an entry without one is worse than no entry.
+- Never mutate inside a `oneOf`/`anyOf` unless the branch is provably pinned.
+  The check lives in `Compositions#choose`, and every relaxation of it is a new
+  class of false `OVER_PERMISSIVE`.
+- Protocol cases carry no constraint and are added after the case budget, not
+  into it. Both properties keep coverage honest; changing either makes the
+  numbers mean something other than what they say.
+- The baseline honours `uniqueItems` and omits `readOnly` before anything is
+  mutated. A control that violates the document is the one failure mode that
+  invalidates an entire run silently.
+- Serialization is decided from the parameter, never from the value. If a style
+  has no faithful single-valued form, produce nothing — a comma-joined guess
+  turns this module's defect into the service's.

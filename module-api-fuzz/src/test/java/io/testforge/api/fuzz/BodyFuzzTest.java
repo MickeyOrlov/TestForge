@@ -5,21 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.media.Schema;
-import io.testforge.api.discovery.ApiDiscoveryProperties;
-import io.testforge.api.discovery.OpenApiSpecParser;
-import io.testforge.api.explorer.ApiExplorerProperties;
 import io.testforge.api.explorer.ExchangeExecutor;
 import io.testforge.api.explorer.ExplorableOperation;
-import io.testforge.api.explorer.ObservationFactory;
-import io.testforge.api.explorer.OperationSelector;
 import io.testforge.api.explorer.PreparedRequest;
-import io.testforge.api.explorer.RequestPlanner;
-import io.testforge.api.explorer.RequestValueResolver;
-import io.testforge.api.explorer.ResponseContractChecker;
 import io.testforge.api.explorer.RuntimeExchange;
-import io.testforge.api.explorer.SafetyPolicy;
-import io.testforge.api.explorer.SchemaValueFactory;
-import io.testforge.http.Redactor;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -170,6 +159,9 @@ class BodyFuzzTest {
         List<PreparedRequest> sent = new ArrayList<>();
         run(output, sent, true, List.of());
 
+        // protocol mutations are off in this fixture: they exist precisely to
+        // send a POST without a well-formed JSON body, and they are covered on
+        // their own in ProtocolMutationTest
         assertThat(sent).isNotEmpty();
         assertThat(sent).allSatisfy(request -> {
             if ("POST".equals(request.method())) {
@@ -284,7 +276,7 @@ class BodyFuzzTest {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 true, output.toString(), null, List.of(), 1L,
                 allowUnsafe ? Set.of("GET", "POST") : Set.of("GET", "POST"),
-                allowUnsafe, null, null, null, 500, null, 0, false, 0, onlyCases, null, null);
+                allowUnsafe, null, null, null, 500, null, 0, false, 0, false, onlyCases, null, null);
 
         ExchangeExecutor executor = new ExchangeExecutor() {
             @Override
@@ -323,36 +315,6 @@ class BodyFuzzTest {
             }
         };
 
-        ResponseClassifier classifier = new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER);
-        FindingConfirmer confirmer = new FindingConfirmer(executor, classifier, properties);
-        RequestShrinker shrinker = new RequestShrinker(MAPPER, new ConstraintInventory(bodyFactory),
-                bodyFactory, confirmer, properties);
-        ObjectMapper objectMapper = MAPPER;
-
-        return new ApiFuzzRunner(
-                new OpenApiSpecParser(),
-                new OperationSelector(),
-                new SafetyPolicy(properties.methods(), properties.allowUnsafeMethods(),
-                        properties.includePaths(), properties.excludePaths()),
-                new RequestPlanner(new RequestValueResolver(
-                        new ApiExplorerProperties.ParameterProperties(Map.of("q", "query"), Map.of()),
-                        new ConstraintAwareValueFactory()), true),
-                new FuzzCaseGenerator(),
-                generator,
-                bodyFactory,
-                mutator,
-                new ConstraintInventory(bodyFactory),
-                new BaselineSelfCheck(),
-                confirmer,
-                shrinker,
-                new ReproductionWriter(objectMapper),
-                new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
-                executor,
-                classifier,
-                new ObservationFactory(new Redactor(MAPPER, List.of("authorization"), List.of("token")), 4000),
-                MAPPER,
-                new ApiDiscoveryProperties(true, null, null, null, null,
-                        Map.of(FuzzFixtures.SPEC_ID, new ApiDiscoveryProperties.Spec(FuzzFixtures.LOCATION))),
-                properties).run();
+        return FuzzFixtures.runner(properties, executor, Map.of("q", "query")).run();
     }
 }

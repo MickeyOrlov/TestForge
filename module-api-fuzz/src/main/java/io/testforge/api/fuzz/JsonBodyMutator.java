@@ -3,6 +3,7 @@ package io.testforge.api.fuzz;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Optional;
 
 /**
@@ -31,6 +32,8 @@ public class JsonBodyMutator {
             case EMPTY_ARRAY, TOO_FEW_ITEMS, TOO_MANY_ITEMS -> resize(mutated, fuzzCase);
             case AT_LOWER_BOUND, AT_UPPER_BOUND -> boundary(mutated, fuzzCase);
             case INVALID_ITEM_TYPE -> replaceFirstElement(mutated, path);
+            case DUPLICATE_ITEM -> duplicateFirstElement(mutated, path);
+            case UNDECLARED_PROPERTY -> addUndeclaredProperty(mutated, path, fuzzCase.value());
             default -> BodyPaths.set(mutated, path, parse(fuzzCase.value()));
         };
 
@@ -84,6 +87,34 @@ public class JsonBodyMutator {
                 ? objectMapper.createObjectNode().put("testforge", true)
                 : objectMapper.getNodeFactory().textNode("testforge");
         array.set(0, replacement);
+        return true;
+    }
+
+    /**
+     * Repeats an element rather than appending a new one where the array
+     * already has room, so the mutant differs from the baseline in exactly one
+     * respect — uniqueness — and not in length as well.
+     */
+    private boolean duplicateFirstElement(JsonNode mutated, String arrayPath) {
+        JsonNode target = BodyPaths.resolve(mutated, arrayPath).orElse(null);
+        if (!(target instanceof ArrayNode array) || array.isEmpty()) {
+            return false;
+        }
+        if (array.size() >= 2) {
+            array.set(1, array.get(0).deepCopy());
+        } else {
+            array.add(array.get(0).deepCopy());
+        }
+        return true;
+    }
+
+    /** Adds a property the schema never declared, next to everything it did. */
+    private boolean addUndeclaredProperty(JsonNode mutated, String objectPath, String name) {
+        JsonNode target = BodyPaths.resolve(mutated, objectPath).orElse(null);
+        if (!(target instanceof ObjectNode object)) {
+            return false;
+        }
+        object.put(name, "testforge");
         return true;
     }
 

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.RequestBody;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -27,16 +28,18 @@ public record BodyPlan(
         Schema<?> schema,
         JsonNode baseline,
         Set<String> unfuzzablePaths,
+        List<UnsupportedConstraint> unsupported,
+        Set<String> declaredContentTypes,
         String unsupportedReason) {
-
-    private static final String JSON = "application/json";
 
     public BodyPlan {
         unfuzzablePaths = Set.copyOf(unfuzzablePaths == null ? Set.of() : unfuzzablePaths);
+        unsupported = List.copyOf(unsupported == null ? List.of() : unsupported);
+        declaredContentTypes = Set.copyOf(declaredContentTypes == null ? Set.of() : declaredContentTypes);
     }
 
     public static BodyPlan none() {
-        return new BodyPlan(false, false, null, null, null, Set.of(), null);
+        return new BodyPlan(false, false, null, null, null, Set.of(), List.of(), Set.of(), null);
     }
 
     public boolean usable() {
@@ -60,23 +63,24 @@ public record BodyPlan(
         }
 
         boolean required = Boolean.TRUE.equals(body.getRequired());
+        Set<String> declaredTypes = Set.copyOf(body.getContent().keySet());
         Map.Entry<String, MediaType> json = body.getContent().entrySet().stream()
                 .filter(entry -> entry.getKey().toLowerCase(Locale.ROOT).contains("json"))
                 .findFirst()
                 .orElse(null);
 
         if (json == null) {
-            return new BodyPlan(true, required, null, null, null, Set.of(),
+            return new BodyPlan(true, required, null, null, null, Set.of(), List.of(), declaredTypes,
                     "request body media types " + body.getContent().keySet() + " are not supported; JSON only");
         }
 
         Schema<?> schema = json.getValue().getSchema();
         JsonBodyFactory.Baseline baseline = factory.build(schema);
         if (!baseline.usable()) {
-            return new BodyPlan(true, required, json.getKey(), schema, null, Set.of(),
+            return new BodyPlan(true, required, json.getKey(), schema, null, Set.of(), List.of(), declaredTypes,
                     baseline.unsupportedReason());
         }
         return new BodyPlan(true, required, json.getKey(), schema, baseline.body(),
-                baseline.unfuzzablePaths(), null);
+                baseline.unfuzzablePaths(), baseline.unsupported(), declaredTypes, null);
     }
 }

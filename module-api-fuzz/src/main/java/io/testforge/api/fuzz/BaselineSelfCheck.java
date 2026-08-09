@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Verifies the control request really is valid before it is sent.
@@ -39,7 +40,7 @@ public class BaselineSelfCheck {
             if (value == null) {
                 continue;
             }
-            violation(parameter.getSchema(), value).ifPresent(problem ->
+            violation(parameter, parameter.getSchema(), value).ifPresent(problem ->
                     problems.add("%s:%s %s".formatted(parameter.getIn(), parameter.getName(), problem)));
         }
 
@@ -48,9 +49,13 @@ public class BaselineSelfCheck {
                 : Optional.of("the control request would violate the document: " + String.join("; ", problems));
     }
 
-    private Optional<String> violation(Schema<?> schema, String value) {
+    private Optional<String> violation(Parameter parameter, Schema<?> schema, String value) {
         if (schema == null) {
             return Optional.empty();
+        }
+
+        if ("array".equals(Schemas.type(schema))) {
+            return arrayViolation(parameter, schema, value);
         }
 
         Optional<List<String>> enumValues = SchemaFacts.enumValues(schema);
@@ -71,5 +76,34 @@ public class BaselineSelfCheck {
         return SchemaFacts.satisfiesString(schema, value)
                 ? Optional.empty()
                 : Optional.of("does not satisfy the declared string constraints");
+    }
+
+    /**
+     * An array parameter is checked after serialization, element by element.
+     * Splitting the value back apart is not merely convenient: it is the only
+     * way to notice that the joined form violates {@code uniqueItems} or that
+     * the chosen delimiter appears inside an element.
+     */
+    private Optional<String> arrayViolation(Parameter parameter, Schema<?> schema, String value) {
+        String delimiter = ParameterSerialization.delimiter(parameter);
+        List<String> elements = value.isEmpty() ? List.of() : List.of(value.split(java.util.regex.Pattern.quote(delimiter), -1));
+
+        if (schema.getMinItems() != null && elements.size() < schema.getMinItems()) {
+            return Optional.of("serializes to fewer than the declared minItems");
+        }
+        if (schema.getMaxItems() != null && elements.size() > schema.getMaxItems()) {
+            return Optional.of("serializes to more than the declared maxItems");
+        }
+        if (SchemaFacts.uniqueItems(schema) && Set.copyOf(elements).size() != elements.size()) {
+            return Optional.of("repeats an element against the declared uniqueItems");
+        }
+
+        for (String element : elements) {
+            Optional<String> problem = violation(parameter, schema.getItems(), element);
+            if (problem.isPresent()) {
+                return problem.map(detail -> "has an element that " + detail);
+            }
+        }
+        return Optional.empty();
     }
 }

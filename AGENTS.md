@@ -127,7 +127,10 @@ must not replace each other. `example-tests` is never published.
    a build out of the box; widen `fail-on` after the first report has been
    read. A finding is reproduced from its case id alone
    (`forge.api-fuzz.only-cases`) — the seed matters only because
-   `max-cases-per-operation` caps the matrix.
+   `max-cases-per-operation` caps the matrix. Read the report's
+   *unsupported* coverage layer before trusting a green run: it lists the
+   promises nothing could honestly attack — an undiscriminated `oneOf`, an
+   `explode: true` array parameter — each with its reason.
 12. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the
