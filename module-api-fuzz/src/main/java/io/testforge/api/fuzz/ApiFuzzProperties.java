@@ -38,6 +38,9 @@ public record ApiFuzzProperties(
         Integer maxOperations,
         Integer maxCasesPerOperation,
         Integer maxBodyChars,
+        Integer confirmationRuns,
+        Boolean allowUnsafeConfirmation,
+        Integer maxShrinkAttempts,
         List<String> onlyCases,
         ApiExplorerProperties.ParameterProperties parameters,
         FailureProperties failOn) {
@@ -69,6 +72,17 @@ public record ApiFuzzProperties(
         }
         if (maxBodyChars == null || maxBodyChars <= 0) {
             maxBodyChars = 4000;
+        }
+        // both default to zero, so v1.3 costs exactly nothing until a project
+        // asks for it: confirmation and minimization are extra live requests
+        if (confirmationRuns == null || confirmationRuns < 0) {
+            confirmationRuns = 0;
+        }
+        if (allowUnsafeConfirmation == null) {
+            allowUnsafeConfirmation = false;
+        }
+        if (maxShrinkAttempts == null || maxShrinkAttempts < 0) {
+            maxShrinkAttempts = 0;
         }
         onlyCases = List.copyOf(onlyCases == null ? List.of() : onlyCases);
         if (parameters == null) {

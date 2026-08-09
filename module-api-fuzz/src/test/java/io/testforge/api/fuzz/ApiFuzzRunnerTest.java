@@ -149,9 +149,17 @@ class ApiFuzzRunnerTest {
     private ApiFuzzRunner runner(Path output, List<String> onlyCases, boolean enabled) {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 enabled, output.toString(), null, List.of(), 20260101L, null, null, null, null,
-                null, 100, null, onlyCases, null, null);
+                null, 100, null, 0, false, 0, onlyCases, null, null);
 
         ObjectMapper objectMapper = new ObjectMapper();
+        JsonBodyFactory bodyFactory = new JsonBodyFactory(objectMapper);
+        ResponseClassifier classifier = new ResponseClassifier(
+                new ResponseContractChecker(objectMapper), objectMapper);
+        ExchangeExecutor exchangeExecutor = executor();
+        FindingConfirmer confirmer = new FindingConfirmer(exchangeExecutor, classifier, properties);
+        RequestShrinker shrinker = new RequestShrinker(objectMapper,
+                new ConstraintInventory(bodyFactory), bodyFactory, confirmer, properties);
+
         return new ApiFuzzRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),
@@ -166,9 +174,12 @@ class ApiFuzzRunnerTest {
                 new JsonBodyMutator(objectMapper),
                 new ConstraintInventory(new JsonBodyFactory(objectMapper)),
                 new BaselineSelfCheck(),
+                confirmer,
+                shrinker,
+                new ReproductionWriter(objectMapper),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
-                executor(),
-                new ResponseClassifier(new ResponseContractChecker(objectMapper), objectMapper),
+                exchangeExecutor,
+                classifier,
                 new ObservationFactory(new Redactor(objectMapper, List.of("authorization"), List.of("token")), 4000),
                 objectMapper,
                 new ApiDiscoveryProperties(true, null, null, null, null,

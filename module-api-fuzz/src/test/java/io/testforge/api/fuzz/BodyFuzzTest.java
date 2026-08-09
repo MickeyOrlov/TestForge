@@ -284,7 +284,7 @@ class BodyFuzzTest {
         ApiFuzzProperties properties = new ApiFuzzProperties(
                 true, output.toString(), null, List.of(), 1L,
                 allowUnsafe ? Set.of("GET", "POST") : Set.of("GET", "POST"),
-                allowUnsafe, null, null, null, 500, null, onlyCases, null, null);
+                allowUnsafe, null, null, null, 500, null, 0, false, 0, onlyCases, null, null);
 
         ExchangeExecutor executor = new ExchangeExecutor() {
             @Override
@@ -323,6 +323,12 @@ class BodyFuzzTest {
             }
         };
 
+        ResponseClassifier classifier = new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER);
+        FindingConfirmer confirmer = new FindingConfirmer(executor, classifier, properties);
+        RequestShrinker shrinker = new RequestShrinker(MAPPER, new ConstraintInventory(bodyFactory),
+                bodyFactory, confirmer, properties);
+        ObjectMapper objectMapper = MAPPER;
+
         return new ApiFuzzRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),
@@ -337,9 +343,12 @@ class BodyFuzzTest {
                 mutator,
                 new ConstraintInventory(bodyFactory),
                 new BaselineSelfCheck(),
+                confirmer,
+                shrinker,
+                new ReproductionWriter(objectMapper),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
                 executor,
-                new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER),
+                classifier,
                 new ObservationFactory(new Redactor(MAPPER, List.of("authorization"), List.of("token")), 4000),
                 MAPPER,
                 new ApiDiscoveryProperties(true, null, null, null, null,
