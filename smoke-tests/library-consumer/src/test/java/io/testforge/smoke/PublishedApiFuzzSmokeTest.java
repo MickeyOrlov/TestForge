@@ -13,7 +13,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.testforge.api.fuzz.ApiFuzzReport;
 import io.testforge.api.fuzz.ApiFuzzRunner;
 import io.testforge.api.fuzz.FuzzObservation;
-import io.testforge.api.fuzz.FuzzVerdict;
+import io.testforge.api.fuzz.FuzzEvidenceKind;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -61,9 +61,10 @@ class PublishedApiFuzzSmokeTest {
     void fuzzesAnApiFromThePublishedLibrary() {
         ApiFuzzReport report = fuzz.run();
 
+        // the crash is evidence about the response; the verdict stays honest
+        // about what could be concluded regarding validation
         assertThat(report.findings())
-                .extracting(FuzzObservation::verdict)
-                .contains(FuzzVerdict.SERVER_ERROR);
+                .anySatisfy(finding -> assertThat(finding.has(FuzzEvidenceKind.SERVER_ERROR)).isTrue());
         assertThat(report.findings())
                 .extracting(finding -> finding.fuzzCase().id())
                 .allSatisfy(id -> assertThat(id).contains("taskId"));

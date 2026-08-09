@@ -5,7 +5,6 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.ApiSpecSource;
 import io.testforge.api.discovery.OpenApiSpecParser;
-import com.fasterxml.jackson.databind.JsonNode;
 import io.testforge.api.explorer.ExchangeExecutor;
 import io.testforge.api.explorer.ExplorableOperation;
 import io.testforge.api.explorer.ObservationFactory;
@@ -28,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,16 +35,17 @@ import org.slf4j.LoggerFactory;
  * Sends deliberately wrong values at an API and reports where the answers stop
  * matching the document.
  *
- * <p>Built on the explorer rather than beside it: the same operation model, the
- * same safety gate, the same value resolution for everything the case is not
- * mutating, the same executor, the same contract checker. What this module adds
- * is the case matrix and the judgement of the response — everything else would
- * have been a second copy of something that already works.
+ * <p>Every operation is proved reachable before it is fuzzed. One control
+ * request — fully valid, built from the same schema and the same configured
+ * values — goes out first, and its answer decides whether anything the
+ * mutations produce can be interpreted at all. An endpoint that answers
+ * {@code 401} to valid data will answer {@code 401} to invalid data too, and
+ * calling that a passing validation case is the mistake this design exists to
+ * prevent.
  *
- * <p>The run is bounded on purpose. Fuzzing is the one thing in this repository
- * that deliberately sends bad data at somebody's environment, so it is off by
- * default, safe methods only unless two keys are turned, capped per operation
- * and in total, and sequential.
+ * <p>The control runs once per operation, not once per case: a hundred cases
+ * ask the same reachability question, and asking it a hundred times would
+ * multiply traffic this module deliberately keeps small.
  */
 public class ApiFuzzRunner {
 
@@ -58,6 +59,8 @@ public class ApiFuzzRunner {
     private final BodyCaseGenerator bodyCases;
     private final JsonBodyFactory bodyFactory;
     private final JsonBodyMutator bodyMutator;
+    private final ConstraintInventory inventory;
+    private final BaselineSelfCheck selfCheck;
     private final FuzzCaseSelector cases;
     private final ExchangeExecutor executor;
     private final ResponseClassifier classifier;
@@ -75,6 +78,8 @@ public class ApiFuzzRunner {
             BodyCaseGenerator bodyCases,
             JsonBodyFactory bodyFactory,
             JsonBodyMutator bodyMutator,
+            ConstraintInventory inventory,
+            BaselineSelfCheck selfCheck,
             FuzzCaseSelector cases,
             ExchangeExecutor executor,
             ResponseClassifier classifier,
@@ -90,6 +95,8 @@ public class ApiFuzzRunner {
         this.bodyCases = bodyCases;
         this.bodyFactory = bodyFactory;
         this.bodyMutator = bodyMutator;
+        this.inventory = inventory;
+        this.selfCheck = selfCheck;
         this.cases = cases;
         this.executor = executor;
         this.classifier = classifier;
@@ -157,10 +164,11 @@ public class ApiFuzzRunner {
 
     private SpecFuzzReport fuzzSpec(ApiSpecSource source, String baseUrl, Path outputDir) {
         OpenAPI openApi = parser.parse(source);
-        String safeSpecId = safeName(source.id());
-        Path specDir = outputDir.resolve(safeSpecId);
+        String fingerprint = SpecFingerprint.of(openApi);
+        Path specDir = outputDir.resolve(safeName(source.id()));
 
         List<OperationFuzzReport> operations = new ArrayList<>();
+        List<ReproductionManifest> reproduction = new ArrayList<>();
         int fuzzed = 0;
 
         for (ExplorableOperation operation : selector.select(source.id(), openApi)) {
@@ -174,17 +182,26 @@ public class ApiFuzzRunner {
             operations.add(report);
             if (report.cases() > 0) {
                 fuzzed++;
+                report.observations().stream()
+                        .filter(FuzzObservation::finding)
+                        .forEach(observation -> reproduction.add(ReproductionManifest.of(
+                                observation, report.control(), source.id(), fingerprint, properties.seed(),
+                                resolvedInputs(observation))));
             }
+        }
+
+        if (!reproduction.isEmpty()) {
+            writeJson(specDir.resolve("reproduction.json"), reproduction);
         }
 
         int totalCases = operations.stream().mapToInt(OperationFuzzReport::cases).sum();
         int findings = operations.stream().mapToInt(OperationFuzzReport::findings).sum();
         boolean failed = operations.stream()
                 .flatMap(operation -> operation.observations().stream())
-                .anyMatch(observation -> properties.failOn().fails(observation.verdict()));
+                .anyMatch(properties.failOn()::fails);
 
-        return new SpecFuzzReport(source.id(), source.location(), baseUrl, failed,
-                operations.size(), totalCases, findings, operations, null);
+        return new SpecFuzzReport(source.id(), source.location(), baseUrl, fingerprint, failed,
+                operations.size(), totalCases, findings, operations, reproduction, null);
     }
 
     private OperationFuzzReport fuzzOperation(ExplorableOperation operation, String baseUrl, Path specDir) {
@@ -194,8 +211,6 @@ public class ApiFuzzRunner {
                     refusal.get().description());
         }
 
-        // the baseline gives every parameter the case is not mutating a value
-        // the service would normally accept, so a finding is about one field
         PlannedRequest baseline = planner.plan(operation);
         if (!baseline.sendable()) {
             return OperationFuzzReport.skipped(operation.operationId(), operation.key(),
@@ -204,13 +219,21 @@ public class ApiFuzzRunner {
 
         BodyPlan bodyPlan = BodyPlan.from(operation.operation(), bodyFactory);
         if (bodyPlan.blocked()) {
-            // a request the schema would reject anyway makes every verdict
-            // meaningless, so nothing is sent
             return OperationFuzzReport.skipped(operation.operationId(), operation.key(),
                     "no valid request body could be built: " + bodyPlan.unsupportedReason());
         }
 
-        List<FuzzCase> generated = new java.util.ArrayList<>(generator.generate(operation));
+        List<DeclaredConstraint> declared = inventory.of(operation, bodyPlan);
+
+        // never send a control this module cannot defend as valid: an accepted
+        // invalid control would prove laxity, and a refused one would be blamed
+        // on the service
+        Optional<String> invalid = selfCheck.verify(operation, baseline.request());
+        if (invalid.isPresent()) {
+            return OperationFuzzReport.skipped(operation.operationId(), operation.key(), invalid.get());
+        }
+
+        List<FuzzCase> generated = new ArrayList<>(generator.generate(operation));
         if (bodyPlan.usable()) {
             generated.addAll(bodyCases.generate(operation, bodyPlan.schema(), bodyPlan.unfuzzablePaths()));
         }
@@ -224,26 +247,54 @@ public class ApiFuzzRunner {
                             : "the document declares nothing to vary");
         }
 
+        // after selection, so replaying one case does not send a control to
+        // every other operation in the document
+        ControlResult control = sendControl(baseline.request(), bodyPlan);
+        if (!control.conclusive()) {
+            return OperationFuzzReport.controlFailed(operation.operationId(), operation.key(),
+                    control, ConstraintCoverage.of(declared, List.of()));
+        }
+
         List<FuzzObservation> observations = new ArrayList<>();
         for (FuzzCase fuzzCase : selected) {
-            observations.add(execute(operation, baseline.request(), bodyPlan, fuzzCase, baseUrl));
+            observations.add(execute(operation, baseline.request(), bodyPlan, control, fuzzCase, baseUrl));
         }
 
         Path artifact = specDir.resolve(safeName(operation.operationId()) + ".json");
         writeJson(artifact, observations);
 
         int findings = (int) observations.stream().filter(FuzzObservation::finding).count();
-        return new OperationFuzzReport(operation.operationId(), operation.key(),
-                observations.size(), findings, observations, artifact.toString(), null);
+        int inconclusive = (int) observations.stream()
+                .filter(observation -> observation.verdict() == FuzzVerdict.INCONCLUSIVE)
+                .count();
+
+        return new OperationFuzzReport(operation.operationId(), operation.key(), control,
+                observations.size(), findings, inconclusive, observations,
+                ConstraintCoverage.of(declared, selected), artifact.toString(), null);
+    }
+
+    /**
+     * The valid request. Built by the same pipeline every case uses, with no
+     * mutation applied — so if it fails, the cases were never going to mean
+     * anything.
+     */
+    private ControlResult sendControl(PreparedRequest baseline, BodyPlan bodyPlan) {
+        PreparedRequest control = withBody(baseline, bodyPlan);
+        try {
+            return ControlResult.of(executor.execute(control));
+        } catch (RuntimeException e) {
+            return ControlResult.of(RuntimeExchange.failed(Map.of(), e.toString(), 0L));
+        }
     }
 
     /** One case. Anything that goes wrong here is a verdict, never an interruption. */
-    private FuzzObservation execute(ExplorableOperation operation, PreparedRequest baseline,
-                                    BodyPlan bodyPlan, FuzzCase fuzzCase, String baseUrl) {
+    private FuzzObservation execute(ExplorableOperation operation, PreparedRequest baseline, BodyPlan bodyPlan,
+                                    ControlResult control, FuzzCase fuzzCase, String baseUrl) {
         PreparedRequest request = mutate(baseline, bodyPlan, fuzzCase);
         if (request == null) {
             return FuzzObservation.notApplicable(redact(fuzzCase), baseUrl + baseline.resolvedTarget());
         }
+
         RuntimeExchange exchange;
         try {
             exchange = executor.execute(request);
@@ -251,7 +302,8 @@ public class ApiFuzzRunner {
             exchange = RuntimeExchange.failed(Map.of(), e.toString(), 0L);
         }
 
-        ResponseClassifier.Classification classification = classifier.classify(operation, fuzzCase, exchange);
+        ResponseClassifier.Classification classification =
+                classifier.classify(operation, control, fuzzCase, exchange);
 
         return new FuzzObservation(
                 redact(fuzzCase),
@@ -262,7 +314,8 @@ public class ApiFuzzRunner {
                 exchange.contentType(),
                 redaction.redactBody(exchange.responseBody()),
                 exchange.durationMillis(),
-                classification.inputReflected(),
+                classification.evidence(),
+                classification.reason(),
                 classification.mismatches(),
                 exchange.completed() ? null : exchange.error(),
                 fragment(fuzzCase));
@@ -277,14 +330,13 @@ public class ApiFuzzRunner {
         return fuzzCase.parameterName() + " = " + redaction.redactBody(value);
     }
 
-    /**
-     * Applies the one thing this case changes. Everything else — including the
-     * valid body, when the operation has one — stays exactly as the baseline
-     * built it, which is what makes a finding attributable to a single field.
-     *
-     * <p>Null when the case does not apply to this baseline, for instance a
-     * body path that a chosen {@code oneOf} branch does not contain.
-     */
+    /** Non-secret inputs worth recording next to a finding. */
+    private Map<String, String> resolvedInputs(FuzzObservation observation) {
+        Map<String, String> inputs = new TreeMap<>();
+        inputs.put(observation.fuzzCase().location(), observation.requestFragment());
+        return inputs;
+    }
+
     private PreparedRequest mutate(PreparedRequest baseline, BodyPlan bodyPlan, FuzzCase fuzzCase) {
         Map<String, String> pathParameters = new LinkedHashMap<>(baseline.pathParameters());
         Map<String, String> queryParameters = new LinkedHashMap<>(baseline.queryParameters());
@@ -308,6 +360,13 @@ public class ApiFuzzRunner {
                 body, body == null ? null : bodyPlan.contentType());
     }
 
+    private PreparedRequest withBody(PreparedRequest baseline, BodyPlan bodyPlan) {
+        String body = bodyPlan.usable() ? bodyPlan.baseline().toString() : null;
+        return new PreparedRequest(baseline.method(), baseline.pathTemplate(),
+                baseline.pathParameters(), baseline.queryParameters(),
+                body, body == null ? null : bodyPlan.contentType());
+    }
+
     /** A case built on a credential-named parameter must not print the credential. */
     private FuzzCase redact(FuzzCase fuzzCase) {
         String value = redaction.redactParameterValue(fuzzCase.parameterName(), fuzzCase.value());
@@ -316,7 +375,7 @@ public class ApiFuzzRunner {
         }
         return new FuzzCase(fuzzCase.id(), fuzzCase.specId(), fuzzCase.operationId(), fuzzCase.operationKey(),
                 fuzzCase.parameterName(), fuzzCase.in(), fuzzCase.kind(), fuzzCase.expectation(),
-                value, fuzzCase.omitted());
+                fuzzCase.constraint(), value, fuzzCase.omitted());
     }
 
     private String safeName(String name) {

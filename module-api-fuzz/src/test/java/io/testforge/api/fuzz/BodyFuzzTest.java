@@ -213,8 +213,14 @@ class BodyFuzzTest {
         ApiFuzzReport report = run(output, sent, true, List.of(id));
 
         assertThat(report.specs().getFirst().cases()).isEqualTo(1);
-        assertThat(sent).singleElement().satisfies(request ->
-                assertThat(request.body()).contains("\"age\":17"));
+        // one control plus the single replayed case, and nothing for the other
+        // operations: the control is what makes the replayed verdict
+        // interpretable, and it is only sent where a case will run
+        assertThat(sent).hasSize(2);
+        assertThat(sent.getFirst().body())
+                .describedAs("the control carries the valid baseline")
+                .contains("\"age\":18");
+        assertThat(sent.getLast().body()).contains("\"age\":17");
     }
 
     @Test
@@ -284,8 +290,31 @@ class BodyFuzzTest {
             @Override
             public RuntimeExchange execute(PreparedRequest request) {
                 sent.add(request);
-                return new RuntimeExchange(Map.of(), request.body(), 400, "application/json", Map.of(),
-                        "{\"message\":\"rejected\"}", 3L, null);
+                // a service that actually validates: the control body passes,
+                // mutations of it do not. A stub that refused everything would
+                // fail its own control, which is exactly what v1.2 now detects
+                int status = valid(request.body()) ? 201 : 400;
+                return new RuntimeExchange(Map.of(), request.body(), status, "application/json", Map.of(),
+                        status == 201 ? "{}" : "{\"message\":\"rejected\"}", 3L, null);
+            }
+
+            private boolean valid(String body) {
+                if (body == null) {
+                    return true;
+                }
+                try {
+                    com.fasterxml.jackson.databind.JsonNode node = MAPPER.readTree(body);
+                    return node.path("name").isTextual()
+                            && node.path("name").asText().length() >= 2
+                            && node.path("name").asText().length() <= 10
+                            && node.path("age").isIntegralNumber()
+                            && node.path("age").asInt() >= 18
+                            && node.path("age").asInt() <= 120
+                            && node.path("profile").isObject()
+                            && node.path("profile").path("city").isTextual();
+                } catch (Exception e) {
+                    return false;
+                }
             }
 
             @Override
@@ -301,11 +330,13 @@ class BodyFuzzTest {
                         properties.includePaths(), properties.excludePaths()),
                 new RequestPlanner(new RequestValueResolver(
                         new ApiExplorerProperties.ParameterProperties(Map.of("q", "query"), Map.of()),
-                        new SchemaValueFactory()), true),
+                        new ConstraintAwareValueFactory()), true),
                 new FuzzCaseGenerator(),
                 generator,
                 bodyFactory,
                 mutator,
+                new ConstraintInventory(bodyFactory),
+                new BaselineSelfCheck(),
                 new FuzzCaseSelector(properties.seed(), properties.maxCasesPerOperation()),
                 executor,
                 new ResponseClassifier(new ResponseContractChecker(MAPPER), MAPPER),

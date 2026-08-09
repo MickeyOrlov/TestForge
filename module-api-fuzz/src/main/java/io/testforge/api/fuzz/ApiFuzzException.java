@@ -25,10 +25,14 @@ public class ApiFuzzException extends RuntimeException {
                 .append(report.reportMarkdown())
                 .append('\n');
 
-        report.findings().forEach(finding -> message
-                .append("  - ").append(finding.verdict())
-                .append(' ').append(finding.fuzzCase().operationKey())
-                .append(" [").append(finding.fuzzCase().id()).append("]\n"));
+        report.findings().forEach(finding -> {
+            message.append("  - ").append(finding.verdict());
+            finding.evidence().stream()
+                    .filter(evidence -> evidence.kind().reportable())
+                    .forEach(evidence -> message.append(' ').append(evidence.kind()));
+            message.append(' ').append(finding.fuzzCase().operationKey())
+                    .append(" [").append(finding.fuzzCase().id()).append("]\n");
+        });
         return message.toString();
     }
 }

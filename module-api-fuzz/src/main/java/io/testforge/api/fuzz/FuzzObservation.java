@@ -11,6 +11,11 @@ import java.util.List;
  * point of a fuzz report. The value is redacted like anything else, so a case
  * built from a configured credential does not leak through the finding.
  *
+ * <p>{@code verdict} says only what can be concluded about validation.
+ * {@code evidence} carries every independent fact about the response — a crash,
+ * an echo, an undocumented shape, an infrastructure answer — so a response with
+ * several problems reports all of them instead of the highest-ranked one.
+ *
  * <p>{@code requestFragment} is the smallest readable statement of what was
  * changed — {@code $.profile.age = 17} — so a reader does not have to
  * reconstruct it from the URL and the case id.
@@ -24,24 +29,34 @@ public record FuzzObservation(
         String contentType,
         String responseBody,
         Long durationMillis,
-        boolean inputReflected,
+        List<FuzzEvidence> evidence,
+        String reason,
         List<ContractMismatch> mismatches,
         String error,
         String requestFragment) {
 
     public FuzzObservation {
+        evidence = List.copyOf(evidence == null ? List.of() : evidence);
         mismatches = List.copyOf(mismatches == null ? List.of() : mismatches);
     }
 
     /** A case that could not be applied to this operation's baseline. */
     public static FuzzObservation notApplicable(FuzzCase fuzzCase, String resolvedUrl) {
         return new FuzzObservation(fuzzCase, resolvedUrl, FuzzVerdict.NOT_APPLICABLE, fuzzCase.expectation(),
-                null, null, null, null, false, List.of(),
-                "the case does not apply to the baseline body",
-                fuzzCase.parameterName() + " <not applicable>");
+                null, null, null, null, List.of(), "the case does not apply to the baseline body",
+                List.of(), null, fuzzCase.parameterName() + " <not applicable>");
     }
 
+    /**
+     * A wrong validation decision, or a response fact worth reporting on its
+     * own. An inconclusive case is neither: that is the run admitting it could
+     * not tell, which is information but not a defect.
+     */
     public boolean finding() {
-        return verdict.finding();
+        return verdict.finding() || evidence.stream().anyMatch(item -> item.kind().reportable());
+    }
+
+    public boolean has(FuzzEvidenceKind kind) {
+        return evidence.stream().anyMatch(item -> item.kind() == kind);
     }
 }

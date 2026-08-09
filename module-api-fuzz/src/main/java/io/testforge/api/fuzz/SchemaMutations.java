@@ -43,19 +43,28 @@ final class SchemaMutations {
     private SchemaMutations() {
     }
 
-    /** One change to make, and what the document says about it. */
-    record Mutation(FuzzCaseKind kind, FuzzExpectation expectation, Object value) {
+    /**
+     * One change to make, what the document says about it, and which declared
+     * constraint it exercises.
+     *
+     * <p>The constraint is recorded here rather than inferred later from the
+     * kind: only this code knows whether {@code AT_LOWER_BOUND} came from
+     * {@code minLength}, {@code minimum} or {@code minItems}, and a reverse
+     * mapping would eventually disagree with it.
+     */
+    record Mutation(FuzzCaseKind kind, FuzzExpectation expectation, Object value, String constraint) {
 
-        static Mutation proven(FuzzCaseKind kind, Object value) {
-            return new Mutation(kind, FuzzExpectation.REJECT, value);
+        static Mutation proven(FuzzCaseKind kind, Object value, String constraint) {
+            return new Mutation(kind, FuzzExpectation.REJECT, value, constraint);
         }
 
-        static Mutation valid(FuzzCaseKind kind, Object value) {
-            return new Mutation(kind, FuzzExpectation.ACCEPT, value);
+        static Mutation valid(FuzzCaseKind kind, Object value, String constraint) {
+            return new Mutation(kind, FuzzExpectation.ACCEPT, value, constraint);
         }
 
+        /** A robustness probe exercises no declared constraint, by definition. */
         static Mutation probe(FuzzCaseKind kind, Object value) {
-            return new Mutation(kind, FuzzExpectation.UNSPECIFIED, value);
+            return new Mutation(kind, FuzzExpectation.UNSPECIFIED, value, null);
         }
     }
 
@@ -70,7 +79,7 @@ final class SchemaMutations {
         if (enumValues.isPresent()) {
             // an enum defines the entire value space; length or range cases on
             // top of it would be noise, and their expectations meaningless
-            mutations.add(Mutation.proven(FuzzCaseKind.ENUM_OUTSIDER, "testforge-not-in-enum"));
+            mutations.add(Mutation.proven(FuzzCaseKind.ENUM_OUTSIDER, "testforge-not-in-enum", "enum"));
             addNullCase(mutations, schema, bodyContext);
             return mutations;
         }
@@ -81,7 +90,7 @@ final class SchemaMutations {
         } else if ("integer".equals(type) || "number".equals(type)) {
             addNumericMutations(mutations, schema);
         } else if ("boolean".equals(type)) {
-            mutations.add(Mutation.proven(FuzzCaseKind.WRONG_TYPE, "testforge"));
+            mutations.add(Mutation.proven(FuzzCaseKind.WRONG_TYPE, "testforge", "type"));
         } else if ("array".equals(type) && bodyContext) {
             addArrayMutations(mutations, schema);
         }
@@ -93,7 +102,7 @@ final class SchemaMutations {
     private static void addNullCase(List<Mutation> mutations, Schema<?> schema, boolean bodyContext) {
         // a URL cannot carry a JSON null, so this only means something in a body
         if (bodyContext && !Schemas.nullable(schema)) {
-            mutations.add(new Mutation(FuzzCaseKind.NULL_FOR_NON_NULLABLE, FuzzExpectation.REJECT, null));
+            mutations.add(new Mutation(FuzzCaseKind.NULL_FOR_NON_NULLABLE, FuzzExpectation.REJECT, null, "nullable"));
         }
     }
 
@@ -104,15 +113,15 @@ final class SchemaMutations {
 
         // an empty string only breaks a promise when a minimum length exists
         mutations.add(minLength != null && minLength > 0
-                ? Mutation.proven(FuzzCaseKind.EMPTY_STRING, "")
+                ? Mutation.proven(FuzzCaseKind.EMPTY_STRING, "", "minLength")
                 : Mutation.probe(FuzzCaseKind.EMPTY_STRING, ""));
 
         mutations.add(Mutation.probe(FuzzCaseKind.ENCODING_PROBE, ENCODING_PROBE));
         mutations.add(Mutation.probe(FuzzCaseKind.UNICODE, UNICODE));
 
         if (maxLength != null && maxLength > 0) {
-            addStringBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, "a".repeat(maxLength));
-            mutations.add(Mutation.proven(FuzzCaseKind.TOO_LONG, "a".repeat(maxLength + 1)));
+            addStringBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, "a".repeat(maxLength), "maxLength");
+            mutations.add(Mutation.proven(FuzzCaseKind.TOO_LONG, "a".repeat(maxLength + 1), "maxLength"));
         } else {
             // nothing declares a maximum, so a long string is only a probe —
             // reporting OVER_PERMISSIVE here was a false finding in v1
@@ -120,9 +129,9 @@ final class SchemaMutations {
         }
 
         if (minLength != null && minLength > 0) {
-            addStringBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, "a".repeat(minLength));
+            addStringBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, "a".repeat(minLength), "minLength");
             if (minLength > 1) {
-                mutations.add(Mutation.proven(FuzzCaseKind.TOO_SHORT, "a".repeat(minLength - 1)));
+                mutations.add(Mutation.proven(FuzzCaseKind.TOO_SHORT, "a".repeat(minLength - 1), "minLength"));
             }
         }
 
@@ -134,11 +143,11 @@ final class SchemaMutations {
                 .filter(candidate -> !compiled.matcher(candidate).find())
                 .findFirst()
                 .ifPresent(candidate ->
-                        mutations.add(Mutation.proven(FuzzCaseKind.PATTERN_VIOLATION, candidate))));
+                        mutations.add(Mutation.proven(FuzzCaseKind.PATTERN_VIOLATION, candidate, "pattern"))));
 
         String format = Schemas.format(schema);
         if (SchemaFacts.knownFormat(format)) {
-            mutations.add(Mutation.proven(FuzzCaseKind.FORMAT_VIOLATION, formatViolation(format)));
+            mutations.add(Mutation.proven(FuzzCaseKind.FORMAT_VIOLATION, formatViolation(format), "format"));
         } else if (format != null) {
             // a custom format is a word in the document, not a rule this module
             // can enforce
@@ -148,43 +157,45 @@ final class SchemaMutations {
 
     /** A length boundary is only "valid" if it satisfies the other string constraints too. */
     private static void addStringBoundary(List<Mutation> mutations, Schema<?> schema,
-                                          FuzzCaseKind kind, String value) {
+                                          FuzzCaseKind kind, String value, String constraint) {
         if (SchemaFacts.satisfiesString(schema, value)) {
-            mutations.add(Mutation.valid(kind, value));
+            mutations.add(Mutation.valid(kind, value, constraint));
         }
     }
 
     private static void addNumericMutations(List<Mutation> mutations, Schema<?> schema) {
         boolean integer = SchemaFacts.integer(schema);
-        mutations.add(Mutation.proven(FuzzCaseKind.WRONG_TYPE, "testforge"));
+        mutations.add(Mutation.proven(FuzzCaseKind.WRONG_TYPE, "testforge", "type"));
         if (integer) {
-            mutations.add(Mutation.proven(FuzzCaseKind.FRACTIONAL_FOR_INTEGER, new BigDecimal("1.5")));
+            mutations.add(Mutation.proven(FuzzCaseKind.FRACTIONAL_FOR_INTEGER, new BigDecimal("1.5"), "type"));
         }
 
         SchemaFacts.inclusiveMinimum(schema).ifPresent(min -> {
-            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, min);
-            mutations.add(Mutation.proven(FuzzCaseKind.BELOW_MINIMUM, min.subtract(BigDecimal.ONE)));
+            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, min, "minimum");
+            mutations.add(Mutation.proven(FuzzCaseKind.BELOW_MINIMUM, min.subtract(BigDecimal.ONE), "minimum"));
         });
         SchemaFacts.inclusiveMaximum(schema).ifPresent(max -> {
-            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, max);
-            mutations.add(Mutation.proven(FuzzCaseKind.ABOVE_MAXIMUM, max.add(BigDecimal.ONE)));
+            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, max, "maximum");
+            mutations.add(Mutation.proven(FuzzCaseKind.ABOVE_MAXIMUM, max.add(BigDecimal.ONE), "maximum"));
         });
 
         // exclusive: the bound itself is forbidden, and the nearest value past
         // it is the valid edge
         SchemaFacts.exclusiveMinimum(schema).ifPresent(bound -> {
-            mutations.add(Mutation.proven(FuzzCaseKind.AT_EXCLUSIVE_BOUND, bound));
-            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, bound.add(BigDecimal.ONE));
+            mutations.add(Mutation.proven(FuzzCaseKind.AT_EXCLUSIVE_BOUND, bound, "exclusiveMinimum"));
+            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_LOWER_BOUND, bound.add(BigDecimal.ONE),
+                    "exclusiveMinimum");
         });
         SchemaFacts.exclusiveMaximum(schema).ifPresent(bound -> {
-            mutations.add(Mutation.proven(FuzzCaseKind.AT_EXCLUSIVE_BOUND, bound));
-            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, bound.subtract(BigDecimal.ONE));
+            mutations.add(Mutation.proven(FuzzCaseKind.AT_EXCLUSIVE_BOUND, bound, "exclusiveMaximum"));
+            addNumericBoundary(mutations, schema, FuzzCaseKind.AT_UPPER_BOUND, bound.subtract(BigDecimal.ONE),
+                    "exclusiveMaximum");
         });
 
         SchemaFacts.multipleOf(schema).ifPresent(factor -> {
             BigDecimal candidate = factor.multiply(BigDecimal.valueOf(2)).add(BigDecimal.ONE);
             if (candidate.remainder(factor).compareTo(BigDecimal.ZERO) != 0) {
-                mutations.add(Mutation.proven(FuzzCaseKind.NOT_MULTIPLE_OF, candidate));
+                mutations.add(Mutation.proven(FuzzCaseKind.NOT_MULTIPLE_OF, candidate, "multipleOf"));
             }
         });
 
@@ -199,9 +210,9 @@ final class SchemaMutations {
     }
 
     private static void addNumericBoundary(List<Mutation> mutations, Schema<?> schema,
-                                           FuzzCaseKind kind, BigDecimal value) {
+                                           FuzzCaseKind kind, BigDecimal value, String constraint) {
         if (SchemaFacts.satisfiesNumeric(schema, value)) {
-            mutations.add(Mutation.valid(kind, value));
+            mutations.add(Mutation.valid(kind, value, constraint));
         }
     }
 
@@ -210,22 +221,22 @@ final class SchemaMutations {
         Integer maxItems = schema.getMaxItems();
 
         mutations.add(minItems != null && minItems > 0
-                ? Mutation.proven(FuzzCaseKind.EMPTY_ARRAY, 0)
+                ? Mutation.proven(FuzzCaseKind.EMPTY_ARRAY, 0, "minItems")
                 : Mutation.probe(FuzzCaseKind.EMPTY_ARRAY, 0));
 
         if (minItems != null && minItems > 0) {
-            mutations.add(Mutation.valid(FuzzCaseKind.AT_LOWER_BOUND, minItems));
+            mutations.add(Mutation.valid(FuzzCaseKind.AT_LOWER_BOUND, minItems, "minItems"));
             if (minItems > 1) {
-                mutations.add(Mutation.proven(FuzzCaseKind.TOO_FEW_ITEMS, minItems - 1));
+                mutations.add(Mutation.proven(FuzzCaseKind.TOO_FEW_ITEMS, minItems - 1, "minItems"));
             }
         }
         if (maxItems != null && maxItems > 0) {
-            mutations.add(Mutation.valid(FuzzCaseKind.AT_UPPER_BOUND, maxItems));
-            mutations.add(Mutation.proven(FuzzCaseKind.TOO_MANY_ITEMS, maxItems + 1));
+            mutations.add(Mutation.valid(FuzzCaseKind.AT_UPPER_BOUND, maxItems, "maxItems"));
+            mutations.add(Mutation.proven(FuzzCaseKind.TOO_MANY_ITEMS, maxItems + 1, "maxItems"));
         }
 
         if (Schemas.type(schema.getItems()) != null) {
-            mutations.add(Mutation.proven(FuzzCaseKind.INVALID_ITEM_TYPE, null));
+            mutations.add(Mutation.proven(FuzzCaseKind.INVALID_ITEM_TYPE, null, "items.type"));
         }
     }
 

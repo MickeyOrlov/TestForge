@@ -45,7 +45,7 @@ public class FuzzCaseGenerator {
             }
             cases.add(FuzzCase.parameter(operation.specId(), operation.operationId(), operation.key(),
                     parameter.getName(), parameter.getIn(), mutation.kind(), mutation.expectation(),
-                    String.valueOf(mutation.value())));
+                    mutation.constraint(), String.valueOf(mutation.value())));
         }
         return cases;
     }
