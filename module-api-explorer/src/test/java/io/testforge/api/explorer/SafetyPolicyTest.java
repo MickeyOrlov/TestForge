@@ -14,7 +14,7 @@ class SafetyPolicyTest {
 
     @Test
     void safeMethodsNeedNoOptIn() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of()));
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of()));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("listTasks"))).isEmpty();
         assertThat(policy.refuse(ExplorerFixtures.operation("getTask"))).isEmpty();
@@ -22,7 +22,7 @@ class SafetyPolicyTest {
 
     @Test
     void writeMethodsAreRefusedByDefault() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of()));
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of()));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("createTask")))
                 .contains(SkipReason.METHOD_NOT_ENABLED);
@@ -32,7 +32,7 @@ class SafetyPolicyTest {
 
     @Test
     void listingAnUnsafeMethodIsNotEnoughOnItsOwn() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of(
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of(
                 "methods", Set.of("GET", "DELETE"))));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("deleteTask")))
@@ -41,7 +41,7 @@ class SafetyPolicyTest {
 
     @Test
     void unsafeMethodsPassOnlyWithBothKeys() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of(
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of(
                 "methods", Set.of("GET", "DELETE"),
                 "allowUnsafeMethods", true)));
 
@@ -50,7 +50,7 @@ class SafetyPolicyTest {
 
     @Test
     void excludedPathsAreRefused() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of(
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of(
                 "excludePaths", List.of("/tasks/*"))));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("getTask")))
@@ -62,7 +62,7 @@ class SafetyPolicyTest {
     void doubleWildcardAlsoMatchesTheCollectionItself() {
         // standard Ant semantics, and a trap worth pinning down: /tasks/**
         // excludes /tasks as well, not only its sub-resources
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of(
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of(
                 "excludePaths", List.of("/tasks/**"))));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("listTasks")))
@@ -71,7 +71,7 @@ class SafetyPolicyTest {
 
     @Test
     void narrowingTheIncludeListSkipsEverythingElse() {
-        SafetyPolicy policy = new SafetyPolicy(ExplorerFixtures.properties(Map.of(
+        SafetyPolicy policy = SafetyPolicy.from(ExplorerFixtures.properties(Map.of(
                 "includePaths", List.of("/reports"))));
 
         assertThat(policy.refuse(ExplorerFixtures.operation("listTasks")))

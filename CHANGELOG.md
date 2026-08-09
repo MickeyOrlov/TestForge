@@ -7,6 +7,19 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-fuzz`: schema-aware boundary cases on top of `module-api-explorer`.
+  Every case is derived from a declared constraint and carries the expectation
+  that constraint implies, which is what lets the run report the finding a
+  generic fuzzer cannot produce: a service accepting a value its own document
+  forbids. Verdicts are SERVER_ERROR, OVER_PERMISSIVE, UNDOCUMENTED_RESPONSE,
+  INPUT_REFLECTED, OVER_STRICT, TRANSPORT_FAILURE and PASSED; only the crashes
+  fail a build by default. Generation is fully deterministic and every case has
+  a stable readable id, so a finding is reproduced with
+  `forge.api-fuzz.only-cases` alone; the seed governs which subset runs when
+  the matrix exceeds `max-cases-per-operation`. Safety is the explorer's,
+  unchanged — off by default, safe methods unless two keys are turned, capped
+  and sequential, never a request body. V1 fuzzes parameters only, one at a
+  time, with no state between calls.
 - `module-api-explorer`: runs an OpenAPI document against a live environment and
   reports what the API actually does. Safe by default — GET/HEAD/OPTIONS need no
   opt-in, anything else needs both the method listed and

@@ -122,6 +122,21 @@ public class ObservationFactory {
         return true;
     }
 
+    /**
+     * Masks a value that is about to be written down next to its parameter
+     * name. Public because {@code module-api-fuzz} records the values it sent,
+     * and a second implementation of "is this name a credential" would be the
+     * one that eventually disagrees.
+     */
+    public String redactParameterValue(String name, String value) {
+        return value != null && sensitive(name) ? MASK : value;
+    }
+
+    /** Redacted and truncated exactly as an observation body would be. */
+    public String redactBody(String body) {
+        return body(body);
+    }
+
     private String body(String body) {
         if (body == null || body.isBlank()) {
             return body;

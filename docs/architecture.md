@@ -17,6 +17,7 @@ graph TD
     ApiDiscovery["module-api-discovery"]
     ApiCodegen["module-api-codegen"]
     ApiExplorer["module-api-explorer"]
+    ApiFuzz["module-api-fuzz"]
     Flow["module-flow"]
     State["module-state"]
     Reporting["module-reporting"]
@@ -36,6 +37,7 @@ graph TD
     Spring --> ApiDiscovery
     Spring --> ApiCodegen
     Spring --> ApiExplorer
+    Spring --> ApiFuzz
     Spring --> Flow
     Spring --> State
     Spring --> Reporting
@@ -52,6 +54,7 @@ graph TD
     Core -. shared thin foundation .-> ApiDiscovery
     Core -. shared thin foundation .-> ApiCodegen
     Core -. shared thin foundation .-> ApiExplorer
+    Core -. shared thin foundation .-> ApiFuzz
     Core -. shared thin foundation .-> Flow
     Core -. shared thin foundation .-> State
     Core -. shared thin foundation .-> Reporting

@@ -68,6 +68,7 @@ surface is still expected to evolve.
 |---|---|
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
+| `module-api-fuzz` | Schema-aware boundary cases on top of the explorer, with stable case ids and seeded sampling. V1 fuzzes parameters only: no request bodies, no combinations, no state between calls. |
 
 ## Completed
 
@@ -91,6 +92,7 @@ surface is still expected to evolve.
 - JSON contract validation with JSON Schema support.
 - Safe runtime API exploration: OpenAPI-driven calls against a live
   environment with per-operation observations and a runtime contract report.
+- Schema-aware boundary fuzzing with reproducible case ids on top of it.
 - CI-style contract monitor that validates Kafka payloads, stores redacted
   artifacts, and compares payload shapes against baselines.
 - OpenAPI discovery module that writes endpoint catalogs, request/response
@@ -183,8 +185,10 @@ Target modules: `module-api-discovery`, `module-api-codegen`,
   does not.
 - Add stateful request sequences and reproducible replay on top of that
   inference, not before it.
-- Add deterministic schema-aware fuzz cases only after safe exploration is
-  stable; every failure must be reproducible from a recorded seed.
+- Deterministic schema-aware fuzzing shipped in `module-api-fuzz` v1: cases
+  derived from declared constraints, stable ids, seeded sampling when the
+  matrix is capped. Parameters only — bodies and combinations wait for value
+  extraction. Done.
 - Consider a Gradle bootstrap plugin only after discovery, code generation,
   exploration, and fuzzing remain useful as independent removable modules.
 
