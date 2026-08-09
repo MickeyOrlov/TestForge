@@ -28,7 +28,14 @@ public enum FuzzVerdict {
     OVER_STRICT(true),
 
     /** The service did what the document implies it should. */
-    PASSED(false);
+    PASSED(false),
+
+    /**
+     * The case did not apply to this baseline — a body path a chosen
+     * {@code oneOf} branch does not contain, for instance. Recorded rather than
+     * dropped so the case count in the report stays honest.
+     */
+    NOT_APPLICABLE(false);
 
     private final boolean finding;
 

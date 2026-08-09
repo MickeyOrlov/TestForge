@@ -46,20 +46,34 @@ final class FuzzReportMarkdown {
             return;
         }
 
-        out.append("| verdict | operation | parameter | case | status |\n");
-        out.append("|---|---|---|---|---|\n");
+        // expectation is in the table on purpose: a verdict of OVER_PERMISSIVE
+        // only means anything next to the promise the document made
+        out.append("| verdict | operation | field | mutation | expected | status | sent | case id |\n");
+        out.append("|---|---|---|---|---|---|---|---|\n");
         findings.forEach(finding -> out
                 .append("| **").append(finding.verdict()).append("** | `")
                 .append(finding.fuzzCase().operationKey()).append("` | `")
                 .append(finding.fuzzCase().in()).append(':').append(finding.fuzzCase().parameterName())
-                .append("` | ").append(finding.fuzzCase().kind()).append(" | ")
-                .append(finding.status() == null ? "-" : finding.status()).append(" |\n"));
+                .append("` | ").append(finding.fuzzCase().kind())
+                .append(" | ").append(finding.expectation())
+                .append(" | ").append(finding.status() == null ? "-" : finding.status())
+                .append(" | `").append(escape(finding.requestFragment()))
+                .append("` | `").append(finding.fuzzCase().id()).append("` |\n"));
 
         out.append("\n### Reproduce a single case\n\n```yaml\nforge:\n  api-fuzz:\n    seed: ")
                 .append(report.seed())
                 .append("\n    only-cases:\n");
         findings.forEach(finding -> out.append("      - \"").append(finding.fuzzCase().id()).append("\"\n"));
         out.append("```\n");
+    }
+
+    /** Keeps a mutated value from breaking the table it is reported in. */
+    private static String escape(String fragment) {
+        if (fragment == null) {
+            return "-";
+        }
+        String flattened = fragment.replace("\n", "\\n").replace("\r", "").replace("|", "\\|");
+        return flattened.length() <= 60 ? flattened : flattened.substring(0, 60) + "…";
     }
 
     private static void renderSpec(StringBuilder out, SpecFuzzReport spec) {

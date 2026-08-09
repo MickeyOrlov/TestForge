@@ -104,3 +104,111 @@ paths:
       responses:
         '201':
           description: Created
+  /users:
+    post:
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, age, profile]
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 10
+                age:
+                  type: integer
+                  minimum: 18
+                  maximum: 120
+                nickname:
+                  type: string
+                active:
+                  type: boolean
+                role:
+                  type: string
+                  enum: [admin, user]
+                note:
+                  type: string
+                  nullable: true
+                tags:
+                  type: array
+                  minItems: 1
+                  maxItems: 3
+                  items:
+                    type: string
+                profile:
+                  type: object
+                  required: [city]
+                  properties:
+                    city:
+                      type: string
+                      minLength: 2
+                    score:
+                      type: number
+                      minimum: 0
+                      exclusiveMinimum: true
+                      multipleOf: 5
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+  /impossible:
+    post:
+      operationId: impossibleBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: '^[0-9]{4}-[A-Z]{3}$'
+      responses:
+        '201':
+          description: Created
+  /xml-only:
+    post:
+      operationId: xmlOnlyBody
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Created
+  /either:
+    post:
+      operationId: eitherBody
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    card:
+                      type: string
+                - type: object
+                  properties:
+                    iban:
+                      type: string
+      responses:
+        '201':
+          description: Created

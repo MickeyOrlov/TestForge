@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.ApiSpecSource;
 import io.testforge.api.discovery.OpenApiSpecParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.testforge.api.explorer.ExchangeExecutor;
 import io.testforge.api.explorer.ExplorableOperation;
 import io.testforge.api.explorer.ObservationFactory;
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,9 @@ public class ApiFuzzRunner {
     private final SafetyPolicy safety;
     private final RequestPlanner planner;
     private final FuzzCaseGenerator generator;
+    private final BodyCaseGenerator bodyCases;
+    private final JsonBodyFactory bodyFactory;
+    private final JsonBodyMutator bodyMutator;
     private final FuzzCaseSelector cases;
     private final ExchangeExecutor executor;
     private final ResponseClassifier classifier;
@@ -67,6 +72,9 @@ public class ApiFuzzRunner {
             SafetyPolicy safety,
             RequestPlanner planner,
             FuzzCaseGenerator generator,
+            BodyCaseGenerator bodyCases,
+            JsonBodyFactory bodyFactory,
+            JsonBodyMutator bodyMutator,
             FuzzCaseSelector cases,
             ExchangeExecutor executor,
             ResponseClassifier classifier,
@@ -79,6 +87,9 @@ public class ApiFuzzRunner {
         this.safety = safety;
         this.planner = planner;
         this.generator = generator;
+        this.bodyCases = bodyCases;
+        this.bodyFactory = bodyFactory;
+        this.bodyMutator = bodyMutator;
         this.cases = cases;
         this.executor = executor;
         this.classifier = classifier;
@@ -191,7 +202,18 @@ public class ApiFuzzRunner {
                     baseline.skipReason().description());
         }
 
-        List<FuzzCase> generated = generator.generate(operation);
+        BodyPlan bodyPlan = BodyPlan.from(operation.operation(), bodyFactory);
+        if (bodyPlan.blocked()) {
+            // a request the schema would reject anyway makes every verdict
+            // meaningless, so nothing is sent
+            return OperationFuzzReport.skipped(operation.operationId(), operation.key(),
+                    "no valid request body could be built: " + bodyPlan.unsupportedReason());
+        }
+
+        List<FuzzCase> generated = new java.util.ArrayList<>(generator.generate(operation));
+        if (bodyPlan.usable()) {
+            generated.addAll(bodyCases.generate(operation, bodyPlan.schema(), bodyPlan.unfuzzablePaths()));
+        }
         List<FuzzCase> selected = properties.replaying()
                 ? cases.only(generated, properties.onlyCases())
                 : cases.select(generated);
@@ -204,7 +226,7 @@ public class ApiFuzzRunner {
 
         List<FuzzObservation> observations = new ArrayList<>();
         for (FuzzCase fuzzCase : selected) {
-            observations.add(execute(operation, baseline.request(), fuzzCase, baseUrl));
+            observations.add(execute(operation, baseline.request(), bodyPlan, fuzzCase, baseUrl));
         }
 
         Path artifact = specDir.resolve(safeName(operation.operationId()) + ".json");
@@ -217,8 +239,11 @@ public class ApiFuzzRunner {
 
     /** One case. Anything that goes wrong here is a verdict, never an interruption. */
     private FuzzObservation execute(ExplorableOperation operation, PreparedRequest baseline,
-                                    FuzzCase fuzzCase, String baseUrl) {
-        PreparedRequest request = mutate(baseline, fuzzCase);
+                                    BodyPlan bodyPlan, FuzzCase fuzzCase, String baseUrl) {
+        PreparedRequest request = mutate(baseline, bodyPlan, fuzzCase);
+        if (request == null) {
+            return FuzzObservation.notApplicable(redact(fuzzCase), baseUrl + baseline.resolvedTarget());
+        }
         RuntimeExchange exchange;
         try {
             exchange = executor.execute(request);
@@ -239,14 +264,39 @@ public class ApiFuzzRunner {
                 exchange.durationMillis(),
                 classification.inputReflected(),
                 classification.mismatches(),
-                exchange.completed() ? null : exchange.error());
+                exchange.completed() ? null : exchange.error(),
+                fragment(fuzzCase));
     }
 
-    private PreparedRequest mutate(PreparedRequest baseline, FuzzCase fuzzCase) {
+    /** The smallest thing a reader needs to see what was sent, already redacted. */
+    private String fragment(FuzzCase fuzzCase) {
+        String value = redaction.redactParameterValue(fuzzCase.parameterName(), fuzzCase.value());
+        if (fuzzCase.omitted()) {
+            return fuzzCase.parameterName() + " <omitted>";
+        }
+        return fuzzCase.parameterName() + " = " + redaction.redactBody(value);
+    }
+
+    /**
+     * Applies the one thing this case changes. Everything else — including the
+     * valid body, when the operation has one — stays exactly as the baseline
+     * built it, which is what makes a finding attributable to a single field.
+     *
+     * <p>Null when the case does not apply to this baseline, for instance a
+     * body path that a chosen {@code oneOf} branch does not contain.
+     */
+    private PreparedRequest mutate(PreparedRequest baseline, BodyPlan bodyPlan, FuzzCase fuzzCase) {
         Map<String, String> pathParameters = new LinkedHashMap<>(baseline.pathParameters());
         Map<String, String> queryParameters = new LinkedHashMap<>(baseline.queryParameters());
+        String body = bodyPlan.usable() ? bodyPlan.baseline().toString() : null;
 
-        if (fuzzCase.omitted()) {
+        if (fuzzCase.bodyCase()) {
+            Optional<String> mutated = bodyMutator.apply(bodyPlan.baseline(), fuzzCase);
+            if (mutated.isEmpty()) {
+                return null;
+            }
+            body = mutated.get();
+        } else if (fuzzCase.omitted()) {
             queryParameters.remove(fuzzCase.parameterName());
         } else if ("path".equals(fuzzCase.in())) {
             pathParameters.put(fuzzCase.parameterName(), fuzzCase.value());
@@ -254,7 +304,8 @@ public class ApiFuzzRunner {
             queryParameters.put(fuzzCase.parameterName(), fuzzCase.value());
         }
 
-        return new PreparedRequest(baseline.method(), baseline.pathTemplate(), pathParameters, queryParameters);
+        return new PreparedRequest(baseline.method(), baseline.pathTemplate(), pathParameters, queryParameters,
+                body, body == null ? null : bodyPlan.contentType());
     }
 
     /** A case built on a credential-named parameter must not print the credential. */
@@ -264,7 +315,8 @@ public class ApiFuzzRunner {
             return fuzzCase;
         }
         return new FuzzCase(fuzzCase.id(), fuzzCase.specId(), fuzzCase.operationId(), fuzzCase.operationKey(),
-                fuzzCase.parameterName(), fuzzCase.in(), fuzzCase.kind(), value, fuzzCase.omitted());
+                fuzzCase.parameterName(), fuzzCase.in(), fuzzCase.kind(), fuzzCase.expectation(),
+                value, fuzzCase.omitted());
     }
 
     private String safeName(String name) {

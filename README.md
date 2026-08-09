@@ -92,7 +92,7 @@ flowchart LR
 | [module-api-discovery](module-api-discovery) | OpenAPI catalog and schema shape snapshots for endpoint/schema drift checks |
 | [module-api-codegen](module-api-codegen) | OpenAPI-first Java records and typed `ApiClient` skeletons written to a generated source directory |
 | [module-api-explorer](module-api-explorer) | Runs an OpenAPI document against a live environment: safe-by-default calls, runtime contract report, per-operation observations |
-| [module-api-fuzz](module-api-fuzz) | Schema-aware boundary cases against a live API: deterministic generation, reproducible case ids, findings the document itself defines |
+| [module-api-fuzz](module-api-fuzz) | Schema-aware boundary cases against a live API, for parameters and JSON request bodies: deterministic generation, reproducible case ids, findings the document itself defines |
 | [module-data](module-data) | Per-run unique value registry and `%{variable}%` template rendering for data-heavy tests |
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |

@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-fuzz` v1.1: schema-aware fuzzing of `application/json` request
+  bodies, addressed by JSON path (`createUser/body:$.profile.age/BELOW_MINIMUM`).
+  Each case starts from a baseline body built to satisfy every declared
+  constraint and changes exactly one field, so a finding points at a field
+  rather than an endpoint. Supports nested objects, arrays with
+  `minItems`/`maxItems` and item types, `required`, `nullable`, string length,
+  `pattern` and `format`, numeric bounds including `exclusiveMinimum`/
+  `exclusiveMaximum` and `multipleOf`, `enum`, and `allOf`. A `oneOf`/`anyOf`
+  root, a non-JSON media type, or a schema no value can satisfy skips the
+  operation with the reason instead of sending a guess.
 - `module-api-fuzz`: schema-aware boundary cases on top of `module-api-explorer`.
   Every case is derived from a declared constraint and carries the expectation
   that constraint implies, which is what lets the run report the finding a
@@ -36,6 +46,15 @@ semantic versioning for its git tags.
   fuzzing are deliberately out of v1.
 
 ### Fixed
+- `module-api-fuzz`: expectations moved from the case *kind* to the individual
+  case, which removed three sources of false findings. A long string was
+  reported as `OVER_PERMISSIVE` even when no `maxLength` was declared; a huge
+  number likewise with no `maximum`; and the `PATTERN_VIOLATION` case sent one
+  fixed string that satisfied common patterns such as `^[a-z0-9-]+$`, accusing
+  services of accepting values their documents allowed. A `REJECT` expectation
+  is now only ever issued when a declared constraint forbids the value; an
+  unknown `format` and an empty string with no `minLength` are probes, while an
+  empty string *with* a `minLength` is now correctly proven invalid.
 - `module-mobile-appium`: failure-artifact capture no longer aborts the page
   source when the screenshot fails — each artifact is captured independently
   and errors are surfaced as one (suppressed) exception.
