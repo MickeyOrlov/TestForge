@@ -1,1 +1,1 @@
-# Auto-configuration class names for module-api-fuzz will be registered here.
+io.testforge.api.fuzz.TestForgeApiFuzzAutoConfiguration
