@@ -1,5 +1,6 @@
 package io.testforge.flow;
 
+import io.testforge.artifact.ArtifactSink;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,18 +11,32 @@ public class FlowRunnerFactory {
 
     private final FlowProperties properties;
     private final Clock clock;
+    private final ArtifactSink artifactSink;
 
     public FlowRunnerFactory(FlowProperties properties) {
-        this(properties, Clock.systemUTC());
+        this(properties, Clock.systemUTC(), ArtifactSink.NO_OP);
+    }
+
+    public FlowRunnerFactory(FlowProperties properties, ArtifactSink artifactSink) {
+        this(properties, Clock.systemUTC(), artifactSink);
     }
 
     FlowRunnerFactory(FlowProperties properties, Clock clock) {
+        this(properties, clock, ArtifactSink.NO_OP);
+    }
+
+    public FlowRunnerFactory(FlowProperties properties, Clock clock, ArtifactSink artifactSink) {
         this.properties = properties;
         this.clock = clock;
+        this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
     }
 
     public <S> FlowRunner<S> create(Collection<? extends FlowStep<S>> steps) {
-        return create(steps, List.of(new LoggingFlowStepDecorator<>()));
+        return create("flow", steps, List.of(new LoggingFlowStepDecorator<>()));
+    }
+
+    public <S> FlowRunner<S> create(String name, Collection<? extends FlowStep<S>> steps) {
+        return create(name, steps, List.of(new LoggingFlowStepDecorator<>()));
     }
 
     /**
@@ -31,11 +46,18 @@ public class FlowRunnerFactory {
     public <S> FlowRunner<S> create(
             Collection<? extends FlowStep<S>> steps,
             List<? extends FlowStepDecorator<S>> decorators) {
+        return create("flow", steps, decorators);
+    }
+
+    public <S> FlowRunner<S> create(
+            String name,
+            Collection<? extends FlowStep<S>> steps,
+            List<? extends FlowStepDecorator<S>> decorators) {
         List<FlowStep<S>> decorated = new ArrayList<>(steps.size());
         for (FlowStep<S> step : steps) {
             decorated.add(decorate(step, decorators));
         }
-        return new FlowRunner<>(decorated, properties, clock);
+        return new FlowRunner<>(name, decorated, properties, clock, artifactSink);
     }
 
     private static <S> FlowStep<S> decorate(
@@ -61,3 +83,4 @@ public class FlowRunnerFactory {
         return result;
     }
 }
+
