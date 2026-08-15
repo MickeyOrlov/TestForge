@@ -1,8 +1,15 @@
 package io.testforge.mock;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.http.ResponseDefinition;
+import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import io.testforge.artifact.ArtifactSink;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -19,20 +26,33 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * <p>Always close the scope (try-with-resources or an after-hook) so the
  * shared server does not accumulate dead stubs.
+ *
+ * <p><strong>Security Note on Diagnostics:</strong> When a scope is closed,
+ * diagnostic summary information is published to the configured {@link ArtifactSink}.
+ * To prevent credential leakage, raw request/response bodies and headers are
+ * explicitly omitted. Only structural metadata (HTTP method, URL path, HTTP status,
+ * scope ID, and counts) is published.
  */
 public class MockScope implements AutoCloseable {
 
     private static final int SCOPED_STUB_PRIORITY = 1;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final WireMock wireMock;
     private final String scopeJsonPath;
     private final String scopeId;
+    private final ArtifactSink artifactSink;
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId) {
+        this(wireMock, scopeJsonPath, scopeId, ArtifactSink.NO_OP);
+    }
+
+    MockScope(WireMock wireMock, String scopeJsonPath, String scopeId, ArtifactSink artifactSink) {
         this.wireMock = wireMock;
         this.scopeJsonPath = scopeJsonPath;
         this.scopeId = scopeId;
+        this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
     }
 
     public String scopeId() {
@@ -52,7 +72,103 @@ public class MockScope implements AutoCloseable {
 
     @Override
     public void close() {
-        stubs.forEach(wireMock::removeStubMapping);
-        stubs.clear();
+        try {
+            publishDiagnostics();
+        } catch (Throwable t) {
+            // Best-effort: diagnostic publishing failures must never fail a test or mask a mock failure.
+        } finally {
+            stubs.forEach(wireMock::removeStubMapping);
+            stubs.clear();
+        }
+    }
+
+    private void publishDiagnostics() {
+        if (artifactSink == null || artifactSink == ArtifactSink.NO_OP) {
+            return;
+        }
+
+        ObjectNode root = MAPPER.createObjectNode();
+        root.put("scopeId", scopeId);
+        root.put("scopeJsonPath", scopeJsonPath);
+
+        ArrayNode stubsArray = root.putArray("stubs");
+        for (StubMapping stub : stubs) {
+            ObjectNode stubNode = stubsArray.addObject();
+            if (stub.getId() != null) {
+                stubNode.put("id", stub.getId().toString());
+            }
+            if (stub.getName() != null) {
+                stubNode.put("name", stub.getName());
+            }
+            stubNode.put("priority", stub.getPriority());
+
+            RequestPattern reqPattern = stub.getRequest();
+            if (reqPattern != null) {
+                ObjectNode reqNode = stubNode.putObject("request");
+                if (reqPattern.getMethod() != null) {
+                    reqNode.put("method", reqPattern.getMethod().getName());
+                }
+                if (reqPattern.getUrl() != null) {
+                    reqNode.put("url", reqPattern.getUrl());
+                }
+                if (reqPattern.getUrlPath() != null) {
+                    reqNode.put("urlPath", reqPattern.getUrlPath());
+                }
+                if (reqPattern.getUrlPattern() != null) {
+                    reqNode.put("urlPattern", reqPattern.getUrlPattern());
+                }
+                if (reqPattern.getUrlPathPattern() != null) {
+                    reqNode.put("urlPathPattern", reqPattern.getUrlPathPattern());
+                }
+            }
+
+            ResponseDefinition response = stub.getResponse();
+            if (response != null) {
+                ObjectNode respNode = stubNode.putObject("response");
+                respNode.put("status", response.getStatus());
+            }
+        }
+        root.put("stubCount", stubs.size());
+
+        List<LoggedRequest> unmatchedRequests = null;
+        try {
+            unmatchedRequests = wireMock.findAllUnmatchedRequests();
+        } catch (Throwable ignored) {
+            // Cheap best-effort query for unmatched requests.
+        }
+
+        ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
+        if (unmatchedRequests != null) {
+            for (LoggedRequest req : unmatchedRequests) {
+                ObjectNode reqNode = unmatchedArray.addObject();
+                if (req.getMethod() != null) {
+                    reqNode.put("method", req.getMethod().getName());
+                }
+                if (req.getUrl() != null) {
+                    reqNode.put("url", req.getUrl());
+                }
+                if (req.getLoggedDate() != null) {
+                    reqNode.put("loggedDate", req.getLoggedDate().toInstant().toString());
+                }
+            }
+            root.put("unmatchedCount", unmatchedRequests.size());
+        } else {
+            root.put("unmatchedCount", 0);
+        }
+
+        String jsonContent;
+        try {
+            jsonContent = MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root);
+        } catch (Exception e) {
+            jsonContent = root.toString();
+        }
+
+        artifactSink.write(
+                "module-mock",
+                "mock-diagnostics",
+                scopeId + ".json",
+                "application/json",
+                jsonContent
+        );
     }
 }
