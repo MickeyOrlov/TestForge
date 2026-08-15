@@ -118,7 +118,7 @@ public class ApiFuzzRunner {
             SchemathesisVersion version;
             try {
                 version = executor.probeVersion();
-                schemathesisVersionString = version.raw();
+                schemathesisVersionString = version.semver();
             } catch (Exception e) {
                 log.error("Failed to probe Schemathesis version: {}", e.getMessage());
                 aggregateErrors.add("Failed to probe Schemathesis version: " + e.getMessage());

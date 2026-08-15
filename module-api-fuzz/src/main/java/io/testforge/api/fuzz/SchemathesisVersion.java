@@ -20,7 +20,12 @@ public record SchemathesisVersion(int major, int minor, int patch, String raw) {
         );
     }
 
+    public String semver() {
+        return major + "." + minor + "." + patch;
+    }
+
     public boolean isSupported() {
         return major >= 4;
     }
 }
+

@@ -11,3 +11,21 @@ dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
+
+test {
+    useJUnitPlatform {
+        excludeTags "schemathesis"
+    }
+}
+
+tasks.register("schemathesisTest", Test) {
+    description = "Runs API fuzz acceptance tests using real Schemathesis CLI"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "schemathesis"
+    }
+    shouldRunAfter tasks.named("test")
+}
+
