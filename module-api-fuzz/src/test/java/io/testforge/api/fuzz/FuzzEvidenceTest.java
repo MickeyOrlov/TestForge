@@ -34,7 +34,7 @@ class FuzzEvidenceTest {
         
         writer.writeEvidence(tempDir, evidence);
         
-        Path jsonFile = tempDir.resolve(evidence.runId()).resolve("run.json");
+        Path jsonFile = tempDir.resolve(evidence.runId()).resolve(evidence.specId()).resolve("run.json");
         assertThat(jsonFile).exists();
         
         String jsonContent = Files.readString(jsonFile);
@@ -76,5 +76,25 @@ class FuzzEvidenceTest {
                 Instant.parse("2026-08-15T16:00:00Z"),
                 Duration.ofMinutes(1)
         );
+    }
+
+    @Test
+    void eachSpecGetsItsOwnEvidenceFile(@TempDir Path tempDir) {
+        // One run fuzzes every configured spec. Keying the path on the run id
+        // alone made each spec overwrite the previous one's evidence, leaving
+        // only the last -- the reproducibility promise silently broken.
+        FuzzEvidenceWriter writer = new FuzzEvidenceWriter();
+        FuzzRunEvidence a = createEvidence("https://api.example.test/v1");
+        FuzzRunEvidence b = new FuzzRunEvidence(
+                a.runId(), "spec-b", a.specLocation(), a.targetUrl(), a.schemathesisVersion(),
+                a.seed(), a.phases(), a.methods(), a.generationMode(), a.maxExamples(),
+                a.allowUnsafeMethods(), a.exitCode(), a.outcome(), a.artifacts(),
+                a.startedAt(), a.duration());
+
+        writer.writeEvidence(tempDir, a);
+        writer.writeEvidence(tempDir, b);
+
+        assertThat(tempDir.resolve(a.runId()).resolve(a.specId()).resolve("run.json")).exists();
+        assertThat(tempDir.resolve(a.runId()).resolve("spec-b").resolve("run.json")).exists();
     }
 }

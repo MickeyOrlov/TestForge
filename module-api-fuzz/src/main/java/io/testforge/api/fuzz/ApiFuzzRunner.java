@@ -77,6 +77,9 @@ public class ApiFuzzRunner {
 
         ApiFuzzOutcome overallOutcome = ApiFuzzOutcome.PASSED;
 
+        // Derived from properties alone, so it is identical for every spec.
+        FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(effectiveProperties);
+
         // Probed once per run, not once per spec: the executable cannot change
         // between specs, and a version probe is a whole extra process launch.
         String schemathesisVersionString;
@@ -90,6 +93,7 @@ public class ApiFuzzRunner {
 
         for (String specId : specIds) {
             Path specOutputDir = outputDir.resolve(specId);
+            Map<String, String> specArtifacts = new HashMap<>();
             MaterializedSpec materializedSpec;
             try {
                 materializedSpec = materializer.materialize(specId);
@@ -113,9 +117,11 @@ public class ApiFuzzRunner {
                 specPathOrUrl = specId;
             }
 
-            FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(effectiveProperties);
+            // The config file is per-spec (it lands in the spec's own output
+            // directory); the policy it encodes is not.
             Path generatedConfig = SchemathesisConfigFile.generate(specOutputDir, policy);
             aggregateArtifacts.put(specId + "/schemathesis.toml", generatedConfig);
+            specArtifacts.put("schemathesis.toml", generatedConfig.toString());
 
             List<String> commandArgs;
             try {
@@ -153,6 +159,7 @@ public class ApiFuzzRunner {
                     try {
                         ApiFuzzReport parsedReport = reportParser.parse(reportPath);
                         aggregateArtifacts.put(specId + "/report.ndjson", reportPath);
+                        specArtifacts.put("report.ndjson", reportPath.toString());
                         aggregateTotalScenarios += parsedReport.totalScenarios();
                         aggregateFailedScenarios += parsedReport.failedScenarios();
 
@@ -181,8 +188,6 @@ public class ApiFuzzRunner {
 
             overallOutcome = maxOutcome(overallOutcome, specOutcome);
 
-            Map<String, String> evidenceArtifacts = new HashMap<>();
-            aggregateArtifacts.forEach((k, v) -> evidenceArtifacts.put(k, v.toString()));
 
             Duration runDuration = Duration.ofMillis(System.currentTimeMillis() - startTimeMs);
             FuzzRunEvidence evidence = new FuzzRunEvidence(
@@ -199,14 +204,14 @@ public class ApiFuzzRunner {
                     effectiveProperties.allowUnsafeMethods(),
                     exitCode,
                     specOutcome.name(),
-                    evidenceArtifacts,
+                    Map.copyOf(specArtifacts),
                     startedAt,
                     runDuration
             );
 
             try {
                 evidenceWriter.writeEvidence(outputDir, evidence);
-                Path runJsonPath = outputDir.resolve(runId).resolve("run.json");
+                Path runJsonPath = outputDir.resolve(runId).resolve(specId).resolve("run.json");
                 aggregateArtifacts.put(specId + "/run.json", runJsonPath);
             } catch (Exception e) {
                 log.warn("Failed to write fuzz run evidence for spec '{}': {}", specId, e.getMessage());

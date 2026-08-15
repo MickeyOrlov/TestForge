@@ -143,7 +143,7 @@ class RealSchemathesisAcceptanceTest {
         assertThat(report1.schemathesisVersion()).isNotNull().startsWith("4.");
         assertThat(report1.seed()).isEqualTo(fixedSeed);
 
-        Path runJsonPath1 = buggyOutputDir1.resolve(report1.runId()).resolve("run.json");
+        Path runJsonPath1 = buggyOutputDir1.resolve(report1.runId()).resolve(report1.specId()).resolve("run.json");
         assertThat(runJsonPath1).exists();
         String runJsonContent1 = Files.readString(runJsonPath1);
         assertThat(runJsonContent1).contains("\"schemathesisVersion\" : \"4.");

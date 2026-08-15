@@ -33,6 +33,12 @@ class ApiFuzzRunnerTest {
         private String ndjsonContentToWrite = null;
         private Path ndjsonWriteTarget = null;
         private Exception versionException = null;
+        private String ndjsonInWorkingDir = null;
+
+        public FakeProcessRunner withNdjsonInWorkingDir(String content) {
+            this.ndjsonInWorkingDir = content;
+            return this;
+        }
 
         public FakeProcessRunner withRunResult(ProcessResult result) {
             this.runResult = result;
@@ -63,6 +69,14 @@ class ApiFuzzRunnerTest {
                     throw new RuntimeException(versionException);
                 }
                 return versionResult;
+            }
+            if (ndjsonInWorkingDir != null && workingDir != null) {
+                try {
+                    Files.createDirectories(workingDir);
+                    Files.writeString(workingDir.resolve("report.ndjson"), ndjsonInWorkingDir);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
             }
             if (ndjsonContentToWrite != null && ndjsonWriteTarget != null) {
                 try {
@@ -295,7 +309,8 @@ class ApiFuzzRunnerTest {
         assertThat(report.seed()).isNotNull();
         assertThat(report.seed()).isGreaterThan(0L);
 
-        Path runJson = tempDir.resolve(report.runId()).resolve("run.json");
+        // Evidence is written per spec, so each spec keeps its own record.
+        Path runJson = tempDir.resolve(report.runId()).resolve("demo").resolve("run.json");
         assertThat(Files.exists(runJson)).isTrue();
         String runJsonContent = Files.readString(runJson);
         assertThat(runJsonContent).contains("\"seed\" : " + report.seed());
@@ -324,5 +339,45 @@ class ApiFuzzRunnerTest {
         assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.CONFIGURATION_ERROR);
         assertThatThrownBy(runner::assertHealthy)
                 .isInstanceOf(ApiFuzzException.class);
+    }
+
+    @Test
+    void eachSpecKeepsItsOwnEvidenceAndArtifacts() throws Exception {
+        // Two regressions in one: evidence keyed only on the run id meant the
+        // second spec overwrote the first, and copying the aggregate artifact
+        // map into every record meant spec B's evidence listed spec A's files.
+        String cleanNdjson = """
+                {"Initialize": {"command": "st run", "schemathesis_version": "4.24.3", "seed": 7}}
+                {"ScenarioFinished": {"status": "success", "phase": "Fuzzing", "recorder": {"label": "GET /x", "cases": {}, "checks": {}}}}
+                {"EngineFinished": {"running_time": 0.1}}
+                """;
+
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("alpha", "beta"), "http://localhost:8080",
+                null, false, null, 7L, null, null, null, null, "st", null,
+                null);
+        FakeProcessRunner fakeRunner = new FakeProcessRunner().withNdjsonInWorkingDir(cleanNdjson);
+        SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "alpha", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml"),
+                "beta", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")
+        ));
+        FuzzSpecMaterializer materializer = new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir);
+        ApiFuzzRunner runner = new ApiFuzzRunner(materializer, executor, reportParser, evidenceWriter, discoveryProps, props);
+
+        ApiFuzzReport report = runner.run();
+
+        Path alpha = tempDir.resolve(report.runId()).resolve("alpha").resolve("run.json");
+        Path beta = tempDir.resolve(report.runId()).resolve("beta").resolve("run.json");
+        assertThat(alpha).exists();
+        assertThat(beta).exists();
+
+        // Each record must describe only its own spec.
+        assertThat(Files.readString(alpha)).contains("\"specId\" : \"alpha\"").doesNotContain("beta");
+        assertThat(Files.readString(beta)).contains("\"specId\" : \"beta\"").doesNotContain("alpha");
+
+        // The version probe runs once for the whole run, not once per spec.
+        assertThat(fakeRunner.executedCommands().stream()
+                .filter(c -> c.contains("--version")).count()).isEqualTo(1L);
     }
 }
