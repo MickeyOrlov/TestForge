@@ -1,0 +1,27 @@
+openapi: 3.0.3
+info:
+  title: Buggy Test API
+  version: 1.0.0
+paths:
+  /api/buggy:
+    get:
+      summary: Get buggy resource
+      operationId: getBuggy
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id

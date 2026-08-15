@@ -1,0 +1,27 @@
+openapi: 3.0.3
+info:
+  title: Clean Test API
+  version: 1.0.0
+paths:
+  /api/clean:
+    get:
+      summary: Get clean resource
+      operationId: getClean
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status

@@ -88,8 +88,8 @@ next one.
   between steps is just a slower independent run.
 - Reproducible replay from recorded observations, as a second
   `ExchangeExecutor` implementation. The interface is already that seam.
-- Deterministic schema-aware fuzzing last, with every failure reproducible from
-  a recorded seed (see `module-api-fuzz` below).
+- Deterministic schema-aware fuzzing is now delegated to Schemathesis
+  (`module-api-fuzz`), which already supports stateful testing capabilities.
 
 Request bodies stay out of the explorer until extraction lands. Synthesizing
 one means guessing at business meaning, and a wrong guess against a write
@@ -108,8 +108,9 @@ These are useful, but should stay behind the core CI/staging improvements.
 
 - `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
   already standardize on feature files.
-- `module-api-fuzz`: deterministic schema-aware boundary generation with a
-  recorded seed, after safe exploration is stable.
+- `module-api-fuzz`: continuous fuzzing orchestration via `st fuzz` (currently
+  delegates schema-aware generation to `st run`, but continuous execution is
+  deferred).
 - TestForge Gradle bootstrap plugin: compose discovery, code generation,
   exploration, and fuzzing only after each remains useful independently.
 

@@ -68,6 +68,7 @@ surface is still expected to evolve.
 |---|---|
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
+| `module-api-fuzz` | Thin adapter for the Schemathesis CLI engine. Handles configuration, safety policy, and result ingestion. |
 
 ## Completed
 
@@ -108,6 +109,8 @@ surface is still expected to evolve.
   lifecycle, and failure artifacts.
 - Adaptation documentation, staging configuration template, and parallel test
   guidance.
+- Schema-aware API fuzzing adapter: safely configures and orchestrates the
+  Schemathesis CLI without building a custom fuzz engine.
 
 ## In Progress
 
@@ -172,7 +175,7 @@ Target module: `module-data`
 ### API Bootstrap Path
 
 Target modules: `module-api-discovery`, `module-api-codegen`,
-`module-api-explorer`, possible future `module-api-fuzz`
+`module-api-explorer`, `module-api-fuzz`
 
 - Safe runtime exploration shipped in `module-api-explorer` v1: GET, HEAD and
   OPTIONS by default, mutation methods behind two explicit keys, redacted
@@ -183,8 +186,6 @@ Target modules: `module-api-discovery`, `module-api-codegen`,
   does not.
 - Add stateful request sequences and reproducible replay on top of that
   inference, not before it.
-- Add deterministic schema-aware fuzz cases only after safe exploration is
-  stable; every failure must be reproducible from a recorded seed.
 - Consider a Gradle bootstrap plugin only after discovery, code generation,
   exploration, and fuzzing remain useful as independent removable modules.
 
