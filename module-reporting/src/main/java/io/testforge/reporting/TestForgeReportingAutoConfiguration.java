@@ -25,8 +25,8 @@ public class TestForgeReportingAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ResourceUsageMonitor resourceUsageMonitor() {
-        return new ResourceUsageMonitor();
+    public ResourceUsageMonitor resourceUsageMonitor(ArtifactSink sink) {
+        return new ResourceUsageMonitor(sink);
     }
 
     @Bean

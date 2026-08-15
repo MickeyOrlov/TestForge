@@ -16,19 +16,12 @@ public final class AllureResourceAttachments {
     }
 
     public static void attach(ResourceUsageStats stats) {
-        Allure.addAttachment("JVM resource usage", "text/plain", format(stats), ".txt");
-    }
-
-    private static String format(ResourceUsageStats stats) {
-        return """
-                samples:        %d
-                heap used, MB:  min %d / avg %d / max %d
-                process CPU:    avg %.2f / max %.2f
-                system CPU:     avg %.2f / max %.2f
-                """.formatted(
-                stats.samples(),
-                stats.memoryUsedMinMb(), stats.memoryUsedAvgMb(), stats.memoryUsedMaxMb(),
-                stats.processCpuAvg(), stats.processCpuMax(),
-                stats.systemCpuAvg(), stats.systemCpuMax());
+        if (stats == null) {
+            return;
+        }
+        try {
+            Allure.addAttachment("JVM resource usage", "text/plain", stats.toFormattedText(), ".txt");
+        } catch (Throwable ignored) {
+        }
     }
 }

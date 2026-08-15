@@ -1,10 +1,12 @@
 package io.testforge.reporting;
 
 import com.sun.management.OperatingSystemMXBean;
+import io.testforge.artifact.ArtifactSink;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,6 +27,7 @@ public class ResourceUsageMonitor {
 
     private static final Logger log = LoggerFactory.getLogger(ResourceUsageMonitor.class);
 
+    private final ArtifactSink sink;
     private final Object lock = new Object();
     private final MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
     private final OperatingSystemMXBean os =
@@ -42,6 +45,14 @@ public class ResourceUsageMonitor {
     private final AtomicInteger systemCpuSamples = new AtomicInteger();
 
     private ScheduledExecutorService scheduler;
+
+    public ResourceUsageMonitor() {
+        this(ArtifactSink.NO_OP);
+    }
+
+    public ResourceUsageMonitor(ArtifactSink sink) {
+        this.sink = Objects.requireNonNullElse(sink, ArtifactSink.NO_OP);
+    }
 
     public void start(Duration period) {
         if (period == null || period.isZero() || period.isNegative()) {
@@ -70,7 +81,23 @@ public class ResourceUsageMonitor {
         if (toStop != null) {
             toStop.shutdownNow();
         }
-        return stats();
+        Optional<ResourceUsageStats> stats = stats();
+        stats.ifPresent(this::publishArtifactSafely);
+        return stats;
+    }
+
+    private void publishArtifactSafely(ResourceUsageStats stats) {
+        try {
+            sink.write(
+                    "module-reporting",
+                    "resource-usage",
+                    "resource-usage.txt",
+                    "text/plain",
+                    stats.toFormattedText()
+            );
+        } catch (Throwable t) {
+            log.warn("Failed to publish resource usage artifact: {}", t.getMessage(), t);
+        }
     }
 
     public boolean isRunning() {
