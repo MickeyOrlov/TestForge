@@ -32,12 +32,8 @@ public class ArtifactManifestWriter {
 
     private static final Logger log = LoggerFactory.getLogger(ArtifactManifestWriter.class);
 
-    public static final Comparator<TestArtifact> ARTIFACT_COMPARATOR = Comparator
-            .comparing(TestArtifact::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::source, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::category, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::name, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(a -> a.file() != null ? a.file().toString() : "", Comparator.nullsFirst(Comparator.naturalOrder()));
+    /** @see ArtifactOrdering#DETERMINISTIC */
+    public static final Comparator<TestArtifact> ARTIFACT_COMPARATOR = ArtifactOrdering.DETERMINISTIC;
 
     private final ObjectMapper mapper;
 
@@ -87,7 +83,7 @@ public class ArtifactManifestWriter {
     private Optional<Path> write(Path runRoot, String runId, ArtifactRunLayout layout, List<TestArtifact> artifacts, List<String> reportingProblems) {
         try {
             List<TestArtifact> safeArtifacts = artifacts != null
-                    ? artifacts.stream().filter(Objects::nonNull).sorted(ARTIFACT_COMPARATOR).toList()
+                    ? artifacts.stream().filter(Objects::nonNull).sorted(ArtifactOrdering.DETERMINISTIC).toList()
                     : List.of();
             List<String> safeProblems = reportingProblems != null ? List.copyOf(reportingProblems) : List.of();
 

@@ -58,7 +58,7 @@ public class ArtifactSummaryWriter {
     private Optional<Path> write(Path runRoot, String runId, ArtifactRunLayout layout, List<TestArtifact> artifacts, List<String> reportingProblems) {
         try {
             List<TestArtifact> safeArtifacts = artifacts != null
-                    ? artifacts.stream().filter(Objects::nonNull).sorted(ArtifactManifestWriter.ARTIFACT_COMPARATOR).toList()
+                    ? artifacts.stream().filter(Objects::nonNull).sorted(ArtifactOrdering.DETERMINISTIC).toList()
                     : List.of();
             List<String> safeProblems = reportingProblems != null ? List.copyOf(reportingProblems) : List.of();
 

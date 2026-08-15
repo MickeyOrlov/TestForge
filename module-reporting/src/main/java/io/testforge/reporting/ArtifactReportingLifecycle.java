@@ -70,6 +70,23 @@ public class ArtifactReportingLifecycle implements SmartLifecycle, DisposableBea
         return true;
     }
 
+    /**
+     * Runs in the lowest phase so this component stops LAST.
+     *
+     * <p>Producers publish artifacts from their own shutdown callbacks —
+     * {@code ResourceUsageMonitor.stop()} is one. Spring stops lifecycle beans in
+     * descending phase order, so writing the manifest from the lowest phase guarantees
+     * those late artifacts are already registered by the time the manifest is written.
+     * Without this, this bean and {@link ResourceUsageMonitorLifecycle} would both sit
+     * in the default {@code SmartLifecycle} phase and correct ordering would depend on
+     * incidental bean ordering. If it ever inverted, the late artifact would be dropped
+     * silently and permanently, because {@code writeReports()} latches and never rewrites.
+     */
+    @Override
+    public int getPhase() {
+        return Integer.MIN_VALUE;
+    }
+
     private synchronized void writeReports() {
         if (written) {
             return;

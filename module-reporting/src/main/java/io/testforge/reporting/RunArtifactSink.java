@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,13 +29,6 @@ import org.slf4j.LoggerFactory;
 public class RunArtifactSink implements ArtifactSink {
 
     private static final Logger log = LoggerFactory.getLogger(RunArtifactSink.class);
-
-    private static final Comparator<TestArtifact> DETERMINISTIC_ARTIFACT_COMPARATOR = Comparator
-            .comparing(TestArtifact::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::source, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::category, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::name, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(a -> a.file() != null ? a.file().toString() : "", Comparator.nullsFirst(Comparator.naturalOrder()));
 
     private final ArtifactRunLayout layout;
     private final Collection<TestArtifact> registeredArtifacts = new ConcurrentLinkedQueue<>();
@@ -146,7 +138,7 @@ public class RunArtifactSink implements ArtifactSink {
     public List<TestArtifact> artifacts() {
         try {
             List<TestArtifact> snapshot = new ArrayList<>(registeredArtifacts);
-            snapshot.sort(DETERMINISTIC_ARTIFACT_COMPARATOR);
+            snapshot.sort(ArtifactOrdering.DETERMINISTIC);
             return Collections.unmodifiableList(snapshot);
         } catch (Throwable t) {
             log.warn("Failed to retrieve ordered artifacts snapshot: {}", t.getMessage(), t);
