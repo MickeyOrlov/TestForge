@@ -44,7 +44,10 @@ class FuzzEvidenceTest {
         assertThat(jsonContent).doesNotContain("user");
         
         // Assert the seed is persisted and read back
-        assertThat(jsonContent).contains("\"seed\" : 42");
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        FuzzRunEvidence readBack = mapper.readValue(jsonFile.toFile(), FuzzRunEvidence.class);
+        assertThat(readBack.seed()).isEqualTo(42L);
         
         // The written JSON contains schemathesisVersion, phases and the effective methods
         assertThat(jsonContent).contains("\"schemathesisVersion\" : \"3.37.0\"");
