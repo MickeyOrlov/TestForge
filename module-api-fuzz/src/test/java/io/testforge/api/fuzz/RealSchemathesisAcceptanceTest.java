@@ -111,7 +111,8 @@ class RealSchemathesisAcceptanceTest {
                 15,                             // timeoutSeconds
                 "st",                           // command
                 null                            // configFile
-        );
+        ,
+                null);
 
         ApiFuzzRunner runner1 = new ApiFuzzRunner(materializer1, executor, reportParser, evidenceWriter, buggyDiscoveryProps1, buggyProps1);
         ApiFuzzReport report1 = runner1.run();
@@ -170,7 +171,8 @@ class RealSchemathesisAcceptanceTest {
                 15,
                 "st",
                 null
-        );
+        ,
+                null);
 
         ApiFuzzRunner runner2 = new ApiFuzzRunner(materializer2, executor, reportParser, evidenceWriter, buggyDiscoveryProps2, buggyProps2);
         ApiFuzzReport report2 = runner2.run();
@@ -207,7 +209,8 @@ class RealSchemathesisAcceptanceTest {
                 15,
                 "st",
                 null
-        );
+        ,
+                null);
 
         ApiFuzzRunner cleanRunner = new ApiFuzzRunner(cleanMaterializer, executor, reportParser, evidenceWriter, cleanDiscoveryProps, cleanProps);
         ApiFuzzReport cleanReport = cleanRunner.run();

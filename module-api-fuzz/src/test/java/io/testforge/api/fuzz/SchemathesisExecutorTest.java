@@ -75,4 +75,26 @@ class SchemathesisExecutorTest {
                 .isInstanceOf(ApiFuzzException.class)
                 .hasMessageContaining("Timeout");
     }
+
+    @Test
+    void parsesVersionFromTheSchemathesisExecutableName() {
+        // forge.api-fuzz.command may be "schemathesis" rather than "st", and
+        // that binary prints a different prefix.
+        SchemathesisVersion v = SchemathesisVersion.parse("schemathesis, version 4.24.3");
+        assertThat(v.semver()).isEqualTo("4.24.3");
+        assertThat(v.isSupported()).isTrue();
+    }
+
+    @Test
+    void parsesVersionWhenTheBuildAppendsExtraDetail() {
+        SchemathesisVersion v = SchemathesisVersion.parse("st, version 4.24.3 (Python 3.13.1)");
+        assertThat(v.semver()).isEqualTo("4.24.3");
+    }
+
+    @Test
+    void blankVersionOutputIsAClearFailureNotANullPointer() {
+        assertThatThrownBy(() -> SchemathesisVersion.parse("  "))
+                .isInstanceOf(ApiFuzzException.class)
+                .hasMessageContaining("no output");
+    }
 }

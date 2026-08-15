@@ -81,7 +81,8 @@ class ApiFuzzRunnerTest {
     void enabledFalsePerformsZeroProcessExecutions() {
         ApiFuzzProperties props = new ApiFuzzProperties(
                 false, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, null, null, null, null, null, "st", null);
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
         FakeProcessRunner fakeRunner = new FakeProcessRunner();
         SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
         ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
@@ -101,7 +102,8 @@ class ApiFuzzRunnerTest {
         ApiDiscoveryProperties emptyDiscoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of());
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of(), "http://localhost:8080",
-                null, false, null, null, null, null, null, null, "st", null);
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
         FakeProcessRunner fakeRunner = new FakeProcessRunner();
         SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
         FuzzSpecMaterializer materializer = new FuzzSpecMaterializer(emptyDiscoveryProps, resourceLoader, tempDir);
@@ -122,7 +124,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         String cleanNdjson = """
                 {"Initialize": {"schemathesis_version": "4.24.3", "seed": 12345}}
@@ -152,7 +155,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         String findingsNdjson = """
                 {"Initialize": {"schemathesis_version": "4.24.3", "seed": 12345}}
@@ -191,7 +195,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         String errorNdjson = """
                 {"Initialize": {"schemathesis_version": "4.24.3", "seed": 12345}}
@@ -220,7 +225,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         FakeProcessRunner fakeRunner = new FakeProcessRunner()
                 .withRunResult(new ProcessResult(-1, "", "", true));
@@ -245,7 +251,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         FakeProcessRunner fakeRunner = new FakeProcessRunner(); // no NDJSON created
         SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
@@ -269,7 +276,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, null, null, null, null, null, "st", null);
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
 
         String cleanNdjson = """
                 {"Initialize": {"schemathesis_version": "4.24.3", "seed": 999}}
@@ -302,7 +310,8 @@ class ApiFuzzRunnerTest {
         ));
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
-                null, false, null, 12345L, null, null, null, null, "st", null);
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
 
         FakeProcessRunner fakeRunner = new FakeProcessRunner()
                 .withRunResult(new ProcessResult(2, "", "invalid flag", false));

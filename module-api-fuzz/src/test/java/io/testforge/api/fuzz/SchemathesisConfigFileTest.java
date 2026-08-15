@@ -14,7 +14,8 @@ class SchemathesisConfigFileTest {
     @Test
     void defaultPolicyGeneratesConfigFileWithUnexpectedMethodsSuppressed(@TempDir Path tempDir) throws IOException {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, null, false, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, false, null, null, null, null, null, null, null, null,
+                null);
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
         SchemathesisConfigFile writer = new SchemathesisConfigFile();
@@ -32,7 +33,8 @@ class SchemathesisConfigFileTest {
     @Test
     void allowUnsafeMethodsTrueDoesNotSuppressUnexpectedMethods(@TempDir Path tempDir) throws IOException {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null,
+                null);
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
         Path configFile = SchemathesisConfigFile.generate(tempDir, policy);

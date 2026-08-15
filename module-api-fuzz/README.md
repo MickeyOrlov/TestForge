@@ -6,7 +6,7 @@ This module is a **thin adapter** that runs the external [Schemathesis](https://
 
 ## What's inside
 
-- **`ApiFuzzRunner`** — orchestrates the fuzzing process. It runs Schemathesis for every configured spec, writes the report, and provides an `assertHealthy()` method that fails a JUnit job if the fuzzer reports any API findings or execution errors.
+- **`ApiFuzzRunner`** — orchestrates the fuzzing process. It runs Schemathesis for every configured spec, writes the report, and provides `assertHealthy()`. That method always fails on an execution or configuration error; it fails on API *findings* only when `forge.api-fuzz.fail-on-findings=true` (default `false`), for the same reason `module-api-explorer` defaults `fail-on.contract-mismatch` to false — a red build on the first run against an unfamiliar API teaches a team to switch the module off rather than read the report.
 - **`FuzzSafetyPolicy`** — decides what HTTP methods are permitted. `GET`, `HEAD`, and `OPTIONS` need no opt-in; any mutating method needs two mechanisms enabled.
 - **`FuzzSpecMaterializer`** — copies the target OpenAPI document to a temporary file, ensuring Schemathesis runs against the exact specification version TestForge discovered.
 - **`SchemathesisCommand`** / **`SchemathesisConfigFile`** — constructs the safe `st run` arguments and the `schemathesis.toml` configuration required to constrain the coverage phase.
@@ -54,6 +54,7 @@ forge:
     timeout-seconds: 900          # default
     command: st                   # default executable
     config-file:                  # optional user-supplied schemathesis.toml
+    fail-on-findings: false       # default; execution errors always fail
 ```
 
 ## Safety

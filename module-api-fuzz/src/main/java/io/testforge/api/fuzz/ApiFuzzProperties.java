@@ -43,7 +43,8 @@ public record ApiFuzzProperties(
         Integer maxFailures,
         Integer timeoutSeconds,
         String command,
-        String configFile) {
+        String configFile,
+        Boolean failOnFindings) {
 
     /** Methods that may be sent without anyone opting in to anything. */
     public static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
@@ -64,6 +65,10 @@ public record ApiFuzzProperties(
                 : methods.stream().map(value -> value.toUpperCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
         if (allowUnsafeMethods == null) {
             allowUnsafeMethods = false;
+        }
+        if (failOnFindings == null) {
+            // Findings are a result to read, not a build break, until a team opts in.
+            failOnFindings = false;
         }
         if (phases == null || phases.isEmpty()) {
             phases = List.of("coverage", "fuzzing");

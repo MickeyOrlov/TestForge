@@ -82,6 +82,12 @@ public class SchemathesisCommand {
         this.generatedConfigFile = Objects.requireNonNull(generatedConfigFile, "generatedConfigFile cannot be null");
     }
 
+    /** The per-spec directory this run's artifacts belong in. */
+    private Path reportDir() {
+        Path parent = generatedConfigFile.toAbsolutePath().getParent();
+        return parent != null ? parent : Path.of(properties.outputDir());
+    }
+
     /**
      * Builds the argument list for executing Schemathesis.
      *
@@ -140,11 +146,16 @@ public class SchemathesisCommand {
             args.add(String.valueOf(properties.seed()));
         }
 
-        // Reports and reporting directory
+        // Reports go beside this run's generated config, which is already the
+        // per-spec directory. Pointing at the shared forge.api-fuzz.output-dir
+        // instead would resolve relative to the process working directory
+        // (producing an odd nested path), and with an ABSOLUTE output-dir every
+        // spec in a multi-spec run would write its reports over the previous
+        // spec's.
         args.add("--report");
         args.add("junit,ndjson");
         args.add("--report-dir");
-        args.add(properties.outputDir());
+        args.add(reportDir().toString());
 
         // Sanitize output
         args.add("--output-sanitize");

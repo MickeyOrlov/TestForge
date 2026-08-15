@@ -27,6 +27,13 @@ public record FuzzRunEvidence(
         Instant startedAt,
         Duration duration
 ) {
+    /**
+     * Redaction lives in the canonical constructor deliberately. Every
+     * construction path — including future ones, and including tests — then
+     * redacts, so there is no way to build an evidence record that carries
+     * credentials into an artifact. Doing it at the call sites instead would
+     * make the guarantee depend on remembering it.
+     */
     public FuzzRunEvidence {
         targetUrl = UrlRedactor.redact(targetUrl);
     }

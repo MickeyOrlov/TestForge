@@ -12,7 +12,8 @@ class ApiFuzzPropertiesTest {
     @Test
     void defaultsAreSafe() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null);
 
         assertThat(props.enabled()).isFalse();
         assertThat(props.outputDir()).isEqualTo("build/api-fuzz");
@@ -33,7 +34,8 @@ class ApiFuzzPropertiesTest {
     @Test
     void permitsGetByDefault() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null);
 
         assertThat(props.permits("GET")).isTrue();
         assertThat(props.permits("get")).isTrue();
@@ -44,7 +46,8 @@ class ApiFuzzPropertiesTest {
     @Test
     void permitsPostIsFalseWhenPostIsListedButAllowUnsafeMethodsIsFalse() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET", "POST"), false, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET", "POST"), false, null, null, null, null, null, null, null, null,
+                null);
 
         assertThat(props.permits("POST")).isFalse();
     }
@@ -52,18 +55,21 @@ class ApiFuzzPropertiesTest {
     @Test
     void permitsPostIsTrueOnlyWhenPostIsListedAndAllowUnsafeMethodsIsTrue() {
         ApiFuzzProperties props1 = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null,
+                null);
         assertThat(props1.permits("POST")).isTrue();
 
         ApiFuzzProperties props2 = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET"), true, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET"), true, null, null, null, null, null, null, null, null,
+                null);
         assertThat(props2.permits("POST")).isFalse();
     }
 
     @Test
     void unknownPhaseThrows() {
         assertThatThrownBy(() -> new ApiFuzzProperties(
-                null, null, null, null, null, null, List.of("coverage", "unknown"), null, null, null, null, null, null, null))
+                null, null, null, null, null, null, List.of("coverage", "unknown"), null, null, null, null, null, null, null,
+                null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown fuzzing phase: 'unknown'");
     }
@@ -71,7 +77,8 @@ class ApiFuzzPropertiesTest {
     @Test
     void unknownGenerationModeThrows() {
         assertThatThrownBy(() -> new ApiFuzzProperties(
-                null, null, null, null, null, null, null, null, null, "invalid", null, null, null, null))
+                null, null, null, null, null, null, null, null, null, "invalid", null, null, null, null,
+                null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown generationMode: 'invalid'");
     }
@@ -92,7 +99,8 @@ class ApiFuzzPropertiesTest {
                 10,
                 300,
                 "schemathesis",
-                "custom-st.toml");
+                "custom-st.toml",
+                null);
 
         assertThat(props.enabled()).isTrue();
         assertThat(props.outputDir()).isEqualTo("custom/dir");

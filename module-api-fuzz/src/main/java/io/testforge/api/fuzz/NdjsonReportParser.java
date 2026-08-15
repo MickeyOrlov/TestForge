@@ -29,6 +29,8 @@ public class NdjsonReportParser {
         Long seed = null;
         List<ApiFuzzFinding> findings = new ArrayList<>();
         boolean hasNonFatalError = false;
+        int totalScenarios = 0;
+        int failedScenarios = 0;
         Double runningTime = null;
 
         try (BufferedReader reader = Files.newBufferedReader(reportPath)) {
@@ -64,6 +66,10 @@ public class NdjsonReportParser {
                         }
                         break;
                     case "ScenarioFinished":
+                        totalScenarios++;
+                        if (payload.has("status") && "failure".equals(payload.get("status").asText())) {
+                            failedScenarios++;
+                        }
                         processScenarioFinished(payload, findings);
                         break;
                     case "NonFatalError":
@@ -103,8 +109,8 @@ public class NdjsonReportParser {
             schemathesisVersion,
             seed,
             Collections.emptyList(), // phases
-            0, // totalScenarios
-            0, // failedScenarios
+            totalScenarios,
+            failedScenarios,
             findings,
             Collections.emptyList(), // errors
             Collections.emptyMap(), // artifacts

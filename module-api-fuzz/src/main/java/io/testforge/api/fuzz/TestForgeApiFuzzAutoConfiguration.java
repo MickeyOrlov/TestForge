@@ -114,6 +114,6 @@ public class TestForgeApiFuzzAutoConfiguration {
         return new ApiFuzzProperties(
                 p.enabled(), p.outputDir(), p.specs(), resolved, p.methods(), p.allowUnsafeMethods(),
                 p.phases(), p.seed(), p.maxExamples(), p.generationMode(), p.maxFailures(),
-                p.timeoutSeconds(), p.command(), p.configFile());
+                p.timeoutSeconds(), p.command(), p.configFile(), p.failOnFindings());
     }
 }

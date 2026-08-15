@@ -72,9 +72,21 @@ public class ApiFuzzRunner {
         List<ApiFuzzFinding> aggregateFindings = new ArrayList<>();
         List<String> aggregateErrors = new ArrayList<>();
         Map<String, Path> aggregateArtifacts = new HashMap<>();
+        int aggregateTotalScenarios = 0;
+        int aggregateFailedScenarios = 0;
 
         ApiFuzzOutcome overallOutcome = ApiFuzzOutcome.PASSED;
-        String schemathesisVersionString = null;
+
+        // Probed once per run, not once per spec: the executable cannot change
+        // between specs, and a version probe is a whole extra process launch.
+        String schemathesisVersionString;
+        try {
+            schemathesisVersionString = executor.probeVersion().semver();
+        } catch (Exception e) {
+            log.error("Failed to probe Schemathesis version: {}", e.getMessage());
+            return failedRun(runId, seed, startedAt, startTimeMs,
+                    "Failed to probe Schemathesis version: " + e.getMessage());
+        }
 
         for (String specId : specIds) {
             Path specOutputDir = outputDir.resolve(specId);
@@ -115,17 +127,6 @@ public class ApiFuzzRunner {
                 continue;
             }
 
-            SchemathesisVersion version;
-            try {
-                version = executor.probeVersion();
-                schemathesisVersionString = version.semver();
-            } catch (Exception e) {
-                log.error("Failed to probe Schemathesis version: {}", e.getMessage());
-                aggregateErrors.add("Failed to probe Schemathesis version: " + e.getMessage());
-                overallOutcome = maxOutcome(overallOutcome, ApiFuzzOutcome.EXECUTION_ERROR);
-                continue;
-            }
-
             Duration timeout = Duration.ofSeconds(effectiveProperties.timeoutSeconds());
             List<String> argsForExecutor = commandArgs.subList(1, commandArgs.size());
 
@@ -152,6 +153,8 @@ public class ApiFuzzRunner {
                     try {
                         ApiFuzzReport parsedReport = reportParser.parse(reportPath);
                         aggregateArtifacts.put(specId + "/report.ndjson", reportPath);
+                        aggregateTotalScenarios += parsedReport.totalScenarios();
+                        aggregateFailedScenarios += parsedReport.failedScenarios();
 
                         if (parsedReport.findings() != null && !parsedReport.findings().isEmpty()) {
                             aggregateFindings.addAll(parsedReport.findings());
@@ -220,8 +223,8 @@ public class ApiFuzzRunner {
                 schemathesisVersionString,
                 seed,
                 effectiveProperties.phases(),
-                0,
-                aggregateFindings.size(),
+                aggregateTotalScenarios,
+                aggregateFailedScenarios,
                 aggregateFindings,
                 aggregateErrors,
                 aggregateArtifacts,
@@ -229,8 +232,38 @@ public class ApiFuzzRunner {
         );
     }
 
+    /**
+     * A run that could not start at all. Distinct from a spec-level failure:
+     * nothing was executed, so there is nothing to attribute to a spec.
+     */
+    private ApiFuzzReport failedRun(String runId, long seed, Instant startedAt, long startTimeMs, String error) {
+        return new ApiFuzzReport(
+                runId,
+                "",
+                ApiFuzzOutcome.EXECUTION_ERROR,
+                "unknown",
+                seed,
+                properties.phases(),
+                0,
+                0,
+                List.of(),
+                List.of(error),
+                Map.of(),
+                Duration.ofMillis(System.currentTimeMillis() - startTimeMs));
+    }
+
+    /**
+     * Findings do not fail the build by default. The first fuzz run against an
+     * unfamiliar API finds plenty, and a red build on day one teaches a team to
+     * switch the module off rather than to read the report — the same reasoning
+     * {@code module-api-explorer} applies to contract mismatches. A run that
+     * could not be executed is a different matter and always throws.
+     *
+     * <p>Set {@code forge.api-fuzz.fail-on-findings=true} once the first report
+     * has been reviewed.
+     */
     public ApiFuzzReport assertHealthy() {
-        return assertHealthy(false);
+        return assertHealthy(Boolean.TRUE.equals(properties.failOnFindings()));
     }
 
     public ApiFuzzReport assertHealthy(boolean failOnFindings) {
@@ -313,7 +346,8 @@ public class ApiFuzzRunner {
                 props.maxFailures(),
                 props.timeoutSeconds(),
                 props.command(),
-                props.configFile()
+                props.configFile(),
+                props.failOnFindings()
         );
     }
 

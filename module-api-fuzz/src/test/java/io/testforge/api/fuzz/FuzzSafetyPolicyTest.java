@@ -12,7 +12,8 @@ class FuzzSafetyPolicyTest {
     @Test
     void defaultPropertiesPermitOnlySafeMethodsAndSuppressUnexpectedMethods() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null);
 
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
@@ -23,7 +24,8 @@ class FuzzSafetyPolicyTest {
     @Test
     void listingPostWithoutAllowUnsafeMethodsExcludesPost() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET", "POST"), false, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET", "POST"), false, null, null, null, null, null, null, null, null,
+                null);
 
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
@@ -35,7 +37,8 @@ class FuzzSafetyPolicyTest {
     @Test
     void listingPostWithAllowUnsafeMethodsIncludesPostAndDoesNotSuppressUnexpectedMethods() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("GET", "POST"), true, null, null, null, null, null, null, null, null,
+                null);
 
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
@@ -47,7 +50,8 @@ class FuzzSafetyPolicyTest {
     void emptyPermittedMethodsSetThrowsApiFuzzException() {
         // Only POST is listed, but allowUnsafeMethods is false -> permits("POST") is false -> 0 permitted methods
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("POST"), false, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("POST"), false, null, null, null, null, null, null, null, null,
+                null);
 
         assertThatThrownBy(() -> FuzzSafetyPolicy.from(props))
                 .isInstanceOf(ApiFuzzException.class)
@@ -57,7 +61,8 @@ class FuzzSafetyPolicyTest {
     @Test
     void permittedMethodsAreReturnedInStableSortedOrder() {
         ApiFuzzProperties props = new ApiFuzzProperties(
-                null, null, null, null, Set.of("POST", "GET", "DELETE"), true, null, null, null, null, null, null, null, null);
+                null, null, null, null, Set.of("POST", "GET", "DELETE"), true, null, null, null, null, null, null, null, null,
+                null);
 
         FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
 
