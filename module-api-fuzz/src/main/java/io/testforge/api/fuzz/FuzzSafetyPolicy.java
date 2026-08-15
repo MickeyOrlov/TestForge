@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * </ol>
  * Safe methods ({@code GET}, {@code HEAD}, {@code OPTIONS}) are permitted by default when listed.
  *
- * <p><strong>The TRACE Finding & Unexpected Method Suppression:</strong>
+ * <p><strong>The TRACE finding and unexpected-method suppression:</strong>
  * Passing {@code --include-method} to Schemathesis selects which OpenAPI operations are targeted,
  * but Schemathesis's coverage phase (in {@code negative} or {@code all} generation mode) emits
  * "unspecified HTTP method" test cases whose verb is overridden after operation selection.

@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Builds the command line argument list for executing the Schemathesis CLI ({@code st}).
  *
- * <p><strong>Safety & Secret Protection:</strong>
+ * <p><strong>Safety and secret protection:</strong>
  * ABSOLUTELY FORBIDDEN: Do not build {@code -H}, {@code --header}, {@code --auth}, or {@code -a} arguments here.
  * Schemathesis's NDJSON report persists the full command line in its {@code Initialize} event,
  * so any authentication token or secret passed in {@code argv} ends up persisted inside a TestForge artifact.
