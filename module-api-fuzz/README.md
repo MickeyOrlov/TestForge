@@ -4,6 +4,16 @@ Give it an OpenAPI document and an environment; get back a rigorous, schema-awar
 
 This module is a **thin adapter** that runs the external [Schemathesis](https://schemathesis.readthedocs.io/) CLI. Schemathesis owns generation, coverage, negative testing, shrinking, stateful testing, replay, and reporting. TestForge owns configuration, the safety policy, command construction, process execution, report ingestion, and run evidence. **TestForge contains no fuzz engine.**
 
+## What's inside
+
+- **`ApiFuzzRunner`** — orchestrates the fuzzing process. It runs Schemathesis for every configured spec, writes the report, and provides an `assertHealthy()` method that fails a JUnit job if the fuzzer reports any API findings or execution errors.
+- **`FuzzSafetyPolicy`** — decides what HTTP methods are permitted. `GET`, `HEAD`, and `OPTIONS` need no opt-in; any mutating method needs two mechanisms enabled.
+- **`FuzzSpecMaterializer`** — copies the target OpenAPI document to a temporary file, ensuring Schemathesis runs against the exact specification version TestForge discovered.
+- **`SchemathesisCommand`** / **`SchemathesisConfigFile`** — constructs the safe `st run` arguments and the `schemathesis.toml` configuration required to constrain the coverage phase.
+- **`SchemathesisExecutor`** / **`ProcessRunner`** — the execution seam that runs the CLI process and captures its output.
+- **`NdjsonReportParser`** — consumes the NDJSON event stream to classify the outcome since exit codes alone are ambiguous.
+- **`FuzzEvidenceWriter`** / **`FuzzRunEvidence`** — writes and structures run evidence, persisting the exact CLI version, seed, URL (redacted via `UrlRedactor`), and arguments so the run can be reproduced.
+
 ## Installation
 
 Schemathesis is **not** a Gradle/build dependency and is never installed by `./gradlew build`. It must be installed separately. The tested version is 4.24.3.
@@ -19,7 +29,7 @@ Note: The executable installed is `st`.
 
 ## Configuration
 
-Specs are not configured here; the fuzz module reads the registry `module-api-discovery` already owns.
+Specs are not configured here; the fuzz module reads the registry `module-api-discovery` already owns, exactly as `module-api-explorer` and `module-api-codegen` do. One document, one place to point at it.
 
 ```yaml
 forge:
@@ -30,7 +40,7 @@ forge:
   http:
     base-url: https://api.staging.example.test
   api-fuzz:
-    enabled: false                # default; nothing happens until this is true
+    enabled: false                # default; nothing exists until this is true
     output-dir: build/api-fuzz    # default
     specs: []                     # empty = every configured spec
     base-url:                     # optional override for forge.http.base-url
@@ -52,7 +62,7 @@ The safety policy enforces a strict two-key rule: `GET`, `HEAD`, and `OPTIONS` n
 
 Enforcement needs **two** mechanisms, not one. Schemathesis's coverage phase otherwise emits requests with methods that are not in the spec (a GET-only configuration was observed emitting TRACE). TestForge passes `--include-method` to the CLI **and** generates a `schemathesis.toml` with `unexpected-methods = []` under `[phases.coverage]`.
 
-Read [docs/api-fuzz-prototype-analysis.md](../docs/api-fuzz-prototype-analysis.md) for a deeper analysis.
+Read [docs/api-fuzz-prototype-analysis.md](../docs/api-fuzz-prototype-analysis.md) for a deeper analysis of this behaviour.
 
 ## Secrets
 
