@@ -6,4 +6,8 @@ dependencies {
 
     // optional: only AllureResourceAttachments needs it at runtime
     compileOnly libs.allure.java.commons
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
+
