@@ -54,13 +54,10 @@ public class TestForgeApiFuzzAutoConfiguration {
         return new SchemathesisConfigFile();
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public SchemathesisCommand schemathesisCommand(ApiFuzzProperties properties, FuzzSafetyPolicy policy) {
-        // Warning: This bean declaration might be a mistake if the command is meant to be instantiated per run.
-        // We supply dummy paths to satisfy the constructor signature.
-        return new SchemathesisCommand(properties, policy, Paths.get(""), Paths.get(properties.outputDir(), SchemathesisConfigFile.CONFIG_FILENAME));
-    }
+    // No SchemathesisCommand bean: a command is built per spec, per run, from
+    // that run's materialized spec path and generated config file. There is no
+    // meaningful singleton to publish, and one built from placeholder paths
+    // would only be a trap for anyone who injected it.
 
     @Bean
     @ConditionalOnMissingBean
@@ -81,21 +78,42 @@ public class TestForgeApiFuzzAutoConfiguration {
     }
 
     /**
-     * Resolves the target base URL from forge.api-fuzz.base-url, falling back to forge.http.base-url.
-     * This keeps module-api-fuzz independently deletable and free of a second HTTP client.
+     * The target base URL comes from {@code forge.api-fuzz.base-url} and falls
+     * back to {@code forge.http.base-url}. The fallback is read as a property
+     * placeholder rather than by depending on {@code module-http}: this module
+     * makes no JVM HTTP calls — Schemathesis owns the traffic — so pulling in a
+     * REST Assured client only to read one string would cost the module its
+     * independence.
+     *
+     * <p>The runner reads the URL from its properties, so the resolved value is
+     * folded back into the record here rather than passed alongside it.
      */
     @Bean
     @ConditionalOnMissingBean
     public ApiFuzzRunner apiFuzzRunner(
-            ProcessRunner processRunner,
+            FuzzSpecMaterializer specMaterializer,
             SchemathesisExecutor executor,
-            FuzzSafetyPolicy safetyPolicy,
-            SchemathesisConfigFile configFile,
-            SchemathesisCommand command,
             NdjsonReportParser reportParser,
             FuzzEvidenceWriter evidenceWriter,
-            FuzzSpecMaterializer specMaterializer,
+            ApiDiscoveryProperties discoveryProperties,
+            ApiFuzzProperties properties,
             @Value("${forge.api-fuzz.base-url:${forge.http.base-url:}}") String baseUrl) {
-        return new ApiFuzzRunner(processRunner, executor, safetyPolicy, configFile, command, reportParser, evidenceWriter, specMaterializer, baseUrl);
+        return new ApiFuzzRunner(
+                specMaterializer,
+                executor,
+                reportParser,
+                evidenceWriter,
+                discoveryProperties,
+                withBaseUrl(properties, baseUrl));
+    }
+
+    private static ApiFuzzProperties withBaseUrl(ApiFuzzProperties p, String resolved) {
+        if (p.baseUrl() != null && !p.baseUrl().isBlank()) {
+            return p;
+        }
+        return new ApiFuzzProperties(
+                p.enabled(), p.outputDir(), p.specs(), resolved, p.methods(), p.allowUnsafeMethods(),
+                p.phases(), p.seed(), p.maxExamples(), p.generationMode(), p.maxFailures(),
+                p.timeoutSeconds(), p.command(), p.configFile());
     }
 }
