@@ -27,4 +27,16 @@ public class TestForgeReportingAutoConfiguration {
             ReportingProperties properties) {
         return new ResourceUsageMonitorLifecycle(monitor, properties);
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ArtifactManifestWriter artifactManifestWriter() {
+        return new ArtifactManifestWriter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ArtifactSummaryWriter artifactSummaryWriter() {
+        return new ArtifactSummaryWriter();
+    }
 }
