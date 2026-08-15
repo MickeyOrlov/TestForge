@@ -61,24 +61,12 @@ public class ArtifactRunLayout {
         this.runRoot = initializeRunRoot(this.baseDir, this.runId);
     }
 
-    public Path getBaseDir() {
-        return baseDir;
-    }
-
     public Path baseDir() {
         return baseDir;
     }
 
-    public String getRunId() {
-        return runId;
-    }
-
     public String runId() {
         return runId;
-    }
-
-    public Path getRunRoot() {
-        return runRoot;
     }
 
     public Path runRoot() {

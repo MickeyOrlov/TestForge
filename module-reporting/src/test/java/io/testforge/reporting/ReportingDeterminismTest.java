@@ -61,7 +61,9 @@ class ReportingDeterminismTest {
         String tempDirAbsStr = tempDir.toAbsolutePath().normalize().toString();
         assertThat(manifestContent).doesNotContain(tempDirAbsStr);
 
-        // Check each artifact's path and file properties in JSON to ensure all relative paths are clean
+        // Check each artifact's relative path in JSON is clean.
+        // The manifest carries exactly ONE path field: "path". A former duplicate "file"
+        // field held the identical value and was removed — assert it stays gone.
         ObjectMapper mapper = ArtifactManifestWriter.createDefaultObjectMapper();
         JsonNode rootNode = mapper.readTree(manifestFile.toFile());
         JsonNode artifacts = rootNode.get("artifacts");
@@ -69,19 +71,17 @@ class ReportingDeterminismTest {
 
         for (JsonNode artifact : artifacts) {
             String pathStr = artifact.get("path").asText();
-            String fileStr = artifact.get("file").asText();
+
+            assertThat(artifact.get("file"))
+                    .as("manifest must not reintroduce the duplicate 'file' field")
+                    .isNull();
 
             assertThat(Paths.get(pathStr).isAbsolute())
                     .as("Path '%s' must not be absolute", pathStr)
                     .isFalse();
-            assertThat(Paths.get(fileStr).isAbsolute())
-                    .as("File '%s' must not be absolute", fileStr)
-                    .isFalse();
 
             assertThat(pathStr).doesNotContain(":");
             assertThat(pathStr).doesNotStartWith("/");
-            assertThat(fileStr).doesNotContain(":");
-            assertThat(fileStr).doesNotStartWith("/");
         }
     }
 

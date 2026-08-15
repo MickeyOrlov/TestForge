@@ -65,7 +65,7 @@ public class ArtifactManifestWriter {
             log.warn("Cannot write manifest: layout is null");
             return Optional.empty();
         }
-        return write(layout.getRunRoot(), layout.getRunId(), layout, artifacts, reportingProblems);
+        return write(layout.runRoot(), layout.runId(), layout, artifacts, reportingProblems);
     }
 
     public Optional<Path> write(Path runRoot, String runId, List<TestArtifact> artifacts, List<String> reportingProblems) {
@@ -96,7 +96,6 @@ public class ArtifactManifestWriter {
                                 a.source(),
                                 a.category(),
                                 a.name(),
-                                relPath,
                                 relPath,
                                 a.mediaType(),
                                 createdStr,
@@ -160,13 +159,12 @@ public class ArtifactManifestWriter {
             List<ManifestArtifact> artifacts
     ) {}
 
-    @JsonPropertyOrder({"source", "category", "name", "path", "file", "mediaType", "createdAt", "metadata"})
+    @JsonPropertyOrder({"source", "category", "name", "path", "mediaType", "createdAt", "metadata"})
     public record ManifestArtifact(
             String source,
             String category,
             String name,
             String path,
-            String file,
             String mediaType,
             String createdAt,
             Map<String, String> metadata

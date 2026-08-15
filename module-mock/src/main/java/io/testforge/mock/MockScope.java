@@ -8,7 +8,6 @@ import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
-import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.testforge.artifact.ArtifactSink;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -129,32 +128,6 @@ public class MockScope implements AutoCloseable {
             }
         }
         root.put("stubCount", stubs.size());
-
-        List<LoggedRequest> unmatchedRequests = null;
-        try {
-            unmatchedRequests = wireMock.findAllUnmatchedRequests();
-        } catch (Throwable ignored) {
-            // Cheap best-effort query for unmatched requests.
-        }
-
-        ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
-        if (unmatchedRequests != null) {
-            for (LoggedRequest req : unmatchedRequests) {
-                ObjectNode reqNode = unmatchedArray.addObject();
-                if (req.getMethod() != null) {
-                    reqNode.put("method", req.getMethod().getName());
-                }
-                if (req.getUrl() != null) {
-                    reqNode.put("url", req.getUrl());
-                }
-                if (req.getLoggedDate() != null) {
-                    reqNode.put("loggedDate", req.getLoggedDate().toInstant().toString());
-                }
-            }
-            root.put("unmatchedCount", unmatchedRequests.size());
-        } else {
-            root.put("unmatchedCount", 0);
-        }
 
         String jsonContent;
         try {

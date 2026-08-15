@@ -38,10 +38,6 @@ public class RunArtifactSink implements ArtifactSink {
         this.layout = layout != null ? layout : new ArtifactRunLayout();
     }
 
-    public ArtifactRunLayout getLayout() {
-        return layout;
-    }
-
     public ArtifactRunLayout layout() {
         return layout;
     }
@@ -147,10 +143,6 @@ public class RunArtifactSink implements ArtifactSink {
         }
     }
 
-    public List<TestArtifact> getArtifacts() {
-        return artifacts();
-    }
-
     /**
      * Returns an immutable snapshot of all recorded reporting problems.
      *
@@ -163,10 +155,6 @@ public class RunArtifactSink implements ArtifactSink {
             log.warn("Failed to retrieve problems snapshot: {}", t.getMessage(), t);
             return List.of();
         }
-    }
-
-    public List<ReportingProblem> getProblems() {
-        return problems();
     }
 
     private void recordProblem(String operation, Throwable t) {

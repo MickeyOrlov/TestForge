@@ -116,31 +116,39 @@ class MockScopeTest {
     }
 
     @Test
-    void testUnmatchedRequestsIncludedWithoutRawPayloads() throws IOException, InterruptedException {
-        RecordingArtifactSink fakeSink = new RecordingArtifactSink();
-        String scopeId = "scope-unmatched-111";
-        String rawSecretPayload = "SUPER_SECRET_UNMATCHED_INPUT";
+    void testConcurrentScopesDoNotCrossReportUnmatchedRequests() throws IOException, InterruptedException {
+        RecordingArtifactSink fakeSink1 = new RecordingArtifactSink();
+        RecordingArtifactSink fakeSink2 = new RecordingArtifactSink();
+        String scopeId1 = "scope-concurrent-1";
+        String scopeId2 = "scope-concurrent-2";
 
-        try (MockScope scope = new MockScope(wireMock, "$.testScope", scopeId, fakeSink)) {
-            scope.stub(WireMock.get(WireMock.urlPathEqualTo("/api/dummy")).willReturn(WireMock.ok()));
+        try (MockScope scope1 = new MockScope(wireMock, "$.testScope", scopeId1, fakeSink1);
+             MockScope scope2 = new MockScope(wireMock, "$.testScope", scopeId2, fakeSink2)) {
+
+            scope1.stub(WireMock.get(WireMock.urlPathEqualTo("/api/one")).willReturn(WireMock.ok()));
+            scope2.stub(WireMock.get(WireMock.urlPathEqualTo("/api/two")).willReturn(WireMock.ok()));
 
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(wireMockServer.baseUrl() + "/unmatched/endpoint"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"secret\":\"" + rawSecretPayload + "\"}"))
+                    .GET()
                     .build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
         }
 
-        List<TestArtifact> artifacts = fakeSink.registered();
-        assertEquals(1, artifacts.size());
+        List<TestArtifact> artifacts1 = fakeSink1.registered();
+        assertEquals(1, artifacts1.size());
+        String content1 = fakeSink1.contentFor(artifacts1.get(0).name());
+        assertNotNull(content1);
+        assertFalse(content1.contains("/unmatched/endpoint"),
+                "Scope 1 diagnostic artifact MUST NOT report unmatched requests from WireMock");
 
-        String content = fakeSink.contentFor(artifacts.get(0).name());
-        System.out.println("DEBUG UNMATCHED CONTENT: " + content);
-        assertNotNull(content);
-        assertTrue(content.contains("/unmatched/endpoint"), "Diagnostic should contain unmatched request URL path");
-        assertFalse(content.contains(rawSecretPayload), "Diagnostic MUST NOT contain unmatched request raw body payload");
+        List<TestArtifact> artifacts2 = fakeSink2.registered();
+        assertEquals(1, artifacts2.size());
+        String content2 = fakeSink2.contentFor(artifacts2.get(0).name());
+        assertNotNull(content2);
+        assertFalse(content2.contains("/unmatched/endpoint"),
+                "Scope 2 diagnostic artifact MUST NOT report unmatched requests from WireMock");
     }
 
     private static class RecordingArtifactSink implements ArtifactSink {

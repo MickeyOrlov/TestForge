@@ -76,7 +76,7 @@ class ArtifactReportingExampleTest {
         reportingLifecycle.stop();
 
         // 3. Verify the produced run directory layout and files
-        Path runRoot = runLayout.getRunRoot();
+        Path runRoot = runLayout.runRoot();
         Path manifestPath = runRoot.resolve("manifest.json");
         Path summaryPath = runRoot.resolve("summary.md");
         Path artifactFile = runRoot.resolve("module-flow/flow-path-checkout.txt");

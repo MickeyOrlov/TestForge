@@ -40,7 +40,7 @@ public class ArtifactSummaryWriter {
             log.warn("Cannot write summary: layout is null");
             return Optional.empty();
         }
-        return write(layout.getRunRoot(), layout.getRunId(), layout, artifacts, reportingProblems);
+        return write(layout.runRoot(), layout.runId(), layout, artifacts, reportingProblems);
     }
 
     public Optional<Path> write(Path runRoot, String runId, List<TestArtifact> artifacts, List<String> reportingProblems) {
