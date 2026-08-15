@@ -36,7 +36,8 @@ public class ArtifactManifestWriter {
             .comparing(TestArtifact::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(TestArtifact::source, Comparator.nullsFirst(Comparator.naturalOrder()))
             .thenComparing(TestArtifact::category, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::name, Comparator.nullsFirst(Comparator.naturalOrder()));
+            .thenComparing(TestArtifact::name, Comparator.nullsFirst(Comparator.naturalOrder()))
+            .thenComparing(a -> a.file() != null ? a.file().toString() : "", Comparator.nullsFirst(Comparator.naturalOrder()));
 
     private final ObjectMapper mapper;
 
