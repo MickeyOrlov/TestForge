@@ -4,6 +4,9 @@ import io.testforge.api.discovery.ApiDiscoveryProperties;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.Comparator;
+import java.util.Optional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -61,7 +64,7 @@ public class ApiFuzzRunner {
                 ? properties.seed()
                 : Math.abs(ThreadLocalRandom.current().nextLong(1L, Long.MAX_VALUE));
 
-        ApiFuzzProperties effectiveProperties = withSeed(properties, seed);
+        ApiFuzzProperties effectiveProperties = properties.withSeed(seed);
 
         String runId = UUID.randomUUID().toString();
         Instant startedAt = Instant.now();
@@ -150,7 +153,16 @@ public class ApiFuzzRunner {
                 aggregateErrors.add("Schemathesis configuration error (exit code 2): " + result.stderr());
                 specOutcome = ApiFuzzOutcome.CONFIGURATION_ERROR;
             } else {
-                Path reportPath = findNdjsonReport(specOutputDir, outputDir);
+                Path reportPath;
+                try {
+                    reportPath = findNdjsonReport(specOutputDir, outputDir);
+                } catch (ApiFuzzException e) {
+                    // Reading the directory failed. That is an execution problem
+                    // with a real cause, not "no findings" and not "no report".
+                    log.error("{}", e.getMessage());
+                    aggregateErrors.add(e.getMessage());
+                    reportPath = null;
+                }
                 if (reportPath == null || !Files.exists(reportPath)) {
                     log.error("NDJSON report file is missing for spec '{}'", specId);
                     aggregateErrors.add("NDJSON report file is missing for spec '" + specId + "'");
@@ -271,8 +283,21 @@ public class ApiFuzzRunner {
         return assertHealthy(Boolean.TRUE.equals(properties.failOnFindings()));
     }
 
+    /**
+     * Applies the same verdict to a report already in hand. Without this, a
+     * caller that wants to inspect a report before asserting on it has to call
+     * {@link #run()} and then {@link #assertHealthy()}, which fuzzes the API a
+     * second time.
+     */
+    public ApiFuzzReport assertHealthy(ApiFuzzReport report) {
+        return check(report, Boolean.TRUE.equals(properties.failOnFindings()));
+    }
+
     public ApiFuzzReport assertHealthy(boolean failOnFindings) {
-        ApiFuzzReport report = run();
+        return check(run(), failOnFindings);
+    }
+
+    private ApiFuzzReport check(ApiFuzzReport report, boolean failOnFindings) {
         if (report.outcome() == ApiFuzzOutcome.EXECUTION_ERROR || report.outcome() == ApiFuzzOutcome.CONFIGURATION_ERROR) {
             throw new ApiFuzzException("API fuzzing failed with outcome " + report.outcome()
                     + (report.errors().isEmpty() ? "" : ": " + String.join("; ", report.errors())));
@@ -293,34 +318,49 @@ public class ApiFuzzRunner {
         return List.of();
     }
 
+    /**
+     * Locates the NDJSON report Schemathesis just wrote.
+     *
+     * <p>Scanning the directory is the normal path, not a fallback: Schemathesis
+     * names reports with a timestamp ({@code ndjson-20260815T161302Z.ndjson}),
+     * so the fixed {@code report.ndjson} name only appears when a test writes
+     * it. Where several candidates exist — a directory reused across runs — the
+     * newest wins, so a stale report is never parsed as this run's result.
+     *
+     * @throws ApiFuzzException if a directory cannot be read. Swallowing that
+     *     produced the worst possible diagnostic: the caller reported a missing
+     *     report while the real cause (permissions, an I/O error) went unsaid.
+     */
     private Path findNdjsonReport(Path specOutputDir, Path outputDir) {
-        Path reportInSpec = specOutputDir.resolve("report.ndjson");
-        if (Files.exists(reportInSpec)) {
-            return reportInSpec;
-        }
-        Path reportInOutput = outputDir.resolve("report.ndjson");
-        if (Files.exists(reportInOutput)) {
-            return reportInOutput;
-        }
-        if (Files.exists(specOutputDir)) {
-            try (var stream = Files.list(specOutputDir)) {
-                var found = stream.filter(p -> p.toString().endsWith(".ndjson")).findFirst();
-                if (found.isPresent()) {
-                    return found.get();
+        for (Path dir : List.of(specOutputDir, outputDir)) {
+            Path fixedName = dir.resolve("report.ndjson");
+            if (Files.exists(fixedName)) {
+                return fixedName;
+            }
+            if (!Files.isDirectory(dir)) {
+                continue;
+            }
+            try (var stream = Files.list(dir)) {
+                Optional<Path> newest = stream
+                        .filter(p -> p.getFileName().toString().endsWith(".ndjson"))
+                        .max(Comparator.comparing(ApiFuzzRunner::lastModifiedOrEpoch));
+                if (newest.isPresent()) {
+                    return newest.get();
                 }
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                throw new ApiFuzzException(
+                        "Could not read the Schemathesis report directory " + dir + ": " + e.getMessage(), e);
             }
         }
-        if (Files.exists(outputDir)) {
-            try (var stream = Files.list(outputDir)) {
-                var found = stream.filter(p -> p.toString().endsWith(".ndjson")).findFirst();
-                if (found.isPresent()) {
-                    return found.get();
-                }
-            } catch (IOException ignored) {
-            }
+        return null;
+    }
+
+    private static FileTime lastModifiedOrEpoch(Path path) {
+        try {
+            return Files.getLastModifiedTime(path);
+        } catch (IOException e) {
+            return FileTime.fromMillis(0L);
         }
-        return reportInSpec;
     }
 
     private ApiFuzzOutcome maxOutcome(ApiFuzzOutcome o1, ApiFuzzOutcome o2) {
@@ -336,25 +376,6 @@ public class ApiFuzzRunner {
         return ApiFuzzOutcome.PASSED;
     }
 
-    private ApiFuzzProperties withSeed(ApiFuzzProperties props, long seed) {
-        return new ApiFuzzProperties(
-                props.enabled(),
-                props.outputDir(),
-                props.specs(),
-                props.baseUrl(),
-                props.methods(),
-                props.allowUnsafeMethods(),
-                props.phases(),
-                seed,
-                props.maxExamples(),
-                props.generationMode(),
-                props.maxFailures(),
-                props.timeoutSeconds(),
-                props.command(),
-                props.configFile(),
-                props.failOnFindings()
-        );
-    }
 
     private ApiFuzzReport skippedReport() {
         return new ApiFuzzReport(

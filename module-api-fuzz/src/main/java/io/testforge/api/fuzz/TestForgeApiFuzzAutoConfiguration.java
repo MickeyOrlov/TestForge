@@ -104,16 +104,7 @@ public class TestForgeApiFuzzAutoConfiguration {
                 reportParser,
                 evidenceWriter,
                 discoveryProperties,
-                withBaseUrl(properties, baseUrl));
+                properties.withBaseUrl(baseUrl));
     }
 
-    private static ApiFuzzProperties withBaseUrl(ApiFuzzProperties p, String resolved) {
-        if (p.baseUrl() != null && !p.baseUrl().isBlank()) {
-            return p;
-        }
-        return new ApiFuzzProperties(
-                p.enabled(), p.outputDir(), p.specs(), resolved, p.methods(), p.allowUnsafeMethods(),
-                p.phases(), p.seed(), p.maxExamples(), p.generationMode(), p.maxFailures(),
-                p.timeoutSeconds(), p.command(), p.configFile(), p.failOnFindings());
-    }
 }

@@ -16,6 +16,7 @@ import org.springframework.core.io.ResourceLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class ApiFuzzRunnerTest {
 
@@ -379,5 +380,81 @@ class ApiFuzzRunnerTest {
         // The version probe runs once for the whole run, not once per spec.
         assertThat(fakeRunner.executedCommands().stream()
                 .filter(c -> c.contains("--version")).count()).isEqualTo(1L);
+    }
+
+    @Test
+    void unreadableReportDirectoryReportsTheRealCauseNotAMissingFile() throws Exception {
+        // Swallowing the IOException produced the worst possible diagnostic:
+        // "NDJSON report file is missing" while the actual cause (permissions)
+        // went unsaid.
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
+                null, false, null, 7L, null, null, null, null, "st", null,
+                null);
+        // The runner's working directory for the spec; make it unlistable.
+        Path specDir = tempDir.resolve("demo");
+        Files.createDirectories(specDir);
+        assumeTrue(specDir.toFile().setReadable(false, false), "cannot drop read permission here");
+
+        FakeProcessRunner fakeRunner = new FakeProcessRunner();
+        SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "demo", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")
+        ));
+        FuzzSpecMaterializer materializer = new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir);
+        ApiFuzzRunner runner = new ApiFuzzRunner(materializer, executor, reportParser, evidenceWriter, discoveryProps, props);
+
+        try {
+            ApiFuzzReport report = runner.run();
+            assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.EXECUTION_ERROR);
+            assertThat(report.errors()).anySatisfy(e ->
+                    assertThat(e).contains("Could not read the Schemathesis report directory"));
+        } finally {
+            specDir.toFile().setReadable(true, true);
+        }
+    }
+
+    @Test
+    void picksTheNewestReportSoAStaleOneIsNeverParsed() throws Exception {
+        // Schemathesis names reports with a timestamp, so a directory reused
+        // across runs holds several and the fixed "report.ndjson" name never
+        // appears. Only timestamped files here, or the fixed-name lookup would
+        // answer first and this would pass without exercising the ordering.
+        Path dir = tempDir.resolve("demo");
+        Files.createDirectories(dir);
+
+        Path stale = dir.resolve("ndjson-20200101T000000Z.ndjson");
+        Files.writeString(stale, """
+                {"Initialize": {"command": "st run", "schemathesis_version": "4.24.3", "seed": 1}}
+                {"ScenarioFinished": {"status": "failure", "phase": "Fuzzing", "recorder": {"label": "GET /stale", "cases": {"A": {"value": {"method": "GET", "path": "/stale", "id": "A"}}}, "checks": {"A": [{"name": "not_a_server_error", "status": "failure", "failure_info": {"failure": {"type": "X", "message": "stale"}}}]}}}}
+                {"EngineFinished": {"running_time": 0.1}}
+                """);
+        Path fresh = dir.resolve("ndjson-20260101T000000Z.ndjson");
+        Files.writeString(fresh, """
+                {"Initialize": {"command": "st run", "schemathesis_version": "4.24.3", "seed": 7}}
+                {"ScenarioFinished": {"status": "success", "phase": "Fuzzing", "recorder": {"label": "GET /fresh", "cases": {}, "checks": {}}}}
+                {"EngineFinished": {"running_time": 0.1}}
+                """);
+        Files.setLastModifiedTime(stale, java.nio.file.attribute.FileTime.fromMillis(1_000_000L));
+        Files.setLastModifiedTime(fresh, java.nio.file.attribute.FileTime.fromMillis(9_000_000_000L));
+
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
+                null, false, null, 7L, null, null, null, null, "st", null,
+                null);
+        // Writes nothing: the two files above are the only candidates.
+        FakeProcessRunner fakeRunner = new FakeProcessRunner();
+        SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "demo", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")
+        ));
+        FuzzSpecMaterializer materializer = new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir);
+        ApiFuzzRunner runner = new ApiFuzzRunner(materializer, executor, reportParser, evidenceWriter, discoveryProps, props);
+
+        ApiFuzzReport report = runner.run();
+
+        // The stale file declares a failure; the fresh one does not.
+        assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.PASSED);
+        assertThat(report.findings()).isEmpty();
     }
 }

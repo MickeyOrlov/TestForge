@@ -119,4 +119,26 @@ public record ApiFuzzProperties(
         }
         return SAFE_METHODS.contains(normalized) || allowUnsafeMethods;
     }
+
+    /**
+     * Copies with a different seed. Lives here rather than being hand-written at
+     * each call site: this record has fifteen positional components, so every
+     * duplicated copy block is a place where a future component silently keeps
+     * its old value instead of the intended one.
+     */
+    public ApiFuzzProperties withSeed(long newSeed) {
+        return new ApiFuzzProperties(enabled, outputDir, specs, baseUrl, methods, allowUnsafeMethods,
+                phases, newSeed, maxExamples, generationMode, maxFailures, timeoutSeconds,
+                command, configFile, failOnFindings);
+    }
+
+    /** Copies with a resolved base URL, keeping an explicit one untouched. */
+    public ApiFuzzProperties withBaseUrl(String resolved) {
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            return this;
+        }
+        return new ApiFuzzProperties(enabled, outputDir, specs, resolved, methods, allowUnsafeMethods,
+                phases, seed, maxExamples, generationMode, maxFailures, timeoutSeconds,
+                command, configFile, failOnFindings);
+    }
 }
