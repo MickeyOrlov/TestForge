@@ -189,6 +189,40 @@ graph TD
     Clients --> Report
 ```
 
+## Artifact Collection & Reporting Flow
+
+```mermaid
+graph TD
+    Producer["Producer Modules\n(module-flow, module-mock, etc.)"]
+    Sink["ArtifactSink Interface\n(core)"]
+    NoOp["ArtifactSink.NO_OP\n(fallback when disabled)"]
+    RunSink["RunArtifactSink\n(module-reporting)"]
+    Layout["ArtifactRunLayout"]
+    RunDir["Run Root Directory\nbuild/testforge-artifacts/<run-id>/"]
+    ManifestWriter["ArtifactManifestWriter"]
+    SummaryWriter["ArtifactSummaryWriter"]
+    Manifest["manifest.json"]
+    Summary["summary.md"]
+    Allure["Optional Allure Attachments"]
+
+    Producer -->|publishes/registers TestArtifact| Sink
+    RunSink -. implements .-> Sink
+    NoOp -. implements .-> Sink
+    RunSink --> Layout
+    Layout --> RunDir
+    RunSink --> ManifestWriter
+    RunSink --> SummaryWriter
+    ManifestWriter --> Manifest
+    SummaryWriter --> Summary
+    RunSink -. optional .-> Allure
+```
+
+### Architectural Seam & Directional Dependencies
+
+- **Producers depend only on `core`**: Producing modules reference `ArtifactSink` in `core`. They do **not** import or depend on `module-reporting`.
+- **`module-reporting` implements `core`**: `RunArtifactSink` in `module-reporting` implements `ArtifactSink`.
+- **Decoupled execution**: If `module-reporting` is absent or artifact reporting is disabled (`forge.reporting.artifacts.enabled=false`), `ArtifactSink.NO_OP` is provided by `core` or Spring Boot auto-configuration. Producer modules compile and execute without change.
+
 ## Project Philosophy
 
 ```mermaid

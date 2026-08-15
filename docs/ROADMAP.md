@@ -42,7 +42,7 @@ template building blocks.
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
 | `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers. |
-| `module-reporting` | Lightweight resource usage monitor and optional Allure attachment helper. |
+| `module-reporting` | Run-scoped artifact collection, deterministic manifest/summary index, resource usage monitor, and optional Allure attachments. |
 | `module-web` | Playwright-powered environment prewarm, best-effort by design. |
 
 ### Beta
@@ -102,7 +102,7 @@ surface is still expected to evolve.
 - Prepared data pool SPI and `@Prepared` parameter injection.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.
-- Basic JVM resource diagnostics with optional Allure attachment helper.
+- Unified reporting artifacts: run-scoped artifact collection and layout (`ArtifactRunLayout`), deterministic `manifest.json` (`ArtifactManifestWriter`) and `summary.md` (`ArtifactSummaryWriter`) index, `ArtifactSink` core seam, resource monitor, and optional Allure attachments.
 - UI environment prewarm.
 - Playwright page fixture and failure artifacts.
 - Appium session fixture, device matrix, capability mapping, optional node
@@ -126,16 +126,6 @@ issue or branch before being described here as in progress.
 The planned work below follows the existing philosophy: compose established
 tools, keep modules independently removable, and keep the default build
 offline-first.
-
-### Unified Reporting Artifacts
-
-Target module: `module-reporting`
-
-- Introduce a shared artifact/report abstraction for test diagnostics.
-- Keep Allure optional.
-- Collect module outputs such as resource stats, SQL logs, flow paths, mock
-  diagnostics, contract reports, Playwright screenshots, and Appium artifacts
-  into predictable CI directories.
 
 ### Stronger Database Support
 
