@@ -159,5 +159,38 @@ class ArtifactRunLayoutTest {
             Path file = layout.resolveUniqueFile("source", "file.log");
             assertThat(file).isNotNull();
         }).doesNotThrowAnyException();
+
+        // Not-null and no-throw are not enough: Review B (B1-7) showed this test
+        // would still pass if the tmpdir fallback were replaced by a garbage path,
+        // because every accessor merely logs and returns something non-null. Assert
+        // the fallback actually produced a USABLE directory.
+        ArtifactRunLayout layout = new ArtifactRunLayout(tempFile);
+        assertThat(layout.runRoot())
+                .as("failed run root must fall back under java.io.tmpdir")
+                .startsWith(Path.of(System.getProperty("java.io.tmpdir")));
+        assertThat(Files.isDirectory(layout.runRoot()))
+                .as("fallback run root must be a real, writable directory")
+                .isTrue();
+        assertThat(Files.isDirectory(layout.directoryFor("source")))
+                .as("fallback source directory must actually exist")
+                .isTrue();
+    }
+
+    @Test
+    void resolveUniqueFileRefusesADirectoryOutsideTheRunRoot(@TempDir Path baseDir) throws IOException {
+        // Review B (B1-1): the public (Path, String) overload took the caller's
+        // directory as-is, so it would create and write into e.g. /tmp/evil.
+        ArtifactRunLayout layout = new ArtifactRunLayout(baseDir);
+        Path outside = Files.createTempDirectory("testforge-outside");
+        outside.toFile().deleteOnExit();
+
+        Path resolved = layout.resolveUniqueFile(outside, "payload.txt");
+
+        assertThat(resolved)
+                .as("an out-of-root directory must be redirected into the run root")
+                .startsWith(layout.runRoot().toAbsolutePath().normalize());
+        assertThat(Files.exists(outside.resolve("payload.txt")))
+                .as("nothing may be written outside the run root")
+                .isFalse();
     }
 }

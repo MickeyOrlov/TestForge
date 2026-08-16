@@ -165,13 +165,25 @@ public class RunArtifactSink implements ArtifactSink {
     }
 
     private Path fallbackDirectory(String source) {
+        // This runs only when the layout itself failed, so it cannot lean on the
+        // layout's sanitisation — a source of "../../etc" would otherwise resolve
+        // above the run root. The error path must not be the one that escapes.
+        String safeSource = safeSegment(source);
         try {
             if (layout != null && layout.runRoot() != null) {
-                return layout.runRoot().resolve(source != null ? source : "unknown");
+                return layout.runRoot().resolve(safeSource);
             }
         } catch (Throwable ignored) {
         }
-        return Path.of(System.getProperty("java.io.tmpdir"), "testforge-fallback", source != null ? source : "unknown");
+        return Path.of(System.getProperty("java.io.tmpdir"), "testforge-fallback", safeSource);
+    }
+
+    private static String safeSegment(String source) {
+        if (source == null || source.isBlank()) {
+            return "unknown";
+        }
+        String cleaned = source.replaceAll("[^a-zA-Z0-9_.-]", "_");
+        return cleaned.isBlank() || cleaned.replace(".", "").isEmpty() ? "unknown" : cleaned;
     }
 
     private Path fallbackFilePath(String source, String name) {

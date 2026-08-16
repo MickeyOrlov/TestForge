@@ -115,12 +115,20 @@ public class ArtifactRunLayout {
      *
      * <p>Safe for concurrent invocation across threads.
      *
-     * @param directory target directory
+     * <p>The directory is confined to the run root. The sibling
+     * {@code resolveUniqueFile(String, String)} is contained by construction
+     * because it routes through {@link #directoryFor(String)}, but this overload
+     * takes a caller-supplied directory, so it re-applies the same guard: a
+     * reporting API that can be handed {@code /tmp/evil} and will happily create
+     * it is not a diagnostic tool, it is an arbitrary-write primitive.
+     *
+     * @param directory target directory; anything outside the run root is
+     *     ignored in favour of the run root itself
      * @param logicalName desired file name or logical name
      * @return a distinct file path that does not overwrite existing files
      */
     public Path resolveUniqueFile(Path directory, String logicalName) {
-        Path targetDir = directory != null ? directory : runRoot;
+        Path targetDir = contain(directory);
         try {
             Files.createDirectories(targetDir);
         } catch (Exception e) {
@@ -244,6 +252,32 @@ public class ArtifactRunLayout {
                 return candidate;
             }
         }
+    }
+
+    /**
+     * Confines a caller-supplied directory to the run root.
+     *
+     * <p>Returns the run root itself when the argument is null, unusable, or
+     * resolves outside the run root. Nothing here throws: containment is a
+     * safety property, and reporting is best-effort.
+     */
+    private Path contain(Path directory) {
+        if (directory == null) {
+            return runRoot;
+        }
+        try {
+            Path normalizedRoot = runRoot.toAbsolutePath().normalize();
+            Path normalized = directory.toAbsolutePath().normalize();
+            if (normalized.startsWith(normalizedRoot)) {
+                return directory;
+            }
+            log.warn("Target directory {} is outside the run root {}; using the run root instead.",
+                    normalized, normalizedRoot);
+        } catch (Exception e) {
+            log.warn("Could not verify containment of {}: {}. Using the run root instead.",
+                    directory, e.getMessage(), e);
+        }
+        return runRoot;
     }
 
     private static String sanitizeSource(String source) {
