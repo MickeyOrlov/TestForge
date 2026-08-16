@@ -11,9 +11,12 @@ Diagnostics helpers for test runs.
   summary to the current Allure test. Optional: compiled against
   `allure-java-commons` (`compileOnly`), add it to your test module's runtime
   classpath to use this.
+- **`AllureArtifactAttachments.attach(artifact)`** — attaches a `TestArtifact`
+  or collection of artifacts to the current Allure test. Optional: compiled against
+  `allure-java-commons` (`compileOnly`).
 
 The module has no hard dependency on Allure — without it, write
-`ResourceUsageStats` into logs, metrics, or CI artifacts.
+`ResourceUsageStats` or `TestArtifact`s into logs, metrics, or CI artifacts.
 
 ## Configuration
 
@@ -35,6 +38,6 @@ ResourceUsageStats stats = monitor.stop().orElseThrow();
 
 ## Agent notes
 
-- Keep Allure optional (compileOnly); `AllureResourceAttachments` is the only
-  class allowed to touch it.
+- Keep Allure optional (compileOnly); `AllureResourceAttachments` and
+  `AllureArtifactAttachments` are the only classes allowed to touch it.
 - The monitor must never fail a run — diagnostics are best-effort by design.
