@@ -7,7 +7,9 @@ import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
+import com.github.tomakehurst.wiremock.matching.StringValuePattern;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.testforge.artifact.ArtifactSink;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -129,6 +131,8 @@ public class MockScope implements AutoCloseable {
         }
         root.put("stubCount", stubs.size());
 
+        publishScopedUnmatchedRequests(root);
+
         String jsonContent;
         try {
             jsonContent = MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root);
@@ -143,5 +147,62 @@ public class MockScope implements AutoCloseable {
                 "application/json",
                 jsonContent
         );
+    }
+
+    /**
+     * Adds the unmatched requests that belong to THIS scope.
+     *
+     * <p>{@code findAllUnmatchedRequests()} is a SERVER-WIDE query against the shared
+     * WireMock, so it also returns traffic from other concurrent scopes. An earlier version
+     * published that raw list, which meant every scope reported every other scope's unmatched
+     * requests; the block was removed rather than shipped wrong.
+     *
+     * <p>It is restored here by filtering with the scope's OWN matcher — the very same
+     * {@code matchingJsonPath(scopeJsonPath, equalTo(scopeId))} expression {@link #stub}
+     * uses. No new correlation machinery is involved: the marker already exists in the
+     * request body, because that marker is what makes scoped stubbing work at all.
+     *
+     * <p>Requests carrying no marker, or a malformed/non-JSON/empty body, produce a
+     * non-match and are therefore reported in NO scope. That is a deliberate trade: it is
+     * strictly more honest than the old behaviour of reporting them in EVERY scope, at the
+     * cost of a blind spot for untagged traffic.
+     *
+     * <p>The body is read only to evaluate the match and is never stored — only method, url
+     * and loggedDate are recorded, preserving the no-payload guarantee above.
+     */
+    private void publishScopedUnmatchedRequests(ObjectNode root) {
+        ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
+        int count = 0;
+        try {
+            StringValuePattern scopePattern =
+                    WireMock.matchingJsonPath(scopeJsonPath, WireMock.equalTo(scopeId));
+
+            for (LoggedRequest req : wireMock.findAllUnmatchedRequests()) {
+                // Per-request guard: one unreadable body must never suppress the whole
+                // scope's diagnostic.
+                try {
+                    if (!scopePattern.match(req.getBodyAsString()).isExactMatch()) {
+                        continue;
+                    }
+                } catch (Throwable ignored) {
+                    continue;
+                }
+
+                ObjectNode reqNode = unmatchedArray.addObject();
+                if (req.getMethod() != null) {
+                    reqNode.put("method", req.getMethod().getName());
+                }
+                if (req.getUrl() != null) {
+                    reqNode.put("url", req.getUrl());
+                }
+                if (req.getLoggedDate() != null) {
+                    reqNode.put("loggedDate", req.getLoggedDate().toInstant().toString());
+                }
+                count++;
+            }
+        } catch (Throwable ignored) {
+            // Best-effort: diagnostics must never fail a test.
+        }
+        root.put("unmatchedCount", count);
     }
 }

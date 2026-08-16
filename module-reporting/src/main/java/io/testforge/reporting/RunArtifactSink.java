@@ -100,9 +100,13 @@ public class RunArtifactSink implements ArtifactSink {
                     ? targetFile
                     : fallbackFilePath(safeSource, safeName);
 
+            // Sanitised: filesystem exception messages carry ABSOLUTE paths, and this map is
+            // copied verbatim into manifest.json, which would leak the local username.
             Map<String, String> metadata = Map.of(
                     "writeFailed", "true",
-                    "error", t.getMessage() != null ? t.getMessage() : t.getClass().getName()
+                    "error", t.getMessage() != null
+                            ? DiagnosticText.sanitise(t.getMessage())
+                            : t.getClass().getName()
             );
 
             TestArtifact failedArtifact = new TestArtifact(

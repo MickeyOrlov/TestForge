@@ -24,6 +24,9 @@ public record ReportingProblem(
         if (message == null) {
             message = "Unknown reporting problem";
         }
+        // Problems are copied into manifest.json. Filesystem exception messages carry
+        // ABSOLUTE paths, which would leak the local username into CI output.
+        message = DiagnosticText.sanitise(message);
         if (timestamp == null) {
             timestamp = Instant.now();
         }
