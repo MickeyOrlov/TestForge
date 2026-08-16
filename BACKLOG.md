@@ -4,18 +4,25 @@ This backlog tracks the next useful expansions after the current v1 template
 work. It is intentionally product-neutral: no client, employer, or domain
 specific names belong here.
 
-## Priority 1: unified reporting artifacts
+## Priority 1: unified reporting artifacts (abstraction shipped; incremental producer migration)
 
-**Module:** `module-reporting`
+**Module:** `module-reporting` (and producing modules)
 
 Goal: make CI output easy to inspect after a failed run.
 
-- Add a shared `TestArtifactCollector` / `RunReport` abstraction.
-- Collect JSON/Markdown artifacts from modules into one predictable directory.
-- Add optional Allure attachments without making Allure a hard dependency.
-- Include resource usage, SQL logs, flow paths, mock diagnostics, Kafka/contract
-  reports, Playwright screenshots, and Appium screenshots/page source.
-- Keep diagnostics best-effort: reporting must not hide the original failure.
+- **Shipped Core Abstraction & Infrastructure**:
+  - Neutral `ArtifactSink` interface in `core` with `TestArtifact` descriptors and `ArtifactSink.NO_OP` fallback.
+  - Run-scoped directory layout (`ArtifactRunLayout`) with time-sortable run IDs and collision-free file naming.
+  - Thread-safe collector (`RunArtifactSink`) and deterministic `manifest.json` (`ArtifactManifestWriter`) and `summary.md` (`ArtifactSummaryWriter`) generation on context shutdown (`ArtifactReportingLifecycle`).
+  - JVM resource monitor (`ResourceUsageMonitor`) publishing stats via `ArtifactSink`.
+  - Optional Allure attachment helpers (`AllureArtifactAttachments`, `AllureResourceAttachments`).
+  - Best-effort failure semantics and security rules (relative paths only, producer-supplied safe metadata, no payload copying).
+- **Migrated Producer Modules**:
+  - `module-reporting`: resource usage statistics.
+  - `module-flow`: execution path reporting on flow completion or failure.
+  - `module-mock`: scoped mock diagnostics and unmatched request logs.
+- **Remaining Incremental Migration Gap**:
+  - Gradually update remaining diagnostic-producing modules (`module-contract-monitor`, `module-api-discovery`, `module-api-explorer`, `module-api-fuzz`, `module-web-playwright`, `module-mobile-appium`, `module-db`) to inject `ArtifactSink` and register their failure/run artifacts into the unified run layout.
 
 ## Priority 2: stronger database module
 

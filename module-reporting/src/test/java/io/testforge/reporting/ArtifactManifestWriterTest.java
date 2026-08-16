@@ -78,7 +78,7 @@ class ArtifactManifestWriterTest {
         assertThat(node0.get("category").asText()).isEqualTo("flow-path");
         assertThat(node0.get("name").asText()).isEqualTo("trace");
         assertThat(node0.get("path").asText()).isEqualTo("module-flow/trace.json");
-        assertThat(node0.get("file").asText()).isEqualTo("module-flow/trace.json");
+        assertThat(node0.has("file")).isFalse();
         assertThat(node0.get("metadata").get("step").asText()).isEqualTo("1");
     }
 

@@ -34,7 +34,7 @@ class ArtifactReportingLifecycleTest {
         lifecycle.stop();
         assertThat(lifecycle.isRunning()).isFalse();
 
-        Path runRoot = layout.getRunRoot();
+        Path runRoot = layout.runRoot();
         assertThat(Files.exists(runRoot.resolve("manifest.json"))).isTrue();
         assertThat(Files.exists(runRoot.resolve("summary.md"))).isTrue();
     }
@@ -57,7 +57,7 @@ class ArtifactReportingLifecycleTest {
         lifecycle.stop();
         lifecycle.destroy();
 
-        Path runRoot = layout.getRunRoot();
+        Path runRoot = layout.runRoot();
         assertThat(Files.exists(runRoot.resolve("manifest.json"))).isTrue();
         assertThat(Files.exists(runRoot.resolve("summary.md"))).isTrue();
     }

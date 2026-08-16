@@ -1,6 +1,7 @@
 package io.testforge.mock;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.testforge.artifact.ArtifactSink;
 import io.testforge.core.context.ContextKey;
 import io.testforge.core.context.ScenarioContext;
 import io.testforge.core.context.ScenarioKeys;
@@ -30,14 +31,20 @@ public class ScopedMockClient {
 
     private final WireMock wireMock;
     private final String scopeJsonPath;
+    private final ArtifactSink artifactSink;
 
     public ScopedMockClient(WireMock wireMock, String scopeJsonPath) {
+        this(wireMock, scopeJsonPath, ArtifactSink.NO_OP);
+    }
+
+    public ScopedMockClient(WireMock wireMock, String scopeJsonPath, ArtifactSink artifactSink) {
         this.wireMock = wireMock;
         this.scopeJsonPath = scopeJsonPath;
+        this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
     }
 
     public MockScope scope(String scopeId) {
-        return new MockScope(wireMock, scopeJsonPath, scopeId);
+        return new MockScope(wireMock, scopeJsonPath, scopeId, artifactSink);
     }
 
     /**

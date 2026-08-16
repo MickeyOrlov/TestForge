@@ -25,7 +25,7 @@ class ArtifactRunLayoutTest {
         Path customBase = tempDir.resolve("custom-artifacts");
         ArtifactRunLayout layout = new ArtifactRunLayout(customBase);
 
-        Path runRoot = layout.getRunRoot();
+        Path runRoot = layout.runRoot();
 
         assertThat(runRoot).isNotNull();
         assertThat(runRoot.toAbsolutePath().normalize())
@@ -39,9 +39,9 @@ class ArtifactRunLayoutTest {
         String explicitRunId = "pinned-ci-run-12345";
         ArtifactRunLayout layout = new ArtifactRunLayout(tempDir, explicitRunId);
 
-        assertThat(layout.getRunId()).isEqualTo(explicitRunId);
-        assertThat(layout.getRunRoot()).isEqualTo(tempDir.resolve(explicitRunId));
-        assertThat(Files.exists(layout.getRunRoot())).isTrue();
+        assertThat(layout.runId()).isEqualTo(explicitRunId);
+        assertThat(layout.runRoot()).isEqualTo(tempDir.resolve(explicitRunId));
+        assertThat(Files.exists(layout.runRoot())).isTrue();
     }
 
     @Test
@@ -49,16 +49,16 @@ class ArtifactRunLayoutTest {
         ArtifactRunLayout run1 = new ArtifactRunLayout(tempDir);
         ArtifactRunLayout run2 = new ArtifactRunLayout(tempDir);
 
-        assertThat(run1.getRunId()).isNotEqualTo(run2.getRunId());
-        assertThat(run1.getRunRoot()).isNotEqualTo(run2.getRunRoot());
-        assertThat(Files.exists(run1.getRunRoot())).isTrue();
-        assertThat(Files.exists(run2.getRunRoot())).isTrue();
+        assertThat(run1.runId()).isNotEqualTo(run2.runId());
+        assertThat(run1.runRoot()).isNotEqualTo(run2.runRoot());
+        assertThat(Files.exists(run1.runRoot())).isTrue();
+        assertThat(Files.exists(run2.runRoot())).isTrue();
     }
 
     @Test
     void directoryForSanitisesHostileSource(@TempDir Path tempDir) {
         ArtifactRunLayout layout = new ArtifactRunLayout(tempDir);
-        Path runRoot = layout.getRunRoot().toAbsolutePath().normalize();
+        Path runRoot = layout.runRoot().toAbsolutePath().normalize();
 
         Path hostileDir1 = layout.directoryFor("../evil");
         Path hostileDir2 = layout.directoryFor("../../etc/passwd");
@@ -106,7 +106,7 @@ class ArtifactRunLayoutTest {
     @Test
     void relativizeReturnsRelativePathInsideRunRootAndDoesNotThrowOutside(@TempDir Path tempDir) throws IOException {
         ArtifactRunLayout layout = new ArtifactRunLayout(tempDir);
-        Path runRoot = layout.getRunRoot();
+        Path runRoot = layout.runRoot();
 
         Path sourceDir = layout.directoryFor("module-http");
         Path fileInside = layout.resolveUniqueFile(sourceDir, "request.log");
@@ -135,7 +135,7 @@ class ArtifactRunLayoutTest {
         assertThat(layout.relativize((Path) null)).isEqualTo(Paths.get(""));
         assertThat(layout.relativize((String) null)).isEqualTo(Paths.get(""));
 
-        Path runRoot = layout.getRunRoot();
+        Path runRoot = layout.runRoot();
         assertThat(layout.relativize(runRoot)).isEqualTo(Paths.get(""));
     }
 
@@ -151,7 +151,7 @@ class ArtifactRunLayoutTest {
 
         assertThatCode(() -> {
             ArtifactRunLayout layout = new ArtifactRunLayout(tempFile);
-            assertThat(layout.getRunRoot()).isNotNull();
+            assertThat(layout.runRoot()).isNotNull();
 
             Path subDir = layout.directoryFor("source");
             assertThat(subDir).isNotNull();
@@ -159,5 +159,38 @@ class ArtifactRunLayoutTest {
             Path file = layout.resolveUniqueFile("source", "file.log");
             assertThat(file).isNotNull();
         }).doesNotThrowAnyException();
+
+        // Not-null and no-throw are not enough: Review B (B1-7) showed this test
+        // would still pass if the tmpdir fallback were replaced by a garbage path,
+        // because every accessor merely logs and returns something non-null. Assert
+        // the fallback actually produced a USABLE directory.
+        ArtifactRunLayout layout = new ArtifactRunLayout(tempFile);
+        assertThat(layout.runRoot())
+                .as("failed run root must fall back under java.io.tmpdir")
+                .startsWith(Path.of(System.getProperty("java.io.tmpdir")));
+        assertThat(Files.isDirectory(layout.runRoot()))
+                .as("fallback run root must be a real, writable directory")
+                .isTrue();
+        assertThat(Files.isDirectory(layout.directoryFor("source")))
+                .as("fallback source directory must actually exist")
+                .isTrue();
+    }
+
+    @Test
+    void resolveUniqueFileRefusesADirectoryOutsideTheRunRoot(@TempDir Path baseDir) throws IOException {
+        // Review B (B1-1): the public (Path, String) overload took the caller's
+        // directory as-is, so it would create and write into e.g. /tmp/evil.
+        ArtifactRunLayout layout = new ArtifactRunLayout(baseDir);
+        Path outside = Files.createTempDirectory("testforge-outside");
+        outside.toFile().deleteOnExit();
+
+        Path resolved = layout.resolveUniqueFile(outside, "payload.txt");
+
+        assertThat(resolved)
+                .as("an out-of-root directory must be redirected into the run root")
+                .startsWith(layout.runRoot().toAbsolutePath().normalize());
+        assertThat(Files.exists(outside.resolve("payload.txt")))
+                .as("nothing may be written outside the run root")
+                .isFalse();
     }
 }

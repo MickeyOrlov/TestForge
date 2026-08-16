@@ -70,8 +70,8 @@ class TestForgeReportingAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(ArtifactRunLayout.class);
                     ArtifactRunLayout layout = context.getBean(ArtifactRunLayout.class);
-                    assertThat(layout.getBaseDir()).isEqualTo(customDir);
-                    assertThat(layout.getRunId()).isEqualTo(customRunId);
+                    assertThat(layout.baseDir()).isEqualTo(customDir);
+                    assertThat(layout.runId()).isEqualTo(customRunId);
 
                     ArtifactSink sink = context.getBean(ArtifactSink.class);
                     TestArtifact artifact = sink.write("module-test", "diag", "sample.txt", "text/plain", "hello world");
@@ -90,6 +90,28 @@ class TestForgeReportingAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(ArtifactSink.class);
                     assertThat(context.getBean(ArtifactSink.class)).isSameAs(CustomArtifactSinkConfiguration.CUSTOM_SINK);
+                });
+    }
+
+    @Test
+    void userSuppliedArtifactSink_whenEnabled_recordsProblemInManifestOnShutdown(@TempDir Path tempDir) {
+        contextRunner
+                .withPropertyValues(
+                        "forge.reporting.artifacts.enabled=true",
+                        "forge.reporting.artifacts.dir=" + tempDir,
+                        "forge.reporting.artifacts.run-id=foreign-sink-run"
+                )
+                .withUserConfiguration(CustomArtifactSinkConfiguration.class)
+                .run(context -> {
+                    ArtifactReportingLifecycle lifecycle = context.getBean(ArtifactReportingLifecycle.class);
+                    lifecycle.start();
+                    lifecycle.stop();
+
+                    Path manifestPath = tempDir.resolve("foreign-sink-run").resolve("manifest.json");
+                    assertThat(Files.exists(manifestPath)).isTrue();
+                    String manifestContent = Files.readString(manifestPath);
+                    assertThat(manifestContent).contains("reportingProblems");
+                    assertThat(manifestContent).contains("Artifacts could not be collected from foreign sink");
                 });
     }
 

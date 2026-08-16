@@ -1,7 +1,9 @@
 package io.testforge.mock;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import io.testforge.artifact.ArtifactSink;
 import java.net.URI;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,7 +17,7 @@ public class TestForgeMockAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ScopedMockClient scopedMockClient(MockProperties properties) {
+    public ScopedMockClient scopedMockClient(MockProperties properties, ObjectProvider<ArtifactSink> artifactSinkProvider) {
         URI uri = URI.create(properties.baseUrl());
         String scheme = uri.getScheme() == null ? "http" : uri.getScheme();
         int port = uri.getPort() != -1 ? uri.getPort() : ("https".equals(scheme) ? 443 : 80);
@@ -26,6 +28,7 @@ public class TestForgeMockAutoConfiguration {
                 .port(port)
                 .build();
 
-        return new ScopedMockClient(wireMock, properties.scopeJsonPath());
+        ArtifactSink artifactSink = artifactSinkProvider.getIfAvailable(() -> ArtifactSink.NO_OP);
+        return new ScopedMockClient(wireMock, properties.scopeJsonPath(), artifactSink);
     }
 }

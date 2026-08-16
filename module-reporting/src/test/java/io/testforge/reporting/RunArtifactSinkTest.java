@@ -107,7 +107,7 @@ class RunArtifactSinkTest {
 
         // Block the source directory path by placing a file where the directory would be created
         String blockedSource = "blocked-source";
-        Path blockingFile = layout.getRunRoot().resolve(blockedSource);
+        Path blockingFile = layout.runRoot().resolve(blockedSource);
         Files.createFile(blockingFile);
 
         assertThatCode(() -> {

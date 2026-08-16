@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,23 +30,12 @@ public class RunArtifactSink implements ArtifactSink {
 
     private static final Logger log = LoggerFactory.getLogger(RunArtifactSink.class);
 
-    private static final Comparator<TestArtifact> DETERMINISTIC_ARTIFACT_COMPARATOR = Comparator
-            .comparing(TestArtifact::createdAt, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::source, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::category, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(TestArtifact::name, Comparator.nullsFirst(Comparator.naturalOrder()))
-            .thenComparing(a -> a.file() != null ? a.file().toString() : "", Comparator.nullsFirst(Comparator.naturalOrder()));
-
     private final ArtifactRunLayout layout;
     private final Collection<TestArtifact> registeredArtifacts = new ConcurrentLinkedQueue<>();
     private final Collection<ReportingProblem> recordedProblems = new ConcurrentLinkedQueue<>();
 
     public RunArtifactSink(ArtifactRunLayout layout) {
         this.layout = layout != null ? layout : new ArtifactRunLayout();
-    }
-
-    public ArtifactRunLayout getLayout() {
-        return layout;
     }
 
     public ArtifactRunLayout layout() {
@@ -112,9 +100,13 @@ public class RunArtifactSink implements ArtifactSink {
                     ? targetFile
                     : fallbackFilePath(safeSource, safeName);
 
+            // Sanitised: filesystem exception messages carry ABSOLUTE paths, and this map is
+            // copied verbatim into manifest.json, which would leak the local username.
             Map<String, String> metadata = Map.of(
                     "writeFailed", "true",
-                    "error", t.getMessage() != null ? t.getMessage() : t.getClass().getName()
+                    "error", t.getMessage() != null
+                            ? DiagnosticText.sanitise(t.getMessage())
+                            : t.getClass().getName()
             );
 
             TestArtifact failedArtifact = new TestArtifact(
@@ -146,17 +138,13 @@ public class RunArtifactSink implements ArtifactSink {
     public List<TestArtifact> artifacts() {
         try {
             List<TestArtifact> snapshot = new ArrayList<>(registeredArtifacts);
-            snapshot.sort(DETERMINISTIC_ARTIFACT_COMPARATOR);
+            snapshot.sort(ArtifactOrdering.DETERMINISTIC);
             return Collections.unmodifiableList(snapshot);
         } catch (Throwable t) {
             log.warn("Failed to retrieve ordered artifacts snapshot: {}", t.getMessage(), t);
             recordProblem("artifacts", t);
             return List.of();
         }
-    }
-
-    public List<TestArtifact> getArtifacts() {
-        return artifacts();
     }
 
     /**
@@ -173,10 +161,6 @@ public class RunArtifactSink implements ArtifactSink {
         }
     }
 
-    public List<ReportingProblem> getProblems() {
-        return problems();
-    }
-
     private void recordProblem(String operation, Throwable t) {
         try {
             recordedProblems.add(new ReportingProblem(operation, t));
@@ -185,13 +169,25 @@ public class RunArtifactSink implements ArtifactSink {
     }
 
     private Path fallbackDirectory(String source) {
+        // This runs only when the layout itself failed, so it cannot lean on the
+        // layout's sanitisation — a source of "../../etc" would otherwise resolve
+        // above the run root. The error path must not be the one that escapes.
+        String safeSource = safeSegment(source);
         try {
             if (layout != null && layout.runRoot() != null) {
-                return layout.runRoot().resolve(source != null ? source : "unknown");
+                return layout.runRoot().resolve(safeSource);
             }
         } catch (Throwable ignored) {
         }
-        return Path.of(System.getProperty("java.io.tmpdir"), "testforge-fallback", source != null ? source : "unknown");
+        return Path.of(System.getProperty("java.io.tmpdir"), "testforge-fallback", safeSource);
+    }
+
+    private static String safeSegment(String source) {
+        if (source == null || source.isBlank()) {
+            return "unknown";
+        }
+        String cleaned = source.replaceAll("[^a-zA-Z0-9_.-]", "_");
+        return cleaned.isBlank() || cleaned.replace(".", "").isEmpty() ? "unknown" : cleaned;
     }
 
     private Path fallbackFilePath(String source, String name) {

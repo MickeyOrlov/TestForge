@@ -21,7 +21,7 @@ module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
-module-reporting/ ResourceUsageMonitor for CI diagnostics
+module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
 module-web/    PrewarmRunner — warm key pages once per suite
 module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
 module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
@@ -142,8 +142,12 @@ must not replace each other. `example-tests` is never published.
    path; shape checks compose with `module-contract` (await the message, then
    `assertValid` its value) — never reintroduce a hard dependency between the
    two modules.
-16. **module-reporting**: enable `forge.reporting.resource-monitor.enabled` in
-   CI profiles when you need JVM memory/CPU diagnostics for slow or flaky runs.
+16. **module-reporting**: enable `forge.reporting.artifacts.enabled=true` in
+   CI profiles to collect run diagnostics into a unified directory
+   (`build/testforge-artifacts/<run-id>/`) with a `manifest.json` and `summary.md`
+   index. Producing modules publish through the `ArtifactSink` seam in `core`.
+   Turn `forge.reporting.resource-monitor.enabled=true` on for JVM memory/CPU
+   sampling.
 17. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile.
 18. **module-mobile-appium**: put real devices in explicit mobile profiles,
@@ -211,3 +215,4 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
   their wire scalar type in v1. Generated sources are a build artifact and are
   not compiled in the same test phase that creates them.
 - `module-api-fuzz`: `--include-method` alone does not stop the coverage phase from emitting unspecified methods. TestForge also generates a config file to enforce the safety policy.
+- Artifact reporting (`forge.reporting.artifacts.enabled`) and resource usage monitoring (`forge.reporting.resource-monitor.enabled`) are disabled by default (`false`); set `forge.reporting.artifacts.enabled=true` in CI profiles to generate run manifests and summaries. When `module-reporting` is absent or disabled, `ArtifactSink.NO_OP` is active, so producer calls succeed silently without collecting artifacts into a run directory.
