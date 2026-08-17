@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Primary;
 import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DataSourceRegistryAutoConfigurationTest {
 
@@ -71,6 +72,26 @@ class DataSourceRegistryAutoConfigurationTest {
         }
     }
 
+    @Configuration
+    static class TwoPrimaryDataSourcesConfig {
+        @Bean
+        @Primary
+        DataSource dsA() {
+            return createDataSource("jdbc:h2:mem:dsa;DB_CLOSE_DELAY=-1");
+        }
+
+        @Bean
+        @Primary
+        DataSource dsB() {
+            return createDataSource("jdbc:h2:mem:dsb;DB_CLOSE_DELAY=-1");
+        }
+
+        @Bean
+        SchemaValidator schemaValidator() {
+            return new SchemaValidator(dsA());
+        }
+    }
+
     @Test
     void withOneDataSourceBeanResolvesThatBeanAsDefault() {
         contextRunner
@@ -108,4 +129,24 @@ class DataSourceRegistryAutoConfigurationTest {
                     assertThat(registry.resolveDefault()).isSameAs(context.getBean("dsTwo", DataSource.class));
                 });
     }
+
+    @Test
+    void withZeroDataSourceBeansNoRegistryBeanCreated() {
+        contextRunner
+                .run(context -> assertThat(context).doesNotHaveBean(DataSourceRegistry.class));
+    }
+
+    @Test
+    void withTwoPrimaryDataSourcesTreatedAsNoDefault() {
+        contextRunner
+                .withUserConfiguration(TwoPrimaryDataSourcesConfig.class)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(DataSourceRegistry.class);
+                    DataSourceRegistry registry = context.getBean(DataSourceRegistry.class);
+                    assertThatThrownBy(registry::defaultName)
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("Multiple DataSources configured");
+                });
+    }
 }
+
