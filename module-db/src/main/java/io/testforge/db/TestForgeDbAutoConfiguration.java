@@ -63,8 +63,8 @@ public class TestForgeDbAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(DataSource.class)
-    public SchemaValidator schemaValidator(DataSource dataSource) {
-        return new SchemaValidator(dataSource);
+    public SchemaValidator schemaValidator(DataSourceRegistry registry) {
+        return new SchemaValidator(registry);
     }
 
     @Bean
