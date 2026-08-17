@@ -1,5 +1,6 @@
 package io.testforge.db.schema;
 
+import io.testforge.db.datasource.DataSourceRegistry;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -35,13 +36,55 @@ import javax.sql.DataSource;
  * mappings are inspected; inherited fields and custom naming strategies other
  * than camelCase&rarr;snake_case are not resolved. {@code @Embedded} fields
  * are supported, including {@code @AttributeOverride} on the embedding field.
+ *
+ * <p><b>Named datasource example:</b>
+ * <pre>{@code
+ * // Auto-configured bean resolves the default datasource:
+ * schemaValidator.missingColumns(OrderEntity.class);
+ *
+ * // Validate against a specific named datasource:
+ * schemaValidator.forDataSource("auditDataSource")
+ *                .missingColumns(AuditEntry.class);
+ * }</pre>
  */
 public class SchemaValidator {
 
     private final DataSource dataSource;
+    private final DataSourceRegistry registry;
 
     public SchemaValidator(DataSource dataSource) {
         this.dataSource = dataSource;
+        this.registry = null;
+    }
+
+    /**
+     * Creates a registry-backed validator. The default datasource is resolved
+     * lazily when {@link #missingColumns(Class)} is called, so lazily-created
+     * {@code DataSource} beans are not forced early.
+     */
+    public SchemaValidator(DataSourceRegistry registry) {
+        this.dataSource = null;
+        this.registry = registry;
+    }
+
+    /**
+     * Returns a new {@code SchemaValidator} bound to the named datasource.
+     * A {@code null}, empty, or blank name binds the default datasource.
+     *
+     * @throws IllegalArgumentException if the name does not match any
+     *     configured datasource (the message lists the known names)
+     * @throws IllegalStateException if this validator was built with the
+     *     legacy {@link #SchemaValidator(DataSource)} constructor and has
+     *     no {@link DataSourceRegistry}
+     */
+    public SchemaValidator forDataSource(String name) {
+        if (registry == null) {
+            throw new IllegalStateException(
+                    "No DataSourceRegistry is available on this SchemaValidator instance. "
+                            + "Inject the auto-configured SchemaValidator bean instead of "
+                            + "constructing one with SchemaValidator(DataSource).");
+        }
+        return new SchemaValidator(registry.resolve(name));
     }
 
     /**
@@ -138,10 +181,17 @@ public class SchemaValidator {
         return columns;
     }
 
+    private DataSource resolveDataSource() {
+        if (dataSource != null) {
+            return dataSource;
+        }
+        return registry.resolveDefault();
+    }
+
     private Set<String> actualColumns(String table) {
         Set<String> columns = new HashSet<>();
 
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = resolveDataSource().getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
 
             // identifier case differs per vendor: H2 stores upper, Postgres lower
