@@ -305,4 +305,145 @@ class StubMismatchAnalyzerTest {
         assertThat(result.has("closestStub")).isTrue();
         assertThat(result.get("closestStub").get("stubIndex").asInt()).isEqualTo(0);
     }
+
+    @Test
+    void reportsComponentsItCannotEvaluate() {
+        String userSecret = "secretuser";
+        String passSecret = "secretpass";
+        StubMapping stub = WireMock.get(WireMock.urlPathEqualTo("/orders"))
+                .withBasicAuth(userSecret, passSecret)
+                .build();
+
+        LoggedRequest req = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.GET)
+                        .build()
+        );
+
+        ObjectNode result = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), req, "$.scope");
+
+        ArrayNode mismatches = (ArrayNode) result.get("closestStub").get("mismatches");
+        assertThat(mismatches).isNotEmpty();
+        assertThat(mismatches).hasSize(1);
+
+        JsonNode m = mismatches.get(0);
+        assertThat(m.get("component").asText()).isEqualTo("unexplained");
+
+        JsonNode unevaluated = m.get("unevaluatedComponents");
+        assertThat(unevaluated).isNotNull();
+        assertThat(unevaluated.isArray()).isTrue();
+        assertThat(unevaluated.size()).isEqualTo(1);
+        assertThat(unevaluated.get(0).asText()).isEqualTo("basicAuth");
+
+        String serialized = result.toString();
+        assertThat(serialized).doesNotContain(userSecret);
+        assertThat(serialized).doesNotContain(passSecret);
+    }
+
+    @Test
+    void omitsDistanceWhenNoStubCouldBeRanked() {
+        RequestPattern throwingReqPattern = new RequestPattern(request -> {
+            throw new RuntimeException("Simulated matcher error");
+        });
+        StubMapping throwingStub = new StubMapping(throwingReqPattern, new ResponseDefinition());
+
+        LoggedRequest req = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.GET)
+                        .build()
+        );
+
+        ObjectNode result = StubMismatchAnalyzer.analyze(MAPPER, List.of(throwingStub), req, "$.scope");
+
+        JsonNode closestStubNode = result.get("closestStub");
+        assertThat(closestStubNode).isNotNull();
+        assertThat(closestStubNode.get("stubIndex").asInt()).isEqualTo(0);
+        assertThat(closestStubNode.has("distance")).isFalse();
+    }
+
+    @Test
+    void matchesEmptyStringBodyPattern() {
+        StubMapping stub = WireMock.post(WireMock.urlPathEqualTo("/orders"))
+                .withRequestBody(WireMock.equalTo(""))
+                .build();
+
+        LoggedRequest req = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.POST)
+                        .withBody("".getBytes(UTF_8))
+                        .build()
+        );
+
+        ObjectNode result = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), req, "$.scope");
+
+        ArrayNode mismatches = (ArrayNode) result.get("closestStub").get("mismatches");
+        boolean hasBodyMismatch = false;
+        for (JsonNode m : mismatches) {
+            if ("body".equals(m.get("component").asText())) {
+                hasBodyMismatch = true;
+            }
+        }
+        assertThat(hasBodyMismatch).isFalse();
+
+        LoggedRequest reqNoBody = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.POST)
+                        .build()
+        );
+        ObjectNode resultNoBody = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), reqNoBody, "$.scope");
+        ArrayNode mismatchesNoBody = (ArrayNode) resultNoBody.get("closestStub").get("mismatches");
+        boolean hasBodyMismatchNoBody = false;
+        for (JsonNode m : mismatchesNoBody) {
+            if ("body".equals(m.get("component").asText())) {
+                hasBodyMismatchNoBody = true;
+            }
+        }
+        assertThat(hasBodyMismatchNoBody).isTrue();
+    }
+
+    @Test
+    void matchesAbsentBodyPattern() {
+        StubMapping stub = WireMock.post(WireMock.urlPathEqualTo("/orders"))
+                .withRequestBody(WireMock.absent())
+                .build();
+
+        LoggedRequest reqNoBody = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.POST)
+                        .build()
+        );
+
+        ObjectNode resultNoBody = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), reqNoBody, "$.scope");
+
+        ArrayNode mismatchesNoBody = (ArrayNode) resultNoBody.get("closestStub").get("mismatches");
+        boolean hasBodyMismatchNoBody = false;
+        for (JsonNode m : mismatchesNoBody) {
+            if ("body".equals(m.get("component").asText())) {
+                hasBodyMismatchNoBody = true;
+            }
+        }
+        assertThat(hasBodyMismatchNoBody).isFalse();
+
+        LoggedRequest reqWithBody = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.POST)
+                        .withBody("".getBytes(UTF_8))
+                        .build()
+        );
+        ObjectNode resultWithBody = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), reqWithBody, "$.scope");
+        ArrayNode mismatchesWithBody = (ArrayNode) resultWithBody.get("closestStub").get("mismatches");
+        boolean hasBodyMismatchWithBody = false;
+        for (JsonNode m : mismatchesWithBody) {
+            if ("body".equals(m.get("component").asText())) {
+                hasBodyMismatchWithBody = true;
+            }
+        }
+        assertThat(hasBodyMismatchWithBody).isTrue();
+    }
 }
