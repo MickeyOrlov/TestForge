@@ -226,12 +226,12 @@ final class StubMismatchAnalyzer {
         ObjectNode bNode = mismatches.addObject();
         bNode.put("component", "body");
         bNode.put("matcher", pattern.getName());
-        if (pattern instanceof MatchesJsonPathPattern jsonPathPattern) {
-            bNode.put("jsonPath", jsonPathPattern.getExpected());
-        }
-        boolean isScopeMarker = pattern instanceof MatchesJsonPathPattern
+        boolean isScopeMarker = pattern instanceof MatchesJsonPathPattern jsonPathPattern
                 && scopeJsonPath != null
-                && scopeJsonPath.equals(pattern.getExpected());
+                && scopeJsonPath.equals(jsonPathPattern.getExpected());
+        if (isScopeMarker) {
+            bNode.put("jsonPath", scopeJsonPath);
+        }
         bNode.put("scopeMarker", isScopeMarker);
     }
 

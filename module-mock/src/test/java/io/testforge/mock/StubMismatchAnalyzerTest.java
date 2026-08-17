@@ -205,7 +205,7 @@ class StubMismatchAnalyzerTest {
     @Test
     void neverLeaksSecretsFromStubOrRequest() {
         StubMapping stub = WireMock.post(WireMock.urlPathEqualTo("/orders"))
-                .withRequestBody(WireMock.equalToJson("{\"secret\":\"SECRET_STUB_ABC123\"}"))
+                .withRequestBody(WireMock.matchingJsonPath("$.user[?(@.token=='SECRET_STUB_ABC123')]"))
                 .withHeader("X-Token", WireMock.equalTo("SECRET_HEADER_PATTERN"))
                 .build();
 
@@ -224,6 +224,42 @@ class StubMismatchAnalyzerTest {
         assertThat(json).doesNotContain("SECRET_STUB_ABC123");
         assertThat(json).doesNotContain("SECRET_BODY_XYZ789");
         assertThat(json).doesNotContain("SECRET_HEADER_QQQ");
+    }
+
+    @Test
+    void publishesJsonPathOnlyForTheScopeMarker() {
+        String scopePath = "$.scope";
+        String nonScopePath = "$.user[?(@.token=='SECRET_STUB_ABC123')]";
+
+        StubMapping stub = WireMock.post(WireMock.urlPathEqualTo("/orders"))
+                .withRequestBody(WireMock.matchingJsonPath(scopePath, WireMock.equalTo("s1")))
+                .withRequestBody(WireMock.matchingJsonPath(nonScopePath))
+                .build();
+
+        LoggedRequest req = LoggedRequest.createFrom(
+                ImmutableRequest.create()
+                        .withAbsoluteUrl("http://localhost:8080/orders")
+                        .withMethod(RequestMethod.POST)
+                        .withBody("{}".getBytes(UTF_8))
+                        .build()
+        );
+
+        ObjectNode result = StubMismatchAnalyzer.analyze(MAPPER, List.of(stub), req, scopePath);
+
+        ArrayNode mismatches = (ArrayNode) result.get("closestStub").get("mismatches");
+        assertThat(mismatches).hasSize(2);
+
+        JsonNode m0 = mismatches.get(0);
+        assertThat(m0.get("component").asText()).isEqualTo("body");
+        assertThat(m0.get("matcher").asText()).isEqualTo("matchesJsonPath");
+        assertThat(m0.get("jsonPath").asText()).isEqualTo(scopePath);
+        assertThat(m0.get("scopeMarker").asBoolean()).isTrue();
+
+        JsonNode m1 = mismatches.get(1);
+        assertThat(m1.get("component").asText()).isEqualTo("body");
+        assertThat(m1.get("matcher").asText()).isEqualTo("matchesJsonPath");
+        assertThat(m1.has("jsonPath")).isFalse();
+        assertThat(m1.get("scopeMarker").asBoolean()).isFalse();
     }
 
     @Test
