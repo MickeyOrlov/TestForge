@@ -167,8 +167,9 @@ public class MockScope implements AutoCloseable {
      * strictly more honest than the old behaviour of reporting them in EVERY scope, at the
      * cost of a blind spot for untagged traffic.
      *
-     * <p>The body is read only to evaluate the match and is never stored — only method, url
-     * and loggedDate are recorded, preserving the no-payload guarantee above.
+     * <p>The body is read only to evaluate the match and mismatch explanation and is never
+     * stored — only method, url, loggedDate, and non-sensitive mismatch metadata are
+     * recorded, preserving the no-payload guarantee above.
      */
     private void publishScopedUnmatchedRequests(ObjectNode root) {
         ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
@@ -197,6 +198,11 @@ public class MockScope implements AutoCloseable {
                 }
                 if (req.getLoggedDate() != null) {
                     reqNode.put("loggedDate", req.getLoggedDate().toInstant().toString());
+                }
+                try {
+                    reqNode.setAll(StubMismatchAnalyzer.analyze(MAPPER, stubs, req, scopeJsonPath));
+                } catch (Throwable ignored) {
+                    // Best-effort: an unexplainable request still gets its method/url/loggedDate.
                 }
                 count++;
             }

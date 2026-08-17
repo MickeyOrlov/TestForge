@@ -52,6 +52,59 @@ try (MockScope scope = mocks.scope()) {   // generated id
 Pair with `ScenarioContextExtension` so the published id never leaks into the
 next test on a reused worker thread.
 
+## Diagnostics
+
+When a `MockScope` closes, it publishes a JSON diagnostic artifact (`<scopeId>.json`) summarizing registered stubs and scope-attributed unmatched requests. Each unmatched request includes a `closestStub` field explaining why it matched no scoped stub:
+
+```json
+{
+  "scopeId": "scenario-123",
+  "scopeJsonPath": "$.testScope",
+  "stubs": [ ... ],
+  "stubCount": 1,
+  "unmatchedRequests": [
+    {
+      "method": "POST",
+      "url": "/no/such/endpoint",
+      "loggedDate": "2026-08-17T20:00:00Z",
+      "closestStub": {
+        "stubIndex": 0,
+        "id": "a1b2c3d4-...",
+        "name": "my-stub",
+        "distance": 0.25,
+        "mismatches": [
+          {
+            "component": "url",
+            "matcher": "urlPathEqualTo",
+            "expected": "/orders",
+            "actual": "/no/such/endpoint"
+          }
+        ]
+      }
+    }
+  ],
+  "unmatchedCount": 1
+}
+```
+
+If no scoped stubs were registered for the scope, `closestStub` is set to `null` with a `reason`:
+
+```json
+{
+  "closestStub": null,
+  "reason": "no scoped stubs registered"
+}
+```
+
+### Mismatch components and redaction guarantee
+
+Mismatch elements in `mismatches` report differences by component:
+- **`method`** and **`url`**: carry `expected` and `actual` values (both of which the artifact already published).
+- **`body`**: carries structural metadata only (the matcher type name, e.g. `matchesJsonPath`, the `jsonPath` expression if applicable, and a `scopeMarker` boolean).
+- **`header`**, **`queryParam`**, and **`cookie`**: carry the key `name` only.
+
+**Redaction Guarantee:** No request body content, no header, query parameter, or cookie value, no payload length, and no hash is ever written — a hash of a low-entropy body is still a leak.
+
 ## Adapting to a project
 
 Find the field that uniquely ties a downstream request to one scenario — an
