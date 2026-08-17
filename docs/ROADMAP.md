@@ -38,7 +38,7 @@ template building blocks.
 | `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
 | `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`. |
 | `module-data` | Unique values, template rendering, generators, `@Prepared` pool SPI. |
-| `module-db` | `DbWaiter`, repository polling, SQL logging, schema drift checks with documented limits. |
+| `module-db` | `DbWaiter`, repository polling, SQL logging, schema drift checks (missing columns, column type families, nullability) with documented limits. |
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
 | `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers. |
@@ -114,6 +114,10 @@ surface is still expected to evolve.
 - Named datasource selection in `module-db`: `DataSourceRegistry`,
   `DbWaiter.on(name)`, and `SchemaValidator.forDataSource(name)` target an
   explicit database by bean name.
+- Schema drift detection in `module-db`: `SchemaValidator` now covers missing
+  columns, column type family drift, and nullability drift. Type comparison
+  uses `ColumnTypeFamily` (nine broad families); nullability is
+  one-directional by design.
 
 ## In Progress
 
@@ -134,8 +138,10 @@ offline-first.
 
 Target module: `module-db`
 
-- Expand schema drift checks beyond missing columns where it remains practical
-  and dependency-light.
+- Column type family drift and nullability drift are delivered. Remaining:
+  index and foreign-key drift where practical, and resolving inheritance
+  hierarchies and custom naming strategies without pulling the module into
+  heavy ORM internals.
 
 ### Better Mock Failure Diagnostics
 

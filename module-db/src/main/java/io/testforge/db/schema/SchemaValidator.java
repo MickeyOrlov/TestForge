@@ -2,8 +2,10 @@ package io.testforge.db.schema;
 
 import io.testforge.db.datasource.DataSourceRegistry;
 import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
@@ -19,11 +21,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -32,10 +32,16 @@ import javax.sql.DataSource;
  * services migrate their schemas; running this validator per entity (e.g. in a
  * scheduled CI job) turns that silent rot into a readable diff.
  *
- * <p>Limitations (deliberate, to stay dependency-free): only field-level
- * mappings are inspected; inherited fields and custom naming strategies other
- * than camelCase&rarr;snake_case are not resolved. {@code @Embedded} fields
- * are supported, including {@code @AttributeOverride} on the embedding field.
+ * <p>Limitations (deliberate, to stay dependency-free and avoid false positives):
+ * only field-level mappings are inspected; inherited fields and custom naming
+ * strategies other than camelCase&rarr;snake_case are not resolved. {@code @Embedded}
+ * fields are supported, including {@code @AttributeOverride} on the embedding field.
+ * Type comparison is performed by high-level type families (see {@link ColumnTypeFamily});
+ * column length and precision are not compared. Nullability validation detects only
+ * columns where the mapping claims NOT NULL but the database allows NULL. Unresolvable
+ * field types and {@link java.util.UUID} produce no type drift findings (the silence rule).
+ * Relationship columns ({@code @ManyToOne}, {@code @OneToOne}, {@code @JoinColumn})
+ * are skipped for type drift checks.
  *
  * <p><b>Named datasource example:</b>
  * <pre>{@code
@@ -51,6 +57,21 @@ public class SchemaValidator {
 
     private final DataSource dataSource;
     private final DataSourceRegistry registry;
+
+    private record MappedColumn(
+            String name,
+            ColumnTypeFamily family,
+            boolean declaredNotNull,
+            boolean isRelationship,
+            String javaTypeName
+    ) {}
+
+    private record ActualColumn(
+            String name,
+            int jdbcType,
+            String typeName,
+            boolean nullable
+    ) {}
 
     public SchemaValidator(DataSource dataSource) {
         this(dataSource, null);
@@ -101,16 +122,119 @@ public class SchemaValidator {
      */
     public List<String> missingColumns(Class<?> entityClass) {
         String table = tableName(entityClass);
-        Set<String> actual = actualColumns(table);
+        Map<String, ActualColumn> actual = actualColumns(table);
 
         if (actual.isEmpty()) {
             return List.of("table '%s' not found in database".formatted(table));
         }
 
         return expectedColumns(entityClass).stream()
-                .filter(column -> !actual.contains(column.toLowerCase(Locale.ROOT)))
-                .map(column -> "%s.%s".formatted(table, column))
+                .filter(column -> !actual.containsKey(column.name().toLowerCase(Locale.ROOT)))
+                .map(column -> "%s.%s".formatted(table, column.name()))
                 .toList();
+    }
+
+    /**
+     * Detects type family drift between mapped entity fields and existing database columns.
+     * Reports only when both sides resolve to known type families (see {@link ColumnTypeFamily})
+     * and differ. Unresolvable types, {@link java.util.UUID}, and relationship columns are skipped.
+     * Length and precision differences are ignored.
+     *
+     * @param entityClass the entity class to inspect
+     * @return a list of type drift findings, or an empty list if in sync
+     */
+    public List<String> typeDrift(Class<?> entityClass) {
+        String table = tableName(entityClass);
+        Map<String, ActualColumn> actualMap = actualColumns(table);
+
+        if (actualMap.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> drift = new ArrayList<>();
+        for (MappedColumn mapped : expectedColumns(entityClass)) {
+            if (mapped.isRelationship()) {
+                continue;
+            }
+            if (mapped.family() == ColumnTypeFamily.UNKNOWN) {
+                continue;
+            }
+
+            ActualColumn actual = actualMap.get(mapped.name().toLowerCase(Locale.ROOT));
+            if (actual == null) {
+                continue;
+            }
+
+            ColumnTypeFamily dbFamily = ColumnTypeFamily.ofJdbcType(actual.jdbcType());
+            if (dbFamily == ColumnTypeFamily.UNKNOWN) {
+                continue;
+            }
+
+            if (mapped.family() != dbFamily) {
+                String typeName = actual.typeName() != null ? actual.typeName() : String.valueOf(actual.jdbcType());
+                drift.add("%s.%s: mapped as %s (%s) but database column is %s (%s)"
+                        .formatted(table, mapped.name(), mapped.family().name(), mapped.javaTypeName(),
+                                dbFamily.name(), typeName));
+            }
+        }
+        return List.copyOf(drift);
+    }
+
+    /**
+     * Detects nullability drift between mapped entity fields and existing database columns.
+     * Reports only when the mapping explicitly claims NOT NULL (via {@code @Column(nullable=false)},
+     * {@code @JoinColumn(nullable=false)}, {@code @Basic(optional=false)}, or {@code @Id}) but the
+     * database column allows NULL. Silent mappings against database NOT NULL columns produce no findings.
+     *
+     * @param entityClass the entity class to inspect
+     * @return a list of nullability drift findings, or an empty list if in sync
+     */
+    public List<String> nullabilityDrift(Class<?> entityClass) {
+        String table = tableName(entityClass);
+        Map<String, ActualColumn> actualMap = actualColumns(table);
+
+        if (actualMap.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> drift = new ArrayList<>();
+        for (MappedColumn mapped : expectedColumns(entityClass)) {
+            if (!mapped.declaredNotNull()) {
+                continue;
+            }
+
+            ActualColumn actual = actualMap.get(mapped.name().toLowerCase(Locale.ROOT));
+            if (actual == null) {
+                continue;
+            }
+
+            if (actual.nullable()) {
+                drift.add("%s.%s: mapping declares NOT NULL but database column is nullable"
+                        .formatted(table, mapped.name()));
+            }
+        }
+        return List.copyOf(drift);
+    }
+
+    /**
+     * Detects all forms of schema drift for the given entity: missing columns, type family drift,
+     * and nullability drift. Returns the concatenated list of findings from {@link #missingColumns(Class)},
+     * {@link #typeDrift(Class)}, and {@link #nullabilityDrift(Class)}. When the table itself is absent
+     * from the database, returns only the table-not-found message.
+     *
+     * @param entityClass the entity class to inspect
+     * @return a concatenated list of schema drift findings, or an empty list if in sync
+     */
+    public List<String> schemaDrift(Class<?> entityClass) {
+        List<String> missing = missingColumns(entityClass);
+        if (missing.size() == 1 && missing.get(0).contains("not found in database")) {
+            return missing;
+        }
+
+        List<String> combined = new ArrayList<>(missing);
+        combined.addAll(typeDrift(entityClass));
+        combined.addAll(nullabilityDrift(entityClass));
+        return List.copyOf(combined);
     }
 
     String tableName(Class<?> entityClass) {
@@ -121,8 +245,8 @@ public class SchemaValidator {
         return camelToSnake(entityClass.getSimpleName());
     }
 
-    List<String> expectedColumns(Class<?> entityClass) {
-        List<String> columns = new ArrayList<>();
+    List<MappedColumn> expectedColumns(Class<?> entityClass) {
+        List<MappedColumn> columns = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers())
@@ -139,21 +263,39 @@ public class SchemaValidator {
 
             JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
             if (joinColumn != null) {
-                columns.add(joinColumn.name().isBlank()
+                String columnName = joinColumn.name().isBlank()
                         ? camelToSnake(field.getName()) + "_id"
-                        : joinColumn.name());
+                        : joinColumn.name();
+                columns.add(new MappedColumn(
+                        columnName,
+                        ColumnTypeFamily.UNKNOWN,
+                        isDeclaredNotNull(field, null),
+                        true,
+                        field.getType().getSimpleName()));
                 continue;
             }
 
             if (field.isAnnotationPresent(ManyToOne.class) || field.isAnnotationPresent(OneToOne.class)) {
-                columns.add(camelToSnake(field.getName()) + "_id");
+                String columnName = camelToSnake(field.getName()) + "_id";
+                columns.add(new MappedColumn(
+                        columnName,
+                        ColumnTypeFamily.UNKNOWN,
+                        isDeclaredNotNull(field, null),
+                        true,
+                        field.getType().getSimpleName()));
                 continue;
             }
 
             Column column = field.getAnnotation(Column.class);
-            columns.add(column != null && !column.name().isBlank()
+            String columnName = column != null && !column.name().isBlank()
                     ? column.name()
-                    : camelToSnake(field.getName()));
+                    : camelToSnake(field.getName());
+            columns.add(new MappedColumn(
+                    columnName,
+                    ColumnTypeFamily.ofJavaType(field),
+                    isDeclaredNotNull(field, null),
+                    false,
+                    field.getType().getSimpleName()));
         }
 
         return columns;
@@ -163,30 +305,72 @@ public class SchemaValidator {
      * Embeddable fields map onto the owning table; {@code @AttributeOverride}
      * on the embedded field wins over the embeddable's own column names.
      */
-    private List<String> embeddedColumns(Field embeddedField) {
-        Map<String, String> overrides = new HashMap<>();
+    private List<MappedColumn> embeddedColumns(Field embeddedField) {
+        Map<String, Column> overrides = new HashMap<>();
         for (AttributeOverride override : embeddedField.getAnnotationsByType(AttributeOverride.class)) {
-            overrides.put(override.name(), override.column().name());
+            overrides.put(override.name(), override.column());
         }
 
-        List<String> columns = new ArrayList<>();
+        List<MappedColumn> columns = new ArrayList<>();
         for (Field field : embeddedField.getType().getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers()) || field.isAnnotationPresent(Transient.class)) {
                 continue;
             }
 
-            String overridden = overrides.get(field.getName());
-            if (overridden != null && !overridden.isBlank()) {
-                columns.add(overridden);
-                continue;
+            Column overrideColumn = overrides.get(field.getName());
+            String columnName;
+            if (overrideColumn != null && !overrideColumn.name().isBlank()) {
+                columnName = overrideColumn.name();
+            } else {
+                Column column = field.getAnnotation(Column.class);
+                columnName = column != null && !column.name().isBlank()
+                        ? column.name()
+                        : camelToSnake(field.getName());
             }
 
-            Column column = field.getAnnotation(Column.class);
-            columns.add(column != null && !column.name().isBlank()
-                    ? column.name()
-                    : camelToSnake(field.getName()));
+            boolean isRelationship = field.isAnnotationPresent(JoinColumn.class)
+                    || field.isAnnotationPresent(ManyToOne.class)
+                    || field.isAnnotationPresent(OneToOne.class);
+
+            ColumnTypeFamily family = isRelationship
+                    ? ColumnTypeFamily.UNKNOWN
+                    : ColumnTypeFamily.ofJavaType(field);
+
+            columns.add(new MappedColumn(
+                    columnName,
+                    family,
+                    isDeclaredNotNull(field, overrideColumn),
+                    isRelationship,
+                    field.getType().getSimpleName()));
         }
         return columns;
+    }
+
+    private boolean isDeclaredNotNull(Field field, Column overrideColumn) {
+        if (field.isAnnotationPresent(Id.class)) {
+            return true;
+        }
+        // @AttributeOverride REPLACES the embeddable's column mapping, so when
+        // the embedding entity overrides a column, only the override speaks.
+        // Or-ing it with the embeddable's own @Column would report a healthy
+        // overridden-to-nullable schema as "declares NOT NULL" — a false
+        // positive, which is exactly what this feature exists to avoid.
+        if (overrideColumn != null) {
+            return !overrideColumn.nullable();
+        }
+        Column column = field.getAnnotation(Column.class);
+        if (column != null && !column.nullable()) {
+            return true;
+        }
+        JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+        if (joinColumn != null && !joinColumn.nullable()) {
+            return true;
+        }
+        Basic basic = field.getAnnotation(Basic.class);
+        if (basic != null && !basic.optional()) {
+            return true;
+        }
+        return false;
     }
 
     private DataSource resolveDataSource() {
@@ -196,8 +380,8 @@ public class SchemaValidator {
         return registry.resolveDefault();
     }
 
-    private Set<String> actualColumns(String table) {
-        Set<String> columns = new HashSet<>();
+    private Map<String, ActualColumn> actualColumns(String table) {
+        Map<String, ActualColumn> columns = new HashMap<>();
 
         try (Connection connection = resolveDataSource().getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
@@ -207,7 +391,15 @@ public class SchemaValidator {
                     table.toUpperCase(Locale.ROOT), table.toLowerCase(Locale.ROOT))) {
                 try (ResultSet resultSet = metaData.getColumns(null, null, candidate, null)) {
                     while (resultSet.next()) {
-                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
+                        String columnName = resultSet.getString("COLUMN_NAME");
+                        if (columnName != null) {
+                            int dataType = resultSet.getInt("DATA_TYPE");
+                            String typeName = resultSet.getString("TYPE_NAME");
+                            String isNullable = resultSet.getString("IS_NULLABLE");
+                            boolean nullable = "YES".equalsIgnoreCase(isNullable);
+                            columns.put(columnName.toLowerCase(Locale.ROOT),
+                                    new ActualColumn(columnName, dataType, typeName, nullable));
+                        }
                     }
                 }
                 if (!columns.isEmpty()) {
