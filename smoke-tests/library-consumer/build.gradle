@@ -49,6 +49,9 @@ dependencies {
     testImplementation "${testforgeGroup}:module-api-explorer:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-fuzz:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-reporting:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-db:${testforgeVersion}"
+    testImplementation "org.springframework.boot:spring-boot-starter-jdbc:${libs.versions.spring.boot.get()}"
+    testRuntimeOnly "com.h2database:h2:2.3.232"
     testImplementation "org.springframework.boot:spring-boot-starter-test:${libs.versions.spring.boot.get()}"
     testImplementation libs.wiremock
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

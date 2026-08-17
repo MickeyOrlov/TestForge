@@ -7,6 +7,7 @@ answered, but what the services actually persisted.
 
 - **`DbWaiter`** — polls a repository call until the row written by an
   asynchronous backend process appears. The antidote to `Thread.sleep`.
+  Use `on(name)` to target a named datasource.
 - **`RepositoryPollingAspect`** — optional naming-convention wrapper:
   `waitBy...` default repository methods poll the matching `findBy...` query.
 - **`SqlLoggingDataSourcePostProcessor`** — logs every SQL statement tests
@@ -14,6 +15,7 @@ answered, but what the services actually persisted.
 - **`SchemaValidator`** — compares an entity's mapped columns against the real
   database. Catches service migrations that silently break the test
   framework's mappings. Run one test per entity in a scheduled CI job.
+  Use `forDataSource(name)` to validate against a non-default database.
 
 ## Configuration
 
@@ -21,6 +23,7 @@ answered, but what the services actually persisted.
 forge:
   db:
     log-sql: true   # default: false
+    default-datasource: primaryDataSource  # optional; bean name
     repository-polling:
       enabled: true # default: false
 ```
@@ -47,6 +50,42 @@ interface TaskRecordRepository extends JpaRepository<TaskRecord, Long> {
 }
 ```
 
+## Named datasources
+
+Named datasources are ordinary Spring `DataSource` beans, addressed by bean
+name. A project with a single datasource needs no change.
+
+```java
+@Bean
+@Primary
+DataSource primaryDataSource() {
+    return DataSourceBuilder.create()
+            .url("jdbc:postgresql://primary-host/mydb").build();
+}
+
+@Bean
+DataSource auditDataSource() {
+    return DataSourceBuilder.create()
+            .url("jdbc:postgresql://audit-host/auditdb").build();
+}
+```
+
+Usage:
+
+```java
+dbWaiter.on("auditDataSource").awaitRowCount(
+        "audit entry for " + taskId,
+        "SELECT count(*) FROM audit_log WHERE task_id = '" + taskId + "'",
+        1);
+
+assertThat(schemaValidator.forDataSource("auditDataSource")
+        .missingColumns(AuditEntry.class)).isEmpty();
+```
+
+Default resolution order: `forge.db.default-datasource` property if set →
+unique `@Primary` bean → the single `DataSource` bean when exactly one
+exists. A single-datasource project needs no configuration change.
+
 ## Adapting to a project
 
 Add JPA entities + Spring Data repositories for the service tables your tests
@@ -66,3 +105,6 @@ use those (limitations listed in its Javadoc).
 - `waitBy...` repository methods only work with
   `forge.db.repository-polling.enabled: true`; the marker default method must
   throw, never return a stub value.
+- `awaitRow`/`awaitRows` stay datasource-agnostic because they poll a
+  caller-supplied supplier; only `awaitRowCount` and `forDataSource` select a
+  database.
