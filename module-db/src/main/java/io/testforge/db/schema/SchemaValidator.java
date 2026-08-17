@@ -350,6 +350,14 @@ public class SchemaValidator {
         if (field.isAnnotationPresent(Id.class)) {
             return true;
         }
+        // @AttributeOverride REPLACES the embeddable's column mapping, so when
+        // the embedding entity overrides a column, only the override speaks.
+        // Or-ing it with the embeddable's own @Column would report a healthy
+        // overridden-to-nullable schema as "declares NOT NULL" — a false
+        // positive, which is exactly what this feature exists to avoid.
+        if (overrideColumn != null) {
+            return !overrideColumn.nullable();
+        }
         Column column = field.getAnnotation(Column.class);
         if (column != null && !column.nullable()) {
             return true;
@@ -360,9 +368,6 @@ public class SchemaValidator {
         }
         Basic basic = field.getAnnotation(Basic.class);
         if (basic != null && !basic.optional()) {
-            return true;
-        }
-        if (overrideColumn != null && !overrideColumn.nullable()) {
             return true;
         }
         return false;

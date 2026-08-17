@@ -2,8 +2,11 @@ package io.testforge.db.schema;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -35,6 +38,28 @@ class SchemaDriftTest {
 
         @Column(name = "age")
         private Integer age;
+    }
+
+    @Embeddable
+    static class NotNullEmbeddable {
+        @Column(name = "overridden", nullable = false)
+        private String overridden;
+    }
+
+    /**
+     * {@code @AttributeOverride} REPLACES the embeddable's column mapping, so
+     * this entity relaxes the embeddable's NOT NULL to nullable. Or-ing the two
+     * declarations would report this healthy schema as drift.
+     */
+    @Entity
+    @Table(name = "override_nullable_table")
+    static class OverriddenNullableEntity {
+        @Id
+        private Long id;
+
+        @Embedded
+        @AttributeOverride(name = "overridden", column = @Column(name = "overridden"))
+        private NotNullEmbeddable embedded;
     }
 
     @Entity
@@ -168,6 +193,11 @@ class SchemaDriftTest {
                         age INT
                     );
 
+                    CREATE TABLE override_nullable_table (
+                        id BIGINT PRIMARY KEY,
+                        overridden VARCHAR(255)
+                    );
+
                     CREATE TABLE length_diff_table (
                         id BIGINT PRIMARY KEY,
                         code VARCHAR(255)
@@ -279,6 +309,15 @@ class SchemaDriftTest {
                 .contains("type_drift_table.task_id")
                 .contains("mapped as CHARACTER (String)")
                 .contains("database column is INTEGER");
+    }
+
+    @Test
+    @DisplayName("@AttributeOverride relaxing an embeddable's NOT NULL reports nothing")
+    void attributeOverrideRelaxingNotNull_reportsNothing() {
+        // The override replaces the embeddable's column mapping. Treating both
+        // as claims would make a healthy schema look like drift.
+        assertThat(validator.nullabilityDrift(OverriddenNullableEntity.class)).isEmpty();
+        assertThat(validator.schemaDrift(OverriddenNullableEntity.class)).isEmpty();
     }
 
     @Test
