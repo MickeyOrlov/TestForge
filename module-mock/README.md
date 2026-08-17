@@ -96,14 +96,21 @@ If no scoped stubs were registered for the scope, `closestStub` is set to `null`
 }
 ```
 
+If no stub could be ranked (for instance, if matcher execution threw an exception for every candidate stub), the analyzer falls back to the first stub without measuring a distance, and the `distance` field is omitted from `closestStub`.
+
 ### Mismatch components and redaction guarantee
 
 Mismatch elements in `mismatches` report differences by component:
 - **`method`** and **`url`**: carry `expected` and `actual` values (both of which the artifact already published).
-- **`body`**: carries structural metadata only (the matcher type name, e.g. `matchesJsonPath`, the `jsonPath` expression if applicable, and a `scopeMarker` boolean).
+- **`body`**: carries structural metadata only (the matcher type name, e.g. `matchesJsonPath`, the `jsonPath` expression ONLY when the pattern is the scope marker (`scopeMarker: true`), and a `scopeMarker` boolean).
 - **`header`**, **`queryParam`**, and **`cookie`**: carry the key `name` only.
+- **`unexplained`**: appended when all evaluated components match but the stub overall mismatched, carrying `unevaluatedComponents` listing by name only any components set on the stub that the analyzer does not evaluate (e.g. `basicAuth`, `multipart`, `customMatcher`, `host`, `clientIp`, `port`, `pathParams`, `formParams`).
 
 **Redaction Guarantee:** No request body content, no header, query parameter, or cookie value, no payload length, and no hash is ever written — a hash of a low-entropy body is still a leak.
+
+### Distance ranking caveat
+
+The `distance` field represents WireMock's weighted-average distance across request components. Because `MockScope` injects a scope marker matcher into every scoped stub, that marker participates in the body sub-aggregate distance. Distance-based stub ranking is a diagnostic **hint** to assist debugging, not proof of developer intent.
 
 ## Adapting to a project
 

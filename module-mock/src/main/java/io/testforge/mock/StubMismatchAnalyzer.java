@@ -62,11 +62,12 @@ final class StubMismatchAnalyzer {
             }
         }
 
+        boolean distanceMeasured = true;
         if (bestStub == null) {
-            // Fall back to CASE B on the first stub with an empty mismatches array
+            // No stub could be ranked; fall back to stubs.get(0) with no distance published
             bestStub = stubs.get(0);
             bestIndex = 0;
-            minDistance = 1.0;
+            distanceMeasured = false;
         }
 
         ObjectNode closestStubNode = mapper.createObjectNode();
@@ -77,8 +78,10 @@ final class StubMismatchAnalyzer {
         if (bestStub.getName() != null) {
             closestStubNode.put("name", bestStub.getName());
         }
-        double roundedDistance = Math.round(minDistance * 10000.0) / 10000.0;
-        closestStubNode.put("distance", roundedDistance);
+        if (distanceMeasured) {
+            double roundedDistance = Math.round(minDistance * 10000.0) / 10000.0;
+            closestStubNode.put("distance", roundedDistance);
+        }
 
         ArrayNode mismatches = mapper.createArrayNode();
         RequestPattern reqPattern = bestStub.getRequest();
@@ -217,6 +220,38 @@ final class StubMismatchAnalyzer {
             }
         }
 
+        if (mismatches.isEmpty()) {
+            ObjectNode unexplainedNode = mismatches.addObject();
+            unexplainedNode.put("component", "unexplained");
+            ArrayNode unevaluatedArr = unexplainedNode.putArray("unevaluatedComponents");
+            if (reqPattern != null) {
+                if (reqPattern.getBasicAuthCredentials() != null) {
+                    unevaluatedArr.add("basicAuth");
+                }
+                if (reqPattern.getMultipartPatterns() != null && !reqPattern.getMultipartPatterns().isEmpty()) {
+                    unevaluatedArr.add("multipart");
+                }
+                if (reqPattern.hasCustomMatcher()) {
+                    unevaluatedArr.add("customMatcher");
+                }
+                if (reqPattern.getHost() != null) {
+                    unevaluatedArr.add("host");
+                }
+                if (reqPattern.getClientIp() != null) {
+                    unevaluatedArr.add("clientIp");
+                }
+                if (reqPattern.getPort() != null) {
+                    unevaluatedArr.add("port");
+                }
+                if (reqPattern.getPathParameters() != null && !reqPattern.getPathParameters().isEmpty()) {
+                    unevaluatedArr.add("pathParams");
+                }
+                if (reqPattern.getFormParameters() != null && !reqPattern.getFormParameters().isEmpty()) {
+                    unevaluatedArr.add("formParams");
+                }
+            }
+        }
+
         closestStubNode.set("mismatches", mismatches);
         result.set("closestStub", closestStubNode);
         return result;
@@ -241,9 +276,6 @@ final class StubMismatchAnalyzer {
         }
         if (pattern instanceof StringValuePattern stringValuePattern) {
             String bodyStr = request.getBodyAsString();
-            if (bodyStr != null && bodyStr.isEmpty()) {
-                bodyStr = null;
-            }
             MatchResult mr = stringValuePattern.match(bodyStr);
             return mr != null && mr.isExactMatch();
         } else if (pattern instanceof BinaryEqualToPattern binaryEqualToPattern) {
