@@ -53,17 +53,24 @@ public class SchemaValidator {
     private final DataSourceRegistry registry;
 
     public SchemaValidator(DataSource dataSource) {
-        this.dataSource = dataSource;
-        this.registry = null;
+        this(dataSource, null);
     }
 
     /**
      * Creates a registry-backed validator. The default datasource is resolved
-     * lazily when {@link #missingColumns(Class)} is called, so lazily-created
-     * {@code DataSource} beans are not forced early.
+     * on each call to {@link #missingColumns(Class)} rather than being captured
+     * in the constructor.
+     *
+     * <p>Note that the auto-configured {@link DataSourceRegistry} holds
+     * already-instantiated {@code DataSource} beans, so a {@code @Lazy}
+     * datasource is still created when the application context starts.
      */
     public SchemaValidator(DataSourceRegistry registry) {
-        this.dataSource = null;
+        this(null, registry);
+    }
+
+    private SchemaValidator(DataSource dataSource, DataSourceRegistry registry) {
+        this.dataSource = dataSource;
         this.registry = registry;
     }
 
@@ -84,7 +91,8 @@ public class SchemaValidator {
                             + "Inject the auto-configured SchemaValidator bean instead of "
                             + "constructing one with SchemaValidator(DataSource).");
         }
-        return new SchemaValidator(registry.resolve(name));
+        // Keep the registry so the returned view can itself be re-targeted.
+        return new SchemaValidator(registry.resolve(name), registry);
     }
 
     /**

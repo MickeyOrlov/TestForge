@@ -197,6 +197,22 @@ class SchemaValidatorTest {
     // --- forDataSource returns new instance, does not mutate receiver ---
 
     @Test
+    void forDataSource_derivedViewCanBeRetargeted() {
+        Map<String, DataSource> sources = new LinkedHashMap<>();
+        sources.put("primary", primaryDs);
+        sources.put("audit", auditDs);
+        var registry = new DataSourceRegistry(sources, "primary");
+
+        // A view must keep the registry, or re-targeting a derived validator
+        // fails with "no DataSourceRegistry available".
+        SchemaValidator backToPrimary = new SchemaValidator(registry)
+                .forDataSource("audit")
+                .forDataSource("primary");
+
+        assertThat(backToPrimary.missingColumns(OrderEntity.class)).isEmpty();
+    }
+
+    @Test
     void forDataSource_returnsNewInstance() {
         Map<String, DataSource> sources = new LinkedHashMap<>();
         sources.put("primary", primaryDs);

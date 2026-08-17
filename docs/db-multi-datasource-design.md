@@ -169,6 +169,23 @@ is unaffected.
 (same conditions as today). `dbWaiter` takes the registry via `ObjectProvider`,
 so `DbWaiter` still exists in a context with no `DataSource` — as it does today.
 
+### Known trade-off: the registry is built eagerly
+
+The registry bean calls `getBeansOfType(DataSource.class)`, so every
+`DataSource` bean is instantiated when the context starts — including a
+`@Lazy` one. This is not a regression for existing consumers (the previous
+`schemaValidator(DataSource)` bean already forced the single datasource), but a
+multi-datasource consumer who marks an expensive datasource `@Lazy` will see it
+created at startup anyway.
+
+Deferring it would need either a second construction path on the registry
+(a `Map<String, Supplier<DataSource>>`), or dropping `final` from
+`DataSourceRegistry` so Spring could inject a `@Lazy` CGLIB proxy — CGLIB
+cannot subclass a final class. Both were judged out of scope for this feature;
+the immutability of the registry is worth more than deferred instantiation of a
+`DataSource` object, which opens no connections on construction. Revisit if a
+consumer reports a real cost.
+
 ## Test strategy
 
 `module-db` gains its own `src/test` (test-scope dependencies only; nothing is
