@@ -13,8 +13,9 @@ answered, but what the services actually persisted.
 - **`SqlLoggingDataSourcePostProcessor`** — logs every SQL statement tests
   execute (logger `forge.sql`), enabled by `forge.db.log-sql: true`.
 - **`SchemaValidator`** — compares an entity's mapped columns against the real
-  database. Catches service migrations that silently break the test
-  framework's mappings. Run one test per entity in a scheduled CI job.
+  database schema to detect drift: missing columns, column type family drift,
+  and nullability drift. Catches service migrations that silently break the
+  test framework's mappings. Run one test per entity in a scheduled CI job.
   Use `forDataSource(name)` to validate against a non-default database.
 
 ## Configuration
@@ -37,6 +38,37 @@ TaskRecord row = dbWaiter.awaitRow(
 
 assertThat(schemaValidator.missingColumns(TaskRecord.class)).isEmpty();
 ```
+
+### Schema drift detection
+
+`missingColumns` checks column existence only. Use `typeDrift`, `nullabilityDrift`, or the combined `schemaDrift` check:
+
+```java
+assertThat(schemaValidator.typeDrift(TaskRecord.class)).isEmpty();
+assertThat(schemaValidator.nullabilityDrift(TaskRecord.class)).isEmpty();
+assertThat(schemaValidator.schemaDrift(TaskRecord.class)).isEmpty();
+```
+
+Example finding for `typeDrift`:
+
+```
+task_record.amount: mapped as DECIMAL (BigDecimal) but database column is INTEGER (int4)
+```
+
+Example finding for `nullabilityDrift`:
+
+```
+task_record.status: mapping declares NOT NULL but database column is nullable
+```
+
+`schemaDrift` returns the concatenated results of all three checks (`missingColumns`, `typeDrift`, and `nullabilityDrift`). When the table itself is absent, it returns only the table-not-found message.
+
+**Limits** — these are deliberate design decisions, not bugs:
+
+- Types are compared by **FAMILY** (character / integer / decimal / floating / boolean / date / time / timestamp / binary), not by vendor type name, so `varchar` vs `text` is not drift and neither is `varchar(50)` vs `varchar(255)` — length and precision are not compared at all.
+- Nullability reports only **ONE direction**: mapping claims NOT NULL while the database allows NULL. The other direction is undetectable, because JPA's `nullable = true` is the annotation default and reflection cannot tell "the author wrote `nullable = true`" from "the author wrote nothing". Say this explicitly — a mapping that says nothing about nullability is a non-statement and is never reported.
+- UUID and any unresolvable field type are silent by design (UUID storage is vendor-specific), as are relationship columns for type drift.
+- Why: a drift check that reports forty findings against a healthy schema gets switched off within a week, and then reports nothing forever.
 
 Optional repository convention:
 
@@ -108,3 +140,5 @@ use those (limitations listed in its Javadoc).
 - `awaitRow`/`awaitRows` stay datasource-agnostic because they poll a
   caller-supplied supplier; only `awaitRowCount` and `forDataSource` select a
   database.
+- `missingColumns` keeps its old narrow meaning and does NOT return type or nullability findings — use `schemaDrift` for everything.
+

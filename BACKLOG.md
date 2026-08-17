@@ -30,11 +30,11 @@ Goal: make CI output easy to inspect after a failed run.
 
 Goal: make gray-box DB checks comfortable for multi-service systems.
 
-- Add a named datasource registry for projects with several service databases.
-- Support `DbWaiter` and `SchemaValidator` against an explicit datasource.
-- Expand schema drift checks beyond missing columns:
-  - column type drift;
-  - nullable drift;
+- ~~Add a named datasource registry for projects with several service databases.~~ Done.
+- ~~Support `DbWaiter` and `SchemaValidator` against an explicit datasource.~~ Done.
+- Expand schema drift checks beyond missing columns, column type families, and nullability:
+  - ~~column type drift;~~ Done.
+  - ~~nullable drift;~~ Done.
   - indexes and foreign keys where practical.
 - Decide how to support inheritance and custom naming strategies without
   pulling the module into heavy ORM internals.
