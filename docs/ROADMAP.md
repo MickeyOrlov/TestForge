@@ -111,6 +111,9 @@ surface is still expected to evolve.
   guidance.
 - Schema-aware API fuzzing adapter: safely configures and orchestrates the
   Schemathesis CLI without building a custom fuzz engine.
+- Named datasource selection in `module-db`: `DataSourceRegistry`,
+  `DbWaiter.on(name)`, and `SchemaValidator.forDataSource(name)` target an
+  explicit database by bean name.
 
 ## In Progress
 
@@ -131,8 +134,6 @@ offline-first.
 
 Target module: `module-db`
 
-- Add named datasource support for multi-service test suites.
-- Allow `DbWaiter` and `SchemaValidator` to target an explicit datasource.
 - Expand schema drift checks beyond missing columns where it remains practical
   and dependency-light.
 
