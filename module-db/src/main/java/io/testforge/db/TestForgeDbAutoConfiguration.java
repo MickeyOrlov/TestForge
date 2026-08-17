@@ -9,6 +9,7 @@ import io.testforge.db.repository.RepositoryPollingProperties;
 import io.testforge.db.schema.SchemaValidator;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -56,8 +57,8 @@ public class TestForgeDbAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DbWaiter dbWaiter(Waiter waiter) {
-        return new DbWaiter(waiter);
+    public DbWaiter dbWaiter(Waiter waiter, ObjectProvider<DataSourceRegistry> registry) {
+        return new DbWaiter(waiter, registry.getIfAvailable());
     }
 
     @Bean
