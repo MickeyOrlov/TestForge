@@ -81,4 +81,3 @@ public class TestForgeDbAutoConfiguration {
         return new RepositoryPollingAspect(dbWaiter);
     }
 }
-
