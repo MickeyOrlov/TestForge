@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Runs the database contract check end to end: inspect, snapshot, diff,
@@ -38,6 +40,8 @@ import javax.sql.DataSource;
  * }</pre>
  */
 public class DbContractRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DbContractRunner.class);
 
     private static final String SOURCE = "module-db-contract";
 
@@ -120,6 +124,11 @@ public class DbContractRunner {
                     properties.schema(), false, true, DbCompatibility.NON_BREAKING,
                     0, 0, 0, 0, List.of(), baselineFile.toString(), currentSnapshotFile.toString(),
                     reportJson.toString(), reportMarkdown.toString());
+            // A disabled check passes, by design. Say so out loud: a green gate and
+            // a gate that never ran are indistinguishable to the caller, and a
+            // misspelled property should not read as "the schema is fine".
+            log.warn("Database contract check is disabled (forge.db-contract.enabled=false); "
+                    + "no schema was inspected and no comparison was made.");
             writeReports(disabled, reportJson, reportMarkdown);
             return disabled;
         }
@@ -128,6 +137,13 @@ public class DbContractRunner {
         snapshotStore.write(currentSnapshotFile, current);
 
         boolean baselinePresent = Files.exists(baselineFile);
+        if (!baselinePresent) {
+            // Same reasoning as the disabled path: passing because there is nothing
+            // to compare against must not look like passing because nothing broke.
+            log.warn("No baseline snapshot at {} — the database contract check passed without "
+                    + "comparing anything. Promote the captured snapshot with writeBaseline() "
+                    + "to start gating on it.", baselineFile);
+        }
         List<DbChangeAssessment> assessments = baselinePresent
                 ? assess(snapshotStore.read(baselineFile), current)
                 : List.of();
