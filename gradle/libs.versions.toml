@@ -14,6 +14,9 @@ appium = "10.1.1"
 allure = "2.35.2"
 # 2.x line: artifacts renamed to testcontainers-<module>, classes in org.testcontainers.<module>
 testcontainers = "2.0.5"
+# Maven jars ship without bundled JDBC drivers and are dual/tri-licensed
+# (EPL-2.0 / GPL-3.0 / LGPL-3.0); the GPL-only terms cover the CLI distributions
+schemacrawler = "17.12.2"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -29,3 +32,4 @@ allure-java-commons = { module = "io.qameta.allure:allure-java-commons", version
 allure-junit5 = { module = "io.qameta.allure:allure-junit5", version.ref = "allure" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
