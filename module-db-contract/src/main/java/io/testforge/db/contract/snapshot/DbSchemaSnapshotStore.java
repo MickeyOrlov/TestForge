@@ -1,7 +1,9 @@
 package io.testforge.db.contract.snapshot;
 
+import com.fasterxml.jackson.core.util.DefaultIndenter;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,18 +18,34 @@ import java.nio.file.Path;
  * and the snapshot itself carries no timestamps, so re-capturing an unchanged
  * schema produces a byte-identical file. A committed baseline therefore shows up
  * in a git diff exactly when the database contract moved.
+ *
+ * <p>Line endings are pinned to {@code \n} rather than taken from the platform.
+ * Jackson's default indenter and {@code System.lineSeparator()} both follow the
+ * host OS, which would rewrite every line of a baseline the first time it was
+ * captured on Windows — a whole-file git diff for a schema that never moved.
+ * "Byte-identical" has to hold across the machines a team actually runs on, not
+ * only across runs on one of them.
  */
 public final class DbSchemaSnapshotStore {
 
+    /** Two-space indent, LF line endings, on every platform. */
+    private static final DefaultIndenter INDENTER = new DefaultIndenter("  ", "\n");
+
+    private static final String NEWLINE = "\n";
+
     private final ObjectMapper objectMapper;
+    private final ObjectWriter writer;
 
     public DbSchemaSnapshotStore() {
         this(new ObjectMapper());
     }
 
     public DbSchemaSnapshotStore(ObjectMapper objectMapper) {
-        this.objectMapper = (objectMapper == null ? new ObjectMapper() : objectMapper.copy())
-                .enable(SerializationFeature.INDENT_OUTPUT);
+        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper.copy();
+        DefaultPrettyPrinter prettyPrinter = new DefaultPrettyPrinter();
+        prettyPrinter.indentObjectsWith(INDENTER);
+        prettyPrinter.indentArraysWith(INDENTER);
+        this.writer = this.objectMapper.writer(prettyPrinter);
     }
 
     /**
@@ -38,7 +56,7 @@ public final class DbSchemaSnapshotStore {
      */
     public String toJson(DbSchemaSnapshot snapshot) {
         try {
-            return objectMapper.writeValueAsString(snapshot) + System.lineSeparator();
+            return writer.writeValueAsString(snapshot) + NEWLINE;
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to serialize schema snapshot", e);
         }

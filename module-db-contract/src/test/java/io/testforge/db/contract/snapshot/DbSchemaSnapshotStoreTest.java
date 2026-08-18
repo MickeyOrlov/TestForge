@@ -71,7 +71,24 @@ class DbSchemaSnapshotStoreTest {
                 .doesNotContain("generatedAt")
                 .doesNotContain("timestamp")
                 .contains("\"formatVersion\" : 1")
-                .endsWith(System.lineSeparator());
+                .endsWith("\n");
+    }
+
+    @Test
+    void snapshotsUseLfLineEndingsOnEveryPlatform(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("snapshot.json");
+        store.write(file, SNAPSHOT);
+
+        String json = store.toJson(SNAPSHOT);
+        String written = Files.readString(file);
+
+        // Jackson's default indenter and System.lineSeparator() both follow the
+        // host OS. If either creeps back in, a baseline captured on Linux and
+        // re-captured on Windows differs on every single line.
+        assertThat(json).doesNotContain("\r");
+        assertThat(written).doesNotContain("\r");
+        assertThat(json).endsWith("}\n");
+        assertThat(json.lines().count()).isGreaterThan(1);
     }
 
     @Test
