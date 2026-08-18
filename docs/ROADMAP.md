@@ -54,6 +54,7 @@ depend on opt-in runtime integrations.
 |---|---|
 | `module-contract-monitor` | JUnit-friendly Kafka contract drift monitor with shape snapshots, baseline diffs, and reports. |
 | `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks. |
+| `module-db-contract` | Schema snapshot, bounded diff, and compatibility classification (`BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN`) with a CI gate. Reading is delegated to SchemaCrawler; the model, diff, policy and report belong to TestForge. |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
@@ -118,6 +119,10 @@ surface is still expected to evolve.
   columns, column type family drift, and nullability drift. Type comparison
   uses `ColumnTypeFamily` (nine broad families); nullability is
   one-directional by design.
+- Database contract checks in `module-db-contract`: deterministic schema
+  snapshots, a bounded snapshot-to-snapshot diff covering tables, columns,
+  primary keys, foreign keys and indexes, and a compatibility policy that tells
+  CI whether a change breaks consumers. Proven against real PostgreSQL.
 
 ## In Progress
 
@@ -138,10 +143,14 @@ offline-first.
 
 Target module: `module-db`
 
-- Column type family drift and nullability drift are delivered. Remaining:
-  index and foreign-key drift where practical, and resolving inheritance
-  hierarchies and custom naming strategies without pulling the module into
-  heavy ORM internals.
+- Column type family drift and nullability drift are delivered. Index and
+  foreign-key comparison now exists in `module-db-contract`, but between two
+  database snapshots, not between JPA mappings and the database. Remaining for
+  `SchemaValidator`: index and foreign-key drift against entity mappings where
+  practical, and resolving inheritance hierarchies and custom naming strategies
+  without pulling the module into heavy ORM internals. Whether the two modules
+  should share internals is a question for after `module-db-contract` has
+  proven itself.
 
 ### Better Mock Failure Diagnostics
 

@@ -1,0 +1,21 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    // DataSourceRegistry (named datasource resolution) and ColumnTypeFamily
+    // (the type taxonomy SchemaValidator already uses) are reused rather than
+    // duplicated; the dependency deliberately points this way only, so a
+    // project that just wants DbWaiter never sees SchemaCrawler.
+    api project(":module-db")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    // implementation, not api: SchemaCrawler types never appear in this
+    // module's public API — the normalized model is the anti-corruption layer
+    implementation libs.schemacrawler
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.springframework.boot:spring-boot-starter-jdbc"
+    testRuntimeOnly "com.h2database:h2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
