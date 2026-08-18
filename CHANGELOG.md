@@ -20,7 +20,10 @@ semantic versioning for its git tags.
   pinned to `\n` so a baseline is byte-identical across the platforms a team
   runs on, and foreign keys leaving the inspected schema record their target as
   `schema.table` so retargeting between same-named tables in two schemas is not
-  invisible. `report.json` and
+  invisible. PostgreSQL partitioned parents are part of the contract rather than
+  invisible to it, and identity columns count as database-supplied so adding one
+  is not misreported as breaking. A run that compared nothing — because the check
+  is disabled or no baseline exists — says so at WARN instead of passing silently. `report.json` and
   `report.md` are written under `build/db-contract` and registered with
   `ArtifactSink`; `assertCompatible()` is the CI gate, failing on breaking
   changes by default with risky and unknown opt-in. Promoting a baseline is

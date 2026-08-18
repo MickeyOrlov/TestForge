@@ -138,6 +138,28 @@ Other deliberate limits, all of them visible in the tests:
   `schema.table`**; same-schema keys keep the bare name. Without that,
   retargeting a key from `public.orders` to `archive.orders` would diff as no
   change at all.
+- **A PostgreSQL partitioned parent is part of the contract**, because that is
+  the table consumers query. Its child partitions are crawled as ordinary
+  tables, so a project that rotates partitions should exclude them —
+  `exclude-tables: "events_\\d{4}"` — or every rotation reports a `BREAKING`
+  table removal.
+- **`hasDefault` means "the database supplies a value when the writer omits the
+  column"** — a DEFAULT clause, an identity definition or a generated expression
+  all count. PostgreSQL keeps identity outside `COLUMN_DEF`, so reading only the
+  default clause called a harmless `ADD COLUMN ... GENERATED ALWAYS AS IDENTITY`
+  breaking.
+- **Index partiality is not modelled.** A `WHERE` predicate is invisible, so
+  turning a partial unique index into a full one — a real tightening that can
+  reject writes — currently diffs as no change rather than as `UNKNOWN`. This is
+  the one place the model degrades to silence instead of saying it cannot judge.
+- **The runner is meant to be called once per run.** It writes to fixed paths
+  from its properties and takes no lock, so concurrent calls sharing one output
+  directory race on the report files. Each caller's returned report — and the
+  gate — stays correct; only the files on disk can end up from the other run.
+- **`SERIAL` reports the physical type `serial`, not `int4`.** The driver
+  synthesizes that name from the `nextval` default, so migrating a column
+  between the `SERIAL` and `INTEGER DEFAULT nextval(...)` spellings shows up as
+  a `RISKY` physical-type change even though nothing about the column moved.
 - **Widening and narrowing are not told apart.** `varchar(64) → varchar(8)` and
   `varchar(8) → varchar(64)` are both `RISKY`.
 - **The contract protects readers as well as writers.** `nullable → NOT NULL`
