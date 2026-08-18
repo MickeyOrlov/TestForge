@@ -131,7 +131,13 @@ Other deliberate limits, all of them visible in the tests:
   adding a primary key is reported once rather than twice.
 - **Identifiers are stored exactly as the database reports them** (PostgreSQL
   folds to lower case, H2 to upper). Snapshots are comparable within one
-  database lineage, not across vendors.
+  database lineage, not across vendors. Line endings, on the other hand, are
+  pinned to `\n` on every platform, so a baseline captured on Linux does not
+  rewrite itself the first time someone runs the check on Windows.
+- **A foreign key pointing outside the inspected schema records its target as
+  `schema.table`**; same-schema keys keep the bare name. Without that,
+  retargeting a key from `public.orders` to `archive.orders` would diff as no
+  change at all.
 - **Widening and narrowing are not told apart.** `varchar(64) → varchar(8)` and
   `varchar(8) → varchar(64)` are both `RISKY`.
 - **The contract protects readers as well as writers.** `nullable → NOT NULL`

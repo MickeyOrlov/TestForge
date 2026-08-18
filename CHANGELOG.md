@@ -16,7 +16,11 @@ semantic versioning for its git tags.
   protects readers as well as writers, so tightening nullability is breaking and
   relaxing it is risky. `UNKNOWN` is not a severity: unclassified changes never
   contribute to the report's worst classified verdict and are gated by their own
-  switch, independent of the one for risky changes. `report.json` and
+  switch, independent of the one for risky changes. Snapshot line endings are
+  pinned to `\n` so a baseline is byte-identical across the platforms a team
+  runs on, and foreign keys leaving the inspected schema record their target as
+  `schema.table` so retargeting between same-named tables in two schemas is not
+  invisible. `report.json` and
   `report.md` are written under `build/db-contract` and registered with
   `ArtifactSink`; `assertCompatible()` is the CI gate, failing on breaking
   changes by default with risky and unknown opt-in. Promoting a baseline is
