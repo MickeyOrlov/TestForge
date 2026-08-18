@@ -7,6 +7,30 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db-contract`: the database schema as a versioned contract. Reads one
+  schema through SchemaCrawler into a small normalized TestForge model
+  (`DbSchemaSnapshot`/`DbTable`/`DbColumn`/`DbPrimaryKey`/`DbForeignKey`/`DbIndex`),
+  writes it as deterministic timestamp-free JSON, diffs it against a baseline
+  with a bounded comparator, and classifies every change as
+  `BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN` with a reason. The contract
+  protects readers as well as writers, so tightening nullability is breaking and
+  relaxing it is risky. `UNKNOWN` is not a severity: unclassified changes never
+  contribute to the report's worst classified verdict and are gated by their own
+  switch, independent of the one for risky changes. `report.json` and
+  `report.md` are written under `build/db-contract` and registered with
+  `ArtifactSink`; `assertCompatible()` is the CI gate, failing on breaking
+  changes by default with risky and unknown opt-in. Promoting a baseline is
+  always an explicit `writeBaseline()` call — running the check never rewrites
+  it. The inspector stays on generic JDBC retrieval so no per-vendor
+  SchemaCrawler plugin is needed, and SchemaCrawler is an `implementation`
+  dependency whose types never reach the module's API. `module-db` does not
+  depend on this module, so a project that only wants `DbWaiter` never gets
+  SchemaCrawler. Verified against a real PostgreSQL through Testcontainers.
+  Views, triggers, routines, sequences, comments, privileges, default
+  expressions, referential actions, environment-vs-environment comparison, ODCS
+  export and a CLI are deliberately out of v1.
+
+### Added
 - `module-api-explorer`: runs an OpenAPI document against a live environment and
   reports what the API actually does. Safe by default — GET/HEAD/OPTIONS need no
   opt-in, anything else needs both the method listed and

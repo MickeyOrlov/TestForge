@@ -8,6 +8,7 @@ graph TD
     Spring["Spring Boot Test Context"]
     Core["core"]
     DB["module-db"]
+    DbContract["module-db-contract"]
     Kafka["module-kafka"]
     Mock["module-mock"]
     Http["module-http"]
@@ -27,6 +28,7 @@ graph TD
     Tests --> Spring
     Spring --> Core
     Spring --> DB
+    Spring --> DbContract
     Spring --> Kafka
     Spring --> Mock
     Spring --> Http
@@ -44,6 +46,7 @@ graph TD
     Spring --> Mobile
 
     Core -. shared thin foundation .-> DB
+    DB -. named datasources + type families .-> DbContract
     Core -. shared thin foundation .-> Kafka
     Core -. shared thin foundation .-> Mock
     Core -. shared thin foundation .-> Http
@@ -58,6 +61,31 @@ graph TD
     Core -. shared thin foundation .-> Web
     Core -. shared thin foundation .-> Playwright
     Core -. shared thin foundation .-> Mobile
+```
+
+## Database Contract Flow
+
+```mermaid
+graph TD
+    DataSource["DataSource"]
+    Crawler["SchemaCrawler\ngeneric JDBC retrieval"]
+    Model["DbSchemaSnapshot\nnormalized TestForge model"]
+    Baseline["Baseline snapshot\ndeterministic JSON"]
+    Diff["DbSchemaComparator\nbounded diff"]
+    Policy["DbCompatibilityPolicy"]
+    Verdict["BREAKING / RISKY\nNON_BREAKING / UNKNOWN"]
+    Report["report.json + report.md\nArtifactSink"]
+    Gate["assertCompatible()"]
+
+    DataSource --> Crawler
+    Crawler --> Model
+    Model --> Baseline
+    Baseline --> Diff
+    Model --> Diff
+    Diff --> Policy
+    Policy --> Verdict
+    Verdict --> Report
+    Verdict --> Gate
 ```
 
 ## Test Lifecycle

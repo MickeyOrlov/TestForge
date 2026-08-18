@@ -37,6 +37,9 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
 - [ ] **module-db**: add entities + repositories for asserted tables; one
       `SchemaValidator` test per entity in a scheduled CI job. If the product
       publishes client/DTO artifacts — depend on them, never duplicate
+- [ ] **module-db-contract**: set `forge.db-contract.schema`, exclude migration
+      bookkeeping tables, capture a baseline with `writeBaseline()`, and run
+      `assertCompatible()` from a scheduled or review job
 - [ ] **module-contract**: encode external payloads as `MessageContract`
       (quick field checks) or `SchemaContract` resources (full JSON Schema)
 - [ ] **module-kafka**: list topics, enable only in broker-reachable profiles

@@ -41,6 +41,7 @@ flowchart LR
     Flow["module-flow\nstate-machine setup"]
     State["module-state\nstate recipes"]
     DB["module-db\nDB waits + schema drift"]
+    DbContract["module-db-contract\nschema snapshot + compatibility gate"]
     Mock["module-mock\nscoped WireMock"]
     Http["module-http\nAPI client + correlation"]
     Kafka["module-kafka\nmessage probe"]
@@ -61,6 +62,7 @@ flowchart LR
     Core --> Kafka
     Core --> Contract
     Core --> ApiDiscovery
+    DB --> DbContract
     ApiDiscovery --> ApiCodegen
     Http --> ApiCodegen
     ApiDiscovery --> ApiExplorer
@@ -77,6 +79,7 @@ flowchart LR
     Http --> Examples
     State --> Examples
     DB --> Examples
+    DbContract --> Examples
     Mock --> Examples
     Monitor --> Examples
 ```
@@ -91,6 +94,7 @@ flowchart LR
 | [module-api-explorer](module-api-explorer) | Runs an OpenAPI document against a live environment: safe-by-default calls, runtime contract report, per-operation observations |
 | [module-data](module-data) | Per-run unique value registry and `%{variable}%` template rendering for data-heavy tests |
 | [module-db](module-db) | `DbWaiter` for rows written asynchronously, SQL logging of every test query, `SchemaValidator` against schema drift |
+| [module-db-contract](module-db-contract) | Schema snapshots, bounded diff, and a BREAKING/RISKY/NON_BREAKING/UNKNOWN compatibility gate for CI |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
 | [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |

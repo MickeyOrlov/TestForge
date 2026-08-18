@@ -16,6 +16,7 @@ module-api-codegen/ OpenAPI-first Java records + typed ApiClient skeletons
 module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report
 module-data/   RunUniqueValues, TemplateRenderer for generated test data
 module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator
+module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
@@ -87,29 +88,40 @@ must not replace each other. `example-tests` is never published.
    module-contract catches runtime payload drift — three independent layers.
    Enable `forge.db.repository-polling.enabled` only when you want `waitBy...`
    default repository methods to poll matching `findBy...` queries.
-6. **module-contract**: encode external API/event/file payloads as
+6. **module-db-contract**: capture the schema of the database tests depend on
+   with `dbContractRunner.writeBaseline()`, commit or archive that snapshot, and
+   run `assertCompatible()` from a scheduled or review job — never the default
+   build, which has no database to inspect. Set `forge.db-contract.schema` and
+   exclude migration bookkeeping tables (`flyway_schema_history`,
+   `databasechangelog`) through `exclude-tables`. Leave `fail-on.risky` and
+   `fail-on.unknown` at `false` until the first reports have been read; turn
+   `risky` on once the team trusts the baseline. Promoting a new baseline is
+   always an explicit `writeBaseline()` call in a reviewed change, never a side
+   effect of the check. Projects with their own rules replace the
+   `DbCompatibilityPolicy` bean instead of editing the module.
+7. **module-contract**: encode external API/event/file payloads as
    `MessageContract`s and validate them in scheduled checks. This is the
    neutral core for Kafka/topic drift monitoring: the consumer adapter pulls
    payloads, this module decides whether the shape changed.
-7. **module-contract-monitor**: for scheduled Kafka drift checks, register
+8. **module-contract-monitor**: for scheduled Kafka drift checks, register
    `ContractMonitorCase` beans and run `ContractMonitorRunner.assertHealthy()`
    from a JUnit job. Enable Kafka topics only in the environment profile that
    has broker access. Keep baseline artifacts as CI artifacts or explicit
    inputs; do not auto-rewrite `src/test/resources`. Shape snapshots must
    contain types only, never real payload values.
-8. **module-api-discovery**: point `forge.api-discovery.specs.<id>.location`
+9. **module-api-discovery**: point `forge.api-discovery.specs.<id>.location`
    at local OpenAPI files in the default build and run
    `ApiDiscoveryRunner.assertHealthy()` from a scheduled or review job. URL
    specs belong only in explicit environment profiles. Store catalog/shape
    baselines as CI artifacts or checked project inputs; snapshots contain
    schema shape only, never example values.
-9. **module-api-codegen**: reuse the `forge.api-discovery.specs` registry and
+10. **module-api-codegen**: reuse the `forge.api-discovery.specs` registry and
    run `ApiCodegenRunner.assertGenerated()` only when generated API sources
    are requested. Keep the default output under `build/generated/testforge`;
    never point generation at a hand-maintained source directory. Generated
    records and clients are transport scaffolding, not business tests. V1 does
    not attach its output to a Gradle source set automatically.
-10. **module-api-explorer**: reuse the same `forge.api-discovery.specs`
+11. **module-api-explorer**: reuse the same `forge.api-discovery.specs`
    registry and set `forge.http.base-url` for the environment. Leave
    `forge.api-explorer.methods` at its default — GET/HEAD/OPTIONS need no
    opt-in, and anything else needs BOTH the method listed and
@@ -120,46 +132,46 @@ must not replace each other. `example-tests` is never published.
    through `forge.api-explorer.parameters` — the report prints the block to
    paste. Redaction follows `forge.http.logging.redact-*`; extend it before the
    first run uploads artifacts.
-11. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build.
-12. **module-data**: use `RunUniqueValues` around domain generators and
+12. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build.
+13. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the
    product API, typically a module-flow run inside `prepare(tags)`), then
    inject objects into tests with `@Prepared` + `PreparedParameterResolver`.
    Stock hot variants with `pool.preload(...)` in a suite hook; wire refill
    or metrics through `PoolEventListener`.
-13. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
+14. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
    reach a deep state through deterministic transitions. Keep steps small and
    idempotent; the runner should make failures readable by showing the path.
-14. **module-state**: for reusable business setup, implement
+15. **module-state**: for reusable business setup, implement
    `StateRecipe<T, S>` and expose it through `StatePreparedDataProvider`. Tests
    then ask for `@Prepared(tags = "approved")` or
    `@Prepared(tags = {"state:approved", "tenant:demo"})` instead of repeating
    setup calls. Recipes should use product/test-support APIs and `FlowRunner`;
    direct DB writes are an explicit project decision, not the default.
-15. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
+16. **module-kafka**: enable `forge.kafka.enabled` only in profiles that have
    broker access. Use `KafkaProbe` to find messages by topic/key/header/JSON
    path; shape checks compose with `module-contract` (await the message, then
    `assertValid` its value) — never reintroduce a hard dependency between the
    two modules.
-16. **module-reporting**: enable `forge.reporting.artifacts.enabled=true` in
+17. **module-reporting**: enable `forge.reporting.artifacts.enabled=true` in
    CI profiles to collect run diagnostics into a unified directory
    (`build/testforge-artifacts/<run-id>/`) with a `manifest.json` and `summary.md`
    index. Producing modules publish through the `ArtifactSink` seam in `core`.
    Turn `forge.reporting.resource-monitor.enabled=true` on for JVM memory/CPU
    sampling.
-17. **module-web**: list the 2–4 heaviest pages of the system under test in
+18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile.
-18. **module-mobile-appium**: put real devices in explicit mobile profiles,
+19. **module-mobile-appium**: put real devices in explicit mobile profiles,
    never in the default build. `forge.mobile.appium.enabled=true` only creates
    beans; sessions open lazily when a test requests `AppiumSession` or
    `AppiumDriver`. Use `devices.<id>` + `@MobileDevice("id")` for matrix
    selection, keep local node startup opt-in with `node.auto-start=true`, and
    upload `build/appium-artifacts` from mobile CI jobs. Screen objects and
    provider-specific clients stay in the adapted project.
-19. **Delete what is not needed.** Unused modules: remove the directory and its
+20. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
-20. **Client/DTO artifacts (drift layer 3).** When the product publishes a
+21. **Client/DTO artifacts (drift layer 3).** When the product publishes a
    versioned client or DTO module (OpenAPI-generated stubs, shared event
    types), make the test module depend on it instead of duplicating JSON
    shapes in test code. Keep `SchemaValidator` (DB mappings) and
@@ -191,6 +203,12 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
   `@Column`/`@JoinColumn`/`@Embedded` with `@AttributeOverride`). It does not
   understand inheritance or custom naming strategies — extend it before
   relying on it for entities that use those.
+- `module-db-contract` matches tables, columns, indexes and foreign keys by
+  name, so a rename reads as a removal plus an addition. It stores identifiers
+  exactly as the vendor reports them (PostgreSQL lower, H2 upper), which makes
+  snapshots comparable within one database lineage but not across vendors. It
+  stays on generic JDBC retrieval on purpose: letting SchemaCrawler match a
+  known server type makes it demand that vendor's plugin on the classpath.
 - `SqlLoggingDataSourcePostProcessor` wraps the DataSource bean, so beans
   expecting the concrete type (e.g. `HikariDataSource`) will break under it.
   Configure the pool through `spring.datasource.*` properties instead of
