@@ -12,7 +12,9 @@ import java.util.List;
  *
  * @param name              constraint name as reported by the database
  * @param columns           the referencing columns, in key order
- * @param referencedTable   name of the referenced table
+ * @param referencedTable   name of the referenced table, qualified as
+ *                          {@code schema.table} when the key points outside the
+ *                          inspected schema and bare when it does not
  * @param referencedColumns the referenced columns, in key order
  */
 public record DbForeignKey(

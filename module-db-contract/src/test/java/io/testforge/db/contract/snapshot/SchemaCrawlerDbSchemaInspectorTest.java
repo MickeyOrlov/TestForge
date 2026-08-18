@@ -39,6 +39,24 @@ class SchemaCrawlerDbSchemaInspectorTest {
                     + "CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customers(id))");
             statement.execute("CREATE INDEX idx_orders_status ON orders(status)");
             statement.execute("CREATE VIEW recent_orders AS SELECT id FROM orders");
+
+            // a second schema holding a SAME-NAMED table, plus a key pointing at it
+            statement.execute("CREATE SCHEMA archive");
+            statement.execute("CREATE TABLE archive.customers (id BIGINT PRIMARY KEY)");
+            statement.execute("CREATE TABLE cross_schema_orders (id BIGINT PRIMARY KEY, "
+                    + "local_customer_id BIGINT, archived_customer_id BIGINT, "
+                    + "CONSTRAINT fk_local FOREIGN KEY (local_customer_id) REFERENCES customers(id), "
+                    + "CONSTRAINT fk_archived FOREIGN KEY (archived_customer_id) "
+                    + "REFERENCES archive.customers(id))");
+
+            // key order (z, a) is the REVERSE of alphabetical order, so sorting by
+            // name and sorting by key position give different answers
+            statement.execute("CREATE TABLE composite_parent (z VARCHAR(8), a VARCHAR(8), "
+                    + "PRIMARY KEY (z, a))");
+            statement.execute("CREATE TABLE composite_child (fz VARCHAR(8), fa VARCHAR(8), "
+                    + "CONSTRAINT fk_composite FOREIGN KEY (fz, fa) "
+                    + "REFERENCES composite_parent(z, a))");
+            statement.execute("CREATE INDEX idx_composite ON composite_child(fz, fa)");
             statement.execute("CREATE TABLE flyway_schema_history (installed_rank INT PRIMARY KEY)");
         }
     }
@@ -123,6 +141,35 @@ class SchemaCrawlerDbSchemaInspectorTest {
                 .inspect(dataSource, "PUBLIC");
 
         assertThat(snapshot.tables()).extracting(DbTable::name).containsExactly("ORDERS");
+    }
+
+    @Test
+    void aForeignKeyIntoAnotherSchema_isQualifiedSoItCannotBeConfusedWithALocalOne() {
+        DbTable orders = inspect().table("CROSS_SCHEMA_ORDERS").orElseThrow();
+
+        assertThat(orders.foreignKeys())
+                .extracting(foreignKey -> foreignKey.name() + " -> " + foreignKey.referencedTable())
+                .containsExactly(
+                        "FK_ARCHIVED -> ARCHIVE.CUSTOMERS",
+                        "FK_LOCAL -> CUSTOMERS");
+    }
+
+    @Test
+    void compositeKeysAndIndexes_keepKeyOrderRatherThanAlphabeticalOrder() {
+        DbSchemaSnapshot snapshot = inspect();
+
+        assertThat(snapshot.table("COMPOSITE_PARENT").orElseThrow().primaryKey().columns())
+                .containsExactly("Z", "A");
+        assertThat(snapshot.table("COMPOSITE_CHILD").orElseThrow().foreignKeys())
+                .singleElement()
+                .satisfies(foreignKey -> {
+                    assertThat(foreignKey.columns()).containsExactly("FZ", "FA");
+                    assertThat(foreignKey.referencedColumns()).containsExactly("Z", "A");
+                });
+        assertThat(snapshot.table("COMPOSITE_CHILD").orElseThrow().indexes())
+                .filteredOn(index -> index.name().equals("IDX_COMPOSITE"))
+                .singleElement()
+                .satisfies(index -> assertThat(index.columns()).containsExactly("FZ", "FA"));
     }
 
     @Test

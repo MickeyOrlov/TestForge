@@ -197,6 +197,30 @@ class PostgresDbContractIT {
     }
 
     @Test
+    void retargetingAForeignKeyIntoAnotherSchema_isBreakingRatherThanInvisible() throws Exception {
+        // the same table name exists in two schemas, which is exactly when a bare
+        // table name in the snapshot would hide the move
+        execute("CREATE SCHEMA IF NOT EXISTS archive",
+                "CREATE TABLE IF NOT EXISTS archive.contract_demo_customers (id BIGINT PRIMARY KEY)",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id)");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_orders DROP CONSTRAINT fk_demo_orders_customer",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES archive.contract_demo_customers(id)");
+
+        DbChangeAssessment assessment = only("contract_demo_orders.fk_demo_orders_customer");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.FOREIGN_KEY_CHANGED);
+        assertThat(assessment.change().before())
+                .isEqualTo("(customer_id) -> contract_demo_customers(id)");
+        assertThat(assessment.change().after())
+                .isEqualTo("(customer_id) -> archive.contract_demo_customers(id)");
+        assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
     void aUniqueIndex_isRiskyToAddAndRiskyToLose() throws Exception {
         execute("CREATE UNIQUE INDEX uq_demo_customers_email ON contract_demo_customers(email)");
 

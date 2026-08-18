@@ -100,7 +100,7 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
             if (!included(table.getName())) {
                 continue;
             }
-            tables.add(toTable(table));
+            tables.add(toTable(table, schema.getName()));
         }
         return DbSchemaSnapshot.of(schema.getName(), tables);
     }
@@ -216,14 +216,14 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
         return excludeTables == null || !excludeTables.matcher(tableName).matches();
     }
 
-    private static DbTable toTable(Table table) {
+    private static DbTable toTable(Table table, String inspectedSchema) {
         List<DbColumn> columns = table.getColumns().stream()
                 .filter(column -> !column.isHidden())
                 .map(SchemaCrawlerDbSchemaInspector::toColumn)
                 .toList();
         DbPrimaryKey primaryKey = toPrimaryKey(table.getPrimaryKey());
         List<DbForeignKey> foreignKeys = table.getImportedForeignKeys().stream()
-                .map(SchemaCrawlerDbSchemaInspector::toForeignKey)
+                .map(foreignKey -> toForeignKey(foreignKey, inspectedSchema))
                 .toList();
         List<DbIndex> indexes = table.getIndexes().stream()
                 .map(SchemaCrawlerDbSchemaInspector::toIndex)
@@ -262,16 +262,36 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
         return new DbPrimaryKey(primaryKey.getName(), columns);
     }
 
-    private static DbForeignKey toForeignKey(ForeignKey foreignKey) {
+    private static DbForeignKey toForeignKey(ForeignKey foreignKey, String inspectedSchema) {
         List<String> columns = new ArrayList<>();
         List<String> referencedColumns = new ArrayList<>();
         String referencedTable = "";
         for (ColumnReference reference : foreignKey.getColumnReferences()) {
             columns.add(reference.getForeignKeyColumn().getName());
             referencedColumns.add(reference.getPrimaryKeyColumn().getName());
-            referencedTable = reference.getPrimaryKeyColumn().getParent().getName();
+            referencedTable = referencedTableName(
+                    reference.getPrimaryKeyColumn().getParent(), inspectedSchema);
         }
         return new DbForeignKey(foreignKey.getName(), columns, referencedTable, referencedColumns);
+    }
+
+    /**
+     * Names the referenced table, qualifying it with its schema when that schema
+     * is not the one being inspected.
+     *
+     * <p>A foreign key may point outside the inspected schema, and two schemas
+     * routinely hold same-named tables. Recording the bare name would make
+     * {@code archive.orders} and {@code public.orders} indistinguishable, so
+     * retargeting a key from one to the other — a breaking change — would diff
+     * as nothing at all. Same-schema keys keep the bare name, which is both the
+     * common case and the readable one.
+     */
+    private static String referencedTableName(Table referenced, String inspectedSchema) {
+        String schemaName = referenced.getSchema() == null ? null : referenced.getSchema().getName();
+        if (schemaName == null || schemaName.isBlank() || schemaName.equals(inspectedSchema)) {
+            return referenced.getName();
+        }
+        return schemaName + "." + referenced.getName();
     }
 
     private static DbIndex toIndex(Index index) {
