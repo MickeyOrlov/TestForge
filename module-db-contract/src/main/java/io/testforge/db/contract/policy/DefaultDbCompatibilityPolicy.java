@@ -100,8 +100,8 @@ public final class DefaultDbCompatibilityPolicy implements DbCompatibilityPolicy
         }
         if (added.hasDefault()) {
             return risky(change,
-                    "A NOT NULL column with a default accepts existing writes, "
-                            + "but every existing row now carries the default value.");
+                    "The database supplies this column, so existing writes still succeed, "
+                            + "but every existing row was backfilled with a value nobody chose.");
         }
         return breaking(change, "Existing INSERTs that do not name this column now fail.");
     }

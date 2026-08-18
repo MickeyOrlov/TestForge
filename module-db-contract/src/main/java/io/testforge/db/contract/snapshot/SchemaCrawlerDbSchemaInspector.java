@@ -126,14 +126,22 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
                 .withLimitOptions(LimitOptionsBuilder.builder()
                         .includeSchemas(new RegularExpressionInclusionRule(schemaPattern(schemaName)))
                         // vendors disagree on the JDBC table-type string:
-                        // PostgreSQL reports "TABLE", H2 2.x reports "BASE TABLE"
-                        .tableTypes("TABLE", "BASE TABLE")
+                        // PostgreSQL reports "TABLE", H2 2.x reports "BASE TABLE",
+                        // and a PostgreSQL declaratively partitioned parent reports
+                        // "PARTITIONED TABLE" — that parent is the table consumers
+                        // query, so leaving it out hid its whole contract
+                        .tableTypes("TABLE", "BASE TABLE", "PARTITIONED TABLE")
                         .toOptions())
                 .withLoadOptions(LoadOptionsBuilder.builder()
                         .withSchemaInfoLevelBuilder(infoLevel)
                         .toOptions());
 
         try {
+            // Deliberately not closed, and not a leak: SchemaCrawler borrows and
+            // releases one connection per retrieval step rather than holding one
+            // for the whole crawl. Closing this source would call close() on the
+            // caller's DataSource when it happens to be Closeable — which
+            // HikariDataSource is — and shut down the application's shared pool.
             DatabaseConnectionSource connectionSource = DatabaseConnectionSources.fromDataSource(dataSource);
             return SchemaCrawlerUtility.getCatalog(
                     connectionSource, retrievalOptions(dataSource), options, ConfigUtility.newConfig());
@@ -249,7 +257,12 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
         if (width != null && !width.isBlank()) {
             type = type + width;
         }
-        return new DbColumn(column.getName(), family, type, column.isNullable(), column.hasDefaultValue());
+        // An identity column carries no COLUMN_DEF — PostgreSQL keeps that in
+        // pg_attribute.attidentity — so asking only for a DEFAULT clause reports
+        // "no default" for a column the database populates itself, and the policy
+        // then calls a harmless ADD COLUMN breaking.
+        boolean databaseSupplied = column.hasDefaultValue() || column.isAutoIncremented();
+        return new DbColumn(column.getName(), family, type, column.isNullable(), databaseSupplied);
     }
 
     private static DbPrimaryKey toPrimaryKey(PrimaryKey primaryKey) {

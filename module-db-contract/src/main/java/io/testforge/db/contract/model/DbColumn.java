@@ -16,9 +16,12 @@ import io.testforge.db.schema.ColumnTypeFamily;
  * @param type        physical type as the vendor names it, including width or
  *                    precision when the driver reports one (e.g. {@code varchar(255)})
  * @param nullable    whether the database allows NULL in this column
- * @param hasDefault  whether the column has a DEFAULT clause; the default
- *                    <em>expression</em> is not recorded because it is
- *                    vendor-specific noise the v1 policy never reads
+ * @param hasDefault  whether the database supplies a value when a writer omits
+ *                    this column — a DEFAULT clause, an identity definition or a
+ *                    generated expression all count, because the policy asks this
+ *                    field one question: does an existing INSERT that never names
+ *                    the column still succeed? The default <em>expression</em> is
+ *                    not recorded; it is vendor-specific noise the policy never reads
  */
 public record DbColumn(
         String name,

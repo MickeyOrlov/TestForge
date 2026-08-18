@@ -7,6 +7,7 @@ import io.testforge.db.contract.DbContractException;
 import io.testforge.db.contract.DbContractReport;
 import io.testforge.db.contract.DbContractRunner;
 import io.testforge.db.contract.diff.DbChangeType;
+import io.testforge.db.contract.model.DbColumn;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.model.DbTable;
 import io.testforge.db.contract.policy.DbChangeAssessment;
@@ -60,6 +61,7 @@ class PostgresDbContractIT {
     void resetDemoSchema() throws Exception {
         execute("DROP TABLE IF EXISTS contract_demo_orders",
                 "DROP TABLE IF EXISTS contract_demo_customers",
+                "DROP TABLE IF EXISTS contract_demo_events",
                 "CREATE TABLE contract_demo_customers ("
                         + "id BIGINT PRIMARY KEY, "
                         + "email VARCHAR(255) NOT NULL)",
@@ -233,6 +235,121 @@ class PostgresDbContractIT {
         DbChangeAssessment dropped = only("contract_demo_customers.uq_demo_customers_email");
         assertThat(dropped.compatibility()).isEqualTo(DbCompatibility.RISKY);
         assertThat(dropped.reason()).contains("uniqueness");
+    }
+
+    @Test
+    void aPartitionedTableIsPartOfTheContract_notInvisible() throws Exception {
+        execute("DROP TABLE IF EXISTS contract_demo_events",
+                "CREATE TABLE contract_demo_events (id BIGINT NOT NULL, created_at DATE NOT NULL, "
+                        + "payload TEXT, PRIMARY KEY (id, created_at)) PARTITION BY RANGE (created_at)",
+                "CREATE TABLE contract_demo_events_2024 PARTITION OF contract_demo_events "
+                        + "FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')");
+
+        DbSchemaSnapshot snapshot = dbContractRunner.capture();
+
+        assertThat(snapshot.tables()).extracting(DbTable::name)
+                .as("consumers query the partitioned parent, so it is the table the contract is about")
+                .contains("contract_demo_events");
+        assertThat(snapshot.table("contract_demo_events").orElseThrow().columns())
+                .extracting(DbColumn::name)
+                .contains("payload");
+    }
+
+    @Test
+    void droppingAColumnFromAPartitionedTable_isBreakingOnTheParent() throws Exception {
+        execute("DROP TABLE IF EXISTS contract_demo_events",
+                "CREATE TABLE contract_demo_events (id BIGINT NOT NULL, created_at DATE NOT NULL, "
+                        + "payload TEXT, PRIMARY KEY (id, created_at)) PARTITION BY RANGE (created_at)",
+                "CREATE TABLE contract_demo_events_2024 PARTITION OF contract_demo_events "
+                        + "FOR VALUES FROM ('2024-01-01') TO ('2025-01-01')");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_events DROP COLUMN payload");
+
+        assertThat(dbContractRunner.run().changes())
+                .extracting(assessment -> assessment.change().path())
+                .as("the drop must be reported on the table consumers actually query")
+                .contains("contract_demo_events.payload");
+    }
+
+    @Test
+    void anIdentityColumnDoesNotBreakWritersThatOmitIt() throws Exception {
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN seq_no BIGINT "
+                + "GENERATED ALWAYS AS IDENTITY NOT NULL");
+        // ground truth: a writer that never names the column still succeeds
+        execute("INSERT INTO contract_demo_orders (id, customer_id, status) VALUES (1, 1, 'new')");
+
+        assertThat(only("contract_demo_orders.seq_no").compatibility())
+                .as("the database supplies the value, so existing INSERTs keep working")
+                .isNotEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
+    void addingAPrimaryKey_isReportedOnce_notAlsoAsItsBackingIndex() throws Exception {
+        execute("DROP TABLE IF EXISTS contract_demo_events",
+                "CREATE TABLE contract_demo_events (id BIGINT NOT NULL, label VARCHAR(32))");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_events ADD PRIMARY KEY (id)");
+
+        // PostgreSQL creates a unique index behind every primary key; reporting
+        // both would double-count the change
+        DbChangeAssessment assessment = only("contract_demo_events");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.PRIMARY_KEY_ADDED);
+        assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void droppingAPrimaryKey_isBreakingAndReportedOnce() throws Exception {
+        DbChangeAssessment assessment;
+        execute("DROP TABLE IF EXISTS contract_demo_events",
+                "CREATE TABLE contract_demo_events (id BIGINT PRIMARY KEY, label VARCHAR(32))");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_events DROP CONSTRAINT contract_demo_events_pkey");
+        assessment = only("contract_demo_events");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.PRIMARY_KEY_REMOVED);
+        assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
+    void aPostgresTypeTestForgeDoesNotModel_degradesToUnknownRatherThanAGuess() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN payload JSONB");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_orders ALTER COLUMN payload TYPE JSON USING payload::JSON");
+
+        DbChangeAssessment assessment = only("contract_demo_orders.payload");
+
+        assertThat(assessment.compatibility())
+                .as("jsonb is not in ColumnTypeFamily, so the policy must decline rather than guess")
+                .isEqualTo(DbCompatibility.UNKNOWN);
+        assertThat(assessment.reason()).contains("does not map");
+    }
+
+    @Test
+    void aSameFamilyTypeChange_isRiskyOnRealPostgres() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ALTER COLUMN status TYPE VARCHAR(8)");
+
+        DbChangeAssessment assessment = only("contract_demo_orders.status");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.COLUMN_PHYSICAL_TYPE_CHANGED);
+        assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void compositeKeysKeepPostgresKeyOrder_notAlphabeticalOrder() throws Exception {
+        execute("DROP TABLE IF EXISTS contract_demo_events",
+                "CREATE TABLE contract_demo_events (z VARCHAR(8) NOT NULL, a VARCHAR(8) NOT NULL, "
+                        + "PRIMARY KEY (z, a))");
+
+        DbTable events = dbContractRunner.capture().table("contract_demo_events").orElseThrow();
+
+        assertThat(events.primaryKey().columns()).containsExactly("z", "a");
     }
 
     @Test
