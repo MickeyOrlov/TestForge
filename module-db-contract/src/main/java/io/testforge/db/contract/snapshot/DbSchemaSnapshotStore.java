@@ -90,10 +90,22 @@ public final class DbSchemaSnapshotStore {
      * @throws UncheckedIOException when the file cannot be read or parsed
      */
     public DbSchemaSnapshot read(Path file) {
+        DbSchemaSnapshot snapshot;
         try {
-            return objectMapper.readValue(Files.readString(file, StandardCharsets.UTF_8), DbSchemaSnapshot.class);
+            snapshot = objectMapper.readValue(
+                    Files.readString(file, StandardCharsets.UTF_8), DbSchemaSnapshot.class);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read schema snapshot " + file, e);
         }
+        if (snapshot.formatVersion() != DbSchemaSnapshot.FORMAT_VERSION) {
+            // Silently reading a foreign format is how a gate starts comparing
+            // fields that mean different things — or missing ones entirely, and
+            // calling the difference a schema change.
+            throw new IllegalStateException("Schema snapshot " + file + " is format version "
+                    + snapshot.formatVersion() + ", but this version of TestForge writes and reads format "
+                    + DbSchemaSnapshot.FORMAT_VERSION + ". Re-capture the baseline with writeBaseline() "
+                    + "and review the resulting diff before promoting it.");
+        }
+        return snapshot;
     }
 }
