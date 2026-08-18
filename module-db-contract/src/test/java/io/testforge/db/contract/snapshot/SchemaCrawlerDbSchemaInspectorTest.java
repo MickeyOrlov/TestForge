@@ -14,6 +14,7 @@ import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
@@ -175,6 +176,18 @@ class SchemaCrawlerDbSchemaInspectorTest {
     @Test
     void repeatedInspections_produceEqualSnapshots() {
         assertThat(inspect()).isEqualTo(inspect());
+    }
+
+    @Test
+    void twoCapturesOfALiveSchema_serializeToIdenticalBytes(@TempDir java.nio.file.Path dir) throws Exception {
+        DbSchemaSnapshotStore store = new DbSchemaSnapshotStore();
+        java.nio.file.Path first = store.write(dir.resolve("first.json"), inspect());
+        java.nio.file.Path second = store.write(dir.resolve("second.json"), inspect());
+
+        // the fixture-based determinism test cannot see an inspector that returns
+        // rows in driver order; this one reads the same live database twice
+        assertThat(java.nio.file.Files.readAllBytes(second))
+                .isEqualTo(java.nio.file.Files.readAllBytes(first));
     }
 
     @Test

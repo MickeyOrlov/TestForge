@@ -188,6 +188,52 @@ class DefaultDbCompatibilityPolicyTest {
     }
 
     @Test
+    void addedTable_isNonBreaking() {
+        DbSchemaSnapshot baseline = schema(table("orders", List.of(id())));
+        DbSchemaSnapshot current = schema(table("orders", List.of(id())), table("shipments", List.of(id())));
+
+        assertThat(only(baseline, current).compatibility()).isEqualTo(DbCompatibility.NON_BREAKING);
+    }
+
+    @Test
+    void addingADefaultIsFree_removingOneIsRisky() {
+        DbSchemaSnapshot without = schema(table("orders", List.of(id(),
+                column("status", ColumnTypeFamily.CHARACTER, "varchar(8)", true, false))));
+        DbSchemaSnapshot with = schema(table("orders", List.of(id(),
+                column("status", ColumnTypeFamily.CHARACTER, "varchar(8)", true, true))));
+
+        assertThat(only(without, with).compatibility()).isEqualTo(DbCompatibility.NON_BREAKING);
+        assertThat(only(with, without).compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void reshapingAnExistingIndex_isRiskyWhicheverWayItMoves() {
+        DbSchemaSnapshot plain = schema(table("orders", List.of(id()), null, List.of(),
+                List.of(new DbIndex("idx", List.of("status"), false))));
+        DbSchemaSnapshot unique = schema(table("orders", List.of(id()), null, List.of(),
+                List.of(new DbIndex("idx", List.of("status"), true))));
+        DbSchemaSnapshot widened = schema(table("orders", List.of(id()), null, List.of(),
+                List.of(new DbIndex("idx", List.of("status", "created_at"), false))));
+
+        assertThat(only(plain, unique).compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(unique, plain).compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(plain, widened).compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void wideningAType_getsTheSameVerdictAsNarrowingIt() {
+        DbSchemaSnapshot narrow = schema(table("orders", List.of(id(),
+                column("code", ColumnTypeFamily.CHARACTER, "varchar(8)", true))));
+        DbSchemaSnapshot wide = schema(table("orders", List.of(id(),
+                column("code", ColumnTypeFamily.CHARACTER, "varchar(64)", true))));
+
+        // the README promises v1 does not tell the two apart; if that ever changes
+        // it must change deliberately, not by accident
+        assertThat(only(narrow, wide).compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(wide, narrow).compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
     void everyVerdictCarriesAReason() {
         DbSchemaSnapshot baseline = schema(table("orders", List.of(id(),
                 column("note", ColumnTypeFamily.CHARACTER, "varchar(8)", true))));
