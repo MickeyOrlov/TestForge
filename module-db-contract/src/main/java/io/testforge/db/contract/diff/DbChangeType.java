@@ -46,6 +46,8 @@ public enum DbChangeType {
     FOREIGN_KEY_REMOVED,
     /** A foreign key of the same name now references different columns or a different table. */
     FOREIGN_KEY_CHANGED,
+    /** A foreign key's ON DELETE or ON UPDATE action changed. */
+    FOREIGN_KEY_ACTION_CHANGED,
 
     /** An index present in the current table is absent from the baseline. */
     INDEX_ADDED,
@@ -56,5 +58,7 @@ public enum DbChangeType {
     /** An existing index became unique. */
     INDEX_UNIQUENESS_TIGHTENED,
     /** An existing index stopped being unique. */
-    INDEX_UNIQUENESS_RELAXED
+    INDEX_UNIQUENESS_RELAXED,
+    /** An index gained, lost or altered its partial {@code WHERE} predicate. */
+    INDEX_PREDICATE_CHANGED
 }
