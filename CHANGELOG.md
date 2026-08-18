@@ -6,6 +6,19 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Changed
+- `module-db-contract`: the two places where the check reported "no change" while
+  the contract had moved are closed, and the snapshot format is now version 2.
+  A partial index's `WHERE` predicate is captured, so turning
+  `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` into a full unique index —
+  a real tightening that rejects writes it used to allow — is reported instead of
+  passing silently. Foreign keys carry their `ON DELETE`/`ON UPDATE` actions, so
+  switching `CASCADE` to `RESTRICT` is `BREAKING` (a delete that used to succeed
+  now fails) and the reverse is `RISKY` (rows now disappear unasked); only the
+  action that actually changed is judged. A snapshot written in another format
+  version is refused with the fix in the message rather than silently misread,
+  which means existing baselines must be re-captured with `writeBaseline()`.
+
 ### Added
 - `module-db-contract`: the database schema as a versioned contract. Reads one
   schema through SchemaCrawler into a small normalized TestForge model

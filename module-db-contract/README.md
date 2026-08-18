@@ -100,8 +100,11 @@ column name.
 | Primary key removed or re-keyed | `BREAKING` |
 | Foreign key added / removed | `RISKY` |
 | Foreign key retargeted | `BREAKING` |
+| Referential action starts rejecting (`CASCADE` → `RESTRICT`/`NO ACTION`) | `BREAKING` |
+| Any other referential action change | `RISKY` |
 | Index added, non-unique | `NON_BREAKING` |
 | Index added unique, dropped, re-columned, uniqueness flipped | `RISKY` |
+| Index predicate gained, lost or altered | `RISKY` |
 
 `UNKNOWN` is not a severity. It means the change was not classified, so it is
 neither worse nor better than `RISKY`: it never contributes to the report's
@@ -114,11 +117,13 @@ default one is `@ConditionalOnMissingBean`.
 ## The v1 boundary
 
 What the model carries: schemas, tables, columns (logical type family, physical
-type, nullability, presence of a default), primary keys, foreign keys, indexes.
+type, nullability, presence of a default), primary keys, foreign keys with their
+referential actions, and indexes with their partial predicates.
 
 What it deliberately does not carry: views, triggers, routines, sequences,
-partitions, comments, privileges, collations, default *expressions*, referential
-actions, and physical column order.
+partition keys and bounds, comments, privileges, collations, default
+*expressions*, constraint deferrability, index type and cardinality, and
+physical column order.
 
 Other deliberate limits, all of them visible in the tests:
 
@@ -148,10 +153,11 @@ Other deliberate limits, all of them visible in the tests:
   all count. PostgreSQL keeps identity outside `COLUMN_DEF`, so reading only the
   default clause called a harmless `ADD COLUMN ... GENERATED ALWAYS AS IDENTITY`
   breaking.
-- **Index partiality is not modelled.** A `WHERE` predicate is invisible, so
-  turning a partial unique index into a full one — a real tightening that can
-  reject writes — currently diffs as no change rather than as `UNKNOWN`. This is
-  the one place the model degrades to silence instead of saying it cannot judge.
+- **Snapshots carry a `formatVersion`, and a snapshot of any other version is
+  refused rather than read.** Format 2 added index predicates and referential
+  actions; a format 1 baseline lacks both, so reading it would report every
+  partial index and every key as changed. Re-capture the baseline with
+  `writeBaseline()` and review the diff before promoting it.
 - **The runner is meant to be called once per run.** It writes to fixed paths
   from its properties and takes no lock, so concurrent calls sharing one output
   directory race on the report files. Each caller's returned report — and the
