@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: Media Range Demo
+  version: 1.0.0
+paths:
+  /wildcard-any:
+    get:
+      operationId: getWildcardAny
+      responses:
+        '200':
+          description: declares the fully open range, as springdoc emits by default
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Task'
+  /wildcard-application:
+    get:
+      operationId: getWildcardApplication
+      responses:
+        '200':
+          description: declares a subtype wildcard inside one type
+          content:
+            'application/*':
+              schema:
+                $ref: '#/components/schemas/Task'
+  /wildcard-text:
+    get:
+      operationId: getWildcardText
+      responses:
+        '200':
+          description: a range in a different type, which must not cover JSON
+          content:
+            'text/*':
+              schema:
+                $ref: '#/components/schemas/Task'
+  /wildcard-precedence:
+    get:
+      operationId: getWildcardPrecedence
+      responses:
+        '200':
+          description: both a range and an exact type; the exact one owns the schema
+          content:
+            # declared FIRST on purpose: a single-pass matcher that honoured
+            # ranges in declaration order would pick this one and report the
+            # missing field below, so this ordering is what makes the test
+            # discriminate the two-pass design
+            '*/*':
+              schema:
+                type: object
+                required: [neverPresent]
+                properties:
+                  neverPresent:
+                    type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+components:
+  schemas:
+    Task:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string

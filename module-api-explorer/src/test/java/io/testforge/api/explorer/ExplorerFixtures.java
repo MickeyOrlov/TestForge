@@ -30,6 +30,19 @@ final class ExplorerFixtures {
                 .orElseThrow(() -> new IllegalArgumentException("No operation " + operationId));
     }
 
+    /** A second document, so media-range cases do not change the demo's operation count. */
+    static final String MEDIA_RANGE_SPEC_ID = "media-ranges";
+    static final String MEDIA_RANGE_LOCATION = "classpath:openapi/explorer-media-ranges.yaml";
+
+    static ExplorableOperation mediaRangeOperation(String operationId) {
+        OpenAPI openApi = new OpenApiSpecParser()
+                .parse(new ApiSpecSource(MEDIA_RANGE_SPEC_ID, MEDIA_RANGE_LOCATION));
+        return new OperationSelector().select(MEDIA_RANGE_SPEC_ID, openApi).stream()
+                .filter(operation -> operationId.equals(operation.operationId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No operation " + operationId));
+    }
+
     static ApiExplorerProperties properties(Map<String, Object> overrides) {
         return new ApiExplorerProperties(
                 true,

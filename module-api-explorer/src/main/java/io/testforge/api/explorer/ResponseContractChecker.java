@@ -98,17 +98,61 @@ public class ResponseContractChecker {
         return wildcard != null ? wildcard : responses.get("default");
     }
 
+    /**
+     * The declaration covering this response, or {@code null} when none does.
+     *
+     * <p>A document may declare a media <em>range</em> rather than one type, and
+     * the range is what springdoc emits for any handler that does not set
+     * {@code produces} — so treating it as a literal string made every operation
+     * of a stock Spring service report an unexpected content type.
+     *
+     * <p>Exact declarations are matched first and ranges only afterwards: a
+     * document that declares both {@code application/json} and a range must be
+     * checked against the schema of the specific one, not whichever the parser
+     * happened to put first.
+     */
     private MediaType matchingMediaType(Map<String, MediaType> content, String contentType) {
         if (contentType == null) {
             return null;
         }
         String base = contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
         for (Map.Entry<String, MediaType> entry : content.entrySet()) {
-            if (entry.getKey().toLowerCase(Locale.ROOT).equals(base)) {
+            if (entry.getKey().trim().toLowerCase(Locale.ROOT).equals(base)) {
+                return entry.getValue();
+            }
+        }
+        for (Map.Entry<String, MediaType> entry : content.entrySet()) {
+            if (rangeCovers(entry.getKey().trim().toLowerCase(Locale.ROOT), base)) {
                 return entry.getValue();
             }
         }
         return null;
+    }
+
+    /**
+     * Whether a declared media range covers an actual media type. Only the two
+     * shapes RFC 9110 defines are honoured: {@code *}{@code /}{@code *}, and a
+     * concrete type with a wildcard subtype. A wildcard type with a concrete
+     * subtype is not a media range and matches nothing.
+     *
+     * @param declared the declared key, already trimmed and lower-cased
+     * @param base     the actual media type with parameters stripped
+     */
+    private static boolean rangeCovers(String declared, String base) {
+        int baseSlash = base.indexOf('/');
+        if (baseSlash <= 0) {
+            // no usable type/subtype: keep the previous behaviour of not matching,
+            // so a blank or malformed content type is still reported
+            return false;
+        }
+        if (declared.equals("*/*")) {
+            return true;
+        }
+        int declaredSlash = declared.indexOf('/');
+        if (declaredSlash <= 0 || !declared.endsWith("/*")) {
+            return false;
+        }
+        return declared.substring(0, declaredSlash).equals(base.substring(0, baseSlash));
     }
 
     private boolean isJson(String contentType) {

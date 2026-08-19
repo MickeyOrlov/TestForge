@@ -26,6 +26,12 @@ which nobody could call without more information.
 - **`ApiObservation`** — what one operation did, once. The unit everything else
   is built from.
 
+A declared media **range** covers the response it describes: `*/*` matches any
+content type and `application/*` matches any `application` subtype. This matters
+because springdoc documents `*/*` for every handler without an explicit
+`produces`. An exact declaration is still preferred over a range in the same
+response, so the body is checked against the schema of the specific one.
+
 ## Configuration
 
 Specs are **not** configured here. The explorer reads the registry

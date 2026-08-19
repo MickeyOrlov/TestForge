@@ -108,6 +108,101 @@ class ResponseContractCheckerTest {
         assertThat(check("deleteTask", 204, null, "")).isEmpty();
     }
 
+    // --- declared media ranges -------------------------------------------------
+    // springdoc emits a range for any handler without an explicit `produces`, so
+    // comparing the declaration as a literal string reported every operation of a
+    // stock Spring service as an unexpected content type.
+
+    @Test
+    void theFullyOpenRangeCoversAnyActualType() {
+        assertThat(checkRange("getWildcardAny", 200, "application/json", """
+                {"id":"task-1","title":"Write tests"}"""))
+                .isEmpty();
+    }
+
+    @Test
+    void aSubtypeWildcardCoversItsOwnType() {
+        assertThat(checkRange("getWildcardApplication", 200, "application/json", """
+                {"id":"task-1","title":"Write tests"}"""))
+                .isEmpty();
+    }
+
+    @Test
+    void aSubtypeWildcardDoesNotCoverADifferentType() {
+        List<ContractMismatch> mismatches = checkRange("getWildcardText", 200, "application/json", """
+                {"id":"task-1","title":"Write tests"}""");
+
+        assertThat(mismatches).singleElement().satisfies(mismatch -> {
+            assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE);
+            assertThat(mismatch.detail()).contains("application/json").contains("text/*");
+        });
+    }
+
+    @Test
+    void aRangeStillValidatesTheBodyAgainstItsSchema() {
+        List<ContractMismatch> mismatches = checkRange("getWildcardAny", 200, "application/json", """
+                {"id":"task-1"}""");
+
+        assertThat(mismatches).singleElement().satisfies(mismatch -> {
+            assertThat(mismatch.kind()).isEqualTo(MismatchKind.MISSING_REQUIRED_FIELD);
+            assertThat(mismatch.location()).isEqualTo("$.title");
+        });
+    }
+
+    /**
+     * The document declares both {@code application/json} and the open range. The
+     * exact declaration owns the schema, so a body valid for it must pass — if the
+     * range were picked instead, its schema would demand a field that is not there.
+     */
+    @Test
+    void anExactDeclarationWinsOverARangeInTheSameResponse() {
+        assertThat(checkRange("getWildcardPrecedence", 200, "application/json", """
+                {"id":"task-1","title":"Write tests"}"""))
+                .isEmpty();
+    }
+
+    @Test
+    void aRangeDoesNotRescueAResponseThatSendsNoContentTypeAtAll() {
+        List<ContractMismatch> mismatches = checkRange("getWildcardAny", 200, null, "{}");
+
+        assertThat(mismatches).singleElement().satisfies(mismatch -> {
+            assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE);
+            assertThat(mismatch.detail()).contains("no content type");
+        });
+    }
+
+    /**
+     * A blank or slash-less content type reaches the range matcher itself, unlike
+     * {@code null}, which is refused before it. Both were reported before ranges
+     * were understood and both still are: an open range describes what a body
+     * would be, not that a response without one is fine.
+     */
+    @Test
+    void aRangeDoesNotCoverABlankOrMalformedContentType() {
+        assertThat(checkRange("getWildcardAny", 200, "", "{}"))
+                .singleElement()
+                .satisfies(mismatch ->
+                        assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE));
+
+        assertThat(checkRange("getWildcardAny", 200, "notamediatype", "{}"))
+                .singleElement()
+                .satisfies(mismatch ->
+                        assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE));
+    }
+
+    @Test
+    void aParameterisedContentTypeIsStillCoveredByARange() {
+        assertThat(checkRange("getWildcardAny", 200, "application/json;charset=UTF-8", """
+                {"id":"task-1","title":"Write tests"}"""))
+                .isEmpty();
+    }
+
+    private List<ContractMismatch> checkRange(String operationId, int status, String contentType, String body) {
+        RuntimeExchange exchange = new RuntimeExchange(
+                Map.of(), null, status, contentType, Map.of(), body, 5L, null);
+        return checker.check(ExplorerFixtures.mediaRangeOperation(operationId), exchange);
+    }
+
     private List<ContractMismatch> check(String operationId, int status, String contentType, String body) {
         RuntimeExchange exchange = new RuntimeExchange(
                 Map.of(), null, status, contentType, Map.of(), body, 5L, null);

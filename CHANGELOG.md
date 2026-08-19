@@ -7,6 +7,18 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Fixed
+- `module-api-explorer`: a declared media **range** now covers the response it
+  describes. Content types were compared as literal strings, so a document
+  declaring `*/*` was treated as incompatible with an `application/json`
+  response and the operation was reported as `UNEXPECTED_CONTENT_TYPE`. springdoc
+  emits `*/*` for every handler that does not set `produces`, which is the
+  default for a stock Spring `@RestController`, so effectively every operation of
+  a typical Java service was reported as a contract mismatch — noise that teaches
+  a team to stop reading the report. `*/*` now covers any type and `application/*`
+  covers any `application` subtype, while exact declarations still match exactly
+  and are preferred over a range in the same response, so the schema checked is
+  the specific one. Incompatible ranges (`text/*` against `application/json`)
+  still fail, and the handling of a missing or blank content type is unchanged.
 - `module-api-fuzz`: `--config-file` is now passed to Schemathesis as an
   absolute path. The runner starts the CLI with its working directory set to the
   per-spec output directory, so the previous project-relative argument was
