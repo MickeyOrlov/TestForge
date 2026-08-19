@@ -177,13 +177,31 @@ public class DbContractRunner {
     }
 
     /**
-     * Runs the check and fails when the configured gate is not met.
+     * Runs the check and fails when the configured gate is not met, or when the
+     * check was asked to gate without anything to compare against.
+     *
+     * <p>An enabled check with no baseline fails closed. It is not a schema
+     * verdict — nothing was compared, so calling it {@code BREAKING}, {@code RISKY}
+     * or {@code UNKNOWN} would be a claim about a schema this run never looked at.
+     * It is a configuration failure, and it is raised as one, the same way a
+     * missing schema or a foreign snapshot format is. Use {@link #run()} when the
+     * intent really is to capture and report without gating.
      *
      * @return the report, when it passes the gate
-     * @throws DbContractException when it does not
+     * @throws DbContractException when the schema changes fail the gate
+     * @throws IllegalStateException when the check is enabled but no baseline exists
      */
     public DbContractReport assertCompatible() {
         DbContractReport report = run();
+        if (report.enabled() && !report.baselinePresent()) {
+            // Passing here would mean a pipeline believes it is gated while every
+            // run compares nothing — the failure mode this module exists to remove.
+            throw new IllegalStateException("Database contract check is enabled but no baseline snapshot "
+                    + "exists at " + report.baselineSnapshot() + ", so there was nothing to compare "
+                    + "against and nothing was gated. Capture one with writeBaseline() and commit it, "
+                    + "or call run() instead when the intent is to report without gating. "
+                    + "The schema captured by this run is at " + report.currentSnapshot() + ".");
+        }
         if (!report.compatible()) {
             throw new DbContractException(report);
         }

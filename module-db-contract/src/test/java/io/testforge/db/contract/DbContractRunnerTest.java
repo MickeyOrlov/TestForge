@@ -110,6 +110,63 @@ class DbContractRunnerTest {
     }
 
     @Test
+    void anEnabledCheckWithNoBaseline_failsTheGateClosed(@TempDir Path dir) {
+        DbContractRunner runner = runner(dir, BASELINE, properties(dir, null));
+
+        assertThatThrownBy(runner::assertCompatible)
+                .as("a pipeline must not believe it is gated while every run compares nothing")
+                .isInstanceOf(IllegalStateException.class)
+                .isNotInstanceOf(DbContractException.class)
+                .hasMessageContaining("no baseline snapshot")
+                .hasMessageContaining("writeBaseline()");
+    }
+
+    @Test
+    void aMissingBaselineIsNotReportedAsASchemaVerdict(@TempDir Path dir) {
+        DbContractReport report = runner(dir, BASELINE, properties(dir, null)).run();
+
+        // nothing was compared, so there is nothing to call breaking, risky or unknown
+        assertThat(report.changes()).isEmpty();
+        assertThat(report.breakingCount()).isZero();
+        assertThat(report.riskyCount()).isZero();
+        assertThat(report.unknownCount()).isZero();
+        assertThat(report.worstClassified()).isEqualTo(DbCompatibility.NON_BREAKING);
+    }
+
+    @Test
+    void runWithoutABaseline_stillCapturesAndReportsForBootstrap(@TempDir Path dir) {
+        DbContractRunner runner = runner(dir, BASELINE, properties(dir, null));
+
+        DbContractReport report = runner.run();
+
+        assertThat(report.baselinePresent()).isFalse();
+        assertThat(Path.of(report.currentSnapshot())).exists();
+        assertThat(Path.of(report.reportJson())).exists();
+        assertThat(readString(Path.of(report.reportMarkdown()))).contains("No baseline snapshot was found");
+
+        // and promoting that capture makes the gate usable, without any config change
+        runner.writeBaseline();
+        assertThat(runner.assertCompatible().changes()).isEmpty();
+    }
+
+    @Test
+    void aDisabledCheckStillPassesAndStillTouchesNoDatabase(@TempDir Path dir) {
+        DbSchemaInspector exploding = (dataSource, schemaName) -> {
+            throw new AssertionError("a disabled contract check must not connect to a database");
+        };
+        DbContractProperties disabled = new DbContractProperties(false, null, "public",
+                dir.resolve("absent-baseline.json").toString(), dir.resolve("out").toString(),
+                null, null, null);
+
+        DbContractReport report = new DbContractRunner(REGISTRY, exploding, store,
+                new DefaultDbCompatibilityPolicy(), disabled, new ObjectMapper(), ArtifactSink.NO_OP)
+                .assertCompatible();
+
+        assertThat(report.enabled()).isFalse();
+        assertThat(report.baselinePresent()).isFalse();
+    }
+
+    @Test
     void aDroppedColumn_failsTheDefaultGateAndNamesTheChange(@TempDir Path dir) {
         writeBaseline(dir, BASELINE);
         DbSchemaSnapshot current = schema(table("orders", List.of(id())));
