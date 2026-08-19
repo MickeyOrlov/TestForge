@@ -275,6 +275,32 @@ class DefaultDbCompatibilityPolicyTest {
                 .compatibility()).isEqualTo(DbCompatibility.UNKNOWN);
     }
 
+    @Test
+    void anUnmappedActionOnTheUnchangedSide_doesNotMaskABreakingChange() {
+        DbSchemaSnapshot before = withActions(DbReferentialAction.CASCADE, DbReferentialAction.UNKNOWN);
+        DbSchemaSnapshot after = withActions(DbReferentialAction.RESTRICT, DbReferentialAction.UNKNOWN);
+
+        // ON UPDATE is unmapped on both sides and never moved; ON DELETE went
+        // CASCADE -> RESTRICT, which the rule table calls BREAKING
+        assertThat(only(before, after).compatibility()).isEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
+    void anUnmappedActionOnTheSideThatMoved_staysUnknown() {
+        DbSchemaSnapshot before = withActions(DbReferentialAction.UNKNOWN, DbReferentialAction.NO_ACTION);
+        DbSchemaSnapshot after = withActions(DbReferentialAction.RESTRICT, DbReferentialAction.NO_ACTION);
+
+        // we do not know what it used to do, so we cannot claim writes started failing
+        assertThat(only(before, after).compatibility()).isEqualTo(DbCompatibility.UNKNOWN);
+    }
+
+    private static DbSchemaSnapshot withActions(DbReferentialAction onDelete, DbReferentialAction onUpdate) {
+        return schema(table("orders", List.of(id()), null,
+                List.of(new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                        onDelete, onUpdate)),
+                List.of()));
+    }
+
     private static DbSchemaSnapshot withAction(DbReferentialAction onDelete) {
         return schema(table("orders", List.of(id()), null,
                 List.of(new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),

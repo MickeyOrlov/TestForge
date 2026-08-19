@@ -152,34 +152,50 @@ public final class DefaultDbCompatibilityPolicy implements DbCompatibilityPolicy
         if (before.isEmpty() || now.isEmpty()) {
             return unknown(change, "The changed foreign key could not be resolved in both snapshots.");
         }
-        // Only the action that actually moved is judged. NO_ACTION rejects by
-        // definition, so asking "does any current action reject?" would call an
-        // untouched ON UPDATE default the cause of a breaking change.
+        // Only the action that actually moved is judged — in both dimensions of
+        // this decision. NO_ACTION rejects by definition, so asking "does any
+        // current action reject?" would blame an untouched ON UPDATE default for
+        // a breaking change; and asking "is any action unmapped?" would let an
+        // unmapped ON UPDATE that never moved downgrade a plain CASCADE ->
+        // RESTRICT to UNKNOWN, which the default gate does not fail on.
         boolean deleteStartedRejecting = startedRejecting(before.get().onDelete(), now.get().onDelete());
         boolean updateStartedRejecting = startedRejecting(before.get().onUpdate(), now.get().onUpdate());
-        if (involvesUnmapped(before.get(), now.get())) {
-            return unknown(change,
-                    "The driver reported a referential action TestForge does not map, so the impact is not judged.");
-        }
         if (deleteStartedRejecting || updateStartedRejecting) {
             return breaking(change,
                     "Deleting or re-keying a referenced row is now rejected while children exist, "
                             + "so writes that used to succeed fail.");
+        }
+        if (changedIntoOrOutOfUnmapped(before.get(), now.get())) {
+            return unknown(change,
+                    "The driver reported a referential action TestForge does not map, so the impact is not judged.");
         }
         return risky(change,
                 "The database now does something different to referencing rows — they can be removed or "
                         + "blanked without the consumer asking.");
     }
 
+    /**
+     * An action only "started rejecting" when it moved and TestForge understands
+     * both ends of that move; an unmapped starting point is no basis for claiming
+     * writes began to fail.
+     */
     private static boolean startedRejecting(DbReferentialAction before, DbReferentialAction now) {
-        return before != now && rejects(now) && !rejects(before);
+        return before != now
+                && before != DbReferentialAction.UNKNOWN
+                && now != DbReferentialAction.UNKNOWN
+                && rejects(now)
+                && !rejects(before);
     }
 
-    private static boolean involvesUnmapped(DbForeignKey before, DbForeignKey now) {
-        return before.onDelete() == DbReferentialAction.UNKNOWN
-                || before.onUpdate() == DbReferentialAction.UNKNOWN
-                || now.onDelete() == DbReferentialAction.UNKNOWN
-                || now.onUpdate() == DbReferentialAction.UNKNOWN;
+    /** Whether an action that actually moved has an unmapped value on either end. */
+    private static boolean changedIntoOrOutOfUnmapped(DbForeignKey before, DbForeignKey now) {
+        return unmappedMove(before.onDelete(), now.onDelete())
+                || unmappedMove(before.onUpdate(), now.onUpdate());
+    }
+
+    private static boolean unmappedMove(DbReferentialAction before, DbReferentialAction now) {
+        return before != now
+                && (before == DbReferentialAction.UNKNOWN || now == DbReferentialAction.UNKNOWN);
     }
 
     private static boolean rejects(DbReferentialAction action) {
