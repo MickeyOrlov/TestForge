@@ -7,6 +7,14 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-db-contract`: `assertCompatible()` now fails closed when the check is
+  enabled and no baseline snapshot exists. Previously it passed, so a pipeline
+  whose baseline was never promoted — or was lost by a cache step that did not
+  restore it — believed it was gated while every run compared nothing. The
+  failure is raised as a configuration failure rather than a schema verdict,
+  because nothing was compared; `run()` is unchanged and still captures,
+  reports and returns normally without a baseline, which is what bootstrapping a
+  new project uses.
 - `module-db-contract`: the two places where the check reported "no change" while
   the contract had moved are closed, and the snapshot format is now version 2.
   A partial index's `WHERE` predicate is captured, so turning

@@ -70,6 +70,19 @@ dbContractRunner.writeBaseline();   // explicit, never a side effect of run()
 disappear by being re-recorded — promoting a new baseline is always a separate,
 deliberate call.
 
+**`assertCompatible()` fails closed when there is no baseline.** An enabled check
+with nothing to compare against is a job that believes it is gating and is not,
+which is the failure this module exists to remove. That is raised as a
+configuration failure — an `IllegalStateException`, like a missing schema or a
+foreign snapshot format — and deliberately not as a schema verdict: nothing was
+compared, so calling it breaking, risky or unknown would be a claim about a
+schema the run never looked at.
+
+`run()` is the other half of that split and stays usable with no baseline: it
+captures the schema, writes the reports, says `baselinePresent: false` in both of
+them, and returns normally. Bootstrapping a new project therefore means `run()`
+or `writeBaseline()`, never a gate that quietly passes.
+
 A failing gate names the change and the reason:
 
 ```
