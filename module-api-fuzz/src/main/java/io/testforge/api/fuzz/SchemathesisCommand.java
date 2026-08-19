@@ -107,8 +107,16 @@ public class SchemathesisCommand {
         args.add(command);
 
         // Global options MUST appear before the "run" subcommand.
+        //
+        // Absolute, because the child process does not run here: ApiFuzzRunner
+        // starts the CLI with its working directory set to the per-spec output
+        // directory. A relative path — which is what the documented default
+        // `output-dir: build/api-fuzz` produces — is then resolved against that
+        // directory and looks for `<out>/<spec>/<out>/<spec>/schemathesis.toml`,
+        // so Schemathesis aborts before testing anything. `--report-dir` below
+        // has always been absolute for the same reason.
         args.add("--config-file");
-        args.add(generatedConfigFile.toString());
+        args.add(generatedConfigFile.toAbsolutePath().normalize().toString());
 
         // Overlay user config file if supplied (passed as second --config-file global option).
         if (properties.configFile() != null && !properties.configFile().isBlank()) {

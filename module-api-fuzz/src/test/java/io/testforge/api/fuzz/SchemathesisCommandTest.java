@@ -88,6 +88,50 @@ class SchemathesisCommandTest {
         );
     }
 
+    /**
+     * The child process runs with its working directory set to the per-spec
+     * output directory, so a relative {@code --config-file} is resolved against
+     * the wrong base and Schemathesis aborts before testing anything. The
+     * documented default {@code output-dir: build/api-fuzz} is relative, so that
+     * was the default configuration.
+     */
+    @Test
+    void aRelativeGeneratedConfigPathIsPassedAbsolute() {
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, "build/api-fuzz", List.of(), "http://localhost:8080",
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
+        FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
+        Path relativeConfig = Path.of("build/api-fuzz/demo/schemathesis.toml");
+
+        List<String> command = SchemathesisCommand.build(
+                props, policy, Path.of("build/api-fuzz/demo/openapi.yaml"), relativeConfig);
+
+        String configArgument = command.get(command.indexOf("--config-file") + 1);
+
+        assertThat(Path.of(configArgument))
+                .as("a relative path would be resolved against the child's working directory")
+                .isAbsolute();
+        assertThat(configArgument)
+                .isEqualTo(relativeConfig.toAbsolutePath().normalize().toString());
+    }
+
+    /** An already-absolute path must survive unchanged. */
+    @Test
+    void anAbsoluteGeneratedConfigPathIsLeftAlone(@TempDir Path tempDir) {
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of(), "http://localhost:8080",
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
+        FuzzSafetyPolicy policy = FuzzSafetyPolicy.from(props);
+        Path absoluteConfig = tempDir.resolve("schemathesis.toml");
+
+        List<String> command = SchemathesisCommand.build(
+                props, policy, tempDir.resolve("openapi.yaml"), absoluteConfig);
+
+        assertThat(command).containsSubsequence("--config-file", absoluteConfig.toString());
+    }
+
     @Test
     void seedAndReportFlagsArePresent(@TempDir Path tempDir) {
         ApiFuzzProperties props = new ApiFuzzProperties(

@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Relative Output Dir Regression API
+  version: 1.0.0
+paths:
+  /api/buggy:
+    get:
+      summary: Always answers 500, so the run produces findings
+      operationId: getBuggy
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+    post:
+      summary: Declared so the safety policy has a mutating method to refuse
+      operationId: createBuggy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string

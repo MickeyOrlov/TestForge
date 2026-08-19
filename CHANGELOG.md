@@ -6,6 +6,21 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Fixed
+- `module-api-fuzz`: `--config-file` is now passed to Schemathesis as an
+  absolute path. The runner starts the CLI with its working directory set to the
+  per-spec output directory, so the previous project-relative argument was
+  resolved against that directory and pointed at a doubled path that does not
+  exist. Schemathesis aborted before testing anything and no NDJSON report was
+  written, so `assertHealthy()` failed with
+  `EXECUTION_ERROR: NDJSON report file is missing` — on the documented default
+  `output-dir: build/api-fuzz`, which is relative, and therefore for any external
+  consumer that did not happen to configure an absolute directory. `--report-dir`
+  was already absolute; only this one argument was not. The existing real-CLI
+  acceptance test ran from a JUnit `@TempDir`, which is absolute, so the defect
+  was invisible to it; a second acceptance test now pins a relative output
+  directory.
+
 ### Changed
 - `module-db-contract`: `assertCompatible()` now fails closed when the check is
   disabled. Previously a disabled check returned a passing report, so a pipeline
