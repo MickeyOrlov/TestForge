@@ -8,6 +8,16 @@ semantic versioning for its git tags.
 
 ### Changed
 - `module-db-contract`: `assertCompatible()` now fails closed when the check is
+  disabled. Previously a disabled check returned a passing report, so a pipeline
+  whose `forge.db-contract.enabled` was never set — or was misspelled, which
+  nothing else complains about — believed it was gated while no database was ever
+  inspected. Since the property defaults to `false`, that quiet pass was the
+  un-configured state. It is raised as a configuration failure
+  (`IllegalStateException`, naming the property) rather than a schema verdict,
+  for the same reason as the missing baseline below: nothing was compared.
+  `run()` is unchanged — it still returns a disabled report, still touches no
+  database, and remains the entry point for reporting without gating.
+- `module-db-contract`: `assertCompatible()` now fails closed when the check is
   enabled and no baseline snapshot exists. Previously it passed, so a pipeline
   whose baseline was never promoted — or was lost by a cache step that did not
   restore it — believed it was gated while every run compared nothing. The

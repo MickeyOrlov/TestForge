@@ -150,20 +150,44 @@ class DbContractRunnerTest {
     }
 
     @Test
-    void aDisabledCheckStillPassesAndStillTouchesNoDatabase(@TempDir Path dir) {
+    void aDisabledCheckFailsClosedAndStillTouchesNoDatabase(@TempDir Path dir) {
         DbSchemaInspector exploding = (dataSource, schemaName) -> {
             throw new AssertionError("a disabled contract check must not connect to a database");
         };
         DbContractProperties disabled = new DbContractProperties(false, null, "public",
                 dir.resolve("absent-baseline.json").toString(), dir.resolve("out").toString(),
                 null, null, null);
+        DbContractRunner runner = new DbContractRunner(REGISTRY, exploding, store,
+                new DefaultDbCompatibilityPolicy(), disabled, new ObjectMapper(), ArtifactSink.NO_OP);
 
-        DbContractReport report = new DbContractRunner(REGISTRY, exploding, store,
-                new DefaultDbCompatibilityPolicy(), disabled, new ObjectMapper(), ArtifactSink.NO_OP)
-                .assertCompatible();
+        assertThatThrownBy(runner::assertCompatible)
+                .as("asking for a gate while the check is disabled must not return success")
+                .isInstanceOf(IllegalStateException.class)
+                .isNotInstanceOf(DbContractException.class)
+                .hasMessageContaining("forge.db-contract.enabled")
+                .hasMessageContaining("run()");
+    }
 
-        assertThat(report.enabled()).isFalse();
-        assertThat(report.baselinePresent()).isFalse();
+    /**
+     * The property defaults to false, so the quiet-pass this closes was the
+     * un-configured case: a misspelled property name leaves the check disabled and
+     * would otherwise leave the gate green.
+     */
+    @Test
+    void aDisabledCheckIsRefusedBeforeTheBaselineIsEvenConsidered(@TempDir Path dir) {
+        // a baseline that does exist, so the refusal can only be about being disabled
+        writeBaseline(dir, BASELINE);
+        DbContractProperties disabled = new DbContractProperties(false, null, "public",
+                dir.resolve("baseline/schema-snapshot.json").toString(), dir.resolve("out").toString(),
+                null, null, null);
+        DbContractRunner runner = new DbContractRunner(REGISTRY, (dataSource, schemaName) -> BASELINE,
+                store, new DefaultDbCompatibilityPolicy(), disabled, new ObjectMapper(),
+                ArtifactSink.NO_OP);
+
+        assertThatThrownBy(runner::assertCompatible)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("disabled")
+                .hasMessageNotContaining("no baseline snapshot");
     }
 
     @Test

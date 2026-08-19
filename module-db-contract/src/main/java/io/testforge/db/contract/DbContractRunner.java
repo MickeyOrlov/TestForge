@@ -178,22 +178,38 @@ public class DbContractRunner {
 
     /**
      * Runs the check and fails when the configured gate is not met, or when the
-     * check was asked to gate without anything to compare against.
+     * check was asked to gate without having compared anything.
      *
-     * <p>An enabled check with no baseline fails closed. It is not a schema
-     * verdict — nothing was compared, so calling it {@code BREAKING}, {@code RISKY}
-     * or {@code UNKNOWN} would be a claim about a schema this run never looked at.
-     * It is a configuration failure, and it is raised as one, the same way a
-     * missing schema or a foreign snapshot format is. Use {@link #run()} when the
-     * intent really is to capture and report without gating.
+     * <p>Calling this method is the statement that the schema is being gated on.
+     * Two conditions make that statement false, and both fail closed: a check
+     * that is disabled never looked at a database, and an enabled check with no
+     * baseline had nothing to look at the schema against. Neither is a schema
+     * verdict — nothing was compared, so calling either {@code BREAKING},
+     * {@code RISKY} or {@code UNKNOWN} would be a claim about a schema this run
+     * never inspected. Both are configuration failures, and both are raised as
+     * ones, the same way a missing schema or a foreign snapshot format is.
+     *
+     * <p>Use {@link #run()} when the intent really is to capture and report
+     * without gating; it stays usable in both situations.
      *
      * @return the report, when it passes the gate
      * @throws DbContractException when the schema changes fail the gate
-     * @throws IllegalStateException when the check is enabled but no baseline exists
+     * @throws IllegalStateException when the check is disabled, or enabled with no baseline
      */
     public DbContractReport assertCompatible() {
         DbContractReport report = run();
-        if (report.enabled() && !report.baselinePresent()) {
+        if (!report.enabled()) {
+            // Same failure as the missing baseline below, reached from the other
+            // side: a pipeline believes it is gated while nothing is ever checked.
+            // This is the default state of the property, so it is also the one a
+            // typo in the property name lands on.
+            throw new IllegalStateException("Database contract check is disabled "
+                    + "(forge.db-contract.enabled=false), so no schema was inspected and nothing was "
+                    + "gated. Calling assertCompatible() asks for a gate: set "
+                    + "forge.db-contract.enabled=true, or call run() instead when the intent is to "
+                    + "report without gating.");
+        }
+        if (!report.baselinePresent()) {
             // Passing here would mean a pipeline believes it is gated while every
             // run compares nothing — the failure mode this module exists to remove.
             throw new IllegalStateException("Database contract check is enabled but no baseline snapshot "

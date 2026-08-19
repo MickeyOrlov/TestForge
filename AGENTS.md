@@ -93,7 +93,11 @@ must not replace each other. `example-tests` is never published.
    run `assertCompatible()` from a scheduled or review job — never the default
    build, which has no database to inspect. Set `forge.db-contract.schema` and
    exclude migration bookkeeping tables (`flyway_schema_history`,
-   `databasechangelog`) through `exclude-tables`. Leave `fail-on.risky` and
+   `databasechangelog`) through `exclude-tables`. That job must also set
+   `forge.db-contract.enabled=true`: `assertCompatible()` fails closed while the
+   check is disabled rather than passing without inspecting anything, so a job
+   that forgets it is told, not silently green. `run()` is the reporting-only
+   entry point and stays usable either way. Leave `fail-on.risky` and
    `fail-on.unknown` at `false` until the first reports have been read; turn
    `risky` on once the team trusts the baseline. Promoting a new baseline is
    always an explicit `writeBaseline()` call in a reviewed change, never a side
