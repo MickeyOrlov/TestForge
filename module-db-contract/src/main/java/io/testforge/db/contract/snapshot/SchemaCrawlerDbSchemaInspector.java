@@ -115,8 +115,12 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
                 .setRetrievePrimaryKeys(true)
                 .setRetrieveForeignKeys(true)
                 .setRetrieveIndexes(true)
-                // partial-index WHERE clauses arrive with index information, not with
-                // the bare index list
+                // Partial-index WHERE clauses actually arrive with the plain
+                // getIndexInfo call, as FILTER_CONDITION. This flag gates a
+                // separate vendor-view-backed query that is a no-op in the
+                // plugin-free mode this module runs in; it is kept because other
+                // vendors may put extended index detail behind it and it costs
+                // nothing where it is unsupported.
                 .setRetrieveIndexInformation(true)
                 .setRetrieveRoutines(false)
                 .setRetrieveSequenceInformation(false)

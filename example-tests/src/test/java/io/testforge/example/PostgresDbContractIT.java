@@ -424,6 +424,27 @@ class PostgresDbContractIT {
     }
 
     @Test
+    void repeatedCapturesOfAPredicateAndActionCarryingSchema_areIdentical() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN deleted_at DATE",
+                "CREATE UNIQUE INDEX uq_demo_orders_status ON contract_demo_orders (status) "
+                        + "WHERE deleted_at IS NULL",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) "
+                        + "ON DELETE CASCADE ON UPDATE SET NULL");
+        dbContractRunner.writeBaseline();
+
+        // the base determinism test runs against a schema with no indexes and no
+        // keys, so it cannot see drift in the two fields this ticket added
+        DbSchemaSnapshot first = dbContractRunner.capture();
+        DbSchemaSnapshot second = dbContractRunner.capture();
+
+        assertThat(second).isEqualTo(first);
+        assertThat(dbContractRunner.run().changes())
+                .as("a schema that did not move must not report a predicate or action change")
+                .isEmpty();
+    }
+
+    @Test
     void droppingAWholeTable_isReportedOnceAsBreaking() throws Exception {
         execute("DROP TABLE contract_demo_orders");
 
