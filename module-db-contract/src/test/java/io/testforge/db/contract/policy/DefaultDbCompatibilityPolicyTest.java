@@ -1,7 +1,9 @@
 package io.testforge.db.contract.policy;
 
 import static io.testforge.db.contract.TestSchemas.column;
+import static io.testforge.db.contract.TestSchemas.foreignKey;
 import static io.testforge.db.contract.TestSchemas.id;
+import static io.testforge.db.contract.TestSchemas.index;
 import static io.testforge.db.contract.TestSchemas.schema;
 import static io.testforge.db.contract.TestSchemas.table;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,6 +14,7 @@ import io.testforge.db.contract.diff.DbSchemaComparator;
 import io.testforge.db.contract.model.DbForeignKey;
 import io.testforge.db.contract.model.DbIndex;
 import io.testforge.db.contract.model.DbPrimaryKey;
+import io.testforge.db.contract.model.DbReferentialAction;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.schema.ColumnTypeFamily;
 import java.util.List;
@@ -153,9 +156,9 @@ class DefaultDbCompatibilityPolicyTest {
     void foreignKeyVerdicts_separateRetargetingFromAddingAndDropping() {
         DbSchemaSnapshot without = schema(table("orders", List.of(id()), null, List.of(), List.of()));
         DbSchemaSnapshot with = schema(table("orders", List.of(id()), null,
-                List.of(new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"))), List.of()));
+                List.of(foreignKey("fk", List.of("customer_id"), "customers", List.of("id"))), List.of()));
         DbSchemaSnapshot retargeted = schema(table("orders", List.of(id()), null,
-                List.of(new DbForeignKey("fk", List.of("customer_id"), "accounts", List.of("id"))), List.of()));
+                List.of(foreignKey("fk", List.of("customer_id"), "accounts", List.of("id"))), List.of()));
 
         assertThat(only(without, with).compatibility()).isEqualTo(DbCompatibility.RISKY);
         assertThat(only(with, without).compatibility()).isEqualTo(DbCompatibility.RISKY);
@@ -166,9 +169,9 @@ class DefaultDbCompatibilityPolicyTest {
     void addingANonUniqueIndexIsFree_addingAUniqueOneIsNot() {
         DbSchemaSnapshot without = schema(table("orders", List.of(id()), null, List.of(), List.of()));
         DbSchemaSnapshot plain = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), false))));
+                List.of(index("idx", List.of("status"), false))));
         DbSchemaSnapshot unique = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), true))));
+                List.of(index("idx", List.of("status"), true))));
 
         assertThat(only(without, plain).compatibility()).isEqualTo(DbCompatibility.NON_BREAKING);
         assertThat(only(without, unique).compatibility()).isEqualTo(DbCompatibility.RISKY);
@@ -178,9 +181,9 @@ class DefaultDbCompatibilityPolicyTest {
     void droppingAnIndex_isRiskyWhicheverKindItWas() {
         DbSchemaSnapshot without = schema(table("orders", List.of(id()), null, List.of(), List.of()));
         DbSchemaSnapshot plain = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), false))));
+                List.of(index("idx", List.of("status"), false))));
         DbSchemaSnapshot unique = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), true))));
+                List.of(index("idx", List.of("status"), true))));
 
         assertThat(only(plain, without).compatibility()).isEqualTo(DbCompatibility.RISKY);
         assertThat(only(unique, without).compatibility()).isEqualTo(DbCompatibility.RISKY);
@@ -209,11 +212,11 @@ class DefaultDbCompatibilityPolicyTest {
     @Test
     void reshapingAnExistingIndex_isRiskyWhicheverWayItMoves() {
         DbSchemaSnapshot plain = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), false))));
+                List.of(index("idx", List.of("status"), false))));
         DbSchemaSnapshot unique = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status"), true))));
+                List.of(index("idx", List.of("status"), true))));
         DbSchemaSnapshot widened = schema(table("orders", List.of(id()), null, List.of(),
-                List.of(new DbIndex("idx", List.of("status", "created_at"), false))));
+                List.of(index("idx", List.of("status", "created_at"), false))));
 
         assertThat(only(plain, unique).compatibility()).isEqualTo(DbCompatibility.RISKY);
         assertThat(only(unique, plain).compatibility()).isEqualTo(DbCompatibility.RISKY);
@@ -231,6 +234,78 @@ class DefaultDbCompatibilityPolicyTest {
         // it must change deliberately, not by accident
         assertThat(only(narrow, wide).compatibility()).isEqualTo(DbCompatibility.RISKY);
         assertThat(only(wide, narrow).compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void anIndexPredicateChange_isRiskyInBothDirections() {
+        DbSchemaSnapshot partial = schema(table("orders", List.of(id()), null, List.of(),
+                List.of(new DbIndex("uq_status", List.of("status"), true, "deleted_at IS NULL"))));
+        DbSchemaSnapshot full = schema(table("orders", List.of(id()), null, List.of(),
+                List.of(new DbIndex("uq_status", List.of("status"), true, ""))));
+
+        assertThat(only(partial, full).compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(full, partial).compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(partial, full).reason()).contains("different set of rows");
+    }
+
+    @Test
+    void anActionThatStartsRejectingWrites_isBreaking() {
+        DbSchemaSnapshot cascade = withAction(DbReferentialAction.CASCADE);
+        DbSchemaSnapshot restrict = withAction(DbReferentialAction.RESTRICT);
+
+        DbChangeAssessment assessment = only(cascade, restrict);
+
+        assertThat(assessment.compatibility())
+                .as("a delete that used to succeed now fails, exactly like tightening nullability")
+                .isEqualTo(DbCompatibility.BREAKING);
+        assertThat(assessment.reason()).contains("used to succeed");
+    }
+
+    @Test
+    void anActionThatStartsRemovingRowsSilently_isRisky() {
+        assertThat(only(withAction(DbReferentialAction.RESTRICT), withAction(DbReferentialAction.CASCADE))
+                .compatibility()).isEqualTo(DbCompatibility.RISKY);
+        assertThat(only(withAction(DbReferentialAction.RESTRICT), withAction(DbReferentialAction.SET_NULL))
+                .compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void anUnmappedReferentialAction_isUnknownRatherThanGuessed() {
+        assertThat(only(withAction(DbReferentialAction.CASCADE), withAction(DbReferentialAction.UNKNOWN))
+                .compatibility()).isEqualTo(DbCompatibility.UNKNOWN);
+    }
+
+    @Test
+    void anUnmappedActionOnTheUnchangedSide_doesNotMaskABreakingChange() {
+        DbSchemaSnapshot before = withActions(DbReferentialAction.CASCADE, DbReferentialAction.UNKNOWN);
+        DbSchemaSnapshot after = withActions(DbReferentialAction.RESTRICT, DbReferentialAction.UNKNOWN);
+
+        // ON UPDATE is unmapped on both sides and never moved; ON DELETE went
+        // CASCADE -> RESTRICT, which the rule table calls BREAKING
+        assertThat(only(before, after).compatibility()).isEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
+    void anUnmappedActionOnTheSideThatMoved_staysUnknown() {
+        DbSchemaSnapshot before = withActions(DbReferentialAction.UNKNOWN, DbReferentialAction.NO_ACTION);
+        DbSchemaSnapshot after = withActions(DbReferentialAction.RESTRICT, DbReferentialAction.NO_ACTION);
+
+        // we do not know what it used to do, so we cannot claim writes started failing
+        assertThat(only(before, after).compatibility()).isEqualTo(DbCompatibility.UNKNOWN);
+    }
+
+    private static DbSchemaSnapshot withActions(DbReferentialAction onDelete, DbReferentialAction onUpdate) {
+        return schema(table("orders", List.of(id()), null,
+                List.of(new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                        onDelete, onUpdate)),
+                List.of()));
+    }
+
+    private static DbSchemaSnapshot withAction(DbReferentialAction onDelete) {
+        return schema(table("orders", List.of(id()), null,
+                List.of(new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                        onDelete, DbReferentialAction.NO_ACTION)),
+                List.of()));
     }
 
     @Test

@@ -4,6 +4,7 @@ import io.testforge.db.contract.model.DbColumn;
 import io.testforge.db.contract.model.DbForeignKey;
 import io.testforge.db.contract.model.DbIndex;
 import io.testforge.db.contract.model.DbPrimaryKey;
+import io.testforge.db.contract.model.DbReferentialAction;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.model.DbTable;
 import io.testforge.db.schema.ColumnTypeFamily;
@@ -21,6 +22,7 @@ import schemacrawler.schema.Column;
 import schemacrawler.schema.ColumnDataType;
 import schemacrawler.schema.ColumnReference;
 import schemacrawler.schema.ForeignKey;
+import schemacrawler.schema.ForeignKeyUpdateRule;
 import schemacrawler.schema.Index;
 import schemacrawler.schema.IndexColumn;
 import schemacrawler.schema.PrimaryKey;
@@ -113,6 +115,13 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
                 .setRetrievePrimaryKeys(true)
                 .setRetrieveForeignKeys(true)
                 .setRetrieveIndexes(true)
+                // Partial-index WHERE clauses actually arrive with the plain
+                // getIndexInfo call, as FILTER_CONDITION. This flag gates a
+                // separate vendor-view-backed query that is a no-op in the
+                // plugin-free mode this module runs in; it is kept because other
+                // vendors may put extended index detail behind it and it costs
+                // nothing where it is unsupported.
+                .setRetrieveIndexInformation(true)
                 .setRetrieveRoutines(false)
                 .setRetrieveSequenceInformation(false)
                 .setRetrieveSynonymInformation(false)
@@ -285,7 +294,9 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
             referencedTable = referencedTableName(
                     reference.getPrimaryKeyColumn().getParent(), inspectedSchema);
         }
-        return new DbForeignKey(foreignKey.getName(), columns, referencedTable, referencedColumns);
+        return new DbForeignKey(foreignKey.getName(), columns, referencedTable, referencedColumns,
+                toReferentialAction(foreignKey.getDeleteRule()),
+                toReferentialAction(foreignKey.getUpdateRule()));
     }
 
     /**
@@ -309,7 +320,26 @@ public final class SchemaCrawlerDbSchemaInspector implements DbSchemaInspector {
 
     private static DbIndex toIndex(Index index) {
         List<String> columns = index.getColumns().stream().map(IndexColumn::getName).toList();
-        return new DbIndex(index.getName(), columns, index.isUnique());
+        String predicate = index.hasFilterCondition() ? index.getFilterCondition() : "";
+        return new DbIndex(index.getName(), columns, index.isUnique(), predicate);
+    }
+
+    /**
+     * Maps SchemaCrawler's referential action onto TestForge's own enum, so the
+     * engine's vocabulary stops at this class like the rest of its model does.
+     */
+    private static DbReferentialAction toReferentialAction(ForeignKeyUpdateRule rule) {
+        if (rule == null) {
+            return DbReferentialAction.UNKNOWN;
+        }
+        return switch (rule) {
+            case noAction -> DbReferentialAction.NO_ACTION;
+            case restrict -> DbReferentialAction.RESTRICT;
+            case cascade -> DbReferentialAction.CASCADE;
+            case setNull -> DbReferentialAction.SET_NULL;
+            case setDefault -> DbReferentialAction.SET_DEFAULT;
+            default -> DbReferentialAction.UNKNOWN;
+        };
     }
 
     private static boolean backsPrimaryKey(DbIndex index, DbPrimaryKey primaryKey) {

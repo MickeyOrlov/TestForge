@@ -23,8 +23,16 @@ import java.util.Optional;
  */
 public record DbSchemaSnapshot(int formatVersion, String schema, List<DbTable> tables) {
 
-    /** Current snapshot format version. */
-    public static final int FORMAT_VERSION = 1;
+    /**
+     * Current snapshot format version.
+     *
+     * <p>2 added the partial-index predicate and foreign-key referential
+     * actions. A version 1 baseline lacks both, so comparing it against a
+     * version 2 capture would report every partial index and every key as
+     * changed — which is why {@link io.testforge.db.contract.snapshot.DbSchemaSnapshotStore}
+     * refuses to read a snapshot of any other version instead of guessing.
+     */
+    public static final int FORMAT_VERSION = 2;
 
     public DbSchemaSnapshot {
         if (formatVersion <= 0) {

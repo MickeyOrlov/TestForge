@@ -2,7 +2,9 @@ package io.testforge.db.contract.policy;
 
 import io.testforge.db.contract.diff.DbChange;
 import io.testforge.db.contract.model.DbColumn;
+import io.testforge.db.contract.model.DbForeignKey;
 import io.testforge.db.contract.model.DbIndex;
+import io.testforge.db.contract.model.DbReferentialAction;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.schema.ColumnTypeFamily;
 import java.util.Optional;
@@ -77,6 +79,7 @@ public final class DefaultDbCompatibilityPolicy implements DbCompatibilityPolicy
                     "The referential integrity guarantee consumers relied on is gone.");
             case FOREIGN_KEY_CHANGED -> breaking(change,
                     "The relationship now points somewhere else, so joins through it change meaning.");
+            case FOREIGN_KEY_ACTION_CHANGED -> referentialActionChanged(change, baseline, current);
 
             case INDEX_ADDED -> addedIndex(change, current);
             case INDEX_REMOVED -> removedIndex(change, baseline);
@@ -86,6 +89,7 @@ public final class DefaultDbCompatibilityPolicy implements DbCompatibilityPolicy
                     "A newly unique index can reject writes that used to succeed.");
             case INDEX_UNIQUENESS_RELAXED -> risky(change,
                     "The uniqueness guarantee consumers relied on is gone.");
+            case INDEX_PREDICATE_CHANGED -> indexPredicateChanged(change, current);
         };
     }
 
@@ -133,6 +137,92 @@ public final class DefaultDbCompatibilityPolicy implements DbCompatibilityPolicy
         return risky(change,
                 "The logical type family is unchanged, but v1 does not tell a widening from a narrowing — "
                         + "check whether existing values still fit.");
+    }
+
+    /**
+     * A referential action that starts rejecting the parent change is breaking
+     * for the same reason tightening nullability is: an operation that used to
+     * succeed now fails. Any other move changes what the database silently does
+     * to rows, which is a risk rather than a rejection.
+     */
+    private DbChangeAssessment referentialActionChanged(DbChange change, DbSchemaSnapshot baseline,
+                                                        DbSchemaSnapshot current) {
+        Optional<DbForeignKey> before = foreignKey(baseline, change);
+        Optional<DbForeignKey> now = foreignKey(current, change);
+        if (before.isEmpty() || now.isEmpty()) {
+            return unknown(change, "The changed foreign key could not be resolved in both snapshots.");
+        }
+        // Only the action that actually moved is judged — in both dimensions of
+        // this decision. NO_ACTION rejects by definition, so asking "does any
+        // current action reject?" would blame an untouched ON UPDATE default for
+        // a breaking change; and asking "is any action unmapped?" would let an
+        // unmapped ON UPDATE that never moved downgrade a plain CASCADE ->
+        // RESTRICT to UNKNOWN, which the default gate does not fail on.
+        boolean deleteStartedRejecting = startedRejecting(before.get().onDelete(), now.get().onDelete());
+        boolean updateStartedRejecting = startedRejecting(before.get().onUpdate(), now.get().onUpdate());
+        if (deleteStartedRejecting || updateStartedRejecting) {
+            return breaking(change,
+                    "Deleting or re-keying a referenced row is now rejected while children exist, "
+                            + "so writes that used to succeed fail.");
+        }
+        if (changedIntoOrOutOfUnmapped(before.get(), now.get())) {
+            return unknown(change,
+                    "The driver reported a referential action TestForge does not map, so the impact is not judged.");
+        }
+        return risky(change,
+                "The database now does something different to referencing rows — they can be removed or "
+                        + "blanked without the consumer asking.");
+    }
+
+    /**
+     * An action only "started rejecting" when it moved and TestForge understands
+     * both ends of that move; an unmapped starting point is no basis for claiming
+     * writes began to fail.
+     */
+    private static boolean startedRejecting(DbReferentialAction before, DbReferentialAction now) {
+        return before != now
+                && before != DbReferentialAction.UNKNOWN
+                && now != DbReferentialAction.UNKNOWN
+                && rejects(now)
+                && !rejects(before);
+    }
+
+    /** Whether an action that actually moved has an unmapped value on either end. */
+    private static boolean changedIntoOrOutOfUnmapped(DbForeignKey before, DbForeignKey now) {
+        return unmappedMove(before.onDelete(), now.onDelete())
+                || unmappedMove(before.onUpdate(), now.onUpdate());
+    }
+
+    private static boolean unmappedMove(DbReferentialAction before, DbReferentialAction now) {
+        return before != now
+                && (before == DbReferentialAction.UNKNOWN || now == DbReferentialAction.UNKNOWN);
+    }
+
+    private static boolean rejects(DbReferentialAction action) {
+        return action == DbReferentialAction.RESTRICT || action == DbReferentialAction.NO_ACTION;
+    }
+
+    /**
+     * The predicate decides which rows an index covers, so on a unique index it
+     * decides what "unique" even means.
+     */
+    private DbChangeAssessment indexPredicateChanged(DbChange change, DbSchemaSnapshot current) {
+        boolean unique = index(current, change).map(DbIndex::unique).orElse(false);
+        return unique
+                ? risky(change, "The uniqueness constraint now covers a different set of rows, so it can "
+                        + "reject writes it used to allow, or allow ones it used to reject.")
+                : risky(change, "The index covers a different set of rows, so queries that relied on this "
+                        + "access path can stop using it.");
+    }
+
+    private Optional<DbForeignKey> foreignKey(DbSchemaSnapshot snapshot, DbChange change) {
+        if (snapshot == null || change.object() == null) {
+            return Optional.empty();
+        }
+        return snapshot.table(change.table()).stream()
+                .flatMap(table -> table.foreignKeys().stream())
+                .filter(foreignKey -> foreignKey.name().equals(change.object()))
+                .findFirst();
     }
 
     private DbChangeAssessment addedIndex(DbChange change, DbSchemaSnapshot current) {

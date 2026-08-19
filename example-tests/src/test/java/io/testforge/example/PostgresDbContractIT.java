@@ -171,7 +171,7 @@ class PostgresDbContractIT {
 
         DbChangeAssessment added = only("contract_demo_orders.fk_demo_orders_customer");
         assertThat(added.change().type()).isEqualTo(DbChangeType.FOREIGN_KEY_ADDED);
-        assertThat(added.change().after()).isEqualTo("(customer_id) -> contract_demo_customers(id)");
+        assertThat(added.change().after()).startsWith("(customer_id) -> contract_demo_customers(id)");
         assertThat(added.compatibility()).isEqualTo(DbCompatibility.RISKY);
 
         dbContractRunner.writeBaseline();
@@ -216,9 +216,9 @@ class PostgresDbContractIT {
 
         assertThat(assessment.change().type()).isEqualTo(DbChangeType.FOREIGN_KEY_CHANGED);
         assertThat(assessment.change().before())
-                .isEqualTo("(customer_id) -> contract_demo_customers(id)");
+                .startsWith("(customer_id) -> contract_demo_customers(id)");
         assertThat(assessment.change().after())
-                .isEqualTo("(customer_id) -> archive.contract_demo_customers(id)");
+                .startsWith("(customer_id) -> archive.contract_demo_customers(id)");
         assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.BREAKING);
     }
 
@@ -350,6 +350,98 @@ class PostgresDbContractIT {
         DbTable events = dbContractRunner.capture().table("contract_demo_events").orElseThrow();
 
         assertThat(events.primaryKey().columns()).containsExactly("z", "a");
+    }
+
+    @Test
+    void turningAPartialUniqueIndexIntoAFullOne_isNoLongerInvisible() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN deleted_at DATE",
+                "CREATE UNIQUE INDEX uq_demo_orders_status ON contract_demo_orders (status) "
+                        + "WHERE deleted_at IS NULL");
+        dbContractRunner.writeBaseline();
+
+        // same name, same column, still unique — only the set of rows it covers moved
+        execute("DROP INDEX uq_demo_orders_status",
+                "CREATE UNIQUE INDEX uq_demo_orders_status ON contract_demo_orders (status)");
+
+        DbChangeAssessment assessment = only("contract_demo_orders.uq_demo_orders_status");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.INDEX_PREDICATE_CHANGED);
+        assertThat(assessment.change().before()).contains("deleted_at IS NULL");
+        assertThat(assessment.change().after()).isEqualTo("no predicate");
+        assertThat(assessment.compatibility()).isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void aPartialIndexPredicateIsCapturedFromRealPostgres() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN deleted_at DATE",
+                "CREATE UNIQUE INDEX uq_demo_orders_status ON contract_demo_orders (status) "
+                        + "WHERE deleted_at IS NULL");
+
+        DbTable orders = dbContractRunner.capture().table("contract_demo_orders").orElseThrow();
+
+        assertThat(orders.indexes())
+                .filteredOn(index -> index.name().equals("uq_demo_orders_status"))
+                .singleElement()
+                .satisfies(index -> {
+                    assertThat(index.partial()).isTrue();
+                    assertThat(index.predicate()).contains("deleted_at IS NULL");
+                });
+    }
+
+    @Test
+    void switchingOnDeleteCascadeToRestrict_isBreaking() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) ON DELETE CASCADE");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_orders DROP CONSTRAINT fk_demo_orders_customer",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) ON DELETE RESTRICT");
+
+        DbChangeAssessment assessment = only("contract_demo_orders.fk_demo_orders_customer");
+
+        assertThat(assessment.change().type()).isEqualTo(DbChangeType.FOREIGN_KEY_ACTION_CHANGED);
+        assertThat(assessment.change().before()).contains("ON DELETE CASCADE");
+        assertThat(assessment.change().after()).contains("ON DELETE RESTRICT");
+        assertThat(assessment.compatibility())
+                .as("deleting a customer used to succeed and now fails")
+                .isEqualTo(DbCompatibility.BREAKING);
+    }
+
+    @Test
+    void switchingOnDeleteRestrictToCascade_isRisky() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) ON DELETE RESTRICT");
+        dbContractRunner.writeBaseline();
+
+        execute("ALTER TABLE contract_demo_orders DROP CONSTRAINT fk_demo_orders_customer",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) ON DELETE CASCADE");
+
+        assertThat(only("contract_demo_orders.fk_demo_orders_customer").compatibility())
+                .as("nothing that used to be written is rejected, but rows now disappear unasked")
+                .isEqualTo(DbCompatibility.RISKY);
+    }
+
+    @Test
+    void repeatedCapturesOfAPredicateAndActionCarryingSchema_areIdentical() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ADD COLUMN deleted_at DATE",
+                "CREATE UNIQUE INDEX uq_demo_orders_status ON contract_demo_orders (status) "
+                        + "WHERE deleted_at IS NULL",
+                "ALTER TABLE contract_demo_orders ADD CONSTRAINT fk_demo_orders_customer "
+                        + "FOREIGN KEY (customer_id) REFERENCES contract_demo_customers(id) "
+                        + "ON DELETE CASCADE ON UPDATE SET NULL");
+        dbContractRunner.writeBaseline();
+
+        // the base determinism test runs against a schema with no indexes and no
+        // keys, so it cannot see drift in the two fields this ticket added
+        DbSchemaSnapshot first = dbContractRunner.capture();
+        DbSchemaSnapshot second = dbContractRunner.capture();
+
+        assertThat(second).isEqualTo(first);
+        assertThat(dbContractRunner.run().changes())
+                .as("a schema that did not move must not report a predicate or action change")
+                .isEmpty();
     }
 
     @Test

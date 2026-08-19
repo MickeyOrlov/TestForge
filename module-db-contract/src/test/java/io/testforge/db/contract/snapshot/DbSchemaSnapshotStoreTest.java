@@ -1,7 +1,9 @@
 package io.testforge.db.contract.snapshot;
 
 import static io.testforge.db.contract.TestSchemas.column;
+import static io.testforge.db.contract.TestSchemas.foreignKey;
 import static io.testforge.db.contract.TestSchemas.id;
+import static io.testforge.db.contract.TestSchemas.index;
 import static io.testforge.db.contract.TestSchemas.schema;
 import static io.testforge.db.contract.TestSchemas.table;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,8 +28,8 @@ class DbSchemaSnapshotStoreTest {
     private static final DbSchemaSnapshot SNAPSHOT = schema(table("orders",
             List.of(id(), column("status", ColumnTypeFamily.CHARACTER, "varchar(32)", true, true)),
             new DbPrimaryKey("orders_pkey", List.of("id")),
-            List.of(new DbForeignKey("fk_orders_customer", List.of("customer_id"), "customers", List.of("id"))),
-            List.of(new DbIndex("idx_orders_status", List.of("status"), false))));
+            List.of(foreignKey("fk_orders_customer", List.of("customer_id"), "customers", List.of("id"))),
+            List.of(index("idx_orders_status", List.of("status"), false))));
 
     @Test
     void roundTrip_preservesEveryModelledDetail(@TempDir Path dir) {
@@ -57,8 +59,8 @@ class DbSchemaSnapshotStoreTest {
         store.write(second, schema(table("orders",
                 List.of(column("status", ColumnTypeFamily.CHARACTER, "varchar(32)", true, true), id()),
                 new DbPrimaryKey("orders_pkey", List.of("id")),
-                List.of(new DbForeignKey("fk_orders_customer", List.of("customer_id"), "customers", List.of("id"))),
-                List.of(new DbIndex("idx_orders_status", List.of("status"), false)))));
+                List.of(foreignKey("fk_orders_customer", List.of("customer_id"), "customers", List.of("id"))),
+                List.of(index("idx_orders_status", List.of("status"), false)))));
 
         assertThat(Files.readAllBytes(second)).isEqualTo(Files.readAllBytes(first));
     }
@@ -70,7 +72,7 @@ class DbSchemaSnapshotStoreTest {
         assertThat(json)
                 .doesNotContain("generatedAt")
                 .doesNotContain("timestamp")
-                .contains("\"formatVersion\" : 1")
+                .contains("\"formatVersion\" : 2")
                 .endsWith("\n");
     }
 
@@ -89,6 +91,17 @@ class DbSchemaSnapshotStoreTest {
         assertThat(written).doesNotContain("\r");
         assertThat(json).endsWith("}\n");
         assertThat(json.lines().count()).isGreaterThan(1);
+    }
+
+    @Test
+    void aSnapshotFromAnotherFormatVersion_isRefusedRatherThanMisread(@TempDir Path dir) throws Exception {
+        Path stale = dir.resolve("v1.json");
+        Files.writeString(stale, store.toJson(SNAPSHOT).replace("\"formatVersion\" : 2", "\"formatVersion\" : 1"));
+
+        assertThatThrownBy(() -> store.read(stale))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("format version 1")
+                .hasMessageContaining("writeBaseline()");
     }
 
     @Test

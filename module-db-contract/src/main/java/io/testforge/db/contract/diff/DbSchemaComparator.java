@@ -176,6 +176,12 @@ public final class DbSchemaComparator {
                     || !before.referencedColumns().equals(now.referencedColumns())) {
                 changes.add(new DbChange(DbChangeType.FOREIGN_KEY_CHANGED, table, now.name(),
                         before.describe(), now.describe()));
+            } else if (before.onDelete() != now.onDelete() || before.onUpdate() != now.onUpdate()) {
+                // Same columns, same target: what changed is what the database
+                // does to this row when the parent goes away.
+                changes.add(new DbChange(DbChangeType.FOREIGN_KEY_ACTION_CHANGED, table, now.name(),
+                        "ON DELETE " + before.onDelete() + " ON UPDATE " + before.onUpdate(),
+                        "ON DELETE " + now.onDelete() + " ON UPDATE " + now.onUpdate()));
             }
         }
         for (Map.Entry<String, DbForeignKey> entry : baselineKeys.entrySet()) {
@@ -208,6 +214,11 @@ public final class DbSchemaComparator {
             } else if (before.unique() && !now.unique()) {
                 changes.add(new DbChange(DbChangeType.INDEX_UNIQUENESS_RELAXED, table, now.name(),
                         "unique", "non-unique"));
+            }
+            if (!before.predicate().equals(now.predicate())) {
+                changes.add(new DbChange(DbChangeType.INDEX_PREDICATE_CHANGED, table, now.name(),
+                        before.partial() ? "WHERE " + before.predicate() : "no predicate",
+                        now.partial() ? "WHERE " + now.predicate() : "no predicate"));
             }
         }
         for (Map.Entry<String, DbIndex> entry : baselineIndexes.entrySet()) {

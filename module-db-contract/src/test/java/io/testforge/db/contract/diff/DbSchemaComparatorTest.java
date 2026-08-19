@@ -1,7 +1,9 @@
 package io.testforge.db.contract.diff;
 
 import static io.testforge.db.contract.TestSchemas.column;
+import static io.testforge.db.contract.TestSchemas.foreignKey;
 import static io.testforge.db.contract.TestSchemas.id;
+import static io.testforge.db.contract.TestSchemas.index;
 import static io.testforge.db.contract.TestSchemas.schema;
 import static io.testforge.db.contract.TestSchemas.table;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,6 +13,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import io.testforge.db.contract.model.DbForeignKey;
 import io.testforge.db.contract.model.DbIndex;
 import io.testforge.db.contract.model.DbPrimaryKey;
+import io.testforge.db.contract.model.DbReferentialAction;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.schema.ColumnTypeFamily;
 import java.util.List;
@@ -153,9 +156,9 @@ class DbSchemaComparatorTest {
 
     @Test
     void foreignKeys_areMatchedByNameAndComparedByTarget() {
-        DbForeignKey toCustomers = new DbForeignKey("fk_orders_customer", List.of("customer_id"),
+        DbForeignKey toCustomers = foreignKey("fk_orders_customer", List.of("customer_id"),
                 "customers", List.of("id"));
-        DbForeignKey toAccounts = new DbForeignKey("fk_orders_customer", List.of("customer_id"),
+        DbForeignKey toAccounts = foreignKey("fk_orders_customer", List.of("customer_id"),
                 "accounts", List.of("id"));
         DbSchemaSnapshot without = schema(table("orders", List.of(id()), null, List.of(), List.of()));
         DbSchemaSnapshot with = schema(table("orders", List.of(id()), null, List.of(toCustomers), List.of()));
@@ -168,16 +171,16 @@ class DbSchemaComparatorTest {
         assertThat(DbSchemaComparator.compare(with, retargeted)).singleElement()
                 .satisfies(change -> {
                     assertThat(change.type()).isEqualTo(DbChangeType.FOREIGN_KEY_CHANGED);
-                    assertThat(change.before()).isEqualTo("(customer_id) -> customers(id)");
-                    assertThat(change.after()).isEqualTo("(customer_id) -> accounts(id)");
+                    assertThat(change.before()).startsWith("(customer_id) -> customers(id)");
+                    assertThat(change.after()).startsWith("(customer_id) -> accounts(id)");
                 });
     }
 
     @Test
     void indexes_areMatchedByNameAcrossColumnsAndUniqueness() {
-        DbIndex plain = new DbIndex("idx_status", List.of("status"), false);
-        DbIndex unique = new DbIndex("idx_status", List.of("status"), true);
-        DbIndex widened = new DbIndex("idx_status", List.of("status", "created_at"), false);
+        DbIndex plain = index("idx_status", List.of("status"), false);
+        DbIndex unique = index("idx_status", List.of("status"), true);
+        DbIndex widened = index("idx_status", List.of("status", "created_at"), false);
         DbSchemaSnapshot without = schema(table("orders", List.of(id()), null, List.of(), List.of()));
         DbSchemaSnapshot with = schema(table("orders", List.of(id()), null, List.of(), List.of(plain)));
 
@@ -197,6 +200,56 @@ class DbSchemaComparatorTest {
                 schema(table("orders", List.of(id()), null, List.of(), List.of(widened)))))
                 .singleElement()
                 .extracting(DbChange::type).isEqualTo(DbChangeType.INDEX_COLUMNS_CHANGED);
+    }
+
+    @Test
+    void droppingAnIndexPredicate_isAChange_notSilence() {
+        DbIndex partial = new DbIndex("uq_status", List.of("status"), true, "deleted_at IS NULL");
+        DbIndex full = new DbIndex("uq_status", List.of("status"), true, "");
+        DbSchemaSnapshot before = schema(table("orders", List.of(id()), null, List.of(), List.of(partial)));
+        DbSchemaSnapshot after = schema(table("orders", List.of(id()), null, List.of(), List.of(full)));
+
+        // same name, same columns, still unique — only the scope of "unique" moved
+        assertThat(DbSchemaComparator.compare(before, after)).singleElement()
+                .satisfies(change -> {
+                    assertThat(change.type()).isEqualTo(DbChangeType.INDEX_PREDICATE_CHANGED);
+                    assertThat(change.before()).isEqualTo("WHERE deleted_at IS NULL");
+                    assertThat(change.after()).isEqualTo("no predicate");
+                });
+        assertThat(DbSchemaComparator.compare(after, before)).singleElement()
+                .extracting(DbChange::type).isEqualTo(DbChangeType.INDEX_PREDICATE_CHANGED);
+    }
+
+    @Test
+    void changingAReferentialAction_isAChange_notSilence() {
+        DbForeignKey cascade = new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                DbReferentialAction.CASCADE, DbReferentialAction.NO_ACTION);
+        DbForeignKey restrict = new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                DbReferentialAction.RESTRICT, DbReferentialAction.NO_ACTION);
+        DbSchemaSnapshot before = schema(table("orders", List.of(id()), null, List.of(cascade), List.of()));
+        DbSchemaSnapshot after = schema(table("orders", List.of(id()), null, List.of(restrict), List.of()));
+
+        // same columns, same target — what changed is what happens to this row
+        assertThat(DbSchemaComparator.compare(before, after)).singleElement()
+                .satisfies(change -> {
+                    assertThat(change.type()).isEqualTo(DbChangeType.FOREIGN_KEY_ACTION_CHANGED);
+                    assertThat(change.before()).contains("ON DELETE CASCADE");
+                    assertThat(change.after()).contains("ON DELETE RESTRICT");
+                });
+    }
+
+    @Test
+    void aRetargetedKeyIsReportedOnce_notAlsoAsAnActionChange() {
+        DbForeignKey toCustomers = new DbForeignKey("fk", List.of("customer_id"), "customers", List.of("id"),
+                DbReferentialAction.CASCADE, DbReferentialAction.NO_ACTION);
+        DbForeignKey toAccounts = new DbForeignKey("fk", List.of("customer_id"), "accounts", List.of("id"),
+                DbReferentialAction.RESTRICT, DbReferentialAction.NO_ACTION);
+
+        assertThat(DbSchemaComparator.compare(
+                schema(table("orders", List.of(id()), null, List.of(toCustomers), List.of())),
+                schema(table("orders", List.of(id()), null, List.of(toAccounts), List.of()))))
+                .singleElement()
+                .extracting(DbChange::type).isEqualTo(DbChangeType.FOREIGN_KEY_CHANGED);
     }
 
     @Test
