@@ -30,6 +30,10 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
       BEFORE the first CI run uploads a log; add authentication as an
       `ApiRequestCustomizer`. Leave `scope.json-path` unset — it follows
       `forge.mock.scope-json-path`
+- [ ] **module-auth**: one `forge.auth.roles.<role>` per test persona,
+      secrets from env vars; `@AsUser("<role>")` instead of login calls in
+      tests. Prefer `local-jwt` where the system under test accepts a shared
+      secret, so CI needs no identity provider
 - [ ] **module-api-explorer**: same `forge.api-discovery.specs` registry plus
       `forge.http.base-url`; keep `methods` at the GET/HEAD/OPTIONS default and
       never enable `allow-unsafe-methods` against a shared environment. Run it

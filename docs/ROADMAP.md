@@ -70,6 +70,7 @@ surface is still expected to evolve.
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
 | `module-api-fuzz` | Thin adapter for the Schemathesis CLI engine. Handles configuration, safety policy, and result ingestion. |
+| `module-auth` | Tokens per role (static, OAuth2 client credentials/password, local HS256 JWT), cached with early refresh, `@AsUser` role selection, `Authorization` filter picked up by `ApiClient`. |
 
 ## Completed
 
@@ -103,6 +104,8 @@ surface is still expected to evolve.
 - Prepared data pool SPI and `@Prepared` parameter injection.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.
+- Role-based authentication for API tests: `module-auth` token providers,
+  `@AsUser`, local JWT signing without an identity provider.
 - Every diagnostic-producing module publishes into the unified run index:
   runner reports (API discovery, exploration, fuzzing, contract monitor, DB
   contract) and UI/mobile failure artifacts, through `ArtifactSink`.

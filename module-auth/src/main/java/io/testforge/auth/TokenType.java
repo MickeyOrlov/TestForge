@@ -1,0 +1,13 @@
+package io.testforge.auth;
+
+/** How a role obtains its token. */
+public enum TokenType {
+    /** A fixed token from configuration, typically injected from an environment variable. */
+    STATIC,
+    /** OAuth2 client credentials grant against {@code token-url}. */
+    CLIENT_CREDENTIALS,
+    /** OAuth2 resource owner password grant against {@code token-url}; test users only. */
+    PASSWORD,
+    /** An HS256 JWT signed locally with {@code forge.auth.local-jwt.secret}; no identity provider involved. */
+    LOCAL_JWT
+}
