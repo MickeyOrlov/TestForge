@@ -18,4 +18,12 @@ tasks.withType(Test).configureEach {
     // lets the file-level rules (README, example coverage) find the repository
     systemProperty "testforge.root", rootProject.projectDir.absolutePath
     systemProperty "testforge.modules", productionModules.collect { it.name }.sort().join(",")
+
+    // the file-level rules read these directly; without declaring them Gradle
+    // would report the task UP-TO-DATE after a README or test was deleted
+    inputs.files(productionModules.collect { m ->
+        ["README.md", "AGENTS.md", "build.gradle"].collect { m.file(it) } + [m.file("src/test")]
+    }.flatten() + [rootProject.file("example-tests/src/test")])
+            .withPropertyName("moduleSourcesAndDocs")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
 }

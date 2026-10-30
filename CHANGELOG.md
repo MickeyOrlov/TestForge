@@ -6,6 +6,21 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `architecture-tests`: an unpublished ArchUnit module that turns the
+  conventions in `AGENTS.md` into failing tests — `core` isolation, an explicit
+  allowlist of module-to-module dependencies, no sleeps/Lombok/standard
+  streams/`java.util.logging`/field injection, and the shape every module must
+  ship (auto-configuration listed in `AutoConfiguration.imports`, `*Properties`
+  records under `forge.*`, README, `AGENTS.md`, and an own or example test).
+  The files these rules read are declared as task inputs, so deleting a README
+  or a test reruns the check instead of reporting it up to date.
+- A per-module `AGENTS.md` for every module (scope, allowed dependencies,
+  invariants, tests) and tool-neutral agent playbooks in `docs/agents/` for
+  adding, changing and reviewing a module.
+- `module-web`: offline tests for the auto-configuration and property defaults;
+  previously the module had no test of any kind.
+
 ### Fixed
 - `module-api-explorer`: a declared media **range** now covers the response it
   describes. Content types were compared as literal strings, so a document

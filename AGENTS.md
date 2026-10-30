@@ -220,6 +220,19 @@ that the rule is stale. What is enforced:
 Adding a module also means registering it in `Modules.ROOT_PACKAGES`
 (`architecture-tests/src/test/java/io/testforge/architecture/Modules.java`).
 
+## Per-module guides and playbooks
+
+Before changing a module, read its own `AGENTS.md` (for example
+[module-db-contract/AGENTS.md](module-db-contract/AGENTS.md)): scope, allowed
+dependencies, invariants that must not break, and where its tests live. This
+file stays the map and the adaptation playbook; module files are about changing
+the module itself. Every module must have one (enforced by `architecture-tests`).
+
+Recurring kinds of work have step-by-step playbooks in
+[docs/agents/](docs/agents/README.md): adding a module, changing a module,
+reviewing a module. Adapting a fresh clone follows
+[docs/adaptation-checklist.md](docs/adaptation-checklist.md).
+
 ## Known sharp edges
 
 - `SchemaValidator` resolves names reflectively (camelCase→snake_case,

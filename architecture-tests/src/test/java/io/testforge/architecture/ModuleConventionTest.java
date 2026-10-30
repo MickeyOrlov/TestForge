@@ -7,7 +7,6 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -15,6 +14,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -29,6 +30,9 @@ class ModuleConventionTest {
     private static final JavaClasses CLASSES = new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("io.testforge");
+
+    private static final Pattern REFERENCE =
+            Pattern.compile("^(?:import(?: static)?|package)\\s+(io\\.testforge\\.[\\w.]+)", Pattern.MULTILINE);
 
     private static final Path ROOT = Path.of(System.getProperty("testforge.root"));
 
@@ -93,10 +97,10 @@ class ModuleConventionTest {
     }
 
     @Test
-    void everyModuleHasReadmeAndBuildFile() {
+    void everyModuleHasReadmeBuildFileAndAgentGuide() {
         List<String> missing = new ArrayList<>();
         for (String module : Modules.ROOT_PACKAGES.keySet()) {
-            for (String file : List.of("README.md", "build.gradle")) {
+            for (String file : List.of("README.md", "build.gradle", "AGENTS.md")) {
                 if (!Files.isRegularFile(ROOT.resolve(module).resolve(file))) {
                     missing.add(module + "/" + file);
                 }
@@ -108,22 +112,16 @@ class ModuleConventionTest {
 
     @Test
     void everyModuleIsExercisedByAnExampleOrOwnTest() throws IOException {
-        List<String> untested = new ArrayList<>();
-        for (var entry : Modules.ROOT_PACKAGES.entrySet()) {
-            if (entry.getKey().equals("core")) {
-                continue;
-            }
-            String root = entry.getValue();
-            boolean ownTest = hasJavaSource(ROOT.resolve(entry.getKey()).resolve("src/test"), root);
-            boolean example = hasJavaSource(ROOT.resolve("example-tests/src/test"), root);
-            if (!ownTest && !example) {
-                untested.add(entry.getKey());
+        Set<String> exercised = new TreeSet<>(modulesReferencedBy(ROOT.resolve("example-tests/src/test")));
+        for (String module : Modules.ROOT_PACKAGES.keySet()) {
+            if (modulesReferencedBy(ROOT.resolve(module).resolve("src/test")).contains(module)) {
+                exercised.add(module);
             }
         }
 
-        assertThat(untested)
-                .as("modules with neither their own tests nor an example test importing their package")
-                .isEmpty();
+        assertThat(Modules.ROOT_PACKAGES.keySet())
+                .as("modules with neither their own tests nor an example test importing them")
+                .allMatch(exercised::contains);
     }
 
     private static Set<String> listedAutoConfigurations() throws IOException {
@@ -140,20 +138,24 @@ class ModuleConventionTest {
         return names;
     }
 
-    private static boolean hasJavaSource(Path dir, String packageRoot) throws IOException {
+    /** Modules whose classes are imported, or whose package is declared, by test sources under {@code dir}. */
+    private static Set<String> modulesReferencedBy(Path dir) throws IOException {
+        Set<String> modules = new TreeSet<>();
         if (!Files.isDirectory(dir)) {
-            return false;
+            return modules;
         }
         try (Stream<Path> files = Files.walk(dir)) {
-            return files.filter(p -> p.toString().endsWith(".java")).anyMatch(p -> {
-                try {
-                    String text = Files.readString(p);
-                    return text.contains("import " + packageRoot + ".") || text.contains("package " + packageRoot);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
+            for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+                Matcher matcher = REFERENCE.matcher(Files.readString(file));
+                while (matcher.find()) {
+                    String module = Modules.moduleOf(matcher.group(1));
+                    if (module != null) {
+                        modules.add(module);
+                    }
                 }
-            });
+            }
         }
+        return modules;
     }
 
     private static String simpleName(String className) {
