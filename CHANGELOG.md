@@ -6,6 +6,14 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-reporting`: `summary.md` is actionable. A *Needs attention* section
+  (only when something failed) lists reports whose own verdict is negative
+  (`healthy: false`, `compatible: false`, `outcome` `FINDINGS` / `*_ERROR`);
+  every entry shows the producer's verdict, and reports kept outside the run
+  directory show their configured `location` instead of a bare file name.
+  Absolute, drive-qualified and `..` locations are never printed.
+
 ## [1.2.0] - 2026-10-31
 
 ### Added

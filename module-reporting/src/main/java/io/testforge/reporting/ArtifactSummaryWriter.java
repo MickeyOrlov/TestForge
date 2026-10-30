@@ -66,6 +66,17 @@ public class ArtifactSummaryWriter {
             sb.append("# Test Run Summary: ").append(runId).append("\n\n");
             sb.append("**Artifact Count:** ").append(safeArtifacts.size()).append("\n\n");
 
+            List<TestArtifact> attention = safeArtifacts.stream().filter(ArtifactSummaryWriter::needsAttention).toList();
+            if (!attention.isEmpty()) {
+                sb.append("## Needs attention\n\n");
+                for (TestArtifact artifact : attention) {
+                    sb.append("- **").append(artifact.source()).append("** ").append(artifact.name()).append(": ")
+                            .append(displayPath(layout, runRoot, artifact))
+                            .append(status(artifact)).append("\n");
+                }
+                sb.append("\n");
+            }
+
             sb.append("## Diagnostics by Source\n\n");
             if (safeArtifacts.isEmpty()) {
                 sb.append("No artifacts recorded.\n\n");
@@ -80,10 +91,10 @@ public class ArtifactSummaryWriter {
                 for (Map.Entry<String, List<TestArtifact>> entry : groupedBySource.entrySet()) {
                     sb.append("### ").append(entry.getKey()).append("\n\n");
                     for (TestArtifact artifact : entry.getValue()) {
-                        String relPath = ArtifactManifestWriter.toRelativePathString(layout, runRoot, artifact.file());
                         sb.append("- **").append(artifact.name()).append("** (")
-                                .append(artifact.category()).append("): `")
-                                .append(relPath).append("`\n");
+                                .append(artifact.category()).append("): ")
+                                .append(displayPath(layout, runRoot, artifact))
+                                .append(status(artifact)).append("\n");
                     }
                     sb.append("\n");
                 }
@@ -105,5 +116,64 @@ public class ArtifactSummaryWriter {
             log.warn("Failed to write summary.md to {}: {}", runRoot, e.getMessage(), e);
             return Optional.empty();
         }
+    }
+
+    /** Metadata keys that describe a producer's verdict, in display order. */
+    private static final List<String> STATUS_KEYS = List.of("healthy", "compatible", "outcome");
+
+    /**
+     * Files inside the run root show their run-relative path. A file a producer
+     * kept in its own output directory shows its {@code location} metadata — the
+     * project-relative path it was configured with — so the summary points at a
+     * real file instead of a bare name. A location that could leak the local
+     * layout (absolute, drive-qualified, or climbing with {@code ..}) is ignored.
+     */
+    private static String displayPath(ArtifactRunLayout layout, Path runRoot, TestArtifact artifact) {
+        String relPath = ArtifactManifestWriter.toRelativePathString(layout, runRoot, artifact.file());
+        String location = artifact.metadata().get("location");
+        if (location == null || insideRunRoot(runRoot, artifact.file()) || !safeLocation(location)) {
+            return "`" + relPath + "`";
+        }
+        return "`" + location.replace('\\', '/') + "` (outside the run directory)";
+    }
+
+    private static boolean insideRunRoot(Path runRoot, Path file) {
+        try {
+            return file.toAbsolutePath().normalize().startsWith(runRoot.toAbsolutePath().normalize());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean safeLocation(String location) {
+        String normalized = location.replace('\\', '/');
+        return !normalized.isBlank()
+                && !normalized.startsWith("/")
+                && !normalized.contains(":")
+                && !normalized.equals("..")
+                && !normalized.startsWith("../")
+                && !normalized.contains("/../");
+    }
+
+    /** " — healthy: false, outcome: FINDINGS", or empty when the producer reported no verdict. */
+    private static String status(TestArtifact artifact) {
+        List<String> parts = new java.util.ArrayList<>();
+        for (String key : STATUS_KEYS) {
+            String value = artifact.metadata().get(key);
+            if (value != null && !value.isBlank()) {
+                parts.add(key + ": " + value);
+            }
+        }
+        return parts.isEmpty() ? "" : " — " + String.join(", ", parts);
+    }
+
+    /** A report whose own verdict is negative: the first thing a CI reader needs. */
+    static boolean needsAttention(TestArtifact artifact) {
+        Map<String, String> metadata = artifact.metadata();
+        String outcome = metadata.getOrDefault("outcome", "");
+        return "false".equalsIgnoreCase(metadata.get("healthy"))
+                || "false".equalsIgnoreCase(metadata.get("compatible"))
+                || outcome.equals("FINDINGS")
+                || outcome.endsWith("_ERROR");
     }
 }
