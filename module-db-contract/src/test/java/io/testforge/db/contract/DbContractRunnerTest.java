@@ -346,6 +346,20 @@ class DbContractRunnerTest {
     }
 
     @Test
+    void relativeOutputFilesKeepTheirLocationInTheArtifactIndex(@TempDir Path dir) {
+        Path relative = Path.of("build", "artifact-location-test", dir.getFileName().toString());
+        writeBaseline(relative, BASELINE);
+
+        runner(relative, BASELINE, properties(relative, null)).run();
+
+        assertThat(registered).hasSize(3).allSatisfy(artifact -> {
+            assertThat(artifact.file()).exists();
+            assertThat(artifact.metadata()).containsEntry("location", artifact.file().toString().replace('\\', '/'));
+            assertThat(artifact.metadata()).containsEntry("compatible", "true");
+        });
+    }
+
+    @Test
     void runningWhileDisabled_touchesNoDatabaseAndSaysSoInTheReport(@TempDir Path dir) {
         DbSchemaInspector exploding = (dataSource, schemaName) -> {
             throw new AssertionError("a disabled contract check must not connect to a database");

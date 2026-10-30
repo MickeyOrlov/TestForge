@@ -109,6 +109,15 @@ Database contract check failed for schema 'public': 1 breaking, 0 risky, 0 unkno
 Report: build/db-contract/report.md
 ```
 
+## Run index
+
+With `forge.reporting.artifacts.enabled=true`, the report JSON, Markdown and
+current snapshot are registered in the run manifest. Files remain in
+`forge.db-contract.output-dir`; for a relative output directory their manifest
+metadata includes `location` (the project-relative path), plus `schema`,
+`compatible` and `worstClassified`. Absolute output paths are omitted from
+metadata to avoid exposing the local directory layout.
+
 ## Compatibility rules (v1)
 
 The "consumer" is a test suite or service that reads and writes this schema by

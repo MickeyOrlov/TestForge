@@ -201,6 +201,9 @@ forge:
     replay-from: build/api-explorer      # the run to reproduce; must be another directory
 ```
 
+Replay reports show `write requests sent: 0`, even when the recording contains
+POST or DELETE observations: replay sends no requests and changes no environment data.
+
 Use it to debug a failing chain or a contract mismatch at your desk. What the
 recording cannot give back is reported as a failed call with the reason: an
 unrecorded request, a recorded failure, or a body truncated at

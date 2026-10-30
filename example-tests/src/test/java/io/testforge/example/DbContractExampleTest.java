@@ -11,6 +11,7 @@ import io.testforge.db.contract.diff.DbChangeType;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.policy.DbChangeAssessment;
 import io.testforge.db.contract.policy.DbCompatibility;
+import io.testforge.reporting.RunArtifactSink;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -31,6 +32,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest(properties = {
         "forge.db-contract.enabled=true",
         "forge.db-contract.schema=PUBLIC",
+        "forge.reporting.artifacts.enabled=true",
         // keep this example away from the JPA tables the rest of the suite uses
         "forge.db-contract.include-tables=contract_demo_.*",
         "forge.db-contract.output-dir=build/db-contract-example",
@@ -46,6 +48,9 @@ class DbContractExampleTest {
 
     @Autowired
     DataSource dataSource;
+
+    @Autowired
+    RunArtifactSink artifacts;
 
     @BeforeEach
     void resetDemoSchema() throws Exception {
@@ -67,6 +72,11 @@ class DbContractExampleTest {
         DbSchemaSnapshot snapshot = dbContractRunner.capture();
         assertThat(snapshot.table("CONTRACT_DEMO_ORDERS")).isPresent();
         assertThat(dbContractRunner.capture()).isEqualTo(snapshot);
+        assertThat(artifacts.artifacts())
+                .filteredOn(artifact -> artifact.source().equals("module-db-contract"))
+                .isNotEmpty().allSatisfy(artifact ->
+                        assertThat(artifact.metadata()).containsEntry("location",
+                                artifact.file().toString().replace('\\', '/')));
     }
 
     @Test

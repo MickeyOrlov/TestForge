@@ -6,6 +6,14 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Fixed
+- `module-http`: authentication guidance points to the available `module-auth`
+  instead of claiming that a dedicated module does not exist.
+- `module-api-explorer`: replay reports state `write requests sent: 0` and no
+  longer claim that replayed POST/DELETE observations changed environment data.
+- `module-db-contract`: report and snapshot entries now retain project-relative
+  `location` metadata when their output directory is outside the run root.
+
 ### Added
 - `module-api-explorer`: stateful exploration, step 4 — replay.
   `forge.api-explorer.replay-from` answers every request from an earlier run's

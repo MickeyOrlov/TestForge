@@ -132,3 +132,16 @@ requires it.
 - `module-flow`: keep state-machine setup small and deterministic.
 - `module-web`: keep prewarm focused; browser testing belongs in
   `module-web-playwright`.
+
+## Dogfood 1.2 follow-up: actionable Markdown run index
+
+**Module:** `module-reporting`
+
+The run manifest now contains API and database report locations, but
+`summary.md` still prints only the external file name (`report.md`) and omits
+producer status metadata. A reader cannot locate those reports from the
+Markdown index alone. Render safe project-relative `location` and
+`healthy`/`compatible` metadata in the summary, preserving the current ban on
+absolute paths. Verify with external producer reports alongside pool and mock
+artifacts in one run. This is a reporting usability feature, not a new
+manifest format.
