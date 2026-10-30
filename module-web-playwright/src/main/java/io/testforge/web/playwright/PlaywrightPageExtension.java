@@ -3,8 +3,10 @@ package io.testforge.web.playwright;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Tracing;
+import io.testforge.artifact.ArtifactSink;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
@@ -44,13 +46,16 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                 .getBean(PlaywrightProvider.class);
         PlaywrightProperties properties = SpringExtension.getApplicationContext(extensionContext)
                 .getBean(PlaywrightProperties.class);
+        ArtifactSink artifactSink = SpringExtension.getApplicationContext(extensionContext)
+                .getBeanProvider(ArtifactSink.class)
+                .getIfAvailable(() -> ArtifactSink.NO_OP);
 
         Fixture existing = extensionContext.getStore(NAMESPACE).get(FIXTURE_KEY, Fixture.class);
         if (existing != null) {
             return existing.page();
         }
 
-        Fixture fixture = Fixture.open(provider.newContext(), properties);
+        Fixture fixture = Fixture.open(provider.newContext(), properties, artifactSink);
         // the store closes AutoCloseable resources when the test finishes
         extensionContext.getStore(NAMESPACE).put(FIXTURE_KEY, fixture);
         return fixture.page();
@@ -71,20 +76,25 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
 
     private static final class Fixture implements ExtensionContext.Store.CloseableResource {
 
+        private static final String SOURCE = "module-web-playwright";
+
         private final BrowserContext context;
         private final Page page;
         private final PlaywrightProperties properties;
+        private final ArtifactSink artifactSink;
         private final boolean tracingStarted;
         private boolean traceStopped;
 
-        private Fixture(BrowserContext context, Page page, PlaywrightProperties properties, boolean tracingStarted) {
+        private Fixture(BrowserContext context, Page page, PlaywrightProperties properties,
+                        ArtifactSink artifactSink, boolean tracingStarted) {
             this.context = context;
             this.page = page;
             this.properties = properties;
+            this.artifactSink = artifactSink;
             this.tracingStarted = tracingStarted;
         }
 
-        static Fixture open(BrowserContext context, PlaywrightProperties properties) {
+        static Fixture open(BrowserContext context, PlaywrightProperties properties, ArtifactSink artifactSink) {
             boolean tracingStarted = false;
             if (properties.artifactsOnFailure()) {
                 context.tracing().start(new Tracing.StartOptions()
@@ -93,7 +103,7 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                         .setSources(true));
                 tracingStarted = true;
             }
-            return new Fixture(context, context.newPage(), properties, tracingStarted);
+            return new Fixture(context, context.newPage(), properties, artifactSink, tracingStarted);
         }
 
         Page page() {
@@ -115,6 +125,18 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
             } catch (Exception e) {
                 throw new IllegalStateException(
                         "Failed to capture Playwright failure artifacts in " + directory, e);
+            } finally {
+                // index whatever made it to disk, including a screenshot taken before a trace failure
+                register(directory, "screenshot.png", "image/png", extensionContext);
+                register(directory, "trace.zip", "application/zip", extensionContext);
+            }
+        }
+
+        private void register(Path directory, String file, String mediaType, ExtensionContext extensionContext) {
+            Path path = directory.resolve(file);
+            if (Files.isRegularFile(path)) {
+                artifactSink.registerFile(SOURCE, "ui-failure", directory.getFileName() + "/" + file, path, mediaType,
+                        Map.of("test", extensionContext.getDisplayName()));
             }
         }
 

@@ -103,6 +103,9 @@ surface is still expected to evolve.
 - Prepared data pool SPI and `@Prepared` parameter injection.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.
+- Every diagnostic-producing module publishes into the unified run index:
+  runner reports (API discovery, exploration, fuzzing, contract monitor, DB
+  contract) and UI/mobile failure artifacts, through `ArtifactSink`.
 - Unified reporting artifacts: run-scoped artifact collection and layout (`ArtifactRunLayout`), deterministic `manifest.json` (`ArtifactManifestWriter`) and `summary.md` (`ArtifactSummaryWriter`) index, `ArtifactSink` core seam, resource monitor, and optional Allure attachments.
 - UI environment prewarm.
 - Playwright page fixture and failure artifacts.

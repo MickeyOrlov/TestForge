@@ -457,4 +457,50 @@ class ApiFuzzRunnerTest {
         assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.PASSED);
         assertThat(report.findings()).isEmpty();
     }
+
+    @Test
+    void everyRunArtifactIsRegisteredUnderItsReportKey() throws Exception {
+        Path specFile = tempDir.resolve("demo.yaml");
+        Files.writeString(specFile, "openapi: 3.0.0\n");
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "demo", new ApiDiscoveryProperties.Spec("file:" + specFile.toAbsolutePath())));
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
+                null, false, null, 12345L, null, null, null, null, "st", null,
+                null);
+        FakeProcessRunner fakeRunner = new FakeProcessRunner().withNdjson(tempDir.resolve("demo"), """
+                {"Initialize": {"schemathesis_version": "4.24.3", "seed": 12345}}
+                {"EngineFinished": {"running_time": 0.5}}
+                """);
+        RecordingArtifactSink sink = new RecordingArtifactSink();
+        ApiFuzzRunner runner = new ApiFuzzRunner(
+                new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir),
+                new SchemathesisExecutor(fakeRunner), reportParser, evidenceWriter, discoveryProps, props, sink);
+
+        ApiFuzzReport report = runner.run();
+
+        assertThat(sink.registered).extracting(artifact -> artifact.name())
+                .containsExactlyElementsOf(new java.util.TreeSet<>(report.artifacts().keySet()));
+        assertThat(sink.registered).extracting(artifact -> artifact.name())
+                .contains("demo/schemathesis.toml", "demo/report.ndjson", "demo/run.json");
+        assertThat(sink.registered).allSatisfy(artifact -> {
+            assertThat(artifact.source()).isEqualTo("module-api-fuzz");
+            assertThat(artifact.metadata()).containsEntry("outcome", "PASSED").containsEntry("runId", report.runId());
+        });
+    }
+
+    @Test
+    void aDisabledRunRegistersNothing() {
+        RecordingArtifactSink sink = new RecordingArtifactSink();
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                false, tempDir.toString(), List.of("demo"), null,
+                null, false, null, null, null, null, null, null, "st", null,
+                null);
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of());
+        new ApiFuzzRunner(new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir),
+                new SchemathesisExecutor(new FakeProcessRunner()), reportParser, evidenceWriter, discoveryProps, props, sink)
+                .run();
+
+        assertThat(sink.registered).isEmpty();
+    }
 }

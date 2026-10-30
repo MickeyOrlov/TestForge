@@ -3,6 +3,7 @@ package io.testforge.contract.monitor;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.artifact.TestArtifact;
 import io.testforge.contract.ContractProperties;
 import io.testforge.contract.json.ContractMappers;
 import io.testforge.contract.json.ContractViolation;
@@ -30,6 +31,7 @@ class ContractMonitorRunnerTest {
     Path temp;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RecordingArtifactSink sink = new RecordingArtifactSink();
 
     @Test
     void writesSuccessfulReportAndShapeSnapshot() {
@@ -108,7 +110,8 @@ class ContractMonitorRunnerTest {
                         temp.resolve("baseline").toString(),
                         true,
                         true,
-                        true));
+                        true),
+                sink);
     }
 
     private ContractMonitorCase monitorCase() {
@@ -148,5 +151,16 @@ class ContractMonitorRunnerTest {
                   }
                 }
                 """;
+    }
+
+    @Test
+    void reportsAreRegisteredWithTheVerdict() {
+        ContractMonitorReport report = runner(new KafkaMessageBuffer(10)).run();
+
+        assertThat(report.healthy()).isFalse();
+        assertThat(sink.registered).extracting(TestArtifact::name).containsExactly("report.json", "report.md");
+        assertThat(sink.registered.getFirst().metadata())
+                .containsEntry("healthy", "false")
+                .containsEntry("cases", "1");
     }
 }

@@ -1,6 +1,7 @@
 package io.testforge.api.fuzz;
 
 import io.testforge.api.discovery.ApiDiscoveryProperties;
+import io.testforge.artifact.ArtifactSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,6 +33,9 @@ public class ApiFuzzRunner {
     private final FuzzEvidenceWriter evidenceWriter;
     private final ApiDiscoveryProperties discoveryProperties;
     private final ApiFuzzProperties properties;
+    private final ArtifactSink artifactSink;
+
+    private static final String SOURCE = "module-api-fuzz";
 
     public ApiFuzzRunner(
             FuzzSpecMaterializer materializer,
@@ -40,12 +44,24 @@ public class ApiFuzzRunner {
             FuzzEvidenceWriter evidenceWriter,
             ApiDiscoveryProperties discoveryProperties,
             ApiFuzzProperties properties) {
+        this(materializer, executor, reportParser, evidenceWriter, discoveryProperties, properties, ArtifactSink.NO_OP);
+    }
+
+    public ApiFuzzRunner(
+            FuzzSpecMaterializer materializer,
+            SchemathesisExecutor executor,
+            NdjsonReportParser reportParser,
+            FuzzEvidenceWriter evidenceWriter,
+            ApiDiscoveryProperties discoveryProperties,
+            ApiFuzzProperties properties,
+            ArtifactSink artifactSink) {
         this.materializer = Objects.requireNonNull(materializer, "materializer cannot be null");
         this.executor = Objects.requireNonNull(executor, "executor cannot be null");
         this.reportParser = Objects.requireNonNull(reportParser, "reportParser cannot be null");
         this.evidenceWriter = Objects.requireNonNull(evidenceWriter, "evidenceWriter cannot be null");
         this.discoveryProperties = discoveryProperties;
         this.properties = Objects.requireNonNull(properties, "properties cannot be null");
+        this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
     }
 
     public ApiFuzzReport run() {
@@ -233,7 +249,7 @@ public class ApiFuzzRunner {
         Duration totalDuration = Duration.ofMillis(System.currentTimeMillis() - startTimeMs);
         String mainSpecId = specIds.size() == 1 ? specIds.get(0) : String.join(",", specIds);
 
-        return new ApiFuzzReport(
+        ApiFuzzReport report = new ApiFuzzReport(
                 runId,
                 mainSpecId,
                 overallOutcome,
@@ -247,6 +263,29 @@ public class ApiFuzzRunner {
                 aggregateArtifacts,
                 totalDuration
         );
+        registerArtifacts(report);
+        return report;
+    }
+
+    /**
+     * Best-effort: every file the run produced (per-spec config, NDJSON report,
+     * run evidence) becomes an entry of the unified run index, keyed as in
+     * {@link ApiFuzzReport#artifacts()}.
+     */
+    private void registerArtifacts(ApiFuzzReport report) {
+        Map<String, String> metadata = Map.of("outcome", report.outcome().name(), "runId", report.runId());
+        new java.util.TreeMap<>(report.artifacts()).forEach((name, file) -> artifactSink.registerFile(
+                SOURCE, "api-fuzz", name, file, mediaType(name), metadata));
+    }
+
+    private static String mediaType(String name) {
+        if (name.endsWith(".json")) {
+            return "application/json";
+        }
+        if (name.endsWith(".ndjson")) {
+            return "application/x-ndjson";
+        }
+        return "text/plain";
     }
 
     /**

@@ -1,6 +1,8 @@
 package io.testforge.mobile.appium;
 
+import io.testforge.artifact.ArtifactSink;
 import java.nio.file.Path;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,8 +28,10 @@ public class TestForgeAppiumAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AppiumArtifactCollector appiumArtifactCollector(AppiumProperties properties) {
-        return new AppiumArtifactCollector(properties);
+    public AppiumArtifactCollector appiumArtifactCollector(
+            AppiumProperties properties,
+            ObjectProvider<ArtifactSink> artifactSink) {
+        return new AppiumArtifactCollector(properties, artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 
     @Bean

@@ -7,6 +7,17 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Unified run index now covers every module that writes diagnostics.
+  `module-api-discovery`, `module-api-explorer`, `module-contract-monitor` and
+  `module-api-fuzz` register their run reports, `module-web-playwright` and
+  `module-mobile-appium` register failure screenshots, traces and page sources.
+  Each runner keeps writing to its configured `output-dir`; nothing moves. A
+  new best-effort `ArtifactSink.registerFile(...)` in `core` does the
+  registration and records a relative path as `location` metadata, because the
+  manifest keeps only the file name for anything outside the run root.
+  Existing constructors are kept and fall back to `ArtifactSink.NO_OP`.
+
+### Added
 - `architecture-tests`: an unpublished ArchUnit module that turns the
   conventions in `AGENTS.md` into failing tests — `core` isolation, an explicit
   allowlist of module-to-module dependencies, no sleeps/Lombok/standard

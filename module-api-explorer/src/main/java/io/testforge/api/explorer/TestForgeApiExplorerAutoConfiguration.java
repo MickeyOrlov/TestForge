@@ -3,8 +3,10 @@ package io.testforge.api.explorer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.OpenApiSpecParser;
+import io.testforge.artifact.ArtifactSink;
 import io.testforge.http.ApiClient;
 import io.testforge.http.Redactor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -91,9 +93,10 @@ public class TestForgeApiExplorerAutoConfiguration {
             ObservationFactory observations,
             ObjectMapper objectMapper,
             ApiDiscoveryProperties discoveryProperties,
-            ApiExplorerProperties properties) {
+            ApiExplorerProperties properties,
+            ObjectProvider<ArtifactSink> artifactSink) {
 
         return new ApiExplorerRunner(parser, selector, safety, planner, executor, checker, observations,
-                objectMapper, discoveryProperties, properties);
+                objectMapper, discoveryProperties, properties, artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 }

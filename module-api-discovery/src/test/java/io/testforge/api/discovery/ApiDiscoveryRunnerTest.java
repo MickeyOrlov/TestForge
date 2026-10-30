@@ -1,8 +1,10 @@
 package io.testforge.api.discovery;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.artifact.TestArtifact;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +21,7 @@ class ApiDiscoveryRunnerTest {
     Path temp;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RecordingArtifactSink sink = new RecordingArtifactSink();
 
     @Test
     void writesCatalogReportAndShapeSnapshots() throws IOException {
@@ -131,7 +134,8 @@ class ApiDiscoveryRunnerTest {
                         temp.resolve("baseline").toString(),
                         true,
                         true,
-                        Map.of("billing", new ApiDiscoveryProperties.Spec(spec.toString()))));
+                        Map.of("billing", new ApiDiscoveryProperties.Spec(spec.toString()))),
+                sink);
     }
 
     private Path writeSpec(String content) throws IOException {
@@ -194,5 +198,22 @@ class ApiDiscoveryRunnerTest {
                         status:
                           type: string
                 """;
+    }
+
+    @Test
+    void reportsAreRegisteredInTheRunIndex() throws IOException {
+        ApiDiscoveryReport report = runner(writeSpec(paymentSpec())).run();
+
+        assertThat(sink.registered)
+                .extracting(TestArtifact::source, TestArtifact::category, TestArtifact::name, TestArtifact::mediaType)
+                .containsExactly(
+                        tuple("module-api-discovery", "api-discovery", "report.json", "application/json"),
+                        tuple("module-api-discovery", "api-discovery", "report.md", "text/markdown"));
+        assertThat(sink.registered.getFirst().file()).isEqualTo(Path.of(report.reportJson()));
+        assertThat(sink.registered.getFirst().metadata())
+                .containsEntry("healthy", "true")
+                .containsEntry("specs", "1")
+                .as("absolute output dirs never leak into metadata")
+                .doesNotContainKey("location");
     }
 }

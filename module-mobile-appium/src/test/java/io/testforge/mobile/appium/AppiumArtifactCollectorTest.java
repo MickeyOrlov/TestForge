@@ -89,6 +89,8 @@ class AppiumArtifactCollectorTest {
         return new AppiumSession(driver, device, temp, collector);
     }
 
+    private final RecordingArtifactSink sink = new RecordingArtifactSink();
+
     private AppiumArtifactCollector enabledCollector(boolean enabled) {
         return new AppiumArtifactCollector(new AppiumProperties(
                 "http://localhost:4723",
@@ -105,6 +107,33 @@ class AppiumArtifactCollectorTest {
                 enabled,
                 temp.toString(),
                 Map.of(),
-                null));
+                null), sink);
+    }
+
+    @Test
+    void capturedFilesAreRegisteredInTheRunIndex() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+        when(driver.getPageSource()).thenReturn("<hierarchy/>");
+
+        session(driver, enabledCollector(true)).captureFailureArtifacts("LoginIT logsIn").orElseThrow();
+
+        assertThat(sink.registered).extracting(artifact -> artifact.name()).containsExactly(
+                "LoginIT_logsIn_android-local/screenshot.png", "LoginIT_logsIn_android-local/page-source.xml");
+        assertThat(sink.registered.getFirst().metadata())
+                .containsEntry("test", "LoginIT logsIn")
+                .containsEntry("device", "android-local");
+    }
+
+    @Test
+    void aPartialCaptureStillRegistersWhatWasWritten() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getScreenshotAs(OutputType.BYTES)).thenThrow(new IllegalStateException("no screen"));
+        when(driver.getPageSource()).thenReturn("<hierarchy/>");
+
+        assertThatThrownBy(() -> session(driver, enabledCollector(true)).captureFailureArtifacts("t"))
+                .hasMessageContaining("screenshot");
+        assertThat(sink.registered).extracting(artifact -> artifact.name())
+                .containsExactly("t_android-local/page-source.xml");
     }
 }
