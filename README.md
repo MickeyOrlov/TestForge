@@ -120,9 +120,8 @@ database".
 ## Use as a library
 
 All production modules publish independently; `example-tests` is not an
-artifact. The default development version is `1.2.0-SNAPSHOT`; the published
-preview is `io.github.mickeyorlov.testforge:<module>:1.2.0-beta.2` on GitHub
-Packages.
+artifact. The default development version is `1.3.0-SNAPSHOT`; the latest release is
+`io.github.mickeyorlov.testforge:<module>:1.2.0` on GitHub Packages.
 
 ```bash
 ./gradlew publishTestForgeLibraries
@@ -136,8 +135,8 @@ repositories {
 }
 
 dependencies {
-    testImplementation "io.testforge:module-http:1.2.0-SNAPSHOT"
-    testImplementation "io.testforge:module-api-discovery:1.2.0-SNAPSHOT"
+    testImplementation "io.testforge:module-http:1.3.0-SNAPSHOT"
+    testImplementation "io.testforge:module-api-discovery:1.3.0-SNAPSHOT"
 }
 ```
 

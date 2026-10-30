@@ -25,7 +25,7 @@ export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat-with-read-packages>
 
 ./gradlew -p smoke-tests/library-consumer test \
   -PtestforgeGroup=io.github.mickeyorlov.testforge \
-  -PtestforgeVersion=1.2.0-beta.2 \
+  -PtestforgeVersion=1.2.0 \
   -PtestforgeRepositoryUrl=https://maven.pkg.github.com/mickeyorlov/TestForge
 ```
 
