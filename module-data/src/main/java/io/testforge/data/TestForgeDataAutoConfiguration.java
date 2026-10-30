@@ -1,6 +1,8 @@
 package io.testforge.data;
 
+import io.testforge.artifact.ArtifactSink;
 import io.testforge.data.prepared.PoolEventListener;
+import io.testforge.data.prepared.PoolLifecycle;
 import io.testforge.data.prepared.PreparedDataPool;
 import io.testforge.data.prepared.PreparedDataProvider;
 import java.util.List;
@@ -20,6 +22,15 @@ public class TestForgeDataAutoConfiguration {
             ObjectProvider<PreparedDataProvider<?>> providers,
             ObjectProvider<PoolEventListener> listeners) {
         return new PreparedDataPool(providers.stream().toList(), listeners.stream().toList());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PoolLifecycle preparedPoolLifecycle(
+            PreparedDataPool pool,
+            DataProperties properties,
+            ObjectProvider<ArtifactSink> artifactSink) {
+        return new PoolLifecycle(pool, properties.pool(), artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 
     @Bean

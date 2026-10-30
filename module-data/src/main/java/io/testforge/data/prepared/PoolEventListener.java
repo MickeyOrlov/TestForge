@@ -9,7 +9,7 @@ import java.util.List;
  */
 public interface PoolEventListener {
 
-    /** An object was handed to a test; {@code fromPool} is false on a cold miss. */
+    /** An object was handed to a test; {@code fromPool} is false on a cold miss. {@code tags} is sorted. */
     default void onAcquired(Class<?> type, List<String> tags, boolean fromPool) {
     }
 
@@ -17,7 +17,11 @@ public interface PoolEventListener {
     default void onPrepared(Class<?> type, List<String> tags) {
     }
 
-    /** A previously stocked variant ran dry — the signal to refill earlier. */
+    /**
+     * A previously stocked variant ran dry — the signal to refill earlier.
+     * Fired once per drain, on the first cold miss; a later {@code preload}
+     * or refill re-arms it. {@code tags} is the variant's sorted tag set.
+     */
     default void onExhausted(Class<?> type, List<String> tags) {
     }
 }

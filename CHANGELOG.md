@@ -7,6 +7,22 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-data`: `forge.data.pool.preload` stocks prepared variants when the
+  context starts (a failing provider fails the context), with optional
+  background refill (`refill-below`) on one daemon thread whose failures are
+  counted, never thrown into tests. `PreparedDataPool.stats()` reports hits,
+  cold misses, prepared, exhausted and refill failures per variant; with
+  `module-reporting` enabled they are published as `pool-stats.json`.
+
+### Changed
+- `module-data`: a pool variant is now a type plus a tag *set* —
+  `["vip","eu"]` and `["eu","vip"]` share stock instead of splitting it;
+  listeners receive the sorted set, providers still the caller's order.
+- `module-data`: `PoolEventListener.onExhausted` fires once per drain (on the
+  first cold miss) instead of on every later miss; a preload or refill
+  re-arms it.
+
+### Added
 - `module-mock`: requests without a body can now be scoped. Set exactly one of
   `forge.mock.scope-header`, `scope-query-param` or `scope-cookie` and it
   replaces the body JSON path as the scope marker; configuring two fails at
