@@ -7,7 +7,7 @@ import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
-import com.github.tomakehurst.wiremock.matching.StringValuePattern;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.testforge.artifact.ArtifactSink;
@@ -40,7 +40,7 @@ public class MockScope implements AutoCloseable {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final WireMock wireMock;
-    private final String scopeJsonPath;
+    private final ScopeMarker marker;
     private final String scopeId;
     private final ArtifactSink artifactSink;
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
@@ -50,8 +50,12 @@ public class MockScope implements AutoCloseable {
     }
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId, ArtifactSink artifactSink) {
+        this(wireMock, ScopeMarker.jsonPath(scopeJsonPath), scopeId, artifactSink);
+    }
+
+    MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink) {
         this.wireMock = wireMock;
-        this.scopeJsonPath = scopeJsonPath;
+        this.marker = marker;
         this.scopeId = scopeId;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
     }
@@ -61,14 +65,42 @@ public class MockScope implements AutoCloseable {
     }
 
     public StubMapping stub(MappingBuilder mapping) {
-        StubMapping stubMapping = mapping
-                .withRequestBody(WireMock.matchingJsonPath(scopeJsonPath, WireMock.equalTo(scopeId)))
+        StubMapping stubMapping = marker.applyTo(mapping, scopeId)
                 .atPriority(SCOPED_STUB_PRIORITY)
                 .build();
 
         wireMock.register(stubMapping);
         stubs.add(stubMapping);
         return stubMapping;
+    }
+
+    /**
+     * Every request in the WireMock journal that carries this scope, matched by a
+     * stub or not — the shared server's journal filtered to this scenario.
+     */
+    public List<LoggedRequest> requests() {
+        return requests(RequestPatternBuilder.allRequests());
+    }
+
+    /**
+     * This scope's requests that also match {@code pattern}, e.g.
+     * {@code postRequestedFor(urlPathEqualTo("/payments"))}. The scope matcher is
+     * added to {@code pattern}, so other scenarios' traffic never counts.
+     */
+    public List<LoggedRequest> requests(RequestPatternBuilder pattern) {
+        return wireMock.find(marker.applyTo(pattern, scopeId));
+    }
+
+    /**
+     * Asserts this scope sent {@code count} requests matching {@code pattern}.
+     * Fails with WireMock's own report of the closest requests on a mismatch.
+     */
+    public void verify(int count, RequestPatternBuilder pattern) {
+        wireMock.verifyThat(count, marker.applyTo(pattern, scopeId));
+    }
+
+    public ScopeMarker marker() {
+        return marker;
     }
 
     @Override
@@ -90,7 +122,12 @@ public class MockScope implements AutoCloseable {
 
         ObjectNode root = MAPPER.createObjectNode();
         root.put("scopeId", scopeId);
-        root.put("scopeJsonPath", scopeJsonPath);
+        if (marker.jsonPathOrNull() != null) {
+            root.put("scopeJsonPath", marker.jsonPathOrNull());
+        }
+        ObjectNode markerNode = root.putObject("scopeMarker");
+        markerNode.put("kind", marker.kind().name());
+        markerNode.put("name", marker.name());
 
         ArrayNode stubsArray = root.putArray("stubs");
         for (StubMapping stub : stubs) {
@@ -158,8 +195,7 @@ public class MockScope implements AutoCloseable {
      * requests; the block was removed rather than shipped wrong.
      *
      * <p>It is restored here by filtering with the scope's OWN matcher — the very same
-     * {@code matchingJsonPath(scopeJsonPath, equalTo(scopeId))} expression {@link #stub}
-     * uses. No new correlation machinery is involved: the marker already exists in the
+     * {@link ScopeMarker} {@link #stub} uses. No new correlation machinery is involved: the marker already exists in the
      * request body, because that marker is what makes scoped stubbing work at all.
      *
      * <p>Requests carrying no marker, or a malformed/non-JSON/empty body, produce a
@@ -175,17 +211,10 @@ public class MockScope implements AutoCloseable {
         ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
         int count = 0;
         try {
-            StringValuePattern scopePattern =
-                    WireMock.matchingJsonPath(scopeJsonPath, WireMock.equalTo(scopeId));
-
             for (LoggedRequest req : wireMock.findAllUnmatchedRequests()) {
                 // Per-request guard: one unreadable body must never suppress the whole
                 // scope's diagnostic.
-                try {
-                    if (!scopePattern.match(req.getBodyAsString()).isExactMatch()) {
-                        continue;
-                    }
-                } catch (Throwable ignored) {
+                if (!marker.carries(req, scopeId)) {
                     continue;
                 }
 
@@ -200,7 +229,7 @@ public class MockScope implements AutoCloseable {
                     reqNode.put("loggedDate", req.getLoggedDate().toInstant().toString());
                 }
                 try {
-                    reqNode.setAll(StubMismatchAnalyzer.analyze(MAPPER, stubs, req, scopeJsonPath));
+                    reqNode.setAll(StubMismatchAnalyzer.analyze(MAPPER, stubs, req, marker.jsonPathOrNull()));
                 } catch (Throwable ignored) {
                     // Best-effort: an unexplainable request still gets its method/url/loggedDate.
                 }

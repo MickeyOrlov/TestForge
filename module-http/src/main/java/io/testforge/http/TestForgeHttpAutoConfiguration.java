@@ -51,7 +51,13 @@ public class TestForgeHttpAutoConfiguration {
         if (jsonPath == null || jsonPath.isBlank()) {
             jsonPath = environment.getProperty("forge.mock.scope-json-path", "$.testScope");
         }
-        return new ScenarioScopeFilter(new JsonScopeWriter(mapper), jsonPath, properties.scope().header());
+        // same single-source rule for the header form: a mock matching on a header
+        // and a client writing it must name the same header
+        String header = properties.scope().header();
+        if (header == null || header.isBlank()) {
+            header = environment.getProperty("forge.mock.scope-header");
+        }
+        return new ScenarioScopeFilter(new JsonScopeWriter(mapper), jsonPath, header);
     }
 
     @Bean

@@ -147,7 +147,9 @@ ApiRequestCustomizer bearerToken(TokenProvider tokens) {
 - Scope injection rewrites JSON **object** bodies sent as a string or byte
   array. Object/POJO bodies are serialized by REST Assured after the filters
   run, so those requests need `scope.header` instead. Array indices in the
-  scope path are rejected.
+  scope path are rejected. A header-scoped request only lands on a scoped stub
+  when the mock matches that header too: set `forge.mock.scope-header`, which
+  `scope.header` follows when left unset.
 - Bodies are re-serialized by Jackson when the scope is injected: formatting
   and duplicate keys are not preserved.
 - Redaction covers JSON documents and `field=value` text. It is not a general

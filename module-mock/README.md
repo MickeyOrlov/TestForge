@@ -28,6 +28,23 @@ forge:
 
 The bean is only created when `base-url` is set.
 
+### Requests without a body
+
+A body JSON path cannot scope a GET or DELETE. Point the marker at a header,
+query parameter or cookie the system under test forwards instead — exactly one
+of them; it replaces the JSON path:
+
+```yaml
+forge:
+  mock:
+    base-url: http://wiremock.staging.example.test:8080
+    scope-header: X-Test-Scope        # or scope-query-param / scope-cookie
+```
+
+`module-http` writes `forge.http.scope.header` from `forge.mock.scope-header`
+when it is not set itself, so the header is named in one place. Query
+parameters and cookies have to be set by the code that builds the request.
+
 ## Usage
 
 ```java
@@ -51,6 +68,22 @@ try (MockScope scope = mocks.scope()) {   // generated id
 
 Pair with `ScenarioContextExtension` so the published id never leaks into the
 next test on a reused worker thread.
+
+### Asserting on the scenario's own traffic
+
+The WireMock journal is server-wide; a scope filters it to its own requests
+with the same marker its stubs use:
+
+```java
+try (MockScope scope = mocks.scope()) {
+    // drive the scenario ...
+    scope.verify(1, postRequestedFor(urlPathEqualTo("/downstream/status")));
+    List<LoggedRequest> mine = scope.requests();     // matched or not
+}
+```
+
+Another scenario's traffic never counts, so these assertions stay correct when
+tests run in parallel against one shared mock.
 
 ## Diagnostics
 

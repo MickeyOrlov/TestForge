@@ -7,6 +7,19 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-mock`: requests without a body can now be scoped. Set exactly one of
+  `forge.mock.scope-header`, `scope-query-param` or `scope-cookie` and it
+  replaces the body JSON path as the scope marker; configuring two fails at
+  startup. One `ScopeMarker` drives stub matching, the request journal and the
+  unmatched-request diagnostics, which now record the marker kind and name.
+  `module-http` writes `forge.http.scope.header` from `forge.mock.scope-header`
+  when unset, so the header is configured once — previously the HTTP header
+  mode had nothing to match it on the mock side.
+- `MockScope.requests()`, `requests(pattern)` and `verify(count, pattern)`:
+  assertions on the scenario's own traffic in the shared WireMock journal;
+  other scenarios' requests never count.
+
+### Added
 - `module-auth` (experimental): tests declare the role they act as with
   `@AsUser("admin")` (or `AuthContext.runAs` for a block) and the `ApiClient`
   sends that role's token. Roles are configured under `forge.auth.roles` as
