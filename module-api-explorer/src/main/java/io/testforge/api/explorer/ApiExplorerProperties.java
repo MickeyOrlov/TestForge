@@ -36,6 +36,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *         into: [getTask.taskId]
  *     bodies:                         # write chains: the only source of request bodies
  *       createTask: '{"title": "testforge-{{unique}}"}'
+ *     replay-from: build/api-explorer-recorded   # answer from an earlier run, no network
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.api-explorer")
@@ -53,7 +54,8 @@ public record ApiExplorerProperties(
         ParameterProperties parameters,
         FailureProperties failOn,
         List<ExtractionRule> extract,
-        Map<String, String> bodies) {
+        Map<String, String> bodies,
+        String replayFrom) {
 
     /** Methods that may be sent without anyone opting in to anything. */
     public static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");

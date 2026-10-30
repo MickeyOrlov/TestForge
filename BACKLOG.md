@@ -81,7 +81,7 @@ other brokers.
 Config preload, background refill, per-variant statistics and the
 `pool-stats.json` run artifact are delivered; objects stay one-use only.
 
-## Priority: stateful exploration on top of module-api-explorer
+## Priority: stateful exploration on top of module-api-explorer (shipped)
 
 **Module:** `module-api-explorer` (v1 shipped: stateless, safe-by-default)
 
@@ -96,7 +96,9 @@ next one.
   proposed in the report as ready-to-paste rules, never applied on their own.
 - Delivered (step 3): write chains — a `POST` from a body template producing
   the id a `GET`/`DELETE` consumes, behind both write keys, `DELETE` last.
-- Next (step 4): replay recorded exchanges through a second `ExchangeExecutor`.
+- Delivered (step 4): replay from an earlier run's observations
+  (`forge.api-explorer.replay-from`), no network, honest about what a
+  recording cannot reproduce. Stateful exploration is complete.
 - Sequence requests only once inference exists. An ordering with no data flow
   between steps is just a slower independent run.
 - Reproducible replay from recorded observations, as a second

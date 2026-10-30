@@ -189,7 +189,24 @@ report's header says how many write requests went to which environment.
 Without a template, an operation that requires a body is skipped and the
 report names the property to set.
 
-Design and the next steps: [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md).
+### Replay: reproduce a run without the environment
+
+Point a run at an earlier run's output directory and it answers every request
+from the recorded observations — no network at all:
+
+```yaml
+forge:
+  api-explorer:
+    output-dir: build/api-explorer-replay
+    replay-from: build/api-explorer      # the run to reproduce; must be another directory
+```
+
+Use it to debug a failing chain or a contract mismatch at your desk. What the
+recording cannot give back is reported as a failed call with the reason: an
+unrecorded request, a recorded failure, or a body truncated at
+`max-body-chars` (raise it and record again). Redacted values stay redacted.
+
+Design: [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md).
 
 ## Limits of v1
 
@@ -200,7 +217,7 @@ Design and the next steps: [docs/api-explorer-stateful-design.md](../docs/api-ex
   prevent.
 - **State only through explicit rules.** Values flow between calls only via
   `forge.api-explorer.extract` (proposed automatically, applied only once
-  configured). There is no replay yet — see the design doc.
+  configured).
 - **No fuzzing.** Values are the document's own or a deterministic default.
   Nothing is mutated to provoke failure.
 - **Optional query parameters are omitted** unless configured. Inventing

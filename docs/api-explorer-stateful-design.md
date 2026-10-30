@@ -1,6 +1,6 @@
 # Stateful exploration in module-api-explorer
 
-Status: steps 1–3 shipped (extraction, proposed links, write chains). Step 4 (replay) is planned.
+Status: all four steps shipped — extraction, proposed links, write chains, replay.
 
 ## Problem
 
@@ -93,7 +93,20 @@ forge:
 - The report states how many write requests were sent and to which base URL.
 - Bodies go through the same redaction as every other observed request.
 
-## Step 4 — replay (planned)
+## Step 4 — replay (shipped)
 
-A second `ExchangeExecutor` that serves recorded exchanges, so a failing chain
-can be reproduced without the environment.
+`forge.api-explorer.replay-from: <an earlier run's output-dir>` swaps the
+executor for `ReplayExchangeExecutor`: every request is answered from the
+recorded observations, nothing touches the network, and the rest of the
+pipeline (planning, extraction, checking, report) runs unchanged.
+
+- A request matches a recording by method plus resolved path and query; the
+  base URL is not part of its identity.
+- What a recording cannot faithfully give back fails loudly instead: an
+  unrecorded request, a recorded failure, and a body truncated at
+  `max-body-chars` (raise it and record again). Redacted values stay `***`.
+- Replaying into the recording's own directory is refused; an empty recording
+  is refused.
+- Write chains replay deterministically: the recorded `POST` returns the
+  recorded id, so the following `GET`/`DELETE` match their recordings even
+  though `{{unique}}` renders a new body.

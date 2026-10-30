@@ -50,7 +50,7 @@ class StatefulExplorationTest {
 
     private ApiExplorerReport run(Path output, List<ExtractionRule> rules) {
         ApiExplorerProperties properties = new ApiExplorerProperties(true, output.toString(), null, List.of(),
-                null, null, null, null, null, null, null, null, rules, null);
+                null, null, null, null, null, null, null, null, rules, null, null);
         return new ApiExplorerRunner(
                 new OpenApiSpecParser(),
                 new OperationSelector(),

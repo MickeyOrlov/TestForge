@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-api-explorer`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (steps 1–3 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
+**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (all four steps of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
 **May depend on:** `module-api-discovery`, `module-http`.
 
@@ -23,12 +23,15 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Extracted values never appear in the report or summary — only in the
   consuming observation's bindings. One `ExtractedValues` per spec run.
 - Observations are redacted through `forge.http.logging.redact-*`.
-- `ExchangeExecutor` is the seam for replay; keep the runner independent of REST
-  Assured details.
+- `ExchangeExecutor` is the seam between live and replayed runs
+  (`ApiClientExchangeExecutor`, `ReplayExchangeExecutor`); keep the runner
+  independent of REST Assured details.
+- Replay never fakes what it does not have: unrecorded, failed or truncated
+  recordings come back as failed exchanges with the reason.
 
 ## Tests
 
-Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`, `WriteChainTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerWriteChainExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
+Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`, `WriteChainTest`, `ReplayTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerWriteChainExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
 
 ## Before you finish
 
