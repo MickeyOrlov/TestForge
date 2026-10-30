@@ -7,6 +7,15 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: stateful exploration, step 2. Every run reads the
+  document for likely producer/consumer links — the list endpoint one level
+  above an item endpoint, or a response property named like the parameter —
+  and proposes them as ready-to-paste `extract` rules in the report
+  (*Proposed extraction rules*, also in `report.json`) with the reason for
+  each. Parameters already configured or fed get none, and proposals are never
+  applied on their own.
+
+### Added
 - `module-api-explorer`: stateful exploration, step 1. `forge.api-explorer.extract`
   rules take a value from one operation's 2xx JSON response and feed it to
   later calls (`operationId.parameter`, or a bare parameter name for every

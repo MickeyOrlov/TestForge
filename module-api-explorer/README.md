@@ -150,6 +150,22 @@ forge:
 - Values are sent through REST Assured parameter encoding, so a hostile
   value cannot change the request target.
 
+You rarely need to write the first rules by hand: every run reads the
+document for likely links (a list endpoint one level above an item endpoint,
+or a response property named like the parameter) and writes them to the
+report under *Proposed extraction rules*, ready to paste:
+
+```yaml
+forge:
+  api-explorer:
+    extract:
+      - from: listTasks
+        json-path: "$.items[0].id"
+        into: [getTask.taskId]   # GET /tasks lists the items GET /tasks/{taskId} reads
+```
+
+Proposals are never applied on their own — review, paste, run again.
+
 Design and the next steps: [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md).
 
 ## Limits of v1

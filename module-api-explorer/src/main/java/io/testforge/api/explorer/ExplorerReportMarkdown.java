@@ -58,6 +58,7 @@ final class ExplorerReportMarkdown {
                 .append(notes(observation)).append(" |\n"));
 
         renderExtractions(out, spec);
+        renderProposals(out, spec);
         renderSkipped(out, spec);
     }
 
@@ -88,6 +89,22 @@ final class ExplorerReportMarkdown {
                 .append(outcome.status().description())
                 .append(outcome.detail() == null ? "" : " (" + outcome.detail() + ")")
                 .append(" |\n"));
+    }
+
+    /** Ready to paste, never applied: a human decides whether the link is real. */
+    private static void renderProposals(StringBuilder out, SpecExplorationReport spec) {
+        if (spec.proposals().isEmpty()) {
+            return;
+        }
+        out.append("\n### Proposed extraction rules\n\n")
+                .append("The document suggests these links. Review them, then paste the ones that are right:\n\n")
+                .append("```yaml\nforge:\n  api-explorer:\n    extract:\n");
+        spec.proposals().forEach(proposal -> out
+                .append("      - from: ").append(proposal.from()).append('\n')
+                .append("        json-path: \"").append(proposal.jsonPath()).append("\"\n")
+                .append("        into: [").append(proposal.into()).append("]   # ")
+                .append(proposal.reason()).append('\n'));
+        out.append("```\n");
     }
 
     private static void renderSkipped(StringBuilder out, SpecExplorationReport spec) {

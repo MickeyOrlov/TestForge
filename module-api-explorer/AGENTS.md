@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-api-explorer`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules (step 1 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
+**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (steps 1–2 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
 **May depend on:** `module-api-discovery`, `module-http`.
 
@@ -25,7 +25,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
+Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
 
 ## Before you finish
 

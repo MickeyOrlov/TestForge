@@ -92,9 +92,10 @@ next one.
 - Delivered (step 1): declarative extraction rules (`forge.api-explorer.extract`),
   producer-before-consumer ordering, a per-rule outcome in the report. See
   [docs/api-explorer-stateful-design.md](docs/api-explorer-stateful-design.md).
-- Infer producer/consumer links between operations (an id a `POST` returns
-  satisfying a `GET`'s path parameter) and expose an inferred value as a new
-  `ValueSource` — nothing that reads an observation should need to change.
+- Delivered (step 2): producer/consumer links inferred from the document and
+  proposed in the report as ready-to-paste rules, never applied on their own.
+- Next (step 3): write chains — a `POST` producing the id a `GET`/`DELETE`
+  consumes, behind both write keys, bodies only from configured templates.
 - Sequence requests only once inference exists. An ordering with no data flow
   between steps is just a slower independent run.
 - Reproducible replay from recorded observations, as a second

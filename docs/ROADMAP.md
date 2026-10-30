@@ -194,9 +194,9 @@ Target modules: `module-api-discovery`, `module-api-codegen`,
   OPTIONS by default, mutation methods behind two explicit keys, redacted
   observations, runtime contract report. Done.
 - Delivered: declarative value extraction, so an id returned by one operation
-  satisfies another's parameter (`forge.api-explorer.extract`). Next:
-  producer/consumer inference that proposes rules in the report
-  ([design](api-explorer-stateful-design.md)).
+  satisfies another's parameter (`forge.api-explorer.extract`), and
+  producer/consumer inference that proposes those rules in the report. Next:
+  write chains and replay ([design](api-explorer-stateful-design.md)).
 - Add stateful request sequences and reproducible replay on top of that
   inference, not before it.
 - Consider a Gradle bootstrap plugin only after discovery, code generation,
