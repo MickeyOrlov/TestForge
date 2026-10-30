@@ -1,0 +1,21 @@
+// Executable form of the rules in AGENTS.md. Never published: it only reads the
+// compiled main classes of every production module.
+def productionModules = rootProject.subprojects.findAll {
+    it.name == "core" || it.name.startsWith("module-")
+}
+
+dependencies {
+    testImplementation platform(libs.spring.boot.dependencies)
+
+    productionModules.each { testImplementation project(it.path) }
+
+    testImplementation libs.archunit
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(Test).configureEach {
+    // lets the file-level rules (README, example coverage) find the repository
+    systemProperty "testforge.root", rootProject.projectDir.absolutePath
+    systemProperty "testforge.modules", productionModules.collect { it.name }.sort().join(",")
+}

@@ -28,6 +28,7 @@ module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
 module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
 module-api-fuzz/ delegating schema-aware fuzzing to Schemathesis
 example-tests/ reference suite, runs offline (embedded WireMock + H2)
+architecture-tests/ ArchUnit guardrails: module boundaries, conventions below as executable rules (never published)
 ```
 
 All modules are Spring Boot auto-configurations (see
@@ -41,6 +42,7 @@ Config lives under the `forge.*` prefix; properties classes are records named
 ```bash
 ./gradlew build                  # full check: compile + example suite
 ./gradlew :example-tests:test    # just the reference tests
+./gradlew :architecture-tests:test  # module boundaries and conventions
 ```
 
 Definition of done for any change: `./gradlew build` is green. The example
@@ -200,6 +202,23 @@ Future modules and staged work live in [docs/ROADMAP.md](docs/ROADMAP.md).
 - Mock stubs: defaults are low priority (10+), scoped stubs are priority 1
   and ALWAYS carry the scope matcher. Never register an unscoped catch-all
   from inside a test.
+
+## Architecture guardrails
+
+`architecture-tests` turns the conventions above into failing tests, so they hold
+for agents and humans alike. A red guardrail means the change broke a rule, not
+that the rule is stale. What is enforced:
+
+- `core` depends on no other module; modules depend only on the neighbours listed
+  in `Modules.ALLOWED_DEPENDENCIES` (a new edge is a deliberate edit there).
+- No `Thread.sleep`/`TimeUnit.sleep`, no Lombok, no `System.out`/`System.err`, no
+  `java.util.logging`, no field injection in production code.
+- Every module has exactly the shape a new module must ship: a
+  `TestForge*AutoConfiguration` listed in its `AutoConfiguration.imports`, `*Properties`
+  records bound under `forge.*`, a README, and an example or own test.
+
+Adding a module also means registering it in `Modules.ROOT_PACKAGES`
+(`architecture-tests/src/test/java/io/testforge/architecture/Modules.java`).
 
 ## Known sharp edges
 
