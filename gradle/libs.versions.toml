@@ -17,6 +17,7 @@ testcontainers = "2.0.5"
 # Maven jars ship without bundled JDBC drivers and are dual/tri-licensed
 # (EPL-2.0 / GPL-3.0 / LGPL-3.0); the GPL-only terms cover the CLI distributions
 schemacrawler = "17.12.2"
+archunit = "1.4.1"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -33,3 +34,4 @@ allure-junit5 = { module = "io.qameta.allure:allure-junit5", version.ref = "allu
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
+archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }

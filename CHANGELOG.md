@@ -6,7 +6,36 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `architecture-tests`: an unpublished ArchUnit module that turns the
+  conventions in `AGENTS.md` into failing tests — `core` isolation, an explicit
+  allowlist of module-to-module dependencies, no sleeps/Lombok/standard
+  streams/`java.util.logging`/field injection, and the shape every module must
+  ship (auto-configuration listed in `AutoConfiguration.imports`, `*Properties`
+  records under `forge.*`, README, `AGENTS.md`, and an own or example test).
+  The files these rules read are declared as task inputs, so deleting a README
+  or a test reruns the check instead of reporting it up to date.
+- A per-module `AGENTS.md` for every module (scope, allowed dependencies,
+  invariants, tests) and tool-neutral agent playbooks in `docs/agents/` for
+  adding, changing and reviewing a module.
+- `module-web`: offline tests for the auto-configuration and property defaults;
+  previously the module had no test of any kind.
+- Own unit tests for every module that had none: `module-http` (redaction,
+  scope path writing, property defaults and service resolution, filter chain
+  wiring and order), `module-data` (uniqueness under parallel load, generators,
+  template recursion/cycles/depth, prepared pool including exactly-once
+  hand-out across threads), `module-contract` (field DSL and JSON Schema
+  ordering/fail-fast), `module-kafka` (buffer trimming and ordering, probe
+  criteria, await polling), `module-state` (target tag resolution, recipe
+  execution and error wrapping), `module-web-playwright` (stays inert without
+  `enabled=true`).
+
 ### Fixed
+- `module-http`: a `Redactor` built directly with mixed-case names
+  (`X-Api-Key`, `clientSecret`) did not mask them. Lookups lowercase the
+  incoming name, but only `HttpProperties` lowercased the configured side, so
+  a project replacing the `@ConditionalOnMissingBean` redactor bean leaked the
+  credential it meant to hide. The constructor now normalizes the names itself.
 - `module-api-explorer`: a declared media **range** now covers the response it
   describes. Content types were compared as literal strings, so a document
   declaring `*/*` was treated as incompatible with an `application/json`

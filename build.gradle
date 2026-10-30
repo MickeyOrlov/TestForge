@@ -45,7 +45,9 @@ subprojects {
     }
 }
 
-configure(subprojects.findAll { it.name != "example-tests" }) {
+def unpublishedProjects = ["example-tests", "architecture-tests"]
+
+configure(subprojects.findAll { !(it.name in unpublishedProjects) }) {
     apply plugin: "maven-publish"
 
     def publicationRepositoryUri = uri(providers.gradleProperty("testforgeRepositoryUrl")
@@ -135,6 +137,6 @@ tasks.register("publishTestForgeLibraries") {
     group = "publishing"
     description = "Publishes every TestForge library module to the configured Maven repository."
     dependsOn subprojects
-            .findAll { it.name != "example-tests" }
+            .findAll { !(it.name in unpublishedProjects) }
             .collect { "${it.path}:publishMavenJavaPublicationToTestForgeRepository" }
 }

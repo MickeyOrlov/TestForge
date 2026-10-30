@@ -1,0 +1,27 @@
+# module-kafka: working on this module
+
+Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
+`module-kafka`; how to *use* it lives in [README.md](README.md).
+
+**Scope:** `KafkaMessageBuffer`, `KafkaProbe`, `KafkaMessageFilter`, optional `KafkaPollingCollector`.
+
+**May depend on:** `core` only. Never add a dependency on `module-contract`; they compose in the test.
+
+## Invariants (do not break)
+
+- Bounded buffer, newest-first search.
+- Collector runs only with `forge.kafka.enabled=true`.
+- Waiting goes through `Waiter`.
+
+## Tests
+
+Own: `KafkaMessageBufferTest`, `KafkaProbeUnitTest`. Examples: `KafkaProbeTest`, `KafkaCollectorIntegrationTest` (embedded broker).
+
+## Before you finish
+
+- `./gradlew :module-kafka:test :architecture-tests:test` is green, then `./gradlew build`.
+- Public behaviour changed → update [README.md](README.md) and the example test
+  in the same commit (`example-tests` is the living documentation).
+- New dependency on another module → it must be listed in
+  `architecture-tests/.../Modules.java` `ALLOWED_DEPENDENCIES`, and it must be
+  a real need, not a convenience.

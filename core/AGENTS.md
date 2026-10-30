@@ -1,0 +1,32 @@
+# core: working on this module
+
+Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
+`core`; how to *use* it lives in [README.md](README.md).
+
+**Scope:** Shared primitives only: `ScenarioContext`/`ContextKey`, `Waiter`, `StateSnapshot`/`StateDiff`, `JsonPath`, and the `ArtifactSink` seam (`io.testforge.artifact`).
+
+**May depend on:** Nothing in TestForge. Every other module may depend on `core`.
+
+## Invariants (do not break)
+
+- A class belongs here only when two or more modules need it today. One user
+  means it lives in that module.
+- `ArtifactSink.NO_OP` must stay a safe default: producers call the sink
+  unconditionally, so it must never throw or allocate per call.
+- `ScenarioContext` is thread-local: one scenario, one thread. Do not add cross-
+  thread sharing here.
+- `Waiter` is the only way to wait. Never add an overload that sleeps for a
+  fixed time.
+
+## Tests
+
+Own: `ArtifactSinkTest`, `TestArtifactTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
+
+## Before you finish
+
+- `./gradlew :core:test :architecture-tests:test` is green, then `./gradlew build`.
+- Public behaviour changed → update [README.md](README.md) and the example test
+  in the same commit (`example-tests` is the living documentation).
+- New dependency on another module → it must be listed in
+  `architecture-tests/.../Modules.java` `ALLOWED_DEPENDENCIES`, and it must be
+  a real need, not a convenience.

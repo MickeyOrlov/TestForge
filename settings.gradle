@@ -24,4 +24,5 @@ include "core",
         "module-web",
         "module-web-playwright",
         "module-mobile-appium",
-        "example-tests"
+        "example-tests",
+        "architecture-tests"

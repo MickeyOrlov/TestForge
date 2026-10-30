@@ -13,3 +13,8 @@ tasks.register("playwrightInstall", JavaExec) {
     mainClass = "com.microsoft.playwright.CLI"
     args "install", "--with-deps", "chromium"
 }
+
+dependencies {
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

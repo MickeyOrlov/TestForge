@@ -6,3 +6,8 @@ dependencies {
     api "org.springframework.kafka:spring-kafka"
     api "com.fasterxml.jackson.core:jackson-databind"
 }
+
+dependencies {
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
