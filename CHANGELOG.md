@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: `SchemaValidator.indexDrift` and `foreignKeyDrift`, both part of
+  `schemaDrift`, report constraints the mapping declares that the service's
+  database no longer has. Indexes (`@Table(indexes)`, `uniqueConstraints`,
+  `@Column(unique)`) are matched by columns, never by generated names; a
+  declared unique index must stay unique. Foreign keys declared with
+  `@ForeignKey` must exist and point at the mapped table and column;
+  `forge.db.schema-foreign-keys: all` expects one behind every join column.
+  Extra database constraints are never reported. Proven on H2 and PostgreSQL.
+
+### Added
 - `module-db`: `SchemaValidator` understands JPA inheritance. Fields of
   `@MappedSuperclass` ancestors are validated on the entity's table (a
   class-level `@AttributeOverride` renames them), and entity hierarchies follow

@@ -15,13 +15,18 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   metamodel. Inheritance follows the root's `@Inheritance`; implicit names go
   through `SchemaNamingStrategy`, explicit names never do.
 - Every new mapping rule needs an H2 test that proves both a clean schema and
-  a drifted one (see `SchemaInheritanceTest`).
+  a drifted one (see `SchemaInheritanceTest`, `SchemaIndexForeignKeyDriftTest`),
+  and a PostgreSQL case in `PostgresSchemaValidationIT` when metadata differs
+  by vendor.
+- Indexes match by columns, never names; foreign keys only when declared
+  unless `withImplicitForeignKeys`. Drift is one-directional: never report what
+  the database has extra.
 - Nullability drift is one-directional by design.
 - Repository polling is opt-in (`forge.db.repository-polling.enabled`).
 
 ## Tests
 
-Own: 8 tests incl. `SchemaDriftTest`, `MultiDataSourceIsolationTest`. Examples: `DbWaiterTest`, `MultiDataSourceExampleTest`, `SchemaValidatorTest`, `PostgresSchemaValidationIT` (tag `containers`).
+Own: `SchemaDriftTest`, `SchemaInheritanceTest`, `SchemaIndexForeignKeyDriftTest`, `MultiDataSourceIsolationTest` and others. Examples: `DbWaiterTest`, `MultiDataSourceExampleTest`, `SchemaValidatorTest`, `PostgresSchemaValidationIT` (tag `containers`).
 
 ## Before you finish
 

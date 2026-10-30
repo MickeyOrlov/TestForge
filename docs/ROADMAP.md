@@ -152,9 +152,9 @@ Target module: `module-db`
 - Column type family drift and nullability drift are delivered. Index and
   foreign-key comparison now exists in `module-db-contract`, but between two
   database snapshots, not between JPA mappings and the database. Remaining for
-  `SchemaValidator`: index and foreign-key drift against entity mappings where
-  practical. Inheritance hierarchies and pluggable naming strategies are
-  delivered, reflectively and without ORM internals. Whether the two modules
+  `SchemaValidator` now also covers index and foreign-key drift against entity
+  mappings, inheritance hierarchies and pluggable naming strategies,
+  reflectively and without ORM internals. Whether the two modules
   should share internals is a question for after `module-db-contract` has
   proven itself.
 
