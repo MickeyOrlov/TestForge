@@ -14,6 +14,7 @@ dependencies {
     testImplementation project(":module-flow")
     testImplementation project(":module-state")
     testImplementation project(":module-http")
+    testImplementation project(":module-auth")
     testImplementation project(":module-kafka")
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")

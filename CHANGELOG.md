@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-auth` (experimental): tests declare the role they act as with
+  `@AsUser("admin")` (or `AuthContext.runAs` for a block) and the `ApiClient`
+  sends that role's token. Roles are configured under `forge.auth.roles` as
+  `static`, OAuth2 `client-credentials` / `password`, or `local-jwt` (HS256
+  signed with a shared test secret, no identity provider). Tokens are cached
+  per role, refreshed shortly before expiry, fetched once under parallel load,
+  and never printed. Every misconfigured role is reported at startup. A header
+  the test sets itself is never replaced. No new third-party dependency.
+
+### Added
 - Unified run index now covers every module that writes diagnostics.
   `module-api-discovery`, `module-api-explorer`, `module-contract-monitor` and
   `module-api-fuzz` register their run reports, `module-web-playwright` and

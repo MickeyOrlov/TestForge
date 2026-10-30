@@ -1,0 +1,17 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+
+    api project(":core")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    api "com.fasterxml.jackson.core:jackson-databind"
+
+    // AsUserExtension: role selection for JUnit 5 tests
+    api "org.junit.jupiter:junit-jupiter-api"
+
+    // optional: AuthFilter is created only when REST Assured is present (module-http brings it)
+    compileOnly libs.rest.assured
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation libs.rest.assured
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

@@ -16,6 +16,7 @@ final class Modules {
     static final Map<String, String> ROOT_PACKAGES = Map.ofEntries(
             Map.entry("core", "io.testforge.core"),
             Map.entry("module-api-codegen", "io.testforge.api.codegen"),
+            Map.entry("module-auth", "io.testforge.auth"),
             Map.entry("module-api-discovery", "io.testforge.api.discovery"),
             Map.entry("module-api-explorer", "io.testforge.api.explorer"),
             Map.entry("module-api-fuzz", "io.testforge.api.fuzz"),

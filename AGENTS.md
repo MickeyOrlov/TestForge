@@ -20,6 +20,7 @@ module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
+module-auth/   TokenProvider per role (static, OAuth2, local JWT), @AsUser, Authorization filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
@@ -79,7 +80,11 @@ must not replace each other. `example-tests` is never published.
    BEFORE the first CI run uploads a log. Authentication goes in as an
    `ApiRequestCustomizer` (per specification) or a REST Assured `Filter` bean
    (per request); any `Filter` bean in the context is applied to every request.
-   Turn `retry.enabled` on only where infrastructure noise is real.
+   Turn `retry.enabled` on only where infrastructure noise is real. For
+   role-based tokens use **module-auth** instead of a hand-written customizer:
+   one `forge.auth.roles.<role>` entry per test persona (secrets from env
+   vars), `@AsUser("<role>")` on tests; `local-jwt` when the system under test
+   accepts a shared signing secret, so CI needs no identity provider.
 5. **module-db**: add JPA entities + Spring Data repositories for the service
    tables tests need to assert on (separate Gradle module per service DB if
    there are many). Write one `SchemaValidator` test per entity and schedule
