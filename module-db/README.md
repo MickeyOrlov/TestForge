@@ -146,6 +146,40 @@ Anything else is a `SchemaNamingStrategy` bean; `schemaValidator.withNaming(...)
 switches it for one call site. Explicit names are always taken as written.
 `@SecondaryTable` and `@AssociationOverride` are not resolved.
 
+### Indexes and foreign keys
+
+`indexDrift(Entity.class)` and `foreignKeyDrift(Entity.class)` (both included in
+`schemaDrift`) catch a constraint your tests rely on disappearing from the
+service's database:
+
+```
+users: mapping declares a unique index on (email) but the database has none
+orders.customer_id: foreign key points to legacy_customers.id but the mapping expects customers
+```
+
+- **Indexes** come from `@Table(indexes)`, `@Table(uniqueConstraints)` and
+  `@Column(unique = true)`, and are matched by columns, never by name —
+  generated index names differ between databases. A declared unique index
+  needs a unique database index on exactly that column set (any order); a
+  declared index needs a database index that starts with those columns, in
+  order. `DESC`/`ASC` in `columnList` is ignored.
+- **Foreign keys** are expected only where the mapping declares one:
+  `@JoinColumn(foreignKey = @ForeignKey(name = "fk_customer"))` or
+  `@ForeignKey(ConstraintMode.CONSTRAINT)`. Many service databases skip FKs on
+  purpose, so a plain `@ManyToOne` expects nothing by default. For a service
+  whose ORM creates them, expect one behind every join column:
+
+  ```yaml
+  forge:
+    db:
+      schema-foreign-keys: all     # default: declared
+  ```
+
+  `ConstraintMode.NO_CONSTRAINT` is never expected. `referencedColumnName` is
+  compared when set.
+- One-directional, like nullability: extra indexes and keys in the database
+  are never reported.
+
 ## Agent notes
 
 - One entity + repository per asserted table; a `SchemaValidator` test per
@@ -155,6 +189,9 @@ switches it for one call site. Explicit names are always taken as written.
   `forge.db.schema-naming` (or a `SchemaNamingStrategy` bean) to the
   service's ORM naming before trusting "missing column" findings.
   `@SecondaryTable` and `@AssociationOverride` are not resolved.
+- Declare the indexes and foreign keys a test relies on (`@Column(unique)`,
+  `@Table(indexes)`, `@ForeignKey`): only declared ones are checked, so an
+  undeclared constraint is invisible to drift detection.
 - `waitBy...` repository methods only work with
   `forge.db.repository-polling.enabled: true`; the marker default method must
   throw, never return a stub value.

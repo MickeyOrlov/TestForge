@@ -50,6 +50,16 @@ import javax.sql.DataSource;
  * ({@link SchemaNamingStrategy#SNAKE_CASE} by default, see {@link #withNaming});
  * explicit {@code @Column}/{@code @Table}/{@code @JoinColumn} names are taken as written.
  *
+ * <p><b>Indexes and foreign keys:</b> {@link #indexDrift} checks every index the mapping
+ * declares ({@code @Table(indexes)}, {@code @Table(uniqueConstraints)},
+ * {@code @Column(unique = true)}) by its columns, never its name: a declared unique index
+ * needs a unique database index on exactly that column set, a declared index needs a
+ * database index starting with those columns in order. {@link #foreignKeyDrift} checks
+ * foreign keys the mapping declares explicitly ({@code @JoinColumn(foreignKey = @ForeignKey(...))});
+ * {@link #withImplicitForeignKeys} also expects one behind every {@code @ManyToOne}/{@code @OneToOne}
+ * join column not marked {@code NO_CONSTRAINT}. Extra database indexes and keys are never
+ * reported — the check is one-directional, like nullability.
+ *
  * <p>Limitations (deliberate, to stay dependency-free and avoid false positives):
  * {@code @Embedded} fields are supported, including {@code @AttributeOverride} on the
  * embedding field; {@code @SecondaryTable} and {@code @AssociationOverride} are not.
@@ -75,6 +85,7 @@ public class SchemaValidator {
     private final DataSource dataSource;
     private final DataSourceRegistry registry;
     private final SchemaNamingStrategy naming;
+    private final boolean implicitForeignKeys;
 
     record MappedColumn(
             String name,
@@ -109,13 +120,24 @@ public class SchemaValidator {
     }
 
     private SchemaValidator(DataSource dataSource, DataSourceRegistry registry) {
-        this(dataSource, registry, SchemaNamingStrategy.SNAKE_CASE);
+        this(dataSource, registry, SchemaNamingStrategy.SNAKE_CASE, false);
     }
 
-    private SchemaValidator(DataSource dataSource, DataSourceRegistry registry, SchemaNamingStrategy naming) {
+    private SchemaValidator(DataSource dataSource, DataSourceRegistry registry, SchemaNamingStrategy naming,
+                            boolean implicitForeignKeys) {
         this.dataSource = dataSource;
         this.registry = registry;
         this.naming = naming;
+        this.implicitForeignKeys = implicitForeignKeys;
+    }
+
+    /**
+     * Returns a new {@code SchemaValidator} that also expects a database foreign key behind
+     * every {@code @ManyToOne}/{@code @OneToOne} join column, not only the ones declared with
+     * {@code @ForeignKey}. Use it for services whose ORM creates its own constraints.
+     */
+    public SchemaValidator withImplicitForeignKeys(boolean enabled) {
+        return new SchemaValidator(dataSource, registry, naming, enabled);
     }
 
     /**
@@ -123,7 +145,8 @@ public class SchemaValidator {
      * {@code naming}, keeping this validator's datasource.
      */
     public SchemaValidator withNaming(SchemaNamingStrategy naming) {
-        return new SchemaValidator(dataSource, registry, java.util.Objects.requireNonNull(naming, "naming"));
+        return new SchemaValidator(dataSource, registry, java.util.Objects.requireNonNull(naming, "naming"),
+                implicitForeignKeys);
     }
 
     /**
@@ -144,7 +167,7 @@ public class SchemaValidator {
                             + "constructing one with SchemaValidator(DataSource).");
         }
         // Keep the registry so the returned view can itself be re-targeted.
-        return new SchemaValidator(registry.resolve(name), registry, naming);
+        return new SchemaValidator(registry.resolve(name), registry, naming, implicitForeignKeys);
     }
 
     /**
@@ -249,8 +272,9 @@ public class SchemaValidator {
 
     /**
      * Detects all forms of schema drift for the given entity: missing columns, type family drift,
-     * and nullability drift. Returns the concatenated list of findings from {@link #missingColumns(Class)},
-     * {@link #typeDrift(Class)}, and {@link #nullabilityDrift(Class)}. When the table itself is absent
+     * nullability drift, index drift and foreign key drift. Returns the concatenated list of findings
+     * from {@link #missingColumns(Class)}, {@link #typeDrift(Class)}, {@link #nullabilityDrift(Class)},
+     * {@link #indexDrift(Class)} and {@link #foreignKeyDrift(Class)}. When the table itself is absent
      * from the database, returns only the table-not-found message.
      *
      * @param entityClass the entity class to inspect
@@ -265,7 +289,169 @@ public class SchemaValidator {
         List<String> combined = new ArrayList<>(missing);
         combined.addAll(typeDrift(entityClass));
         combined.addAll(nullabilityDrift(entityClass));
+        combined.addAll(indexDrift(entityClass));
+        combined.addAll(foreignKeyDrift(entityClass));
         return List.copyOf(combined);
+    }
+
+    /**
+     * Indexes the mapping declares that the database does not have. Matched by columns, never
+     * by name (generated names differ between databases). A declared unique index needs a unique
+     * database index on exactly that column set; a declared index needs any database index whose
+     * leading columns are the declared ones, in order.
+     *
+     * @param entityClass the entity class to inspect
+     * @return index drift findings, or an empty list if in sync
+     */
+    public List<String> indexDrift(Class<?> entityClass) {
+        String table = tableName(entityClass);
+        List<DeclaredIndex> declared = declaredIndexes(entityClass);
+        if (declared.isEmpty()) {
+            return List.of();
+        }
+        List<ActualIndex> actual = actualIndexes(table);
+        if (actual.isEmpty() && actualColumns(table).isEmpty()) {
+            return List.of();
+        }
+
+        List<String> drift = new ArrayList<>();
+        for (DeclaredIndex index : declared) {
+            boolean present = index.unique()
+                    ? actual.stream().anyMatch(a -> a.unique() && new java.util.HashSet<>(a.columns())
+                            .equals(new java.util.HashSet<>(index.columns())))
+                    : actual.stream().anyMatch(a -> a.columns().size() >= index.columns().size()
+                            && a.columns().subList(0, index.columns().size()).equals(index.columns()));
+            if (!present) {
+                drift.add("%s: mapping declares %s on (%s) but the database has none"
+                        .formatted(table, index.unique() ? "a unique index" : "an index",
+                                String.join(", ", index.columns())));
+            }
+        }
+        return List.copyOf(drift);
+    }
+
+    /**
+     * Foreign keys the mapping declares that the database does not have, or that point at a
+     * different table. By default only keys declared with {@code @ForeignKey} count; see
+     * {@link #withImplicitForeignKeys}.
+     *
+     * @param entityClass the entity class to inspect
+     * @return foreign key drift findings, or an empty list if in sync
+     */
+    public List<String> foreignKeyDrift(Class<?> entityClass) {
+        String table = tableName(entityClass);
+        List<DeclaredForeignKey> declared = declaredForeignKeys(entityClass);
+        if (declared.isEmpty() || actualColumns(table).isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<ActualForeignKey>> actual = actualForeignKeys(table);
+
+        List<String> drift = new ArrayList<>();
+        for (DeclaredForeignKey key : declared) {
+            List<ActualForeignKey> onColumn = actual.getOrDefault(key.column().toLowerCase(Locale.ROOT), List.of());
+            if (onColumn.isEmpty()) {
+                drift.add("%s.%s: mapping declares a foreign key to %s but the database has none"
+                        .formatted(table, key.column(), key.targetTable()));
+                continue;
+            }
+            boolean sameTarget = onColumn.stream().anyMatch(a -> a.targetTable().equalsIgnoreCase(key.targetTable())
+                    && (key.targetColumn() == null || a.targetColumn().equalsIgnoreCase(key.targetColumn())));
+            if (!sameTarget) {
+                ActualForeignKey found = onColumn.getFirst();
+                drift.add("%s.%s: foreign key points to %s.%s but the mapping expects %s%s"
+                        .formatted(table, key.column(), found.targetTable().toLowerCase(Locale.ROOT),
+                                found.targetColumn().toLowerCase(Locale.ROOT), key.targetTable(),
+                                key.targetColumn() == null ? "" : "." + key.targetColumn()));
+            }
+        }
+        return List.copyOf(drift);
+    }
+
+    record DeclaredIndex(List<String> columns, boolean unique) {}
+
+    private record ActualIndex(List<String> columns, boolean unique) {}
+
+    record DeclaredForeignKey(String column, String targetTable, String targetColumn) {}
+
+    private record ActualForeignKey(String targetTable, String targetColumn) {}
+
+    List<DeclaredIndex> declaredIndexes(Class<?> entityClass) {
+        Hierarchy hierarchy = Hierarchy.of(entityClass);
+        Class<?> tableOwner = hierarchy.strategy() == InheritanceType.SINGLE_TABLE ? hierarchy.root() : entityClass;
+        List<DeclaredIndex> indexes = new ArrayList<>();
+
+        Table table = tableOwner.getAnnotation(Table.class);
+        if (table != null) {
+            for (jakarta.persistence.Index index : table.indexes()) {
+                List<String> columns = java.util.Arrays.stream(index.columnList().split(","))
+                        .map(String::trim)
+                        .filter(column -> !column.isEmpty())
+                        // "created_at DESC" — the direction is not part of the column name
+                        .map(column -> column.split("\\s+")[0].toLowerCase(Locale.ROOT))
+                        .toList();
+                if (!columns.isEmpty()) {
+                    indexes.add(new DeclaredIndex(columns, index.unique()));
+                }
+            }
+            for (jakarta.persistence.UniqueConstraint constraint : table.uniqueConstraints()) {
+                List<String> columns = java.util.Arrays.stream(constraint.columnNames())
+                        .map(column -> column.trim().toLowerCase(Locale.ROOT))
+                        .toList();
+                if (!columns.isEmpty()) {
+                    indexes.add(new DeclaredIndex(columns, true));
+                }
+            }
+        }
+
+        for (Class<?> owner : hierarchy.fieldOwners(entityClass)) {
+            for (Field field : owner.getDeclaredFields()) {
+                Column column = field.getAnnotation(Column.class);
+                JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+                boolean unique = (column != null && column.unique()) || (joinColumn != null && joinColumn.unique());
+                if (unique) {
+                    MappedColumn mapped = mappedColumn(field, null);
+                    if (mapped != null && mapped.name() != null) {
+                        indexes.add(new DeclaredIndex(List.of(mapped.name().toLowerCase(Locale.ROOT)), true));
+                    }
+                }
+            }
+        }
+        return List.copyOf(indexes);
+    }
+
+    List<DeclaredForeignKey> declaredForeignKeys(Class<?> entityClass) {
+        List<DeclaredForeignKey> keys = new ArrayList<>();
+        for (Class<?> owner : Hierarchy.of(entityClass).fieldOwners(entityClass)) {
+            for (Field field : owner.getDeclaredFields()) {
+                if (!field.isAnnotationPresent(ManyToOne.class) && !field.isAnnotationPresent(OneToOne.class)) {
+                    continue;
+                }
+                JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+                jakarta.persistence.ConstraintMode mode = joinColumn == null
+                        ? jakarta.persistence.ConstraintMode.PROVIDER_DEFAULT
+                        : joinColumn.foreignKey().value();
+                boolean expected = mode == jakarta.persistence.ConstraintMode.CONSTRAINT
+                        || (implicitForeignKeys && mode == jakarta.persistence.ConstraintMode.PROVIDER_DEFAULT);
+                // a mappedBy side owns no column, and a non-entity target has no table to point at
+                if (!expected || !field.getType().isAnnotationPresent(Entity.class) || mappedBy(field)) {
+                    continue;
+                }
+                MappedColumn mapped = mappedColumn(field, null);
+                if (mapped == null || mapped.name() == null) {
+                    continue;
+                }
+                String targetColumn = joinColumn != null && !joinColumn.referencedColumnName().isBlank()
+                        ? joinColumn.referencedColumnName()
+                        : null;
+                keys.add(new DeclaredForeignKey(mapped.name(), tableName(field.getType()), targetColumn));
+            }
+        }
+        return List.copyOf(keys);
+    }
+
+    private static boolean mappedBy(Field field) {
+        OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+        return oneToOne != null && !oneToOne.mappedBy().isBlank();
     }
 
     String tableName(Class<?> entityClass) {
@@ -545,6 +731,63 @@ public class SchemaValidator {
         }
 
         return columns;
+    }
+
+    private List<ActualIndex> actualIndexes(String table) {
+        try (Connection connection = resolveDataSource().getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            for (String candidate : List.of(table, table.toUpperCase(Locale.ROOT), table.toLowerCase(Locale.ROOT))) {
+                // name -> (position -> column), keeping each index's column order
+                Map<String, java.util.TreeMap<Short, String>> columns = new java.util.LinkedHashMap<>();
+                Map<String, Boolean> unique = new HashMap<>();
+                try (ResultSet rs = metaData.getIndexInfo(null, null, candidate, false, true)) {
+                    while (rs.next()) {
+                        String name = rs.getString("INDEX_NAME");
+                        String column = rs.getString("COLUMN_NAME");
+                        if (name == null || column == null) {
+                            continue;
+                        }
+                        columns.computeIfAbsent(name, ignored -> new java.util.TreeMap<>())
+                                .put(rs.getShort("ORDINAL_POSITION"), column.toLowerCase(Locale.ROOT));
+                        unique.put(name, !rs.getBoolean("NON_UNIQUE"));
+                    }
+                }
+                if (!columns.isEmpty()) {
+                    List<ActualIndex> indexes = new ArrayList<>();
+                    columns.forEach((name, byPosition) ->
+                            indexes.add(new ActualIndex(List.copyOf(byPosition.values()), unique.get(name))));
+                    return indexes;
+                }
+            }
+            return List.of();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to read indexes of table '%s'".formatted(table), e);
+        }
+    }
+
+    private Map<String, List<ActualForeignKey>> actualForeignKeys(String table) {
+        try (Connection connection = resolveDataSource().getConnection()) {
+            DatabaseMetaData metaData = connection.getMetaData();
+            for (String candidate : List.of(table, table.toUpperCase(Locale.ROOT), table.toLowerCase(Locale.ROOT))) {
+                Map<String, List<ActualForeignKey>> keys = new HashMap<>();
+                try (ResultSet rs = metaData.getImportedKeys(null, null, candidate)) {
+                    while (rs.next()) {
+                        String column = rs.getString("FKCOLUMN_NAME");
+                        if (column == null) {
+                            continue;
+                        }
+                        keys.computeIfAbsent(column.toLowerCase(Locale.ROOT), ignored -> new ArrayList<>())
+                                .add(new ActualForeignKey(rs.getString("PKTABLE_NAME"), rs.getString("PKCOLUMN_NAME")));
+                    }
+                }
+                if (!keys.isEmpty()) {
+                    return keys;
+                }
+            }
+            return Map.of();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to read foreign keys of table '%s'".formatted(table), e);
+        }
     }
 
     static String camelToSnake(String value) {

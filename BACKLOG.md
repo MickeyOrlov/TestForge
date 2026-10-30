@@ -38,7 +38,7 @@ Goal: make CI output easy to inspect after a failed run.
     `location` metadata carries the real path. A first-class field would be a
     manifest format change.
 
-## Priority 2: stronger database module
+## Priority 2: stronger database module (shipped)
 
 **Module:** `module-db`
 
@@ -47,11 +47,10 @@ Goal: make gray-box DB checks comfortable for multi-service systems.
 Named datasource selection, column type drift and nullable drift are delivered;
 see the Delivered section of docs/ROADMAP.md. What remains:
 
-- Expand schema drift checks to indexes and foreign keys where practical.
-
 Inheritance (`@MappedSuperclass`, `SINGLE_TABLE`, `JOINED`,
-`TABLE_PER_CLASS`) and pluggable naming (`SchemaNamingStrategy`) are delivered
-without ORM internals.
+`TABLE_PER_CLASS`), pluggable naming (`SchemaNamingStrategy`) and index and
+foreign-key drift against entity mappings are delivered without ORM internals,
+proven on H2 and PostgreSQL. Nothing planned beyond that.
 
 ## Priority 3: richer shared mock diagnostics (shipped)
 

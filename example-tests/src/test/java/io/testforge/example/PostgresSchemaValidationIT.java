@@ -139,5 +139,104 @@ class PostgresSchemaValidationIT {
         assertThat(findings)
                 .containsExactly("pg_nullability_drift_sample.required_code: mapping declares NOT NULL but database column is nullable");
     }
-}
 
+    @Table(name = "pg_index_sample",
+            indexes = @jakarta.persistence.Index(columnList = "tenant_id, created_at"),
+            uniqueConstraints = @jakarta.persistence.UniqueConstraint(columnNames = {"tenant_id", "login"}))
+    static class PostgresIndexedEntity {
+        @Id
+        private Long id;
+
+        @Column(unique = true)
+        private String email;
+
+        private Long tenantId;
+        private String login;
+        private java.time.Instant createdAt;
+    }
+
+    @Table(name = "pg_index_drift_sample", indexes = @jakarta.persistence.Index(columnList = "tenant_id"))
+    static class PostgresIndexDriftEntity {
+        @Id
+        private Long id;
+
+        @Column(unique = true)
+        private String email;
+
+        private Long tenantId;
+    }
+
+    @jakarta.persistence.Entity
+    @Table(name = "pg_fk_customers")
+    static class PostgresCustomer {
+        @Id
+        private Long id;
+    }
+
+    @jakarta.persistence.Entity
+    @Table(name = "pg_fk_legacy")
+    static class PostgresLegacyCustomer {
+        @Id
+        private Long id;
+    }
+
+    @Table(name = "pg_fk_orders")
+    static class PostgresOrder {
+        @Id
+        private Long id;
+
+        @jakarta.persistence.ManyToOne
+        @jakarta.persistence.JoinColumn(name = "customer_id",
+                foreignKey = @jakarta.persistence.ForeignKey(name = "fk_customer"))
+        private PostgresCustomer customer;
+
+        @jakarta.persistence.ManyToOne
+        @jakarta.persistence.JoinColumn(name = "previous_id",
+                foreignKey = @jakarta.persistence.ForeignKey(name = "fk_previous"))
+        private PostgresCustomer previous;
+
+        @jakarta.persistence.ManyToOne
+        @jakarta.persistence.JoinColumn(name = "referrer_id",
+                foreignKey = @jakarta.persistence.ForeignKey(name = "fk_referrer"))
+        private PostgresCustomer referrer;
+    }
+
+    @Test
+    void indexDriftMatchesByColumnsOnPostgres() throws Exception {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS pg_index_sample (id BIGINT PRIMARY KEY, email VARCHAR(100),
+                        tenant_id BIGINT, login VARCHAR(50), created_at TIMESTAMP)""");
+            stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS pg_generated_email ON pg_index_sample (email)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS pg_tenant_created ON pg_index_sample (tenant_id, created_at)");
+            stmt.execute("""
+                    DO $$ BEGIN
+                      ALTER TABLE pg_index_sample ADD CONSTRAINT pg_uq_login UNIQUE (login, tenant_id);
+                    EXCEPTION WHEN duplicate_table OR duplicate_object THEN NULL; END $$""");
+            stmt.execute("CREATE TABLE IF NOT EXISTS pg_index_drift_sample (id BIGINT PRIMARY KEY, email VARCHAR(100), tenant_id BIGINT)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS pg_email_plain ON pg_index_drift_sample (email)");
+        }
+
+        assertThat(schemaValidator.indexDrift(PostgresIndexedEntity.class)).isEmpty();
+        assertThat(schemaValidator.indexDrift(PostgresIndexDriftEntity.class)).containsExactlyInAnyOrder(
+                "pg_index_drift_sample: mapping declares an index on (tenant_id) but the database has none",
+                "pg_index_drift_sample: mapping declares a unique index on (email) but the database has none");
+    }
+
+    @Test
+    void foreignKeyDriftIsDetectedOnPostgres() throws Exception {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute("CREATE TABLE IF NOT EXISTS pg_fk_customers (id BIGINT PRIMARY KEY)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS pg_fk_legacy (id BIGINT PRIMARY KEY)");
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS pg_fk_orders (id BIGINT PRIMARY KEY,
+                        customer_id BIGINT REFERENCES pg_fk_customers(id),
+                        previous_id BIGINT,
+                        referrer_id BIGINT REFERENCES pg_fk_legacy(id))""");
+        }
+
+        assertThat(schemaValidator.foreignKeyDrift(PostgresOrder.class)).containsExactlyInAnyOrder(
+                "pg_fk_orders.previous_id: mapping declares a foreign key to pg_fk_customers but the database has none",
+                "pg_fk_orders.referrer_id: foreign key points to pg_fk_legacy.id but the mapping expects pg_fk_customers");
+    }
+}

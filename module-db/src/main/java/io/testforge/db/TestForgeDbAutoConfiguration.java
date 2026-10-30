@@ -68,7 +68,8 @@ public class TestForgeDbAutoConfiguration {
     public SchemaValidator schemaValidator(DataSourceRegistry registry, DbProperties properties,
                                            ObjectProvider<SchemaNamingStrategy> naming) {
         return new SchemaValidator(registry)
-                .withNaming(naming.getIfAvailable(() -> SchemaNamingStrategy.named(properties.schemaNaming())));
+                .withNaming(naming.getIfAvailable(() -> SchemaNamingStrategy.named(properties.schemaNaming())))
+                .withImplicitForeignKeys(properties.implicitForeignKeys());
     }
 
     @Bean

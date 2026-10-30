@@ -245,7 +245,10 @@ reviewing a module. Adapting a fresh clone follows
   inheritance strategies. Implicit names follow `forge.db.schema-naming`
   (`snake-case` by default, `as-is`, or a `SchemaNamingStrategy` bean) — set it
   to the service's ORM naming, or "missing column" findings are noise.
-  `@SecondaryTable` and `@AssociationOverride` are not resolved.
+  `@SecondaryTable` and `@AssociationOverride` are not resolved. Index and
+  foreign-key drift only covers what the mapping declares (`@Column(unique)`,
+  `@Table(indexes)`, `@ForeignKey`); `forge.db.schema-foreign-keys: all`
+  expects a key behind every join column.
 - `module-db-contract` matches tables, columns, indexes and foreign keys by
   name, so a rename reads as a removal plus an addition. It stores identifiers
   exactly as the vendor reports them (PostgreSQL lower, H2 upper), which makes
