@@ -51,18 +51,14 @@ see the Delivered section of docs/ROADMAP.md. What remains:
 - Decide how to support inheritance and custom naming strategies without
   pulling the module into heavy ORM internals.
 
-## Priority 3: richer shared mock diagnostics
+## Priority 3: richer shared mock diagnostics (shipped)
 
 **Module:** `module-mock`
 
-Goal: make scoped WireMock failures explain themselves.
-
-- Support scope matching by request body JSON path, header, query param, and
-  cookie.
-- Add request journal assertions for scoped traffic.
-- Dump scoped stubs and unmatched requests as failure artifacts.
-- Add readable mismatch diagnostics: why a scoped stub did not match the
-  incoming request.
+Scope matching by body JSON path, header, query parameter or cookie, scoped
+journal assertions, readable mismatch diagnostics and failure artifacts are
+delivered. Revisit only for a concrete adaptation need (for example, matching
+a scope that the system under test splits across two fields).
 
 ## Priority 4: messaging abstraction beyond Kafka
 

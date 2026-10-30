@@ -29,6 +29,6 @@ public class TestForgeMockAutoConfiguration {
                 .build();
 
         ArtifactSink artifactSink = artifactSinkProvider.getIfAvailable(() -> ArtifactSink.NO_OP);
-        return new ScopedMockClient(wireMock, properties.scopeJsonPath(), artifactSink);
+        return new ScopedMockClient(wireMock, properties.scopeMarker(), artifactSink);
     }
 }

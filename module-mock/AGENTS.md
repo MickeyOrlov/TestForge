@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-mock`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Scenario-scoped stubs on a shared WireMock: `ScopedMockClient`, `MockScope`, mismatch diagnostics.
+**Scope:** Scenario-scoped stubs on a shared WireMock: `ScopedMockClient`, `MockScope`, `ScopeMarker` (body JSON path, header, query parameter or cookie), scoped journal assertions, mismatch diagnostics.
 
 **May depend on:** `core` only.
 
@@ -13,10 +13,14 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   matcher.
 - Never register an unscoped catch-all from a test.
 - Isolation comes from request matching; priority only settles ties.
+- One `ScopeMarker` per scope drives stubs, journal and diagnostics; never let
+  them match on different things.
+- Diagnostics record the marker kind and name, never a header, query, cookie or
+  body value.
 
 ## Tests
 
-Own: 7 tests incl. `MockScopeTest`, `StubMismatchAnalyzerTest`. Examples: `ScopedMockIsolationTest`, `ApiClientExampleTest`.
+Own: `MockScopeTest`, `StubMismatchAnalyzerTest`, `ScopeMarkerTest` (every marker kind: isolation, journal, verify, diagnostics) and others. Examples: `ScopedMockIsolationTest`, `ApiClientExampleTest`, `HeaderScopedMockTest`.
 
 ## Before you finish
 

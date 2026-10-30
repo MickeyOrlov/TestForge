@@ -30,7 +30,7 @@ public class ScopedMockClient {
     public static final ContextKey<String> TEST_SCOPE = ScenarioKeys.TEST_SCOPE;
 
     private final WireMock wireMock;
-    private final String scopeJsonPath;
+    private final ScopeMarker marker;
     private final ArtifactSink artifactSink;
 
     public ScopedMockClient(WireMock wireMock, String scopeJsonPath) {
@@ -38,13 +38,17 @@ public class ScopedMockClient {
     }
 
     public ScopedMockClient(WireMock wireMock, String scopeJsonPath, ArtifactSink artifactSink) {
+        this(wireMock, ScopeMarker.jsonPath(scopeJsonPath), artifactSink);
+    }
+
+    public ScopedMockClient(WireMock wireMock, ScopeMarker marker, ArtifactSink artifactSink) {
         this.wireMock = wireMock;
-        this.scopeJsonPath = scopeJsonPath;
+        this.marker = marker;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
     }
 
     public MockScope scope(String scopeId) {
-        return new MockScope(wireMock, scopeJsonPath, scopeId, artifactSink);
+        return new MockScope(wireMock, marker, scopeId, artifactSink);
     }
 
     /**

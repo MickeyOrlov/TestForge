@@ -261,7 +261,10 @@ reviewing a module. Adapting a fresh clone follows
   Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.
 - - `module-http` scope injection rewrites JSON bodies sent as a string or byte
   array. REST Assured serializes object/POJO bodies *after* filters run, so
-  those requests need `forge.http.scope.header` instead of the JSON path.
+  those requests need `forge.http.scope.header` instead of the JSON path —
+  and the mock must then match on that header (`forge.mock.scope-header`,
+  which `module-http` also follows by default). The same applies to GET and
+  DELETE, which have no body to carry the scope.
 - A `RequestSpecification` built by `RequestSpecBuilder` cannot be sent on its
   own (no response specification attached); `ApiClient` merges it into
   `RestAssured.given()`.

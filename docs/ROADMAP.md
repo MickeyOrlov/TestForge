@@ -162,10 +162,11 @@ Target module: `module-db`
 
 Target module: `module-mock`
 
-- Support scope matching beyond request-body JSON paths where useful
-  (headers, query parameters, cookies).
-- Provide readable diagnostics for unmatched scoped requests.
-- Emit scoped stubs and request journal artifacts on failure.
+- Delivered: scope matching by body JSON path, header, query parameter or
+  cookie (`ScopeMarker`), scoped journal assertions (`requests`, `verify`),
+  readable mismatch diagnostics, and scoped stubs plus unmatched requests as
+  failure artifacts.
+- Remaining: none planned; expand only when an adaptation needs it.
 
 ### Messaging Abstraction
 
