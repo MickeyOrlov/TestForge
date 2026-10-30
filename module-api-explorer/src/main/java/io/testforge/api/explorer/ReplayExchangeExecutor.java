@@ -65,7 +65,7 @@ public class ReplayExchangeExecutor implements ExchangeExecutor {
                     + "forge.api-explorer.max-body-chars and record again", 0);
         }
         Map<String, String> headers = new LinkedHashMap<>();
-        recorded.path("responseHeaders").fields().forEachRemaining(entry -> headers.put(entry.getKey(),
+        recorded.path("responseHeaders").properties().forEach(entry -> headers.put(entry.getKey(),
                 entry.getValue().asText()));
         return new RuntimeExchange(Map.of(), request.body(), recorded.get("status").asInt(),
                 recorded.path("contentType").isNull() ? null : recorded.path("contentType").asText(null),

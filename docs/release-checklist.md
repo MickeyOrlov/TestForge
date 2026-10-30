@@ -20,8 +20,8 @@ rg -n --hidden --glob '!.git/**' --glob '!**/build/**' 'secret|password|token' .
 
 ## Library release
 
-The next release after the existing `v1.1.0` tag is `v1.2.0`. Keep the default
-development version at `1.2.0-SNAPSHOT`, then override it for the release:
+The release after `v1.1.0` is `v1.2.0`; the next one is `v1.3.0`. Keep the
+default development version at a `-SNAPSHOT`, then override it for the release:
 
 ```bash
 ./gradlew publishTestForgeLibraries -PtestforgeVersion=1.2.0
@@ -38,6 +38,11 @@ Release highlights:
 - JSON contract validation.
 - Playwright fixtures and artifacts.
 - Appium device matrix and artifacts.
+- 1.2.0: `module-auth` (role tokens, `@AsUser`), architecture guardrails,
+  per-module agent guides, header/query/cookie mock scopes, `SchemaValidator`
+  inheritance + index/FK drift, prepared pool preload/refill/stats, unified
+  run index for every producer, stateful API exploration (extraction,
+  proposals, write chains, replay).
 
 Suggested GitHub topics:
 

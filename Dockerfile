@@ -22,8 +22,11 @@ COPY module-contract-monitor/build.gradle module-contract-monitor/build.gradle
 COPY module-api-discovery/build.gradle module-api-discovery/build.gradle
 COPY module-api-codegen/build.gradle module-api-codegen/build.gradle
 COPY module-api-explorer/build.gradle module-api-explorer/build.gradle
+COPY module-api-fuzz/build.gradle module-api-fuzz/build.gradle
+COPY module-auth/build.gradle module-auth/build.gradle
 COPY module-data/build.gradle module-data/build.gradle
 COPY module-db/build.gradle module-db/build.gradle
+COPY module-db-contract/build.gradle module-db-contract/build.gradle
 COPY module-flow/build.gradle module-flow/build.gradle
 COPY module-state/build.gradle module-state/build.gradle
 COPY module-http/build.gradle module-http/build.gradle
@@ -34,8 +37,10 @@ COPY module-web/build.gradle module-web/build.gradle
 COPY module-web-playwright/build.gradle module-web-playwright/build.gradle
 COPY module-mobile-appium/build.gradle module-mobile-appium/build.gradle
 COPY example-tests/build.gradle example-tests/build.gradle
+COPY architecture-tests/build.gradle architecture-tests/build.gradle
 # NB: every module in settings.gradle needs its build.gradle here, or the
-# warmup `gradlew help` fails — checked by the docker-build CI job
+# warmup `gradlew help` fails — checked offline by architecture-tests
+# (ModuleConventionTest.dockerfileCopiesEveryModuleBuildFile)
 
 RUN ./gradlew --no-daemon help
 
