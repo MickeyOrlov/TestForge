@@ -187,6 +187,19 @@ To adopt `ArtifactSink` in a new or existing module:
            Path.of("build/mymodule/report.json"), "application/json", Map.of("healthy", "true"));
    ```
 
+### Reading `summary.md`
+
+The Markdown index is meant to be opened first after a red CI run:
+
+- **Needs attention** (only when something failed) lists every report whose
+  own verdict is negative — `healthy: false`, `compatible: false`, or an
+  `outcome` of `FINDINGS` / `*_ERROR` — with the path to open.
+- Every entry shows where the file is: run-relative inside the run directory,
+  or the producer's configured `location` with *(outside the run directory)*
+  for reports kept in a module's own `output-dir`. A location that is
+  absolute, drive-qualified or climbs with `..` is never printed.
+- Producer verdicts (`healthy`, `compatible`, `outcome`) follow the path.
+
 ### Producers wired today
 
 | Module | Category | What is registered |

@@ -58,6 +58,10 @@ class ProducerReportingExampleTest {
         assertThat(reportJson.get("metadata").get("location").asText())
                 .isEqualTo("build/api-discovery/producer-reporting/report.json");
         assertThat(Path.of(reportJson.get("metadata").get("location").asText())).exists();
-        assertThat(Files.readString(runLayout.runRoot().resolve("summary.md"))).contains("module-api-discovery");
+        assertThat(Files.readString(runLayout.runRoot().resolve("summary.md")))
+                .contains("module-api-discovery")
+                .contains("`build/api-discovery/producer-reporting/report.json` (outside the run directory)"
+                        + " — healthy: true")
+                .doesNotContain("Needs attention");
     }
 }

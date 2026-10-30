@@ -106,6 +106,8 @@ surface is still expected to evolve.
 - Flow runner with guardrails, path reporting, and decorators.
 - Role-based authentication for API tests: `module-auth` token providers,
   `@AsUser`, local JWT signing without an identity provider.
+- The run index's `summary.md` points at every report, including the ones a
+  module keeps in its own output directory, and lists failing verdicts first.
 - Every diagnostic-producing module publishes into the unified run index:
   runner reports (API discovery, exploration, fuzzing, contract monitor, DB
   contract) and UI/mobile failure artifacts, through `ArtifactSink`.
