@@ -21,15 +21,17 @@ public record SpecExplorationReport(
         int skipped,
         List<ObservationSummary> observations,
         String observationsDir,
-        String error) {
+        String error,
+        List<ExtractionOutcome> extractions) {
 
     public SpecExplorationReport {
         observations = List.copyOf(observations == null ? List.of() : observations);
+        extractions = List.copyOf(extractions == null ? List.of() : extractions);
     }
 
     /** Spec that could not be parsed or reached at all. */
     public static SpecExplorationReport broken(String specId, String location, String baseUrl, String error) {
         return new SpecExplorationReport(specId, location, baseUrl, true, 0, 0, 0, 0, 0,
-                List.of(), null, error);
+                List.of(), null, error, List.of());
     }
 }

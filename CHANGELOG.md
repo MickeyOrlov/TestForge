@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: stateful exploration, step 1. `forge.api-explorer.extract`
+  rules take a value from one operation's 2xx JSON response and feed it to
+  later calls (`operationId.parameter`, or a bare parameter name for every
+  operation); producers run before their consumers. An extracted value beats
+  the document's example, a configured value still wins. The report gets a
+  *Value extraction* table with one status per rule and never the value.
+  Read-only chains (list, then item) need no write method.
+- `core`: `JsonPath` reads root arrays (`$[0].id`).
+
+### Added
 - `module-db`: `SchemaValidator.indexDrift` and `foreignKeyDrift`, both part of
   `schemaDrift`, report constraints the mapping declares that the service's
   database no longer has. Indexes (`@Table(indexes)`, `uniqueConstraints`,

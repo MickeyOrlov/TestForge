@@ -33,6 +33,10 @@ public class RequestPlanner {
     }
 
     public PlannedRequest plan(ExplorableOperation operation) {
+        return plan(operation, ExtractedValues.NONE);
+    }
+
+    public PlannedRequest plan(ExplorableOperation operation, ExtractedValues extracted) {
         List<ParameterBinding> bindings = new ArrayList<>();
 
         RequestBody body = operation.operation().getRequestBody();
@@ -57,7 +61,7 @@ public class RequestPlanner {
                 continue;
             }
 
-            Optional<ParameterBinding> resolved = values.resolve(operation, parameter);
+            Optional<ParameterBinding> resolved = values.resolve(operation, parameter, extracted);
             if (resolved.isEmpty()) {
                 if (pathParameter) {
                     missingPath.add(parameter.getName());
@@ -71,7 +75,8 @@ public class RequestPlanner {
             if (pathParameter) {
                 bindings.add(binding);
                 pathParameters.put(binding.name(), binding.value());
-            } else if (requiredQuery || binding.source() == ValueSource.CONFIGURED) {
+            } else if (requiredQuery || binding.source() == ValueSource.CONFIGURED
+                    || binding.source() == ValueSource.EXTRACTED) {
                 bindings.add(binding);
                 queryParameters.put(binding.name(), binding.value());
             }

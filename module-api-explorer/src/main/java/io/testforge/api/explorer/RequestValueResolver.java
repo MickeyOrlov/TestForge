@@ -10,7 +10,8 @@ import java.util.Optional;
  * Decides what to send for one parameter, and records why.
  *
  * <p>The order is fixed and runs from most authoritative to least: a value a
- * human configured, then one the document offers as an example, then its
+ * human configured, then one extracted from an earlier response by an
+ * explicit rule, then one the document offers as an example, then its
  * default, then the first of its enum, and only then something derived from the
  * type. Anything the document states about itself beats anything this module
  * invents.
@@ -26,11 +27,26 @@ public class RequestValueResolver {
     }
 
     public Optional<ParameterBinding> resolve(ExplorableOperation operation, Parameter parameter) {
+        return resolve(operation, parameter, ExtractedValues.NONE);
+    }
+
+    /**
+     * As {@link #resolve(ExplorableOperation, Parameter)}, with values extracted
+     * earlier in the same run. An extracted id beats any example: an example id
+     * rarely exists on the environment.
+     */
+    public Optional<ParameterBinding> resolve(ExplorableOperation operation, Parameter parameter,
+                                              ExtractedValues extracted) {
         Schema<?> schema = parameter.getSchema();
 
         String override = configured.find(operation.operationId(), parameter.getName());
         if (override != null && !override.isBlank()) {
             return binding(parameter, ValueSource.CONFIGURED, override);
+        }
+
+        Optional<String> fromResponse = extracted.find(operation.operationId(), parameter.getName());
+        if (fromResponse.isPresent()) {
+            return binding(parameter, ValueSource.EXTRACTED, fromResponse.get());
         }
 
         Optional<String> example = example(parameter, schema);

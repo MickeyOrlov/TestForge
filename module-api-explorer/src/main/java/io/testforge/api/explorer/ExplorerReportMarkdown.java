@@ -57,6 +57,7 @@ final class ExplorerReportMarkdown {
                 .append(observation.durationMillis() == null ? "-" : observation.durationMillis()).append(" | ")
                 .append(notes(observation)).append(" |\n"));
 
+        renderExtractions(out, spec);
         renderSkipped(out, spec);
     }
 
@@ -75,6 +76,20 @@ final class ExplorerReportMarkdown {
      * call, with the reason. A team reads this and knows exactly which
      * identifiers to put into configuration.
      */
+    /** Whether each chain worked; the values themselves stay in the consuming observations. */
+    private static void renderExtractions(StringBuilder out, SpecExplorationReport spec) {
+        if (spec.extractions().isEmpty()) {
+            return;
+        }
+        out.append("\n### Value extraction\n\n| from | json-path | into | result |\n|---|---|---|---|\n");
+        spec.extractions().forEach(outcome -> out
+                .append("| `").append(outcome.from()).append("` | `").append(outcome.jsonPath()).append("` | ")
+                .append(String.join(", ", outcome.into())).append(" | ")
+                .append(outcome.status().description())
+                .append(outcome.detail() == null ? "" : " (" + outcome.detail() + ")")
+                .append(" |\n"));
+    }
+
     private static void renderSkipped(StringBuilder out, SpecExplorationReport spec) {
         var skipped = spec.observations().stream()
                 .filter(observation -> observation.skipReason() == SkipReason.MISSING_PATH_PARAMETER

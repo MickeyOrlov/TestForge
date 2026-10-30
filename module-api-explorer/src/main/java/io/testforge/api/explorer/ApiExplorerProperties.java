@@ -30,6 +30,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     parameters:
  *       defaults:
  *         taskId: "task-1"
+ *     extract:                        # stateful: feed one response into later calls
+ *       - from: listTasks
+ *         json-path: "$[0].id"
+ *         into: [getTask.taskId]
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.api-explorer")
@@ -45,7 +49,8 @@ public record ApiExplorerProperties(
         Integer maxOperations,
         Integer maxBodyChars,
         ParameterProperties parameters,
-        FailureProperties failOn) {
+        FailureProperties failOn,
+        List<ExtractionRule> extract) {
 
     /** Methods that may be sent without anyone opting in to anything. */
     public static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
@@ -78,6 +83,7 @@ public record ApiExplorerProperties(
         if (failOn == null) {
             failOn = new FailureProperties(null, null);
         }
+        extract = List.copyOf(extract == null ? List.of() : extract);
     }
 
     /**

@@ -127,16 +127,40 @@ Configure credential field names once, in the module that already owned them.
 A parameter named like a credential — an API key in a query string — is masked
 too, by asking the redactor whether it would mask a field of that name.
 
+## Stateful exploration: values from one call feeding the next
+
+Most item endpoints need an id that exists. Tell the explorer where to find
+one, and the call that consumes it runs after the call that produces it:
+
+```yaml
+forge:
+  api-explorer:
+    extract:
+      - from: listTasks               # producer operationId
+        json-path: "$.items[0].id"    # $.a.b, items[0].id, $[0].id on a root array
+        into: [getTask.taskId]        # operationId.parameter, or a bare name for every operation
+```
+
+- Read-only chains need no write method: list, then item.
+- Values come from the raw 2xx JSON response and must be a single value.
+- A configured `parameters` value still wins; an extracted value beats the
+  document's example (which rarely exists on the environment).
+- The report's *Value extraction* table says, per rule, whether it worked
+  and why not — never the value itself.
+- Values are sent through REST Assured parameter encoding, so a hostile
+  value cannot change the request target.
+
+Design and the next steps: [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md).
+
 ## Limits of v1
 
 - **No request bodies.** An operation that requires one is skipped with a
   reason. Synthesizing a body means guessing at business meaning, and a wrong
   guess against a write endpoint is the damage the safety policy exists to
   prevent.
-- **No state between calls.** Each operation is explored independently. There
-  is no value extraction from responses, no producer/consumer inference, no
-  request sequencing and no replay. The observation model is shaped for all
-  four — see `ApiObservation` — but none is implemented.
+- **State only through explicit rules.** Values flow between calls only via
+  `forge.api-explorer.extract`. There is no producer/consumer inference yet,
+  no write chains and no replay — see the design doc for the plan.
 - **No fuzzing.** Values are the document's own or a deterministic default.
   Nothing is mutated to provoke failure.
 - **Optional query parameters are omitted** unless configured. Inventing

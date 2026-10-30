@@ -193,10 +193,10 @@ Target modules: `module-api-discovery`, `module-api-codegen`,
 - Safe runtime exploration shipped in `module-api-explorer` v1: GET, HEAD and
   OPTIONS by default, mutation methods behind two explicit keys, redacted
   observations, runtime contract report. Done.
-- Extend the observation model into value extraction and producer/consumer
-  inference, so an id returned by one operation can satisfy another's
-  parameter. The seam exists (`ValueSource`, `ApiObservation`); the inference
-  does not.
+- Delivered: declarative value extraction, so an id returned by one operation
+  satisfies another's parameter (`forge.api-explorer.extract`). Next:
+  producer/consumer inference that proposes rules in the report
+  ([design](api-explorer-stateful-design.md)).
 - Add stateful request sequences and reproducible replay on top of that
   inference, not before it.
 - Consider a Gradle bootstrap plugin only after discovery, code generation,

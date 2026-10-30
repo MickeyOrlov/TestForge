@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-api-explorer`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateless in v1.
+**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules (step 1 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
 **May depend on:** `module-api-discovery`, `module-http`.
 
@@ -13,14 +13,19 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - GET/HEAD/OPTIONS by default; any write method needs both the method listed and
   `allow-unsafe-methods=true`. Never weaken `SafetyPolicy` to make a test
   pass.
-- No synthesized request bodies until value extraction exists (see BACKLOG).
+- No synthesized request bodies; bodies may only ever come from configured
+  templates (design step 3).
+- Values flow between calls only through an explicit rule; inference may
+  propose rules in the report, never apply them.
+- Extracted values never appear in the report or summary — only in the
+  consuming observation's bindings. One `ExtractedValues` per spec run.
 - Observations are redacted through `forge.http.logging.redact-*`.
 - `ExchangeExecutor` is the seam for replay; keep the runner independent of REST
   Assured details.
 
 ## Tests
 
-Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
+Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
 
 ## Before you finish
 

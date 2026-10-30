@@ -89,9 +89,9 @@ V1 explores each operation independently. The next useful step is the one
 RESTler earns its value from — using what one operation returned to reach the
 next one.
 
-- Extract values from recorded responses through a declarative rule, not a
-  heuristic. The observation model already stores the redacted body and the
-  resolved identity of every call.
+- Delivered (step 1): declarative extraction rules (`forge.api-explorer.extract`),
+  producer-before-consumer ordering, a per-rule outcome in the report. See
+  [docs/api-explorer-stateful-design.md](docs/api-explorer-stateful-design.md).
 - Infer producer/consumer links between operations (an id a `POST` returns
   satisfying a `GET`'s path parameter) and expose an inferred value as a new
   `ValueSource` — nothing that reads an observation should need to change.
