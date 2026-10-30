@@ -11,9 +11,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 - `SqlLoggingDataSourcePostProcessor` wraps the DataSource; never cast the bean
   to a pool type.
-- `SchemaValidator` resolves names reflectively and does not understand
-  inheritance or custom naming strategies; extend it explicitly before
-  claiming support.
+- `SchemaValidator` stays reflective and ORM-free: no Hibernate types, no
+  metamodel. Inheritance follows the root's `@Inheritance`; implicit names go
+  through `SchemaNamingStrategy`, explicit names never do.
+- Every new mapping rule needs an H2 test that proves both a clean schema and
+  a drifted one (see `SchemaInheritanceTest`).
 - Nullability drift is one-directional by design.
 - Repository polling is opt-in (`forge.db.repository-polling.enabled`).
 

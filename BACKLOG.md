@@ -48,8 +48,10 @@ Named datasource selection, column type drift and nullable drift are delivered;
 see the Delivered section of docs/ROADMAP.md. What remains:
 
 - Expand schema drift checks to indexes and foreign keys where practical.
-- Decide how to support inheritance and custom naming strategies without
-  pulling the module into heavy ORM internals.
+
+Inheritance (`@MappedSuperclass`, `SINGLE_TABLE`, `JOINED`,
+`TABLE_PER_CLASS`) and pluggable naming (`SchemaNamingStrategy`) are delivered
+without ORM internals.
 
 ## Priority 3: richer shared mock diagnostics (shipped)
 

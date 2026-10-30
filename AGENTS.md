@@ -240,10 +240,12 @@ reviewing a module. Adapting a fresh clone follows
 
 ## Known sharp edges
 
-- `SchemaValidator` resolves names reflectively (camelCase→snake_case,
-  `@Column`/`@JoinColumn`/`@Embedded` with `@AttributeOverride`). It does not
-  understand inheritance or custom naming strategies — extend it before
-  relying on it for entities that use those.
+- `SchemaValidator` resolves names reflectively: `@Column`/`@JoinColumn`/
+  `@Embedded` with `@AttributeOverride`, mapped superclasses and the three
+  inheritance strategies. Implicit names follow `forge.db.schema-naming`
+  (`snake-case` by default, `as-is`, or a `SchemaNamingStrategy` bean) — set it
+  to the service's ORM naming, or "missing column" findings are noise.
+  `@SecondaryTable` and `@AssociationOverride` are not resolved.
 - `module-db-contract` matches tables, columns, indexes and foreign keys by
   name, so a rename reads as a removal plus an addition. It stores identifiers
   exactly as the vendor reports them (PostgreSQL lower, H2 upper), which makes

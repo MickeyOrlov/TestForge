@@ -9,8 +9,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * forge:
  *   db:
  *     default-datasource: primaryDataSource
+ *     schema-naming: snake-case   # or as-is; implicit names in SchemaValidator
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.db")
-public record DbProperties(String defaultDatasource) {
+public record DbProperties(String defaultDatasource, String schemaNaming) {
 }

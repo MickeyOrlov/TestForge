@@ -123,17 +123,38 @@ exists. A single-datasource project needs no configuration change.
 Add JPA entities + Spring Data repositories for the service tables your tests
 assert on. If there are many services, give each service DB its own Gradle
 module so teams can own their mappings. `SchemaValidator` resolves `@Column`,
-`@JoinColumn` and `@Embedded` (with `@AttributeOverride`); inheritance and
-custom naming strategies are not resolved — extend it first for entities that
-use those (limitations listed in its Javadoc).
+`@JoinColumn`, `@Embedded` (with `@AttributeOverride`), `@MappedSuperclass`
+fields (renamed by a class-level `@AttributeOverride`) and entity inheritance:
+
+| Root `@Inheritance` | Table validated | Columns expected |
+|---|---|---|
+| `SINGLE_TABLE` (default) | the root's table | every field of the chain + discriminator (`@DiscriminatorColumn`, default `DTYPE`) |
+| `JOINED` | the entity's own table | its own fields + the key (`@PrimaryKeyJoinColumn`, default the root's id column) |
+| `TABLE_PER_CLASS` | the entity's own table | every field of the chain |
+
+Implicit names (no explicit `@Column`/`@Table` name) follow the service's ORM
+naming. Match it once:
+
+```yaml
+forge:
+  db:
+    schema-naming: snake-case   # default: Spring Boot's CamelCaseToUnderscores
+    # schema-naming: as-is      # Hibernate's JPA-compliant standard naming
+```
+
+Anything else is a `SchemaNamingStrategy` bean; `schemaValidator.withNaming(...)`
+switches it for one call site. Explicit names are always taken as written.
+`@SecondaryTable` and `@AssociationOverride` are not resolved.
 
 ## Agent notes
 
 - One entity + repository per asserted table; a `SchemaValidator` test per
   entity belongs in a scheduled CI job.
-- `SchemaValidator` resolves `@Column`/`@JoinColumn`/`@Embedded` (with
-  `@AttributeOverride`); it does NOT resolve inheritance or custom naming
-  strategies — extend it first if the project uses those.
+- `SchemaValidator` resolves `@Column`/`@JoinColumn`/`@Embedded`, mapped
+  superclasses and the three inheritance strategies; set
+  `forge.db.schema-naming` (or a `SchemaNamingStrategy` bean) to the
+  service's ORM naming before trusting "missing column" findings.
+  `@SecondaryTable` and `@AssociationOverride` are not resolved.
 - `waitBy...` repository methods only work with
   `forge.db.repository-polling.enabled: true`; the marker default method must
   throw, never return a stub value.
