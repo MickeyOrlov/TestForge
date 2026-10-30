@@ -2,6 +2,7 @@ package io.testforge.contract.monitor;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.artifact.ArtifactSink;
 import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.kafka.KafkaMessage;
@@ -29,6 +30,9 @@ public class ContractMonitorRunner {
     private final PayloadShapeNormalizer normalizer;
     private final ObjectMapper objectMapper;
     private final ContractMonitorProperties properties;
+    private final ArtifactSink artifactSink;
+
+    private static final String SOURCE = "module-contract-monitor";
 
     public ContractMonitorRunner(
             List<ContractMonitorCase> cases,
@@ -37,12 +41,24 @@ public class ContractMonitorRunner {
             PayloadShapeNormalizer normalizer,
             ObjectMapper objectMapper,
             ContractMonitorProperties properties) {
+        this(cases, kafkaProbe, validator, normalizer, objectMapper, properties, ArtifactSink.NO_OP);
+    }
+
+    public ContractMonitorRunner(
+            List<ContractMonitorCase> cases,
+            KafkaProbe kafkaProbe,
+            JsonContractValidator validator,
+            PayloadShapeNormalizer normalizer,
+            ObjectMapper objectMapper,
+            ContractMonitorProperties properties,
+            ArtifactSink artifactSink) {
         this.cases = List.copyOf(cases == null ? List.of() : cases);
         this.kafkaProbe = kafkaProbe;
         this.validator = validator;
         this.normalizer = normalizer;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
     }
 
     public ContractMonitorReport run() {
@@ -65,6 +81,7 @@ public class ContractMonitorRunner {
                 reportMarkdown.toString());
 
         writeReports(report, reportJson, reportMarkdown);
+        registerReports(report.enabled(), healthy, caseReports.size(), reportJson, reportMarkdown);
         return report;
     }
 
@@ -268,5 +285,15 @@ public class ContractMonitorRunner {
                 .replaceAll("[^a-z0-9._-]+", "-")
                 .replaceAll("(^-+|-+$)", "");
         return safe.isBlank() ? "contract-monitor-case" : safe;
+    }
+
+    /** Best-effort: the run's own report files become entries of the unified run index. */
+    private void registerReports(boolean enabled, boolean healthy, int units, Path reportJson, Path reportMarkdown) {
+        if (!enabled) {
+            return;
+        }
+        Map<String, String> metadata = Map.of("healthy", String.valueOf(healthy), "cases", String.valueOf(units));
+        artifactSink.registerFile(SOURCE, "contract-monitor", "report.json", reportJson, "application/json", metadata);
+        artifactSink.registerFile(SOURCE, "contract-monitor", "report.md", reportMarkdown, "text/markdown", metadata);
     }
 }

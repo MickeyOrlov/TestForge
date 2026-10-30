@@ -1,6 +1,7 @@
 package io.testforge.contract.monitor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.artifact.ArtifactSink;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.kafka.KafkaProbe;
 import java.util.List;
@@ -31,8 +32,10 @@ public class TestForgeContractMonitorAutoConfiguration {
             JsonContractValidator validator,
             PayloadShapeNormalizer normalizer,
             ObjectMapper objectMapper,
-            ContractMonitorProperties properties) {
+            ContractMonitorProperties properties,
+            ObjectProvider<ArtifactSink> artifactSink) {
         List<ContractMonitorCase> orderedCases = cases.orderedStream().toList();
-        return new ContractMonitorRunner(orderedCases, kafkaProbe, validator, normalizer, objectMapper, properties);
+        return new ContractMonitorRunner(orderedCases, kafkaProbe, validator, normalizer, objectMapper, properties,
+                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 }

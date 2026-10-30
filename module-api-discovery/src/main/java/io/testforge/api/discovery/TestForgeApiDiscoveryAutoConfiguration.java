@@ -1,6 +1,8 @@
 package io.testforge.api.discovery;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.testforge.artifact.ArtifactSink;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -41,7 +43,9 @@ public class TestForgeApiDiscoveryAutoConfiguration {
             EndpointCatalogBuilder catalogBuilder,
             OpenApiShapeNormalizer normalizer,
             ObjectMapper objectMapper,
-            ApiDiscoveryProperties properties) {
-        return new ApiDiscoveryRunner(parser, catalogBuilder, normalizer, objectMapper, properties);
+            ApiDiscoveryProperties properties,
+            ObjectProvider<ArtifactSink> artifactSink) {
+        return new ApiDiscoveryRunner(parser, catalogBuilder, normalizer, objectMapper, properties,
+                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 }

@@ -2,6 +2,8 @@ package io.testforge.api.fuzz;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
+import io.testforge.artifact.ArtifactSink;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -97,14 +99,16 @@ public class TestForgeApiFuzzAutoConfiguration {
             FuzzEvidenceWriter evidenceWriter,
             ApiDiscoveryProperties discoveryProperties,
             ApiFuzzProperties properties,
-            @Value("${forge.api-fuzz.base-url:${forge.http.base-url:}}") String baseUrl) {
+            @Value("${forge.api-fuzz.base-url:${forge.http.base-url:}}") String baseUrl,
+            ObjectProvider<ArtifactSink> artifactSink) {
         return new ApiFuzzRunner(
                 specMaterializer,
                 executor,
                 reportParser,
                 evidenceWriter,
                 discoveryProperties,
-                properties.withBaseUrl(baseUrl));
+                properties.withBaseUrl(baseUrl),
+                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 
 }

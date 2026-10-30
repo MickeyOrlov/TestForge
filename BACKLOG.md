@@ -4,7 +4,7 @@ This backlog tracks the next useful expansions after the current v1 template
 work. It is intentionally product-neutral: no client, employer, or domain
 specific names belong here.
 
-## Priority 1: unified reporting artifacts (abstraction shipped; incremental producer migration)
+## Priority 1: unified reporting artifacts (shipped; producers migrated)
 
 **Module:** `module-reporting` (and producing modules)
 
@@ -21,8 +21,22 @@ Goal: make CI output easy to inspect after a failed run.
   - `module-reporting`: resource usage statistics.
   - `module-flow`: execution path reporting on flow completion or failure.
   - `module-mock`: scoped mock diagnostics and unmatched request logs.
-- **Remaining Incremental Migration Gap**:
-  - Gradually update remaining diagnostic-producing modules (`module-contract-monitor`, `module-api-discovery`, `module-api-explorer`, `module-api-fuzz`, `module-web-playwright`, `module-mobile-appium`, `module-db`) to inject `ArtifactSink` and register their failure/run artifacts into the unified run layout.
+  - `module-db-contract`, `module-api-discovery`, `module-api-explorer`,
+    `module-contract-monitor`, `module-api-fuzz`: run reports registered from
+    their own `output-dir` through `ArtifactSink.registerFile`, with `location`
+    metadata for relative paths.
+  - `module-web-playwright`, `module-mobile-appium`: failure screenshots,
+    traces and page sources registered per failed test.
+- **Remaining**:
+  - `module-db` writes no diagnostic files (SQL goes to the logger), so there is
+    nothing to register; revisit only if it gains a file-based report.
+  - `module-api-codegen` output is generated source, not a diagnostic; its
+    `report.json` could be registered if a team asks for it.
+  - The Playwright registration path runs only with a real browser
+    (`browsersTest`); it has no offline test.
+  - Manifest paths for files outside the run root are file names only;
+    `location` metadata carries the real path. A first-class field would be a
+    manifest format change.
 
 ## Priority 2: stronger database module
 

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.ApiSpecSource;
 import io.testforge.api.discovery.OpenApiSpecParser;
+import io.testforge.artifact.ArtifactSink;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +45,9 @@ public class ApiExplorerRunner {
     private final ObjectMapper objectMapper;
     private final ApiDiscoveryProperties discoveryProperties;
     private final ApiExplorerProperties properties;
+    private final ArtifactSink artifactSink;
+
+    private static final String SOURCE = "module-api-explorer";
 
     public ApiExplorerRunner(
             OpenApiSpecParser parser,
@@ -56,6 +60,22 @@ public class ApiExplorerRunner {
             ObjectMapper objectMapper,
             ApiDiscoveryProperties discoveryProperties,
             ApiExplorerProperties properties) {
+        this(parser, selector, safety, planner, executor, checker, observations, objectMapper,
+                discoveryProperties, properties, ArtifactSink.NO_OP);
+    }
+
+    public ApiExplorerRunner(
+            OpenApiSpecParser parser,
+            OperationSelector selector,
+            SafetyPolicy safety,
+            RequestPlanner planner,
+            ExchangeExecutor executor,
+            ResponseContractChecker checker,
+            ObservationFactory observations,
+            ObjectMapper objectMapper,
+            ApiDiscoveryProperties discoveryProperties,
+            ApiExplorerProperties properties,
+            ArtifactSink artifactSink) {
         this.parser = parser;
         this.selector = selector;
         this.safety = safety;
@@ -66,6 +86,7 @@ public class ApiExplorerRunner {
         this.objectMapper = objectMapper;
         this.discoveryProperties = discoveryProperties;
         this.properties = properties;
+        this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
     }
 
     public ApiExplorerReport run() {
@@ -87,6 +108,7 @@ public class ApiExplorerRunner {
 
         writeJson(reportJson, report);
         writeString(reportMarkdown, ExplorerReportMarkdown.render(report));
+        registerReports(report.enabled(), healthy, specReports.size(), reportJson, reportMarkdown);
         return report;
     }
 
@@ -253,5 +275,15 @@ public class ApiExplorerRunner {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write " + path, e);
         }
+    }
+
+    /** Best-effort: the run's own report files become entries of the unified run index. */
+    private void registerReports(boolean enabled, boolean healthy, int units, Path reportJson, Path reportMarkdown) {
+        if (!enabled) {
+            return;
+        }
+        Map<String, String> metadata = Map.of("healthy", String.valueOf(healthy), "specs", String.valueOf(units));
+        artifactSink.registerFile(SOURCE, "api-explorer", "report.json", reportJson, "application/json", metadata);
+        artifactSink.registerFile(SOURCE, "api-explorer", "report.md", reportMarkdown, "text/markdown", metadata);
     }
 }

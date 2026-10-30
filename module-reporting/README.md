@@ -176,3 +176,27 @@ To adopt `ArtifactSink` in a new or existing module:
        Map.of("status", "FAILED")
    ));
    ```
+4. **Register reports that live in your module's own `output-dir`** (the
+   pattern for runners such as `module-api-discovery`): keep writing where the
+   user configured, then call the best-effort helper. It never throws, and for a
+   relative path it adds `location` metadata — the manifest itself keeps only
+   the file name for anything outside the run root, so `location` is what tells
+   a reader where to find it. Absolute paths are never recorded.
+   ```java
+   artifactSink.registerFile("module-mymodule", "report", "report.json",
+           Path.of("build/mymodule/report.json"), "application/json", Map.of("healthy", "true"));
+   ```
+
+### Producers wired today
+
+| Module | Category | What is registered |
+|---|---|---|
+| `module-flow` | `flow-path` | execution path on completion or failure (written into the run root) |
+| `module-mock` | scoped mock diagnostics | stubs and unmatched requests (written into the run root) |
+| `module-db-contract` | `db-contract` | snapshot, report JSON and Markdown |
+| `module-api-discovery` | `api-discovery` | `report.json`, `report.md` |
+| `module-api-explorer` | `api-explorer` | `report.json`, `report.md` |
+| `module-contract-monitor` | `contract-monitor` | `report.json`, `report.md` |
+| `module-api-fuzz` | `api-fuzz` | every entry of `ApiFuzzReport.artifacts()` (config, NDJSON, run evidence) |
+| `module-web-playwright` | `ui-failure` | `screenshot.png`, `trace.zip` of a failed test |
+| `module-mobile-appium` | `mobile-failure` | `screenshot.png`, `page-source.xml` of a failed test |

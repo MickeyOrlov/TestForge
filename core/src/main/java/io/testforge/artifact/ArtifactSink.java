@@ -72,4 +72,35 @@ public interface ArtifactSink {
      * @return the registered TestArtifact descriptor
      */
     TestArtifact write(String source, String category, String name, String mediaType, String content);
+
+    /**
+     * Registers a file the producer already wrote in its own output directory,
+     * for runners whose reports live outside the run root (a configured
+     * {@code output-dir}). Never throws: an invalid argument or a failing sink
+     * is swallowed like every other reporting failure.
+     *
+     * <p>The manifest only keeps the file name for such files, so a relative
+     * {@code file} is also recorded as {@code location} metadata — the path as
+     * configured, e.g. {@code build/api-discovery/report.json}. An absolute
+     * path is never recorded: it would leak the local directory layout.
+     *
+     * @param source    producing module id
+     * @param category  coarse kind of artifact
+     * @param name      logical name, unique within source+category
+     * @param file      the file already written
+     * @param mediaType media type of the file
+     * @param metadata  small, safe producer metadata; may be {@code null}
+     */
+    default void registerFile(String source, String category, String name, Path file, String mediaType,
+                              Map<String, String> metadata) {
+        try {
+            Map<String, String> combined = new java.util.LinkedHashMap<>(metadata == null ? Map.of() : metadata);
+            if (file != null && !file.isAbsolute()) {
+                combined.put("location", file.toString().replace('\\', '/'));
+            }
+            register(new TestArtifact(source, category, name, file, mediaType, Instant.now(), combined));
+        } catch (RuntimeException e) {
+            // best-effort by contract: a diagnostic must never fail the producer
+        }
+    }
 }

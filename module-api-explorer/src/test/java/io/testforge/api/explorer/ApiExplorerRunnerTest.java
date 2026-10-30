@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.OpenApiSpecParser;
+import io.testforge.artifact.TestArtifact;
 import io.testforge.http.Redactor;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.io.TempDir;
  * the point of {@link ExchangeExecutor} being an interface.
  */
 class ApiExplorerRunnerTest {
+
+    private final RecordingArtifactSink sink = new RecordingArtifactSink();
 
     private static final String BASE_URL = "https://api.example.test";
 
@@ -137,7 +140,8 @@ class ApiExplorerRunnerTest {
                 new ObservationFactory(redactor(), 4000),
                 new ObjectMapper(),
                 discoveryProperties(),
-                properties);
+                properties,
+                sink);
     }
 
     private ApiExplorerProperties properties(Path output, boolean enabled) {
@@ -193,5 +197,16 @@ class ApiExplorerRunnerTest {
                 return BASE_URL;
             }
         };
+    }
+
+    @Test
+    void reportsAreRegisteredInTheRunIndex(@TempDir Path output) {
+        ApiExplorerReport report = run(output, executor());
+
+        assertThat(sink.registered).extracting(TestArtifact::name).containsExactly("report.json", "report.md");
+        assertThat(sink.registered).allSatisfy(artifact -> {
+            assertThat(artifact.source()).isEqualTo("module-api-explorer");
+            assertThat(artifact.metadata()).containsEntry("healthy", String.valueOf(report.healthy()));
+        });
     }
 }

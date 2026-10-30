@@ -2,6 +2,7 @@ package io.testforge.api.discovery;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.testforge.artifact.ArtifactSink;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -18,6 +19,9 @@ public class ApiDiscoveryRunner {
     private final OpenApiShapeNormalizer normalizer;
     private final ObjectMapper objectMapper;
     private final ApiDiscoveryProperties properties;
+    private final ArtifactSink artifactSink;
+
+    private static final String SOURCE = "module-api-discovery";
 
     public ApiDiscoveryRunner(
             OpenApiSpecParser parser,
@@ -25,11 +29,22 @@ public class ApiDiscoveryRunner {
             OpenApiShapeNormalizer normalizer,
             ObjectMapper objectMapper,
             ApiDiscoveryProperties properties) {
+        this(parser, catalogBuilder, normalizer, objectMapper, properties, ArtifactSink.NO_OP);
+    }
+
+    public ApiDiscoveryRunner(
+            OpenApiSpecParser parser,
+            EndpointCatalogBuilder catalogBuilder,
+            OpenApiShapeNormalizer normalizer,
+            ObjectMapper objectMapper,
+            ApiDiscoveryProperties properties,
+            ArtifactSink artifactSink) {
         this.parser = parser;
         this.catalogBuilder = catalogBuilder;
         this.normalizer = normalizer;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
     }
 
     public ApiDiscoveryReport run() {
@@ -51,6 +66,7 @@ public class ApiDiscoveryRunner {
                 reportJson.toString(),
                 reportMarkdown.toString());
         writeReports(report, reportJson, reportMarkdown);
+        registerReports(report.enabled(), healthy, specReports.size(), reportJson, reportMarkdown);
         return report;
     }
 
@@ -266,6 +282,16 @@ public class ApiDiscoveryRunner {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write " + path, e);
         }
+    }
+
+    /** Best-effort: the run's own report files become entries of the unified run index. */
+    private void registerReports(boolean enabled, boolean healthy, int units, Path reportJson, Path reportMarkdown) {
+        if (!enabled) {
+            return;
+        }
+        Map<String, String> metadata = Map.of("healthy", String.valueOf(healthy), "specs", String.valueOf(units));
+        artifactSink.registerFile(SOURCE, "api-discovery", "report.json", reportJson, "application/json", metadata);
+        artifactSink.registerFile(SOURCE, "api-discovery", "report.md", reportMarkdown, "text/markdown", metadata);
     }
 
     private String safeName(String name) {
