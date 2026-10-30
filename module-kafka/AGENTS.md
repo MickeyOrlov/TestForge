@@ -15,7 +15,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-No own tests yet (gap). Examples: `KafkaProbeTest`, `KafkaCollectorIntegrationTest` (embedded broker).
+Own: `KafkaMessageBufferTest`, `KafkaProbeUnitTest`. Examples: `KafkaProbeTest`, `KafkaCollectorIntegrationTest` (embedded broker).
 
 ## Before you finish
 

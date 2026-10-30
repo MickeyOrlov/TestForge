@@ -8,3 +8,8 @@ dependencies {
     api "org.junit.jupiter:junit-jupiter-api"
     implementation "org.springframework:spring-test"
 }
+
+dependencies {
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}

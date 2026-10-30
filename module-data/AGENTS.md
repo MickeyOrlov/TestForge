@@ -16,7 +16,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-No own tests yet (gap). Examples: `DataHelpersTest`, `PreparedDataTest`, `ScopedRequestTemplateTest`.
+Own: `RunUniqueValuesTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once). Examples: `DataHelpersTest`, `PreparedDataTest`, `ScopedRequestTemplateTest`.
 
 ## Before you finish
 

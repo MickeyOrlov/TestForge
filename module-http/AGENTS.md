@@ -19,7 +19,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-No own tests yet (gap). Examples: `ApiClientExampleTest`, `ApiRetryExampleTest`, `HttpRedactionTest`.
+Own: `RedactorTest`, `JsonScopeWriterTest`, `HttpPropertiesTest`, `TestForgeHttpAutoConfigurationTest`. Examples: `ApiClientExampleTest`, `ApiRetryExampleTest`, `HttpRedactionTest`.
 
 ## Before you finish
 

@@ -17,7 +17,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-No own tests yet (gap). Example: `PlaywrightSmokeIT` (`./gradlew :example-tests:browsersTest`).
+Own: `TestForgePlaywrightAutoConfigurationTest` (offline, never launches a browser). Example: `PlaywrightSmokeIT` (`./gradlew :example-tests:browsersTest`).
 
 ## Before you finish
 

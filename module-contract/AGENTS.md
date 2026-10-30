@@ -13,11 +13,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   never a new DSL keyword.
 - This is shape validation, not consumer-driven contract testing. Do not add
   broker or transport code.
-- Violations list every problem at once; do not stop at the first one.
+- Violations list every problem in one pass (capped by `max-violations`);
+  stopping early is only `fail-fast=true`.
 
 ## Tests
 
-No own tests yet (gap). Examples: `JsonContractValidatorTest`, `ContractMonitorExampleTest`.
+Own: `JsonContractValidatorUnitTest`, `SchemaContractUnitTest`. Examples: `JsonContractValidatorTest`, `ContractMonitorExampleTest`.
 
 ## Before you finish
 

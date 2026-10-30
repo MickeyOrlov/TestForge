@@ -15,7 +15,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-No own tests yet (gap). Example: `StateRecipePreparedDataTest`.
+Own: `StateRequestTest`, `StateRecipeExecutorTest`. Example: `StateRecipePreparedDataTest`.
 
 ## Before you finish
 
