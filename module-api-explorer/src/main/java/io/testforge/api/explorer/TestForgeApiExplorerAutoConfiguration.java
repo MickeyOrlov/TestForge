@@ -58,8 +58,8 @@ public class TestForgeApiExplorerAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public RequestPlanner requestPlanner(RequestValueResolver values) {
-        return new RequestPlanner(values);
+    public RequestPlanner requestPlanner(RequestValueResolver values, ApiExplorerProperties properties) {
+        return new RequestPlanner(values, properties.bodies());
     }
 
     /** Swappable on purpose: a replay stage would provide its own. */

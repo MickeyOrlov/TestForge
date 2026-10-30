@@ -41,6 +41,15 @@ final class ExplorerReportMarkdown {
             return;
         }
 
+        long writes = spec.observations().stream()
+                .filter(observation -> observation.outcome() != ExplorerOutcome.SKIPPED)
+                .filter(observation -> !ApiExplorerProperties.SAFE_METHODS.contains(
+                        observation.key().substring(0, observation.key().indexOf(' '))))
+                .count();
+        if (writes > 0) {
+            out.append("- **write requests sent: ").append(writes).append("** — data on ")
+                    .append(spec.baseUrl()).append(" was changed by this run\n");
+        }
         out.append("- operations: ").append(spec.operations())
                 .append(" (passed ").append(spec.passed())
                 .append(", contract mismatches ").append(spec.contractMismatch())

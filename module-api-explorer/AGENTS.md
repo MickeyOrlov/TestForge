@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-api-explorer`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (steps 1–2 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
+**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (steps 1–3 of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
 **May depend on:** `module-api-discovery`, `module-http`.
 
@@ -13,8 +13,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - GET/HEAD/OPTIONS by default; any write method needs both the method listed and
   `allow-unsafe-methods=true`. Never weaken `SafetyPolicy` to make a test
   pass.
-- No synthesized request bodies; bodies may only ever come from configured
-  templates (design step 3).
+- No synthesized request bodies: only `forge.api-explorer.bodies` templates.
+  Templates and rules never bypass the two write keys.
+- `DELETE` runs after every other operation; keep it that way when touching
+  `OperationOrder`.
+- A run that sent write requests says so, with the base URL, in the report.
 - Values flow between calls only through an explicit rule; inference may
   propose rules in the report, never apply them.
 - Extracted values never appear in the report or summary — only in the
@@ -25,7 +28,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
+Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`, `WriteChainTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerWriteChainExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
 
 ## Before you finish
 

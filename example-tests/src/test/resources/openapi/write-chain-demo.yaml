@@ -1,0 +1,64 @@
+openapi: 3.0.3
+info:
+  title: Write chain demo
+  version: 1.0.0
+paths:
+  /api/v1/tasks:
+    post:
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTask'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /api/v1/tasks/{taskId}:
+    get:
+      operationId: getTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    delete:
+      operationId: deleteTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+components:
+  schemas:
+    NewTask:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+    Task:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string

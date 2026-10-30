@@ -21,7 +21,7 @@ class RuleProposerTest {
     private static ApiExplorerProperties properties(Map<String, Map<String, String>> configured,
                                                     List<ExtractionRule> rules) {
         return new ApiExplorerProperties(true, null, null, List.of(), null, null, null, null, null, null,
-                new ApiExplorerProperties.ParameterProperties(Map.of(), configured), null, rules);
+                new ApiExplorerProperties.ParameterProperties(Map.of(), configured), null, rules, null);
     }
 
     private static List<ExplorableOperation> operations(String yaml) {
@@ -158,7 +158,7 @@ class RuleProposerTest {
     @Test
     void proposalsLandInTheReportAndAreNeverApplied(@TempDir Path output) throws Exception {
         ApiExplorerProperties properties = new ApiExplorerProperties(true, output.toString(), null, List.of(),
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null);
         ExchangeExecutor server = new ExchangeExecutor() {
             @Override
             public RuntimeExchange execute(PreparedRequest request) {

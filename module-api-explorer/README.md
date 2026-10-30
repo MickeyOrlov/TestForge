@@ -166,17 +166,41 @@ forge:
 
 Proposals are never applied on their own — review, paste, run again.
 
+### Write chains: create, read, delete
+
+With both write keys on, a body template is the only way a request body is
+sent, and an extracted id ties the chain together:
+
+```yaml
+forge:
+  api-explorer:
+    methods: [GET, POST, DELETE]
+    allow-unsafe-methods: true      # never against a shared environment
+    bodies:
+      createTask: '{"title": "testforge-{{unique}}"}'   # {{unique}}: fresh token per request
+    extract:
+      - from: createTask
+        json-path: "$.id"
+        into: [getTask.taskId, deleteTask.taskId]
+```
+
+`DELETE` always runs last, after the calls that read what was created. The
+report's header says how many write requests went to which environment.
+Without a template, an operation that requires a body is skipped and the
+report names the property to set.
+
 Design and the next steps: [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md).
 
 ## Limits of v1
 
-- **No request bodies.** An operation that requires one is skipped with a
-  reason. Synthesizing a body means guessing at business meaning, and a wrong
-  guess against a write endpoint is the damage the safety policy exists to
+- **No synthesized request bodies.** Bodies come only from
+  `forge.api-explorer.bodies` templates; an operation that requires one and has
+  no template is skipped with the property to set. Guessing at business
+  meaning against a write endpoint is the damage the safety policy exists to
   prevent.
 - **State only through explicit rules.** Values flow between calls only via
-  `forge.api-explorer.extract`. There is no producer/consumer inference yet,
-  no write chains and no replay — see the design doc for the plan.
+  `forge.api-explorer.extract` (proposed automatically, applied only once
+  configured). There is no replay yet — see the design doc.
 - **No fuzzing.** Values are the document's own or a deterministic default.
   Nothing is mutated to provoke failure.
 - **Optional query parameters are omitted** unless configured. Inventing

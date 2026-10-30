@@ -34,6 +34,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       - from: listTasks
  *         json-path: "$[0].id"
  *         into: [getTask.taskId]
+ *     bodies:                         # write chains: the only source of request bodies
+ *       createTask: '{"title": "testforge-{{unique}}"}'
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.api-explorer")
@@ -50,7 +52,8 @@ public record ApiExplorerProperties(
         Integer maxBodyChars,
         ParameterProperties parameters,
         FailureProperties failOn,
-        List<ExtractionRule> extract) {
+        List<ExtractionRule> extract,
+        Map<String, String> bodies) {
 
     /** Methods that may be sent without anyone opting in to anything. */
     public static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
@@ -84,6 +87,7 @@ public record ApiExplorerProperties(
             failOn = new FailureProperties(null, null);
         }
         extract = List.copyOf(extract == null ? List.of() : extract);
+        bodies = Map.copyOf(bodies == null ? Map.of() : bodies);
     }
 
     /**
