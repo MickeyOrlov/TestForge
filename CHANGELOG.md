@@ -6,13 +6,7 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
-### Fixed
-- `module-http`: authentication guidance points to the available `module-auth`
-  instead of claiming that a dedicated module does not exist.
-- `module-api-explorer`: replay reports state `write requests sent: 0` and no
-  longer claim that replayed POST/DELETE observations changed environment data.
-- `module-db-contract`: report and snapshot entries now retain project-relative
-  `location` metadata when their output directory is outside the run root.
+## [1.2.0] - 2026-10-31
 
 ### Added
 - `module-api-explorer`: stateful exploration, step 4 — replay.
@@ -22,8 +16,6 @@ semantic versioning for its git tags.
   recorded failures and bodies truncated at `max-body-chars` come back as
   failed calls with the reason; replaying into the recording's own directory
   is refused. Stateful exploration (all four steps) is complete.
-
-### Added
 - `module-api-explorer`: stateful exploration, step 3 — write chains. With
   both write keys on, `forge.api-explorer.bodies.<operationId>` templates are
   the only source of request bodies (`{{unique}}` becomes a fresh token per
@@ -31,8 +23,6 @@ semantic versioning for its git tags.
   calls use. `DELETE` now always runs after every other operation. A run that
   sent write requests states how many, and to which base URL, at the top of
   the report. Templates and rules change nothing without both write keys.
-
-### Added
 - `module-api-explorer`: stateful exploration, step 2. Every run reads the
   document for likely producer/consumer links — the list endpoint one level
   above an item endpoint, or a response property named like the parameter —
@@ -40,8 +30,6 @@ semantic versioning for its git tags.
   (*Proposed extraction rules*, also in `report.json`) with the reason for
   each. Parameters already configured or fed get none, and proposals are never
   applied on their own.
-
-### Added
 - `module-api-explorer`: stateful exploration, step 1. `forge.api-explorer.extract`
   rules take a value from one operation's 2xx JSON response and feed it to
   later calls (`operationId.parameter`, or a bare parameter name for every
@@ -50,8 +38,6 @@ semantic versioning for its git tags.
   *Value extraction* table with one status per rule and never the value.
   Read-only chains (list, then item) need no write method.
 - `core`: `JsonPath` reads root arrays (`$[0].id`).
-
-### Added
 - `module-db`: `SchemaValidator.indexDrift` and `foreignKeyDrift`, both part of
   `schemaDrift`, report constraints the mapping declares that the service's
   database no longer has. Indexes (`@Table(indexes)`, `uniqueConstraints`,
@@ -60,8 +46,6 @@ semantic versioning for its git tags.
   `@ForeignKey` must exist and point at the mapped table and column;
   `forge.db.schema-foreign-keys: all` expects one behind every join column.
   Extra database constraints are never reported. Proven on H2 and PostgreSQL.
-
-### Added
 - `module-db`: `SchemaValidator` understands JPA inheritance. Fields of
   `@MappedSuperclass` ancestors are validated on the entity's table (a
   class-level `@AttributeOverride` renames them), and entity hierarchies follow
@@ -73,24 +57,12 @@ semantic versioning for its git tags.
 - `module-db`: implicit names follow a `SchemaNamingStrategy` —
   `forge.db.schema-naming: snake-case` (default, unchanged) or `as-is`, or a
   bean; `@Entity(name)` now names the default table.
-
-### Added
 - `module-data`: `forge.data.pool.preload` stocks prepared variants when the
   context starts (a failing provider fails the context), with optional
   background refill (`refill-below`) on one daemon thread whose failures are
   counted, never thrown into tests. `PreparedDataPool.stats()` reports hits,
   cold misses, prepared, exhausted and refill failures per variant; with
   `module-reporting` enabled they are published as `pool-stats.json`.
-
-### Changed
-- `module-data`: a pool variant is now a type plus a tag *set* —
-  `["vip","eu"]` and `["eu","vip"]` share stock instead of splitting it;
-  listeners receive the sorted set, providers still the caller's order.
-- `module-data`: `PoolEventListener.onExhausted` fires once per drain (on the
-  first cold miss) instead of on every later miss; a preload or refill
-  re-arms it.
-
-### Added
 - `module-mock`: requests without a body can now be scoped. Set exactly one of
   `forge.mock.scope-header`, `scope-query-param` or `scope-cookie` and it
   replaces the body JSON path as the scope marker; configuring two fails at
@@ -102,8 +74,6 @@ semantic versioning for its git tags.
 - `MockScope.requests()`, `requests(pattern)` and `verify(count, pattern)`:
   assertions on the scenario's own traffic in the shared WireMock journal;
   other scenarios' requests never count.
-
-### Added
 - `module-auth` (experimental): tests declare the role they act as with
   `@AsUser("admin")` (or `AuthContext.runAs` for a block) and the `ApiClient`
   sends that role's token. Roles are configured under `forge.auth.roles` as
@@ -112,8 +82,6 @@ semantic versioning for its git tags.
   per role, refreshed shortly before expiry, fetched once under parallel load,
   and never printed. Every misconfigured role is reported at startup. A header
   the test sets itself is never replaced. No new third-party dependency.
-
-### Added
 - Unified run index now covers every module that writes diagnostics.
   `module-api-discovery`, `module-api-explorer`, `module-contract-monitor` and
   `module-api-fuzz` register their run reports, `module-web-playwright` and
@@ -123,8 +91,6 @@ semantic versioning for its git tags.
   registration and records a relative path as `location` metadata, because the
   manifest keeps only the file name for anything outside the run root.
   Existing constructors are kept and fall back to `ArtifactSink.NO_OP`.
-
-### Added
 - `architecture-tests`: an unpublished ArchUnit module that turns the
   conventions in `AGENTS.md` into failing tests — `core` isolation, an explicit
   allowlist of module-to-module dependencies, no sleeps/Lombok/standard
@@ -147,71 +113,6 @@ semantic versioning for its git tags.
   criteria, await polling), `module-state` (target tag resolution, recipe
   execution and error wrapping), `module-web-playwright` (stays inert without
   `enabled=true`).
-
-### Fixed
-- `module-http`: a `Redactor` built directly with mixed-case names
-  (`X-Api-Key`, `clientSecret`) did not mask them. Lookups lowercase the
-  incoming name, but only `HttpProperties` lowercased the configured side, so
-  a project replacing the `@ConditionalOnMissingBean` redactor bean leaked the
-  credential it meant to hide. The constructor now normalizes the names itself.
-- `module-api-explorer`: a declared media **range** now covers the response it
-  describes. Content types were compared as literal strings, so a document
-  declaring `*/*` was treated as incompatible with an `application/json`
-  response and the operation was reported as `UNEXPECTED_CONTENT_TYPE`. springdoc
-  emits `*/*` for every handler that does not set `produces`, which is the
-  default for a stock Spring `@RestController`, so effectively every operation of
-  a typical Java service was reported as a contract mismatch — noise that teaches
-  a team to stop reading the report. `*/*` now covers any type and `application/*`
-  covers any `application` subtype, while exact declarations still match exactly
-  and are preferred over a range in the same response, so the schema checked is
-  the specific one. Incompatible ranges (`text/*` against `application/json`)
-  still fail, and the handling of a missing or blank content type is unchanged.
-- `module-api-fuzz`: `--config-file` is now passed to Schemathesis as an
-  absolute path. The runner starts the CLI with its working directory set to the
-  per-spec output directory, so the previous project-relative argument was
-  resolved against that directory and pointed at a doubled path that does not
-  exist. Schemathesis aborted before testing anything and no NDJSON report was
-  written, so `assertHealthy()` failed with
-  `EXECUTION_ERROR: NDJSON report file is missing` — on the documented default
-  `output-dir: build/api-fuzz`, which is relative, and therefore for any external
-  consumer that did not happen to configure an absolute directory. `--report-dir`
-  was already absolute; only this one argument was not. The existing real-CLI
-  acceptance test ran from a JUnit `@TempDir`, which is absolute, so the defect
-  was invisible to it; a second acceptance test now pins a relative output
-  directory.
-
-### Changed
-- `module-db-contract`: `assertCompatible()` now fails closed when the check is
-  disabled. Previously a disabled check returned a passing report, so a pipeline
-  whose `forge.db-contract.enabled` was never set — or was misspelled, which
-  nothing else complains about — believed it was gated while no database was ever
-  inspected. Since the property defaults to `false`, that quiet pass was the
-  un-configured state. It is raised as a configuration failure
-  (`IllegalStateException`, naming the property) rather than a schema verdict,
-  for the same reason as the missing baseline below: nothing was compared.
-  `run()` is unchanged — it still returns a disabled report, still touches no
-  database, and remains the entry point for reporting without gating.
-- `module-db-contract`: `assertCompatible()` now fails closed when the check is
-  enabled and no baseline snapshot exists. Previously it passed, so a pipeline
-  whose baseline was never promoted — or was lost by a cache step that did not
-  restore it — believed it was gated while every run compared nothing. The
-  failure is raised as a configuration failure rather than a schema verdict,
-  because nothing was compared; `run()` is unchanged and still captures,
-  reports and returns normally without a baseline, which is what bootstrapping a
-  new project uses.
-- `module-db-contract`: the two places where the check reported "no change" while
-  the contract had moved are closed, and the snapshot format is now version 2.
-  A partial index's `WHERE` predicate is captured, so turning
-  `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` into a full unique index —
-  a real tightening that rejects writes it used to allow — is reported instead of
-  passing silently. Foreign keys carry their `ON DELETE`/`ON UPDATE` actions, so
-  switching `CASCADE` to `RESTRICT` is `BREAKING` (a delete that used to succeed
-  now fails) and the reverse is `RISKY` (rows now disappear unasked); only the
-  action that actually changed is judged. A snapshot written in another format
-  version is refused with the fix in the message rather than silently misread,
-  which means existing baselines must be re-captured with `writeBaseline()`.
-
-### Added
 - `module-db-contract`: the database schema as a versioned contract. Reads one
   schema through SchemaCrawler into a small normalized TestForge model
   (`DbSchemaSnapshot`/`DbTable`/`DbColumn`/`DbPrimaryKey`/`DbForeignKey`/`DbIndex`),
@@ -241,8 +142,6 @@ semantic versioning for its git tags.
   Views, triggers, routines, sequences, comments, privileges, default
   expressions, referential actions, environment-vs-environment comparison, ODCS
   export and a CLI are deliberately out of v1.
-
-### Added
 - `module-api-explorer`: runs an OpenAPI document against a live environment and
   reports what the API actually does. Safe by default — GET/HEAD/OPTIONS need no
   opt-in, anything else needs both the method listed and
@@ -257,13 +156,6 @@ semantic versioning for its git tags.
   registry and `module-http` for transport and redaction; adds no second parser
   and no second HTTP client. Stateful sequences, value extraction, replay and
   fuzzing are deliberately out of v1.
-
-### Fixed
-- `module-mobile-appium`: failure-artifact capture no longer aborts the page
-  source when the screenshot fails — each artifact is captured independently
-  and errors are surfaced as one (suppressed) exception.
-
-### Added
 - GitHub Packages distribution for all production modules under
   `io.github.mickeyorlov.testforge`, with manual publishing, authenticated
   Gradle/Maven consumer setup, and remote consumer verification.
@@ -297,6 +189,41 @@ semantic versioning for its git tags.
   jobs); README section on TestForge + Testcontainers + Pact as layers.
 
 ### Changed
+- `module-data`: a pool variant is now a type plus a tag *set* —
+  `["vip","eu"]` and `["eu","vip"]` share stock instead of splitting it;
+  listeners receive the sorted set, providers still the caller's order.
+- `module-data`: `PoolEventListener.onExhausted` fires once per drain (on the
+  first cold miss) instead of on every later miss; a preload or refill
+  re-arms it.
+- `module-db-contract`: `assertCompatible()` now fails closed when the check is
+  disabled. Previously a disabled check returned a passing report, so a pipeline
+  whose `forge.db-contract.enabled` was never set — or was misspelled, which
+  nothing else complains about — believed it was gated while no database was ever
+  inspected. Since the property defaults to `false`, that quiet pass was the
+  un-configured state. It is raised as a configuration failure
+  (`IllegalStateException`, naming the property) rather than a schema verdict,
+  for the same reason as the missing baseline below: nothing was compared.
+  `run()` is unchanged — it still returns a disabled report, still touches no
+  database, and remains the entry point for reporting without gating.
+- `module-db-contract`: `assertCompatible()` now fails closed when the check is
+  enabled and no baseline snapshot exists. Previously it passed, so a pipeline
+  whose baseline was never promoted — or was lost by a cache step that did not
+  restore it — believed it was gated while every run compared nothing. The
+  failure is raised as a configuration failure rather than a schema verdict,
+  because nothing was compared; `run()` is unchanged and still captures,
+  reports and returns normally without a baseline, which is what bootstrapping a
+  new project uses.
+- `module-db-contract`: the two places where the check reported "no change" while
+  the contract had moved are closed, and the snapshot format is now version 2.
+  A partial index's `WHERE` predicate is captured, so turning
+  `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` into a full unique index —
+  a real tightening that rejects writes it used to allow — is reported instead of
+  passing silently. Foreign keys carry their `ON DELETE`/`ON UPDATE` actions, so
+  switching `CASCADE` to `RESTRICT` is `BREAKING` (a delete that used to succeed
+  now fails) and the reverse is `RISKY` (rows now disappear unasked); only the
+  action that actually changed is judged. A snapshot written in another format
+  version is refused with the fix in the message rather than silently misread,
+  which means existing baselines must be re-captured with `writeBaseline()`.
 - Default Spring Boot baseline moved to 3.5.x for a calmer enterprise adoption
   path while keeping Java 21 LTS and Gradle 9.x.
 - Default toolchain moved to Java 21 LTS for broader enterprise adoption;
@@ -304,6 +231,47 @@ semantic versioning for its git tags.
 - Repository hygiene: the personal employer-project analysis note was removed
   from the tree and purged from history; the roadmap hygiene section no longer
   lists concrete previous-employer terms.
+
+### Fixed
+- `module-http`: authentication guidance points to the available `module-auth`
+  instead of claiming that a dedicated module does not exist.
+- `module-api-explorer`: replay reports state `write requests sent: 0` and no
+  longer claim that replayed POST/DELETE observations changed environment data.
+- `module-db-contract`: report and snapshot entries now retain project-relative
+  `location` metadata when their output directory is outside the run root.
+- `module-http`: a `Redactor` built directly with mixed-case names
+  (`X-Api-Key`, `clientSecret`) did not mask them. Lookups lowercase the
+  incoming name, but only `HttpProperties` lowercased the configured side, so
+  a project replacing the `@ConditionalOnMissingBean` redactor bean leaked the
+  credential it meant to hide. The constructor now normalizes the names itself.
+- `module-api-explorer`: a declared media **range** now covers the response it
+  describes. Content types were compared as literal strings, so a document
+  declaring `*/*` was treated as incompatible with an `application/json`
+  response and the operation was reported as `UNEXPECTED_CONTENT_TYPE`. springdoc
+  emits `*/*` for every handler that does not set `produces`, which is the
+  default for a stock Spring `@RestController`, so effectively every operation of
+  a typical Java service was reported as a contract mismatch — noise that teaches
+  a team to stop reading the report. `*/*` now covers any type and `application/*`
+  covers any `application` subtype, while exact declarations still match exactly
+  and are preferred over a range in the same response, so the schema checked is
+  the specific one. Incompatible ranges (`text/*` against `application/json`)
+  still fail, and the handling of a missing or blank content type is unchanged.
+- `module-api-fuzz`: `--config-file` is now passed to Schemathesis as an
+  absolute path. The runner starts the CLI with its working directory set to the
+  per-spec output directory, so the previous project-relative argument was
+  resolved against that directory and pointed at a doubled path that does not
+  exist. Schemathesis aborted before testing anything and no NDJSON report was
+  written, so `assertHealthy()` failed with
+  `EXECUTION_ERROR: NDJSON report file is missing` — on the documented default
+  `output-dir: build/api-fuzz`, which is relative, and therefore for any external
+  consumer that did not happen to configure an absolute directory. `--report-dir`
+  was already absolute; only this one argument was not. The existing real-CLI
+  acceptance test ran from a JUnit `@TempDir`, which is absolute, so the defect
+  was invisible to it; a second acceptance test now pins a relative output
+  directory.
+- `module-mobile-appium`: failure-artifact capture no longer aborts the page
+  source when the screenshot fails — each artifact is captured independently
+  and errors are surfaced as one (suppressed) exception.
 
 ## [1.1.0]
 
@@ -341,5 +309,6 @@ semantic versioning for its git tags.
   GitLab + GitHub CI.
 
 [Unreleased]: https://keepachangelog.com/
+[1.2.0]: https://github.com/MickeyOrlov/TestForge/releases/tag/v1.2.0
 [1.1.0]: https://keepachangelog.com/
 [1.0.0]: https://keepachangelog.com/

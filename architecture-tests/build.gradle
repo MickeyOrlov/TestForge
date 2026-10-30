@@ -23,7 +23,8 @@ tasks.withType(Test).configureEach {
     // would report the task UP-TO-DATE after a README or test was deleted
     inputs.files(productionModules.collect { m ->
         ["README.md", "AGENTS.md", "build.gradle"].collect { m.file(it) } + [m.file("src/test")]
-    }.flatten() + [rootProject.file("example-tests/src/test")])
+    }.flatten() + [rootProject.file("example-tests/src/test"),
+                   rootProject.file("settings.gradle"), rootProject.file("Dockerfile")])
             .withPropertyName("moduleSourcesAndDocs")
             .withPathSensitivity(PathSensitivity.RELATIVE)
 }

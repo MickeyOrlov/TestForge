@@ -124,6 +124,25 @@ class ModuleConventionTest {
                 .allMatch(exercised::contains);
     }
 
+    @Test
+    void dockerfileCopiesEveryModuleBuildFile() throws IOException {
+        String settings = Files.readString(ROOT.resolve("settings.gradle"));
+        String dockerfile = Files.readString(ROOT.resolve("Dockerfile"));
+        Matcher include = Pattern.compile("\"([a-z0-9-]+)\"").matcher(
+                settings.substring(settings.indexOf("include")));
+        List<String> missing = new ArrayList<>();
+        while (include.find()) {
+            String module = include.group(1);
+            if (!dockerfile.contains("COPY %s/build.gradle %s/build.gradle".formatted(module, module))) {
+                missing.add(module);
+            }
+        }
+
+        assertThat(missing)
+                .as("the runner image's warmup `gradlew help` fails without these build files")
+                .isEmpty();
+    }
+
     private static Set<String> listedAutoConfigurations() throws IOException {
         Set<String> names = new TreeSet<>();
         var resources = ModuleConventionTest.class.getClassLoader().getResources(IMPORTS_FILE);
