@@ -154,4 +154,120 @@ class PreparedDataPoolTest {
         assertThat(served).hasSize(stock);
         assertThat(provider.prepared.get()).as("no cold misses while stock lasted").isEqualTo(stock);
     }
+
+    @Test
+    void tagOrderAndDuplicatesDoNotSplitAVariant() {
+        pool.preload(Account.class, List.of("vip", "eu"), 1);
+
+        assertThat(pool.stocked(Account.class, List.of("eu", "vip", "eu"))).isEqualTo(1);
+        Account account = pool.acquire(Account.class, List.of("eu", "vip"));
+        assertThat(account.tags()).as("the provider still gets the caller's order").containsExactly("vip", "eu");
+        assertThat(listener.events).contains("acquired:[eu, vip]:pool");
+    }
+
+    @Test
+    void exhaustionIsReportedOncePerDrainAndReArmedByPreload() {
+        pool.preload(Account.class, List.of("hot"), 1);
+        pool.acquire(Account.class, List.of("hot"));
+        pool.acquire(Account.class, List.of("hot"));
+        pool.acquire(Account.class, List.of("hot"));
+
+        assertThat(listener.events).filteredOn(event -> event.startsWith("exhausted")).hasSize(1);
+
+        pool.preload(Account.class, List.of("hot"), 1);
+        pool.acquire(Account.class, List.of("hot"));
+        pool.acquire(Account.class, List.of("hot"));
+        assertThat(listener.events).filteredOn(event -> event.startsWith("exhausted")).hasSize(2);
+    }
+
+    @Test
+    void statsCountHitsColdMissesAndExhaustion() {
+        pool.preload(Account.class, List.of("b", "a"), 2);
+        pool.acquire(Account.class, List.of("a", "b"));
+        pool.acquire(Account.class, List.of("a", "b"));
+        pool.acquire(Account.class, List.of("a", "b"));
+        pool.acquire(Account.class, List.of("other"));
+
+        assertThat(pool.stats()).extracting(PreparedDataPool.VariantStats::tags)
+                .containsExactly(List.of("a", "b"), List.of("other"));
+        PreparedDataPool.VariantStats ab = pool.stats().getFirst();
+        assertThat(ab.type()).isEqualTo(Account.class.getName());
+        assertThat(ab.hits()).isEqualTo(2);
+        assertThat(ab.coldMisses()).isEqualTo(1);
+        assertThat(ab.prepared()).isEqualTo(3);
+        assertThat(ab.exhausted()).isEqualTo(1);
+        assertThat(ab.stocked()).isZero();
+        assertThat(pool.stats().get(1).exhausted()).as("never stocked, never exhausted").isZero();
+    }
+
+    @Test
+    void refillTopsAVariantBackUpToItsTarget() {
+        pool.refillWhenBelow(Account.class, List.of("hot"), 2, 3);
+        pool.enableRefill(Runnable::run);
+        pool.preload(Account.class, List.of("hot"), 3);
+
+        pool.acquire(Account.class, List.of("hot"));
+        assertThat(pool.stocked(Account.class, List.of("hot"))).as("2 is not below 2").isEqualTo(2);
+
+        pool.acquire(Account.class, List.of("hot"));
+        assertThat(pool.stocked(Account.class, List.of("hot"))).isEqualTo(3);
+        assertThat(pool.stats().getFirst().exhausted()).isZero();
+    }
+
+    @Test
+    void refillAlsoKicksInAfterAColdMiss() {
+        pool.refillWhenBelow(Account.class, List.of("hot"), 1, 2);
+        pool.enableRefill(Runnable::run);
+
+        pool.acquire(Account.class, List.of("hot"));
+
+        assertThat(pool.stocked(Account.class, List.of("hot"))).isEqualTo(2);
+    }
+
+    @Test
+    void aFailingRefillIsCountedAndNeverReachesTheTest() {
+        AtomicInteger calls = new AtomicInteger();
+        PreparedDataPool flaky = new PreparedDataPool(List.of(new PreparedDataProvider<Account>() {
+            @Override
+            public Class<Account> type() {
+                return Account.class;
+            }
+
+            @Override
+            public Account prepare(List<String> tags) {
+                if (calls.incrementAndGet() > 1) {
+                    throw new IllegalStateException("product API down");
+                }
+                return new Account(calls.get(), tags);
+            }
+        }), List.of());
+        flaky.refillWhenBelow(Account.class, List.of("hot"), 1, 1);
+        flaky.enableRefill(Runnable::run);
+
+        assertThat(flaky.acquire(Account.class, List.of("hot")).serial()).isEqualTo(1);
+        assertThat(flaky.stats().getFirst().refillFailures()).isEqualTo(1);
+    }
+
+    @Test
+    void onlyOneRefillRunsPerVariantAtATime() {
+        List<Runnable> queued = new ArrayList<>();
+        pool.refillWhenBelow(Account.class, List.of("hot"), 5, 5);
+        pool.enableRefill(queued::add);
+
+        pool.acquire(Account.class, List.of("hot"));
+        pool.acquire(Account.class, List.of("hot"));
+        assertThat(queued).hasSize(1);
+
+        queued.getFirst().run();
+        assertThat(pool.stocked(Account.class, List.of("hot"))).isEqualTo(5);
+        pool.acquire(Account.class, List.of("hot"));
+        assertThat(queued).as("a finished refill re-arms").hasSize(2);
+    }
+
+    @Test
+    void aThresholdAboveTheTargetIsRejected() {
+        assertThatThrownBy(() -> pool.refillWhenBelow(Account.class, List.of("hot"), 3, 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("above the target");
+    }
 }

@@ -73,17 +73,12 @@ other brokers.
 - Preserve the current rule: message collection and contract validation remain
   separate modules.
 
-## Priority 5: prepared data pool refill
+## Priority 5: prepared data pool refill (shipped)
 
 **Module:** `module-data`
 
-Goal: make expensive prepared objects more reliable in long CI runs.
-
-- Add optional background refill based on pool thresholds.
-- Add YAML configuration for preload variants and counts.
-- Publish pool metrics through `PoolEventListener`.
-- Report cold misses and exhausted variants in CI artifacts.
-- Keep prepared objects one-use only; do not add release/reuse semantics.
+Config preload, background refill, per-variant statistics and the
+`pool-stats.json` run artifact are delivered; objects stay one-use only.
 
 ## Priority: stateful exploration on top of module-api-explorer
 

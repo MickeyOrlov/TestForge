@@ -3,20 +3,22 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-data`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, and the `@Prepared` pool SPI (`PreparedDataProvider`, `PreparedDataPool`).
+**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, and the `@Prepared` pool (`PreparedDataProvider`, `PreparedDataPool`, `PoolLifecycle`: config preload, background refill, stats).
 
 **May depend on:** `core` only.
 
 ## Invariants (do not break)
 
 - Prepared objects are one-use only: no release/reuse semantics.
+- A variant is type + tag set; never let tag order split stock again.
+- Refill failures never reach a test; preload failures fail the context.
 - Generated values are unique per run; the registry is per JVM and parallel-
   safe.
 - Template rendering fails loudly on missing variables and cycles.
 
 ## Tests
 
-Own: `RunUniqueValuesTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once). Examples: `DataHelpersTest`, `PreparedDataTest`, `ScopedRequestTemplateTest`.
+Own: `RunUniqueValuesTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once, tag sets, refill), `PoolLifecycleTest` (config preload, background refill, stats artifact). Examples: `DataHelpersTest`, `PreparedDataTest`, `PreparedPoolConfigExampleTest`, `ScopedRequestTemplateTest`.
 
 ## Before you finish
 

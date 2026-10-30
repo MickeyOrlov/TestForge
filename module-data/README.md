@@ -65,7 +65,34 @@ How it fits together:
   back to on-the-spot preparation on a cold miss. Objects are handed out
   exactly once — a used domain object is dirty by definition.
 - **`PoolEventListener`** — hooks (`onAcquired`/`onPrepared`/`onExhausted`)
-  for metrics and background refill, default no-op.
+  for metrics, default no-op. `onExhausted` fires once per drain, on the
+  first cold miss; listeners receive the variant's sorted tag set.
+- A variant is a type plus a **set** of tags: `{"vip", "eu"}` and
+  `{"eu", "vip"}` share stock. Providers still get the caller's order.
+
+### Preload and refill from configuration
+
+```yaml
+forge:
+  data:
+    pool:
+      preload:
+        - type: com.example.DemoAgreement   # a PreparedDataProvider must serve it
+          tags: [active]
+          count: 5                          # stocked when the context starts
+          refill-below: 2                   # optional: top up to 5 in the background
+```
+
+- Preload runs at context start. A failing provider fails the context: a
+  suite that silently ran every test on the slow path would hide exactly
+  what the entry was written for.
+- Refill runs on one daemon thread, at most one refill per variant at a time.
+  A refill failure is logged and counted (`refillFailures`), never thrown
+  into a test — the next acquire takes the cold path.
+- `pool.stats()` returns hits, cold misses, prepared, exhausted and refill
+  failures per variant; with `module-reporting` enabled the same numbers land
+  in the run index as `module-data/pool-stats.json`, so a CI run shows which
+  variants were under-stocked.
 
 ## Agent notes
 
@@ -74,5 +101,8 @@ How it fits together:
   `module-flow`), never fabricate rows directly in the DB unless the project
   explicitly allows it.
 - Pool objects are handed out exactly once; there is no release on purpose.
+- Background refill calls the provider from another thread: a provider must
+  not depend on the calling test's thread-bound state (`ScenarioContext`,
+  `AuthContext`).
 - Uniqueness comes from `RunUniqueValues` + `Generators`; do not invent
   ad-hoc random suffixes in tests.

@@ -181,9 +181,9 @@ Target modules: `module-kafka`, possible future `module-messaging`
 
 Target module: `module-data`
 
-- Add optional preload/refill configuration for expensive prepared objects.
-- Publish pool metrics through `PoolEventListener`.
-- Report cold misses and exhausted variants in CI artifacts.
+- Delivered: `forge.data.pool.preload` with optional background refill,
+  per-variant statistics (`pool.stats()`), and `pool-stats.json` in the run
+  index. Variants are tag sets; exhaustion is reported once per drain.
 
 ### API Bootstrap Path
 
