@@ -27,9 +27,20 @@ import java.util.Optional;
 public class RequestPlanner {
 
     private final RequestValueResolver values;
+    private final Map<String, String> bodies;
 
     public RequestPlanner(RequestValueResolver values) {
+        this(values, Map.of());
+    }
+
+    /**
+     * @param bodies request body templates per operationId
+     *               ({@code forge.api-explorer.bodies}); {@code {{unique}}} becomes a
+     *               fresh token per request, so repeated runs never collide
+     */
+    public RequestPlanner(RequestValueResolver values, Map<String, String> bodies) {
         this.values = values;
+        this.bodies = Map.copyOf(bodies);
     }
 
     public PlannedRequest plan(ExplorableOperation operation) {
@@ -40,9 +51,12 @@ public class RequestPlanner {
         List<ParameterBinding> bindings = new ArrayList<>();
 
         RequestBody body = operation.operation().getRequestBody();
-        if (body != null && Boolean.TRUE.equals(body.getRequired())) {
+        String template = bodies.get(operation.operationId());
+        if (template == null && body != null && Boolean.TRUE.equals(body.getRequired())) {
+            // bodies are never synthesized: a guessed payload against a write endpoint
+            // is exactly what the safety policy exists to prevent
             return PlannedRequest.skip(SkipReason.REQUEST_BODY_REQUIRED,
-                    "v1 does not synthesize request bodies", bindings);
+                    "configure forge.api-explorer.bodies." + operation.operationId(), bindings);
         }
 
         Map<String, String> pathParameters = new LinkedHashMap<>();
@@ -92,7 +106,29 @@ public class RequestPlanner {
         }
 
         return PlannedRequest.of(
-                new PreparedRequest(operation.method(), operation.pathTemplate(), pathParameters, queryParameters),
+                new PreparedRequest(operation.method(), operation.pathTemplate(), pathParameters, queryParameters,
+                        template == null ? null : render(template), template == null ? null : contentType(body)),
                 bindings);
+    }
+
+    private static String render(String template) {
+        String result = template;
+        while (result.contains("{{unique}}")) {
+            result = result.replaceFirst(java.util.regex.Pattern.quote("{{unique}}"),
+                    "tf-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        }
+        return result;
+    }
+
+    /** The document's first JSON media type, else {@code application/json}. */
+    private static String contentType(RequestBody body) {
+        if (body != null && body.getContent() != null) {
+            for (String media : body.getContent().keySet()) {
+                if (media.toLowerCase(java.util.Locale.ROOT).contains("json")) {
+                    return media;
+                }
+            }
+        }
+        return "application/json";
     }
 }

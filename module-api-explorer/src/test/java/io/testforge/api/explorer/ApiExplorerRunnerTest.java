@@ -146,7 +146,7 @@ class ApiExplorerRunnerTest {
 
     private ApiExplorerProperties properties(Path output, boolean enabled) {
         return new ApiExplorerProperties(enabled, output.toString(), null, List.of(), null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private ApiDiscoveryProperties discoveryProperties() {

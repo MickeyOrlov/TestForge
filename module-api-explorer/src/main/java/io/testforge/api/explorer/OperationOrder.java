@@ -6,8 +6,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Puts producers before the operations their extracted values feed, and keeps
- * the original (deterministic) order everywhere else. A cycle between rules
+ * Puts producers before the operations their extracted values feed, runs
+ * {@code DELETE} after everything else (a chain must read what it created before
+ * removing it), and keeps the original (deterministic) order everywhere else. A cycle between rules
  * cannot be satisfied; those operations keep their original order and the
  * rules involved simply report what they found.
  */
@@ -17,11 +18,14 @@ final class OperationOrder {
     }
 
     static List<ExplorableOperation> forExtraction(List<ExplorableOperation> operations, List<ExtractionRule> rules) {
+        List<ExplorableOperation> deletesLast = new ArrayList<>();
+        operations.stream().filter(operation -> !"DELETE".equals(operation.method())).forEach(deletesLast::add);
+        operations.stream().filter(operation -> "DELETE".equals(operation.method())).forEach(deletesLast::add);
         if (rules.isEmpty()) {
-            return operations;
+            return List.copyOf(deletesLast);
         }
         List<ExplorableOperation> ordered = new ArrayList<>();
-        Set<ExplorableOperation> remaining = new LinkedHashSet<>(operations);
+        Set<ExplorableOperation> remaining = new LinkedHashSet<>(deletesLast);
         while (!remaining.isEmpty()) {
             ExplorableOperation next = remaining.stream()
                     .filter(candidate -> remaining.stream().noneMatch(other -> other != candidate

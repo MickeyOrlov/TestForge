@@ -44,6 +44,10 @@ public class ApiClientExchangeExecutor implements ExchangeExecutor {
             RequestSpecification specification = apiClient.request(service).filter(captured);
             request.pathParameters().forEach(specification::pathParam);
             request.queryParameters().forEach(specification::queryParam);
+            if (request.body() != null) {
+                // a String body, so module-http's scope injection and redacted logging see it
+                specification.contentType(request.contentType()).body(request.body());
+            }
 
             Response response = specification.request(request.method(), request.pathTemplate());
             return exchange(captured, response, millisSince(startedAt));

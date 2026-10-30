@@ -7,6 +7,15 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: stateful exploration, step 3 — write chains. With
+  both write keys on, `forge.api-explorer.bodies.<operationId>` templates are
+  the only source of request bodies (`{{unique}}` becomes a fresh token per
+  request), so a `POST` can create the object whose id later `GET`/`DELETE`
+  calls use. `DELETE` now always runs after every other operation. A run that
+  sent write requests states how many, and to which base URL, at the top of
+  the report. Templates and rules change nothing without both write keys.
+
+### Added
 - `module-api-explorer`: stateful exploration, step 2. Every run reads the
   document for likely producer/consumer links — the list endpoint one level
   above an item endpoint, or a response property named like the parameter —

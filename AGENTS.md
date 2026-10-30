@@ -264,6 +264,9 @@ reviewing a module. Adapting a fresh clone follows
 - `module-api-explorer` sends real traffic. It is inert unless
   `forge.api-explorer.enabled=true`, and write methods need two keys, not one.
   Ant `exclude-paths` of the form `/tasks/**` also match `/tasks` itself.
+  Write chains send request bodies only from `forge.api-explorer.bodies`
+  templates and run `DELETE` last; the report header states how many write
+  requests reached which environment.
 - - `module-http` scope injection rewrites JSON bodies sent as a string or byte
   array. REST Assured serializes object/POJO bodies *after* filters run, so
   those requests need `forge.http.scope.header` instead of the JSON path —

@@ -94,8 +94,9 @@ next one.
   [docs/api-explorer-stateful-design.md](docs/api-explorer-stateful-design.md).
 - Delivered (step 2): producer/consumer links inferred from the document and
   proposed in the report as ready-to-paste rules, never applied on their own.
-- Next (step 3): write chains — a `POST` producing the id a `GET`/`DELETE`
-  consumes, behind both write keys, bodies only from configured templates.
+- Delivered (step 3): write chains — a `POST` from a body template producing
+  the id a `GET`/`DELETE` consumes, behind both write keys, `DELETE` last.
+- Next (step 4): replay recorded exchanges through a second `ExchangeExecutor`.
 - Sequence requests only once inference exists. An ordering with no data flow
   between steps is just a slower independent run.
 - Reproducible replay from recorded observations, as a second

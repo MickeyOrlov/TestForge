@@ -1,6 +1,6 @@
 # Stateful exploration in module-api-explorer
 
-Status: steps 1 (declarative extraction) and 2 (proposed links) shipped. Steps 3–4 are planned.
+Status: steps 1–3 shipped (extraction, proposed links, write chains). Step 4 (replay) is planned.
 
 ## Problem
 
@@ -66,11 +66,32 @@ the report's *Proposed extraction rules* block as YAML with the reason next
 to each, and into `report.json`. They are never applied: a wrong guess would
 send a real id to the wrong endpoint.
 
-## Step 3 — write chains (planned)
+## Step 3 — write chains (shipped)
 
-With extraction in place, a `POST` can produce the id a `GET`/`DELETE`
-consumes. Still behind both write keys; request bodies come only from
-configured templates (module-data `TemplateRenderer`), never synthesized.
+```yaml
+forge:
+  api-explorer:
+    methods: [GET, POST, DELETE]
+    allow-unsafe-methods: true          # the second key; never on a shared environment
+    bodies:
+      createTask: '{"title": "testforge-{{unique}}"}'
+    extract:
+      - from: createTask
+        json-path: "$.id"
+        into: [getTask.taskId, deleteTask.taskId]
+```
+
+- Write methods still need both keys; templates and rules change nothing
+  without them.
+- Request bodies come only from `bodies.<operationId>`; an operation that
+  requires a body and has no template is skipped with the property to set.
+  `{{unique}}` becomes a fresh token per request, so reruns never collide.
+  Kept inside the module (no `module-data` dependency): one placeholder is all
+  a payload needs to stay unique.
+- `DELETE` runs after every other operation, so a chain reads what it created
+  before removing it.
+- The report states how many write requests were sent and to which base URL.
+- Bodies go through the same redaction as every other observed request.
 
 ## Step 4 — replay (planned)
 

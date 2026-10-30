@@ -16,7 +16,16 @@ public record PreparedRequest(
         String method,
         String pathTemplate,
         Map<String, String> pathParameters,
-        Map<String, String> queryParameters) {
+        Map<String, String> queryParameters,
+        String body,
+        String contentType) {
+
+    /** A request without a body. */
+    public PreparedRequest(String method, String pathTemplate, Map<String, String> pathParameters,
+                           Map<String, String> queryParameters) {
+        this(method, pathTemplate, pathParameters, queryParameters, null, null);
+    }
+
 
     public PreparedRequest {
         // sorted rather than Map.copyOf: an immutable map has no defined
