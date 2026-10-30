@@ -119,7 +119,12 @@ try (MockScope scope = mocks.scope()) {
 The filter is a no-op when the scenario never opened a scope: tests that talk
 only to the real system under test keep sending untouched payloads.
 
-Authentication belongs to the adapted project until a dedicated module exists:
+For role-based tokens, add [module-auth](../module-auth/README.md), configure
+`forge.auth.roles`, and select a role with `@AsUser("admin")`. Its `AuthFilter`
+is applied automatically by `ApiClient`; no custom token code is needed.
+
+For project-specific authentication outside those token sources, use an
+`ApiRequestCustomizer`:
 
 ```java
 @Bean
@@ -136,9 +141,9 @@ ApiRequestCustomizer bearerToken(TokenProvider tokens) {
    `forge.mock.scope-json-path`.
 3. Extend `logging.redact-*` with the field names your product actually uses
    for credentials before the first CI run uploads a log.
-4. Add authentication as an `ApiRequestCustomizer` (per specification) or a
-   REST Assured `Filter` bean (per request). Any `Filter` bean in the context
-   is applied to every request.
+4. Add `module-auth` for role-based tokens. For project-specific authentication,
+   use an `ApiRequestCustomizer` (per specification) or a REST Assured `Filter`
+   bean (per request). Any `Filter` bean in the context is applied to every request.
 5. Turn `retry.enabled` on only for environments where infrastructure noise is
    real, and keep `retry.methods` to methods that are safe to repeat.
 

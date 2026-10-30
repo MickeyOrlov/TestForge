@@ -15,14 +15,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import io.testforge.api.discovery.TestForgeApiDiscoveryAutoConfiguration;
 import io.testforge.api.explorer.ApiExplorerReport;
 import io.testforge.api.explorer.ApiExplorerRunner;
+import io.testforge.api.explorer.TestForgeApiExplorerAutoConfiguration;
+import io.testforge.core.TestForgeCoreAutoConfiguration;
+import io.testforge.http.TestForgeHttpAutoConfiguration;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -82,5 +88,33 @@ class ApiExplorerWriteChainExampleTest {
         assertThat(server.getAllServeEvents().getFirst().getRequest().getMethod().getName())
                 .as("WireMock lists newest first: the delete was the last call").isEqualTo("DELETE");
         assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("**write requests sent: 2**");
+
+        int calls = server.getAllServeEvents().size();
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        TestForgeCoreAutoConfiguration.class,
+                        TestForgeHttpAutoConfiguration.class,
+                        TestForgeApiDiscoveryAutoConfiguration.class,
+                        TestForgeApiExplorerAutoConfiguration.class))
+                .withPropertyValues(
+                        "forge.api-explorer.enabled=true",
+                        "forge.api-explorer.output-dir=build/api-explorer/write-chain-replay-example",
+                        "forge.api-explorer.replay-from=" + report.outputDir(),
+                        "forge.api-discovery.specs.writes.location=classpath:/openapi/write-chain-demo.yaml",
+                        "forge.api-explorer.methods=GET,POST,DELETE",
+                        "forge.api-explorer.allow-unsafe-methods=true",
+                        "forge.api-explorer.bodies.createTask={\"title\":\"testforge-{{unique}}\"}",
+                        "forge.api-explorer.extract[0].from=createTask",
+                        "forge.api-explorer.extract[0].json-path=$.id",
+                        "forge.api-explorer.extract[0].into[0]=getTask.taskId",
+                        "forge.api-explorer.extract[0].into[1]=deleteTask.taskId")
+                .run(context -> {
+                    ApiExplorerReport replay = context.getBean(ApiExplorerRunner.class).run();
+                    assertThat(replay.specs().getFirst().passed()).isEqualTo(3);
+                    assertThat(Files.readString(Path.of(replay.reportMarkdown())))
+                            .contains("**write requests sent: 0**")
+                            .doesNotContain("was changed by this run");
+                });
+        assertThat(server.getAllServeEvents()).hasSize(calls);
     }
 }

@@ -79,7 +79,7 @@ class ReplayTest {
     }
 
     @Test
-    void aReplayTellsTheSameStoryWithoutTouchingTheNetwork(@TempDir Path temp) {
+    void aReplayTellsTheSameStoryWithoutTouchingTheNetwork(@TempDir Path temp) throws Exception {
         ApiExplorerReport recorded = run(temp.resolve("recorded"), server, 4000);
         int recordedCalls = sent.size();
 
@@ -91,6 +91,11 @@ class ReplayTest {
         assertThat(replayed.specs().getFirst().extractions()).singleElement()
                 .extracting(ExtractionOutcome::status).isEqualTo(ExtractionOutcome.Status.EXTRACTED);
         assertThat(replayed.specs().getFirst().baseUrl()).startsWith("replay:");
+        assertThat(Files.readString(Path.of(recorded.reportMarkdown())))
+                .contains("**write requests sent: 2**");
+        assertThat(Files.readString(Path.of(replayed.reportMarkdown())))
+                .contains("**write requests sent: 0**")
+                .doesNotContain("was changed by this run");
     }
 
     @Test

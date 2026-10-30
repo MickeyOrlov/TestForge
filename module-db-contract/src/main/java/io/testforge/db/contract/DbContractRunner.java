@@ -2,7 +2,6 @@ package io.testforge.db.contract;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.artifact.ArtifactSink;
-import io.testforge.artifact.TestArtifact;
 import io.testforge.db.contract.diff.DbChange;
 import io.testforge.db.contract.diff.DbSchemaComparator;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
@@ -372,16 +371,10 @@ public class DbContractRunner {
      */
     private void registerArtifact(Path file, String name, String mediaType, DbContractReport report) {
         try {
-            artifactSink.register(new TestArtifact(
-                    SOURCE,
-                    "db-contract",
-                    name,
-                    file,
-                    mediaType,
-                    Instant.now(),
+            artifactSink.registerFile(SOURCE, "db-contract", name, file, mediaType,
                     Map.of("schema", report.schema(),
                             "compatible", String.valueOf(report.compatible()),
-                            "worstClassified", report.worstClassified().name())));
+                            "worstClassified", report.worstClassified().name()));
         } catch (RuntimeException e) {
             // best-effort by contract
         }

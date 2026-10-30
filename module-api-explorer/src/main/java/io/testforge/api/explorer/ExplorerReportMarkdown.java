@@ -46,7 +46,9 @@ final class ExplorerReportMarkdown {
                 .filter(observation -> !ApiExplorerProperties.SAFE_METHODS.contains(
                         observation.key().substring(0, observation.key().indexOf(' '))))
                 .count();
-        if (writes > 0) {
+        if (spec.baseUrl() != null && spec.baseUrl().startsWith("replay:")) {
+            out.append("- **write requests sent: 0** — replay only; no network requests were sent\n");
+        } else if (writes > 0) {
             out.append("- **write requests sent: ").append(writes).append("** — data on ")
                     .append(spec.baseUrl()).append(" was changed by this run\n");
         }
