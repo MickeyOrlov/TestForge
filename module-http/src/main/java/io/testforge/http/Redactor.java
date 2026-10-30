@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Keeps credentials out of test logs and CI artifacts.
@@ -25,8 +26,14 @@ public class Redactor {
 
     public Redactor(ObjectMapper mapper, List<String> headerNames, List<String> jsonFields) {
         this.mapper = mapper;
-        this.headerNames = Set.copyOf(headerNames);
-        this.jsonFields = Set.copyOf(jsonFields);
+        // lookups lowercase the incoming name, so the configured side must match;
+        // HttpProperties already does this, a directly built Redactor may not
+        this.headerNames = lowercase(headerNames);
+        this.jsonFields = lowercase(jsonFields);
+    }
+
+    private static Set<String> lowercase(List<String> names) {
+        return names.stream().map(name -> name.toLowerCase(Locale.ROOT)).collect(Collectors.toUnmodifiableSet());
     }
 
     public String header(String name, String value) {
