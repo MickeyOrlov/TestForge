@@ -6,6 +6,7 @@ import io.testforge.db.datasource.DataSourceRegistry;
 import io.testforge.db.logging.SqlLoggingDataSourcePostProcessor;
 import io.testforge.db.repository.RepositoryPollingAspect;
 import io.testforge.db.repository.RepositoryPollingProperties;
+import io.testforge.db.schema.SchemaNamingStrategy;
 import io.testforge.db.schema.SchemaValidator;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -64,8 +65,10 @@ public class TestForgeDbAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(DataSource.class)
-    public SchemaValidator schemaValidator(DataSourceRegistry registry) {
-        return new SchemaValidator(registry);
+    public SchemaValidator schemaValidator(DataSourceRegistry registry, DbProperties properties,
+                                           ObjectProvider<SchemaNamingStrategy> naming) {
+        return new SchemaValidator(registry)
+                .withNaming(naming.getIfAvailable(() -> SchemaNamingStrategy.named(properties.schemaNaming())));
     }
 
     @Bean

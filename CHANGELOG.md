@@ -7,6 +7,19 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: `SchemaValidator` understands JPA inheritance. Fields of
+  `@MappedSuperclass` ancestors are validated on the entity's table (a
+  class-level `@AttributeOverride` renames them), and entity hierarchies follow
+  the root's strategy: `SINGLE_TABLE` validates the whole chain plus the
+  discriminator column against the root table, `JOINED` the entity's own
+  fields plus the primary-key join column, `TABLE_PER_CLASS` the whole chain
+  against the entity's own table. Previously inherited fields were ignored and
+  a single-table subclass was checked against a table that does not exist.
+- `module-db`: implicit names follow a `SchemaNamingStrategy` —
+  `forge.db.schema-naming: snake-case` (default, unchanged) or `as-is`, or a
+  bean; `@Entity(name)` now names the default table.
+
+### Added
 - `module-data`: `forge.data.pool.preload` stocks prepared variants when the
   context starts (a failing provider fails the context), with optional
   background refill (`refill-below`) on one daemon thread whose failures are

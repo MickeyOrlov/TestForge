@@ -4,13 +4,19 @@ import io.testforge.db.datasource.DataSourceRegistry;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.lang.reflect.Field;
@@ -32,10 +38,21 @@ import javax.sql.DataSource;
  * services migrate their schemas; running this validator per entity (e.g. in a
  * scheduled CI job) turns that silent rot into a readable diff.
  *
+ * <p><b>Inheritance:</b> fields of {@code @MappedSuperclass} ancestors map onto the
+ * entity's table, and a class-level {@code @AttributeOverride} renames them. Entity
+ * hierarchies follow the root's {@code @Inheritance} strategy: {@code SINGLE_TABLE}
+ * (the JPA default) validates every field of the chain against the root table plus
+ * the discriminator column; {@code JOINED} validates the entity's own fields plus the
+ * primary-key join column against its own table; {@code TABLE_PER_CLASS} validates
+ * every field of the chain against the entity's own table.
+ *
+ * <p><b>Naming:</b> implicit names go through a {@link SchemaNamingStrategy}
+ * ({@link SchemaNamingStrategy#SNAKE_CASE} by default, see {@link #withNaming});
+ * explicit {@code @Column}/{@code @Table}/{@code @JoinColumn} names are taken as written.
+ *
  * <p>Limitations (deliberate, to stay dependency-free and avoid false positives):
- * only field-level mappings are inspected; inherited fields and custom naming
- * strategies other than camelCase&rarr;snake_case are not resolved. {@code @Embedded}
- * fields are supported, including {@code @AttributeOverride} on the embedding field.
+ * {@code @Embedded} fields are supported, including {@code @AttributeOverride} on the
+ * embedding field; {@code @SecondaryTable} and {@code @AssociationOverride} are not.
  * Type comparison is performed by high-level type families (see {@link ColumnTypeFamily});
  * column length and precision are not compared. Nullability validation detects only
  * columns where the mapping claims NOT NULL but the database allows NULL. Unresolvable
@@ -57,8 +74,9 @@ public class SchemaValidator {
 
     private final DataSource dataSource;
     private final DataSourceRegistry registry;
+    private final SchemaNamingStrategy naming;
 
-    private record MappedColumn(
+    record MappedColumn(
             String name,
             ColumnTypeFamily family,
             boolean declaredNotNull,
@@ -91,8 +109,21 @@ public class SchemaValidator {
     }
 
     private SchemaValidator(DataSource dataSource, DataSourceRegistry registry) {
+        this(dataSource, registry, SchemaNamingStrategy.SNAKE_CASE);
+    }
+
+    private SchemaValidator(DataSource dataSource, DataSourceRegistry registry, SchemaNamingStrategy naming) {
         this.dataSource = dataSource;
         this.registry = registry;
+        this.naming = naming;
+    }
+
+    /**
+     * Returns a new {@code SchemaValidator} that resolves implicit names with
+     * {@code naming}, keeping this validator's datasource.
+     */
+    public SchemaValidator withNaming(SchemaNamingStrategy naming) {
+        return new SchemaValidator(dataSource, registry, java.util.Objects.requireNonNull(naming, "naming"));
     }
 
     /**
@@ -113,7 +144,7 @@ public class SchemaValidator {
                             + "constructing one with SchemaValidator(DataSource).");
         }
         // Keep the registry so the returned view can itself be re-targeted.
-        return new SchemaValidator(registry.resolve(name), registry);
+        return new SchemaValidator(registry.resolve(name), registry, naming);
     }
 
     /**
@@ -238,67 +269,170 @@ public class SchemaValidator {
     }
 
     String tableName(Class<?> entityClass) {
-        Table table = entityClass.getAnnotation(Table.class);
+        Hierarchy hierarchy = Hierarchy.of(entityClass);
+        Class<?> tableOwner = hierarchy.strategy() == InheritanceType.SINGLE_TABLE ? hierarchy.root() : entityClass;
+        Table table = tableOwner.getAnnotation(Table.class);
         if (table != null && !table.name().isBlank()) {
             return table.name();
         }
-        return camelToSnake(entityClass.getSimpleName());
+        Entity entity = tableOwner.getAnnotation(Entity.class);
+        String logical = entity != null && !entity.name().isBlank() ? entity.name() : tableOwner.getSimpleName();
+        return naming.physicalName(logical);
     }
 
     List<MappedColumn> expectedColumns(Class<?> entityClass) {
+        Hierarchy hierarchy = Hierarchy.of(entityClass);
+        Map<String, Column> classOverrides = classLevelOverrides(entityClass);
         List<MappedColumn> columns = new ArrayList<>();
 
-        for (Field field : entityClass.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())
-                    || field.isAnnotationPresent(Transient.class)
-                    || field.isAnnotationPresent(OneToMany.class)
-                    || field.isAnnotationPresent(ManyToMany.class)) {
-                continue;
+        for (Class<?> owner : hierarchy.fieldOwners(entityClass)) {
+            for (Field field : owner.getDeclaredFields()) {
+                MappedColumn column = mappedColumn(field, owner == entityClass ? null : classOverrides.get(field.getName()));
+                if (column != null) {
+                    columns.addAll(column.name() == null ? embeddedColumns(field) : List.of(column));
+                }
             }
-
-            if (field.isAnnotationPresent(Embedded.class)) {
-                columns.addAll(embeddedColumns(field));
-                continue;
-            }
-
-            JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
-            if (joinColumn != null) {
-                String columnName = joinColumn.name().isBlank()
-                        ? camelToSnake(field.getName()) + "_id"
-                        : joinColumn.name();
-                columns.add(new MappedColumn(
-                        columnName,
-                        ColumnTypeFamily.UNKNOWN,
-                        isDeclaredNotNull(field, null),
-                        true,
-                        field.getType().getSimpleName()));
-                continue;
-            }
-
-            if (field.isAnnotationPresent(ManyToOne.class) || field.isAnnotationPresent(OneToOne.class)) {
-                String columnName = camelToSnake(field.getName()) + "_id";
-                columns.add(new MappedColumn(
-                        columnName,
-                        ColumnTypeFamily.UNKNOWN,
-                        isDeclaredNotNull(field, null),
-                        true,
-                        field.getType().getSimpleName()));
-                continue;
-            }
-
-            Column column = field.getAnnotation(Column.class);
-            String columnName = column != null && !column.name().isBlank()
-                    ? column.name()
-                    : camelToSnake(field.getName());
-            columns.add(new MappedColumn(
-                    columnName,
-                    ColumnTypeFamily.ofJavaType(field),
-                    isDeclaredNotNull(field, null),
-                    false,
-                    field.getType().getSimpleName()));
         }
 
+        if (hierarchy.strategy() == InheritanceType.JOINED && entityClass != hierarchy.root()) {
+            columns.addAll(primaryKeyJoinColumns(entityClass, hierarchy));
+        }
+        if (hierarchy.strategy() == InheritanceType.SINGLE_TABLE && hierarchy.polymorphic()) {
+            DiscriminatorColumn discriminator = hierarchy.root().getAnnotation(DiscriminatorColumn.class);
+            String name = discriminator != null && !discriminator.name().isBlank() ? discriminator.name() : "DTYPE";
+            columns.add(new MappedColumn(name, ColumnTypeFamily.UNKNOWN, false, true, "discriminator"));
+        }
         return columns;
+    }
+
+    /**
+     * One field's column, or {@code null} for fields that map to nothing on this
+     * table. An {@code @Embedded} field returns a marker with a {@code null} name;
+     * the caller expands it.
+     */
+    private MappedColumn mappedColumn(Field field, Column inheritedOverride) {
+        if (Modifier.isStatic(field.getModifiers())
+                || field.isSynthetic()
+                || field.isAnnotationPresent(Transient.class)
+                || field.isAnnotationPresent(OneToMany.class)
+                || field.isAnnotationPresent(ManyToMany.class)) {
+            return null;
+        }
+
+        if (field.isAnnotationPresent(Embedded.class)) {
+            return new MappedColumn(null, ColumnTypeFamily.UNKNOWN, false, false, "embedded");
+        }
+
+        JoinColumn joinColumn = field.getAnnotation(JoinColumn.class);
+        if (joinColumn != null) {
+            String columnName = joinColumn.name().isBlank()
+                    ? naming.physicalName(field.getName()) + "_id"
+                    : joinColumn.name();
+            return new MappedColumn(columnName, ColumnTypeFamily.UNKNOWN, isDeclaredNotNull(field, null), true,
+                    field.getType().getSimpleName());
+        }
+
+        if (field.isAnnotationPresent(ManyToOne.class) || field.isAnnotationPresent(OneToOne.class)) {
+            return new MappedColumn(naming.physicalName(field.getName()) + "_id", ColumnTypeFamily.UNKNOWN,
+                    isDeclaredNotNull(field, null), true, field.getType().getSimpleName());
+        }
+
+        Column column = inheritedOverride != null ? inheritedOverride : field.getAnnotation(Column.class);
+        String columnName = column != null && !column.name().isBlank()
+                ? column.name()
+                : naming.physicalName(field.getName());
+        return new MappedColumn(columnName, ColumnTypeFamily.ofJavaType(field), isDeclaredNotNull(field, inheritedOverride),
+                false, field.getType().getSimpleName());
+    }
+
+    /** {@code @AttributeOverride} on the entity class renames columns it inherits from a mapped superclass. */
+    private static Map<String, Column> classLevelOverrides(Class<?> entityClass) {
+        Map<String, Column> overrides = new HashMap<>();
+        for (AttributeOverride override : entityClass.getAnnotationsByType(AttributeOverride.class)) {
+            overrides.put(override.name(), override.column());
+        }
+        return overrides;
+    }
+
+    /** A JOINED subclass table carries the root's key as its own primary key. */
+    private List<MappedColumn> primaryKeyJoinColumns(Class<?> entityClass, Hierarchy hierarchy) {
+        PrimaryKeyJoinColumn[] declared = entityClass.getAnnotationsByType(PrimaryKeyJoinColumn.class);
+        List<MappedColumn> columns = new ArrayList<>();
+        if (declared.length > 0) {
+            for (PrimaryKeyJoinColumn join : declared) {
+                if (!join.name().isBlank()) {
+                    columns.add(new MappedColumn(join.name(), ColumnTypeFamily.UNKNOWN, true, true, "primary key join"));
+                }
+            }
+            if (!columns.isEmpty()) {
+                return columns;
+            }
+        }
+        for (Class<?> owner : hierarchy.fieldOwners(hierarchy.root())) {
+            for (Field field : owner.getDeclaredFields()) {
+                if (field.isAnnotationPresent(Id.class)) {
+                    MappedColumn id = mappedColumn(field, null);
+                    if (id != null && id.name() != null) {
+                        columns.add(new MappedColumn(id.name(), ColumnTypeFamily.UNKNOWN, true, true, "primary key join"));
+                    }
+                }
+            }
+        }
+        return columns;
+    }
+
+    /**
+     * The entity's position in its JPA hierarchy: the root entity, the root's
+     * strategy, and which classes contribute fields to a given entity's table.
+     */
+    private record Hierarchy(Class<?> root, InheritanceType strategy, boolean polymorphic) {
+
+        static Hierarchy of(Class<?> entityClass) {
+            Class<?> root = entityClass;
+            boolean hasEntityAncestor = false;
+            for (Class<?> current = entityClass.getSuperclass(); current != null && current != Object.class;
+                    current = current.getSuperclass()) {
+                if (current.isAnnotationPresent(Entity.class)) {
+                    root = current;
+                    hasEntityAncestor = true;
+                }
+            }
+            Inheritance inheritance = root.getAnnotation(Inheritance.class);
+            InheritanceType strategy = inheritance != null ? inheritance.strategy() : InheritanceType.SINGLE_TABLE;
+            boolean polymorphic = hasEntityAncestor
+                    || inheritance != null
+                    || root.isAnnotationPresent(DiscriminatorColumn.class);
+            return new Hierarchy(root, strategy, polymorphic);
+        }
+
+        /**
+         * Classes whose declared fields land in {@code entityClass}'s table, most
+         * general first. Mapped superclasses always contribute; entity ancestors
+         * only outside JOINED, where each entity keeps its own table.
+         */
+        List<Class<?>> fieldOwners(Class<?> entityClass) {
+            List<Class<?>> owners = new ArrayList<>();
+            boolean crossedEntity = false;
+            for (Class<?> current = entityClass; current != null && current != Object.class;
+                    current = current.getSuperclass()) {
+                boolean isEntity = current.isAnnotationPresent(Entity.class);
+                boolean isMappedSuperclass = current.isAnnotationPresent(MappedSuperclass.class);
+                if (current == entityClass) {
+                    owners.add(current);
+                    continue;
+                }
+                if (strategy == InheritanceType.JOINED && (isEntity || crossedEntity)) {
+                    // the ancestor entity (and everything above it) lives in its own table
+                    crossedEntity = true;
+                    continue;
+                }
+                if (isEntity || isMappedSuperclass) {
+                    owners.add(current);
+                }
+            }
+            java.util.Collections.reverse(owners);
+            return owners;
+        }
     }
 
     /**
@@ -325,7 +459,7 @@ public class SchemaValidator {
                 Column column = field.getAnnotation(Column.class);
                 columnName = column != null && !column.name().isBlank()
                         ? column.name()
-                        : camelToSnake(field.getName());
+                        : naming.physicalName(field.getName());
             }
 
             boolean isRelationship = field.isAnnotationPresent(JoinColumn.class)
@@ -414,6 +548,6 @@ public class SchemaValidator {
     }
 
     static String camelToSnake(String value) {
-        return value.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT);
+        return SchemaNamingStrategy.SNAKE_CASE.physicalName(value);
     }
 }
