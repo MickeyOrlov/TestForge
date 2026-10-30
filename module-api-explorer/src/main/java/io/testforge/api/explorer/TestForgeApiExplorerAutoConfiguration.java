@@ -65,8 +65,12 @@ public class TestForgeApiExplorerAutoConfiguration {
     /** Swappable on purpose: a replay stage would provide its own. */
     @Bean
     @ConditionalOnMissingBean
-    public ExchangeExecutor exchangeExecutor(ApiClient apiClient, ApiExplorerProperties properties) {
-        return new ApiClientExchangeExecutor(apiClient, properties.service());
+    public ExchangeExecutor exchangeExecutor(ObjectProvider<ApiClient> apiClient, ApiExplorerProperties properties) {
+        if (properties.replayFrom() != null && !properties.replayFrom().isBlank()) {
+            return new ReplayExchangeExecutor(java.nio.file.Path.of(properties.replayFrom()),
+                    java.nio.file.Path.of(properties.outputDir()));
+        }
+        return new ApiClientExchangeExecutor(apiClient.getObject(), properties.service());
     }
 
     @Bean

@@ -7,6 +7,15 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: stateful exploration, step 4 — replay.
+  `forge.api-explorer.replay-from` answers every request from an earlier run's
+  observations, with no network; planning, extraction, checking and the report
+  run unchanged, so a failing chain reproduces at a desk. Unrecorded requests,
+  recorded failures and bodies truncated at `max-body-chars` come back as
+  failed calls with the reason; replaying into the recording's own directory
+  is refused. Stateful exploration (all four steps) is complete.
+
+### Added
 - `module-api-explorer`: stateful exploration, step 3 — write chains. With
   both write keys on, `forge.api-explorer.bodies.<operationId>` templates are
   the only source of request bodies (`{{unique}}` becomes a fresh token per

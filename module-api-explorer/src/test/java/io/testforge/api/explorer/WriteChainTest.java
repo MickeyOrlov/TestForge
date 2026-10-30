@@ -61,7 +61,7 @@ class WriteChainTest {
     private ApiExplorerReport run(Path output, boolean allowUnsafe, Map<String, String> templates) {
         ApiExplorerProperties properties = new ApiExplorerProperties(true, output.toString(), null, List.of(),
                 Set.of("GET", "POST", "DELETE"), allowUnsafe, null, List.of("/reports"), null, null, null, null,
-                CREATED_ID, templates);
+                CREATED_ID, templates, null);
         return new ApiExplorerRunner(new OpenApiSpecParser(), new OperationSelector(), new SafetyPolicy(properties),
                 new RequestPlanner(new RequestValueResolver(properties.parameters(), new SchemaValueFactory()),
                         properties.bodies()),
