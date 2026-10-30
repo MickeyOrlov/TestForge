@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.MissingNode;
  * fields inside JSON payloads (module-contract rules, module-kafka filters).
  *
  * <p>Supports {@code $.a.b}, {@code a.b}, JSON Pointer ({@code /a/b}) and
- * array indices ({@code items[0].sku}). Anything fancier — filters,
+ * array indices ({@code items[0].sku}, {@code $[0].id} on a root array). Anything fancier — filters,
  * wildcards, recursive descent — is out of scope by design; use a full
  * JsonPath library at that point.
  */
@@ -32,6 +32,9 @@ public final class JsonPath {
             normalized = normalized.substring(1);
         } else if (normalized.equals("$")) {
             return root;
+        } else if (normalized.startsWith("$[")) {
+            // a root array: "$[0].id" reads index 0 of the document itself
+            normalized = normalized.substring(1);
         }
 
         JsonNode current = root;

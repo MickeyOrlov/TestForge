@@ -24,5 +24,7 @@ public enum ValueSource {
     ENUM,
 
     /** Derived from the declared type and format. Deterministic, never random. */
-    GENERATED
+    GENERATED,
+    /** Taken from an earlier response by a {@code forge.api-explorer.extract} rule. */
+    EXTRACTED
 }

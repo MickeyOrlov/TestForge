@@ -57,7 +57,7 @@ final class ExplorerFixtures {
                 null,
                 new ApiExplorerProperties.ParameterProperties(
                         asMap(overrides.get("parameterDefaults")), Map.of()),
-                null);
+                null, null);
     }
 
     @SuppressWarnings("unchecked")

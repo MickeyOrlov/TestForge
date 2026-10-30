@@ -159,12 +159,16 @@ public class ApiExplorerRunner {
         List<ObservationSummary> summaries = new ArrayList<>();
         Map<String, Integer> usedNames = new HashMap<>();
         int executed = 0;
+        // per spec: values never leak from one document's run into another's
+        ExtractedValues extracted = new ExtractedValues(properties.extract(), objectMapper);
+        List<ExplorableOperation> operations =
+                OperationOrder.forExtraction(selector.select(source.id(), openApi), properties.extract());
 
-        for (ExplorableOperation operation : selector.select(source.id(), openApi)) {
+        for (ExplorableOperation operation : operations) {
             ApiObservation observation = executed >= properties.maxOperations()
                     ? observations.skipped(operation, baseUrl,
                             PlannedRequest.skip(SkipReason.MAX_OPERATIONS_REACHED, null, List.of()))
-                    : observe(operation, baseUrl);
+                    : observe(operation, baseUrl, extracted);
 
             if (observation.outcome() != ExplorerOutcome.SKIPPED) {
                 executed++;
@@ -175,26 +179,28 @@ public class ApiExplorerRunner {
             summaries.add(ObservationSummary.of(observation, artifact.toString()));
         }
 
-        return summarize(source, baseUrl, observationsDir, summaries);
+        return summarize(source, baseUrl, observationsDir, summaries, extracted.outcomes());
     }
 
     /**
      * One operation, start to finish. Any failure here is data, not an
      * interruption — the surrounding loop must always get an observation back.
      */
-    private ApiObservation observe(ExplorableOperation operation, String baseUrl) {
+    private ApiObservation observe(ExplorableOperation operation, String baseUrl, ExtractedValues extracted) {
         Optional<SkipReason> refusal = safety.refuse(operation);
         if (refusal.isPresent()) {
             return observations.skipped(operation, baseUrl,
                     PlannedRequest.skip(refusal.get(), null, List.of()));
         }
 
-        PlannedRequest plan = planner.plan(operation);
+        PlannedRequest plan = planner.plan(operation, extracted);
         if (!plan.sendable()) {
             return observations.skipped(operation, baseUrl, plan);
         }
 
         RuntimeExchange exchange = executor.execute(plan.request());
+        // the raw body, before redaction and truncation shape it for the artifact
+        extracted.record(operation.operationId(), exchange);
         List<ContractMismatch> mismatches = exchange.completed()
                 ? checkQuietly(operation, exchange)
                 : List.of();
@@ -213,7 +219,8 @@ public class ApiExplorerRunner {
     }
 
     private SpecExplorationReport summarize(
-            ApiSpecSource source, String baseUrl, Path observationsDir, List<ObservationSummary> summaries) {
+            ApiSpecSource source, String baseUrl, Path observationsDir, List<ObservationSummary> summaries,
+            List<ExtractionOutcome> extractions) {
 
         int passed = count(summaries, ExplorerOutcome.PASSED);
         int mismatched = count(summaries, ExplorerOutcome.CONTRACT_MISMATCH);
@@ -235,7 +242,8 @@ public class ApiExplorerRunner {
                 skipped,
                 summaries,
                 observationsDir.toString(),
-                null);
+                null,
+                extractions);
     }
 
     private int count(List<ObservationSummary> summaries, ExplorerOutcome outcome) {
