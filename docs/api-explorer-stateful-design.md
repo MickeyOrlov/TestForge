@@ -1,6 +1,6 @@
 # Stateful exploration in module-api-explorer
 
-Status: step 1 shipped (declarative extraction). Steps 2–4 are planned.
+Status: steps 1 (declarative extraction) and 2 (proposed links) shipped. Steps 3–4 are planned.
 
 ## Problem
 
@@ -50,12 +50,21 @@ forge:
 - Values travel through REST Assured path/query parameter encoding, so a
   value such as `../admin` cannot change the request target.
 
-## Step 2 — proposed links (planned)
+## Step 2 — proposed links (shipped)
 
-Infer candidate rules from the document: a response property named like a
-consumer's path parameter (`id` in `GET /orders` items ↔ `{orderId}` in
-`GET /orders/{orderId}`). Candidates are written to the report as YAML ready to
-paste into `extract`, never applied automatically.
+The document alone (no extra calls) suggests rules for every path parameter
+that nothing configures or feeds yet. Producers are callable `GET`s without
+path parameters; two signals, strongest first:
+
+1. **parent collection** — `GET /tasks` for `GET /tasks/{taskId}`: the
+   response's `taskId`, else its `id`;
+2. **same name** — any such `GET` whose response holds a scalar named exactly
+   like the parameter (`/me` → `profile.tenantId` for `/tenants/{tenantId}/users`).
+
+The shortest JSON path wins (arrays as `[0]`, depth ≤ 4). Proposals go into
+the report's *Proposed extraction rules* block as YAML with the reason next
+to each, and into `report.json`. They are never applied: a wrong guess would
+send a real id to the wrong endpoint.
 
 ## Step 3 — write chains (planned)
 

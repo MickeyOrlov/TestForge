@@ -22,16 +22,18 @@ public record SpecExplorationReport(
         List<ObservationSummary> observations,
         String observationsDir,
         String error,
-        List<ExtractionOutcome> extractions) {
+        List<ExtractionOutcome> extractions,
+        List<ProposedRule> proposals) {
 
     public SpecExplorationReport {
         observations = List.copyOf(observations == null ? List.of() : observations);
         extractions = List.copyOf(extractions == null ? List.of() : extractions);
+        proposals = List.copyOf(proposals == null ? List.of() : proposals);
     }
 
     /** Spec that could not be parsed or reached at all. */
     public static SpecExplorationReport broken(String specId, String location, String baseUrl, String error) {
         return new SpecExplorationReport(specId, location, baseUrl, true, 0, 0, 0, 0, 0,
-                List.of(), null, error, List.of());
+                List.of(), null, error, List.of(), List.of());
     }
 }

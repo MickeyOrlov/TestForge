@@ -161,8 +161,9 @@ public class ApiExplorerRunner {
         int executed = 0;
         // per spec: values never leak from one document's run into another's
         ExtractedValues extracted = new ExtractedValues(properties.extract(), objectMapper);
-        List<ExplorableOperation> operations =
-                OperationOrder.forExtraction(selector.select(source.id(), openApi), properties.extract());
+        List<ExplorableOperation> selected = selector.select(source.id(), openApi);
+        List<ProposedRule> proposals = RuleProposer.propose(selected, properties);
+        List<ExplorableOperation> operations = OperationOrder.forExtraction(selected, properties.extract());
 
         for (ExplorableOperation operation : operations) {
             ApiObservation observation = executed >= properties.maxOperations()
@@ -179,7 +180,7 @@ public class ApiExplorerRunner {
             summaries.add(ObservationSummary.of(observation, artifact.toString()));
         }
 
-        return summarize(source, baseUrl, observationsDir, summaries, extracted.outcomes());
+        return summarize(source, baseUrl, observationsDir, summaries, extracted.outcomes(), proposals);
     }
 
     /**
@@ -220,7 +221,7 @@ public class ApiExplorerRunner {
 
     private SpecExplorationReport summarize(
             ApiSpecSource source, String baseUrl, Path observationsDir, List<ObservationSummary> summaries,
-            List<ExtractionOutcome> extractions) {
+            List<ExtractionOutcome> extractions, List<ProposedRule> proposals) {
 
         int passed = count(summaries, ExplorerOutcome.PASSED);
         int mismatched = count(summaries, ExplorerOutcome.CONTRACT_MISMATCH);
@@ -243,7 +244,8 @@ public class ApiExplorerRunner {
                 summaries,
                 observationsDir.toString(),
                 null,
-                extractions);
+                extractions,
+                proposals);
     }
 
     private int count(List<ObservationSummary> summaries, ExplorerOutcome outcome) {
