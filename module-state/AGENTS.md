@@ -3,13 +3,15 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-state`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `StateRecipe` over `module-flow`, bridged into `@Prepared` via `StatePreparedDataProvider`.
+**Scope:** `StateRecipe` over `module-flow` (named flows, declared `targets()`), bridged into `@Prepared` via `StatePreparedDataProvider`; `StateRecipes` verifies every recipe.
 
 **May depend on:** `module-flow`, `module-data`.
 
 Plan: [docs/state-layer-roadmap.md](../docs/state-layer-roadmap.md).
 
 ## Invariants (do not break)
+
+- `verify` never executes a step; it only reads declared transitions.
 
 - Recipes drive product/test-support APIs; direct DB writes are a project
   decision, not a default here.

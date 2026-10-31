@@ -31,6 +31,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-state`: `StateRecipe.targets()` declares the tags a recipe can
+  prepare; an unknown tag fails with the supported ones.
+  `StateRecipeExecutor.verify(recipe)` and the `StateRecipes` bean
+  (`assertAllValid()`) check every recipe's flow for every target without
+  running a step.
 - `module-state`: `StatePreparation.duration()` — what a prepared state cost;
   the steps are in `flowResult().transitions()`.
 - `module-flow`: transition coverage. Runners record declared transitions

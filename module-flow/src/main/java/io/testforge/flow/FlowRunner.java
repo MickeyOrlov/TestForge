@@ -192,7 +192,8 @@ public class FlowRunner<S> {
             } else if (step.declaredNext().isEmpty()) {
                 undeclared = true;
             } else {
-                pending.addAll(step.declaredNext());
+                // sorted: the same flow always reports its problems in the same order
+                pending.addAll(sorted(step.declaredNext()));
             }
         }
         if (!undeclared && !reachable.contains(target)) {
