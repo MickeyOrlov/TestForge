@@ -1,5 +1,6 @@
 package io.testforge.example;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -83,6 +84,30 @@ class ScopedMockIsolationTest {
 
             assertThat(callDownstreamStatus(scopeId)).contains("correlated");
         }
+    }
+
+    @Test
+    void aSequencePlaysOutPerScenarioForRetryTests() {
+        try (MockScope flaky = mocks.scope("scenario-flaky"); MockScope other = mocks.scope("scenario-other")) {
+            // the downstream fails twice, then recovers — only for this scenario
+            flaky.sequence(post(urlPathEqualTo("/downstream/status")),
+                    aResponse().withStatus(503), aResponse().withStatus(503),
+                    okJson("{\"result\":\"recovered\"}"));
+
+            assertThat(statusOf("scenario-flaky")).isEqualTo(503);
+            assertThat(callDownstreamStatus("scenario-other")).as("unaffected").contains("default");
+            assertThat(statusOf("scenario-flaky")).isEqualTo(503);
+            assertThat(callDownstreamStatus("scenario-flaky")).contains("recovered");
+        }
+    }
+
+    private int statusOf(String scopeId) {
+        return RestAssured.given()
+                .baseUri("http://localhost:" + server.port())
+                .contentType(ContentType.JSON)
+                .body("{\"testScope\":\"%s\"}".formatted(scopeId))
+                .post("/downstream/status")
+                .statusCode();
     }
 
     private String callDownstreamStatus(String scopeId) {

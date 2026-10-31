@@ -4,15 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.matching.RequestPattern;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.github.tomakehurst.wiremock.stubbing.StubMapping;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import io.testforge.artifact.ArtifactSink;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A scenario-scoped view of a shared WireMock instance.
@@ -44,6 +48,7 @@ public class MockScope implements AutoCloseable {
     private final String scopeId;
     private final ArtifactSink artifactSink;
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
+    private final AtomicInteger sequences = new AtomicInteger();
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId) {
         this(wireMock, scopeJsonPath, scopeId, ArtifactSink.NO_OP);
@@ -72,6 +77,50 @@ public class MockScope implements AutoCloseable {
         wireMock.register(stubMapping);
         stubs.add(stubMapping);
         return stubMapping;
+    }
+
+    /**
+     * Answers the same request differently each time, in order, then keeps
+     * answering with the last response — the retry test:
+     *
+     * <pre>{@code
+     * scope.sequence(post(urlPathEqualTo("/payments")),
+     *         aResponse().withStatus(503),
+     *         aResponse().withStatus(503),
+     *         okJson("{\"status\":\"accepted\"}"));
+     * }</pre>
+     *
+     * Built on a WireMock scenario whose name carries the scope id, so two
+     * parallel scopes walking the same sequence never advance each other's
+     * state. Every step is a scoped stub like {@link #stub}, removed on close.
+     *
+     * @return the step stubs, in order
+     */
+    public List<StubMapping> sequence(MappingBuilder request, ResponseDefinitionBuilder... responses) {
+        if (responses == null || responses.length == 0) {
+            throw new IllegalArgumentException("A sequence needs at least one response");
+        }
+        String template = StubMapping.buildJsonStringFor(marker.applyTo(request, scopeId)
+                .atPriority(SCOPED_STUB_PRIORITY)
+                .build());
+        String scenario = "testforge-" + scopeId + "-" + sequences.incrementAndGet();
+        List<StubMapping> steps = new java.util.ArrayList<>();
+        for (int i = 0; i < responses.length; i++) {
+            StubMapping step = StubMapping.buildFrom(template);
+            UUID id = UUID.randomUUID();
+            step.setId(id);
+            step.setUuid(id);
+            step.setScenarioName(scenario);
+            step.setRequiredScenarioState(i == 0 ? Scenario.STARTED : "step-" + (i + 1));
+            if (i < responses.length - 1) {
+                step.setNewScenarioState("step-" + (i + 2));
+            }
+            step.setResponse(responses[i].build());
+            wireMock.register(step);
+            stubs.add(step);
+            steps.add(step);
+        }
+        return List.copyOf(steps);
     }
 
     /**
