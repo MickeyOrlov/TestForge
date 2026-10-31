@@ -51,9 +51,37 @@ public class ContractGuardReporter implements SmartLifecycle {
             sink.registerFile(SOURCE, "contract-guard", "contract-guard.json", file, "application/json",
                     Map.of("healthy", String.valueOf(findings.isEmpty()),
                             "checked", String.valueOf(guard.checkedResponses())));
+            writeCoverage(guard.coverage());
         } catch (Exception e) {
             // best-effort: a report that cannot be written never fails the run
         }
+    }
+
+    /**
+     * {@code api-coverage.md}: which documented operations the suite called and
+     * which it never touched. Report-only — an operation no test calls is a gap
+     * to read about, so {@code healthy} stays {@code true}.
+     */
+    private void writeCoverage(ContractGuard.Coverage coverage) throws java.io.IOException {
+        if (coverage.documented() == 0) {
+            return;
+        }
+        StringBuilder out = new StringBuilder("# API operation coverage\n\n")
+                .append("- documented operations: ").append(coverage.documented()).append('\n')
+                .append("- called by the suite: ").append(coverage.called().size()).append('\n');
+        if (!coverage.uncalled().isEmpty()) {
+            out.append("\n## Never called\n\n");
+            coverage.uncalled().forEach(operation -> out.append("- `").append(operation).append("`\n"));
+        }
+        out.append("\n## Called\n\n");
+        coverage.called().forEach((operation, count) ->
+                out.append("- `").append(operation).append("` ").append(count).append('×').append('\n'));
+        Path file = sink.directoryFor(SOURCE).resolve("api-coverage.md");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, out.toString(), java.nio.charset.StandardCharsets.UTF_8);
+        sink.registerFile(SOURCE, "api-coverage", "api-coverage.md", file, "text/markdown",
+                Map.of("healthy", "true", "uncalled", String.valueOf(coverage.uncalled().size()),
+                        "documented", String.valueOf(coverage.documented())));
     }
 
     @Override

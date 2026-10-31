@@ -44,6 +44,9 @@ class ContractGuardExampleTest {
     @Autowired
     ApiClient api;
 
+    @Autowired
+    io.testforge.api.explorer.ContractGuard guard;
+
     @BeforeEach
     void reset() {
         server.resetAll();
@@ -68,5 +71,17 @@ class ContractGuardExampleTest {
                 .hasMessageContaining("does not match the OpenAPI document")
                 .hasMessageContaining("MISSING_REQUIRED_FIELD")
                 .hasMessageContaining("status");
+    }
+
+    @Test
+    void theSuiteLearnsWhichDocumentedOperationsNoTestCalled() {
+        server.stubFor(get(urlPathEqualTo("/api/v1/tasks"))
+                .willReturn(okJson("{\"items\":[]}")));
+
+        api.request().get("/api/v1/tasks");
+
+        // api-coverage.md in the run index lists the same: createTask is documented, nothing calls it
+        assertThat(guard.coverage().uncalled()).contains("demo POST /api/v1/tasks");
+        assertThat(guard.coverage().called()).containsKey("demo GET /api/v1/tasks");
     }
 }

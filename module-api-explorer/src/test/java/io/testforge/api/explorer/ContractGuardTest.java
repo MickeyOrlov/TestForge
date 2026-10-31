@@ -73,6 +73,47 @@ class ContractGuardTest {
     }
 
     @Test
+    void theSuiteLearnsWhichDocumentedOperationsItNeverCalled(@TempDir Path temp) throws Exception {
+        List<TestArtifact> registered = new ArrayList<>();
+        ArtifactSink sink = new ArtifactSink() {
+            @Override
+            public Path directoryFor(String source) {
+                return temp.resolve(source);
+            }
+
+            @Override
+            public void register(TestArtifact artifact) {
+                registered.add(artifact);
+            }
+
+            @Override
+            public TestArtifact write(String source, String category, String name, String mediaType, String content) {
+                throw new UnsupportedOperationException();
+            }
+        };
+        runner().withBean(ArtifactSink.class, () -> sink).run(context -> {
+            ApiClient api = context.getBean(ApiClient.class);
+            api.request().get("/tasks");
+            api.request().get("/tasks");
+            api.request().get("/tasks/t-1");
+
+            ContractGuard.Coverage coverage = context.getBean(ContractGuard.class).coverage();
+            assertThat(coverage.called()).containsExactly(
+                    java.util.Map.entry("demo GET /tasks", 2L), java.util.Map.entry("demo GET /tasks/{taskId}", 1L));
+            assertThat(coverage.uncalled()).contains("demo POST /tasks", "demo DELETE /tasks/{taskId}")
+                    .doesNotContain("demo GET /tasks");
+        });
+
+        assertThat(registered).filteredOn(artifact -> artifact.name().equals("api-coverage.md"))
+                .singleElement().satisfies(artifact -> {
+                    assertThat(artifact.metadata()).containsEntry("healthy", "true");
+                    assertThat(Files.readString(artifact.file()))
+                            .contains("## Never called").contains("- `demo POST /tasks`")
+                            .contains("- `demo GET /tasks` 2×");
+                });
+    }
+
+    @Test
     void conformingResponsesLeaveNoFinding() {
         runner().run(context -> {
             ApiClient api = context.getBean(ApiClient.class);
@@ -139,8 +180,8 @@ class ContractGuardTest {
         runner().withBean(ArtifactSink.class, () -> sink).run(context ->
                 context.getBean(ApiClient.class).request().get("/tasks/broken"));
 
-        assertThat(registered).singleElement().satisfies(artifact -> {
-            assertThat(artifact.name()).isEqualTo("contract-guard.json");
+        assertThat(registered).filteredOn(artifact -> artifact.name().equals("contract-guard.json"))
+                .singleElement().satisfies(artifact -> {
             assertThat(artifact.metadata()).containsEntry("healthy", "false").containsEntry("checked", "1");
             assertThat(Files.readString(artifact.file())).contains("MISSING_REQUIRED_FIELD").contains("$.title");
         });

@@ -43,6 +43,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-explorer`: operation coverage. The contract guard counts the
+  documented operations the suite's `ApiClient` calls reached;
+  `api-coverage.md` in the run index lists those no test called
+  (`ContractGuard.coverage()`), report-only.
 - `module-api-discovery`: every catalog and shape difference is classified
   for clients (`BREAKING`, `RISKY`, `UNKNOWN`, `SAFE`; requests and responses
   judged in opposite directions) in `ApiSpecReport.changes()` and
