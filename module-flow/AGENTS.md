@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-flow`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `FlowRunner`: deterministic state-machine paths with guardrails, timed path reporting (`FlowTransition`) and step decorators. Plan: [docs/flow-layer-roadmap.md](../docs/flow-layer-roadmap.md).
+**Scope:** `FlowRunner`: deterministic state-machine paths with guardrails, timed path reporting (`FlowTransition`), declared transitions (`verify`, `describe`), suite-wide `FlowCoverage` and step decorators. Plan: [docs/flow-layer-roadmap.md](../docs/flow-layer-roadmap.md).
 
 **May depend on:** `core` only.
 

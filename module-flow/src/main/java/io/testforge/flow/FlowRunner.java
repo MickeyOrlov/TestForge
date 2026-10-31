@@ -18,6 +18,7 @@ public class FlowRunner<S> {
     private final FlowProperties properties;
     private final Clock clock;
     private final ArtifactSink artifactSink;
+    private final FlowCoverage coverage;
 
     FlowRunner(Collection<? extends FlowStep<S>> steps, FlowProperties properties, Clock clock) {
         this("flow", steps, properties, clock, ArtifactSink.NO_OP);
@@ -37,6 +38,17 @@ public class FlowRunner<S> {
             FlowProperties properties,
             Clock clock,
             ArtifactSink artifactSink) {
+        this(name, steps, properties, clock, artifactSink, null);
+    }
+
+    FlowRunner(
+            String name,
+            Collection<? extends FlowStep<S>> steps,
+            FlowProperties properties,
+            Clock clock,
+            ArtifactSink artifactSink,
+            FlowCoverage coverage) {
+        this.coverage = coverage;
         this.name = (name != null && !name.isBlank()) ? name : "flow";
         this.steps = new HashMap<>();
         for (FlowStep<S> step : steps) {
@@ -67,6 +79,9 @@ public class FlowRunner<S> {
         }
 
         Instant deadline = clock.instant().plus(properties.timeout());
+        if (coverage != null) {
+            coverage.run(name);
+        }
         List<S> path = new ArrayList<>();
         List<FlowTransition<S>> transitions = new ArrayList<>();
         Map<S, Integer> visits = new HashMap<>();
@@ -111,6 +126,9 @@ public class FlowRunner<S> {
                                     format(path)), e);
                 }
                 transitions.add(new FlowTransition<>(current, next, Duration.between(started, clock.instant())));
+                if (coverage != null) {
+                    coverage.took(name, current, next);
+                }
 
                 if (next == null) {
                     throw new FlowException("Flow stopped before target %s. Path: %s"

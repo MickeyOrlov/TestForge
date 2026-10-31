@@ -21,6 +21,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-flow`: transition coverage. Runners record declared transitions
+  taken into the shared `FlowCoverage` per flow name; `flow-coverage.md` in
+  the run index lists those no test took (report-only, `uncovered` count in
+  metadata).
 - `module-flow`: declared transitions. `FlowStep.of(state, action, next...)`
   states where a step may go; returning anything else fails at once.
   `FlowRunner.verify(start, target)` / `assertValid` find dead ends and an
