@@ -77,6 +77,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-fuzz`: `forge.api-fuzz.accepted-findings` lists known finding
+  groups (`<check> <operation>`, optionally `<spec>:`-scoped, ` # comment`
+  allowed); `fail-on-findings` then fails only on new groups
+  (`ApiFuzzReport.newFindingGroups()`), `report.md` marks accepted ones and
+  lists accepted entries no run matched any more (`staleAcceptedFindings()`).
 - `module-api-fuzz`: findings carry their spec and group by check and
   operation (`ApiFuzzReport.findingGroups()`); every run writes
   `<output-dir>/report.md` with one entry per group — cases, phases, methods,

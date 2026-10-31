@@ -20,6 +20,8 @@ import java.util.TreeSet;
  * @param methods the methods the failing cases sent; more than the operation's
  *        own when coverage probes an unexpected method
  * @param firstMessage the first failure message seen, as Schemathesis wrote it
+ * @param accepted listed in {@code forge.api-fuzz.accepted-findings}: known, and
+ *        not what fails the gate
  */
 public record ApiFuzzFindingGroup(
         String key,
@@ -29,7 +31,8 @@ public record ApiFuzzFindingGroup(
         int occurrences,
         Set<String> phases,
         Set<String> methods,
-        String firstMessage) {
+        String firstMessage,
+        boolean accepted) {
 
     public ApiFuzzFindingGroup {
         // sorted, so the report reads the same on every run
@@ -39,6 +42,12 @@ public record ApiFuzzFindingGroup(
 
     /** Groups findings by spec and key; the most frequent first, then by key. */
     public static List<ApiFuzzFindingGroup> of(List<ApiFuzzFinding> findings) {
+        return of(findings, List.of());
+    }
+
+    /** As {@link #of(List)}, marking the groups an accepted entry covers. */
+    public static List<ApiFuzzFindingGroup> of(List<ApiFuzzFinding> findings, List<String> acceptedFindings) {
+        List<String> accepted = AcceptedFindings.normalize(acceptedFindings);
         Map<String, List<ApiFuzzFinding>> byKey = new LinkedHashMap<>();
         for (ApiFuzzFinding finding : findings == null ? List.<ApiFuzzFinding>of() : findings) {
             byKey.computeIfAbsent(finding.specId() + "\n" + finding.key(), ignored -> new ArrayList<>()).add(finding);
@@ -61,7 +70,8 @@ public record ApiFuzzFindingGroup(
                 }
             }
             groups.add(new ApiFuzzFindingGroup(first.key(), first.specId(), first.operationLabel(),
-                    first.checkName(), same.size(), phases, methods, message));
+                    first.checkName(), same.size(), phases, methods, message,
+                    AcceptedFindings.accepted(accepted, first.specId(), first.key())));
         });
         groups.sort(Comparator.comparing(ApiFuzzFindingGroup::occurrences).reversed()
                 .thenComparing(group -> String.valueOf(group.specId()))
@@ -71,6 +81,6 @@ public record ApiFuzzFindingGroup(
 
     @Override
     public String toString() {
-        return key + " (x" + occurrences + ")";
+        return key + " (x" + occurrences + ")" + (accepted ? " accepted" : "");
     }
 }

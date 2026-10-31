@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Settings for running Schemathesis CLI fuzzing against an OpenAPI document.
@@ -44,7 +45,16 @@ public record ApiFuzzProperties(
         Integer timeoutSeconds,
         String command,
         String configFile,
-        Boolean failOnFindings) {
+        Boolean failOnFindings,
+        List<String> acceptedFindings) {
+
+    public ApiFuzzProperties(
+            Boolean enabled, String outputDir, List<String> specs, String baseUrl, Set<String> methods,
+            Boolean allowUnsafeMethods, List<String> phases, Long seed, Integer maxExamples, String generationMode,
+            Integer maxFailures, Integer timeoutSeconds, String command, String configFile, Boolean failOnFindings) {
+        this(enabled, outputDir, specs, baseUrl, methods, allowUnsafeMethods, phases, seed, maxExamples,
+                generationMode, maxFailures, timeoutSeconds, command, configFile, failOnFindings, null);
+    }
 
     /** Methods that may be sent without anyone opting in to anything. */
     public static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
@@ -52,7 +62,9 @@ public record ApiFuzzProperties(
     private static final Set<String> ALLOWED_PHASES = Set.of("examples", "coverage", "fuzzing", "stateful");
     private static final Set<String> ALLOWED_GENERATION_MODES = Set.of("positive", "negative", "all");
 
+    @ConstructorBinding
     public ApiFuzzProperties {
+        acceptedFindings = AcceptedFindings.normalize(acceptedFindings);
         if (enabled == null) {
             enabled = false;
         }
@@ -122,14 +134,14 @@ public record ApiFuzzProperties(
 
     /**
      * Copies with a different seed. Lives here rather than being hand-written at
-     * each call site: this record has fifteen positional components, so every
+     * each call site: this record has sixteen positional components, so every
      * duplicated copy block is a place where a future component silently keeps
      * its old value instead of the intended one.
      */
     public ApiFuzzProperties withSeed(long newSeed) {
         return new ApiFuzzProperties(enabled, outputDir, specs, baseUrl, methods, allowUnsafeMethods,
                 phases, newSeed, maxExamples, generationMode, maxFailures, timeoutSeconds,
-                command, configFile, failOnFindings);
+                command, configFile, failOnFindings, acceptedFindings);
     }
 
     /** Copies with a resolved base URL, keeping an explicit one untouched. */
@@ -139,6 +151,6 @@ public record ApiFuzzProperties(
         }
         return new ApiFuzzProperties(enabled, outputDir, specs, resolved, methods, allowUnsafeMethods,
                 phases, seed, maxExamples, generationMode, maxFailures, timeoutSeconds,
-                command, configFile, failOnFindings);
+                command, configFile, failOnFindings, acceptedFindings);
     }
 }

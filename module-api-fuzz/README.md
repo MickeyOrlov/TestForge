@@ -55,6 +55,7 @@ forge:
     command: st                   # default executable
     config-file:                  # optional user-supplied schemathesis.toml
     fail-on-findings: false       # default; execution errors always fail
+    accepted-findings: []         # known findings the gate ignores, see below
 ```
 
 ## Safety
@@ -116,6 +117,29 @@ failure message is kept — tracebacks stay in the NDJSON — and request header
 and bodies are never written.
 
 Exit code 1 covers both API findings and infrastructure failure. This is why the module classifies outcomes from the NDJSON report stream: a `NonFatalError` event means execution failure, not an API finding.
+
+## Accepted findings
+
+The first run against an unfamiliar API finds things that will not be fixed
+this sprint. Rather than keep `fail-on-findings` off for everything, list what
+was read and accepted, copying the heading `report.md` printed:
+
+```yaml
+forge:
+  api-fuzz:
+    fail-on-findings: true
+    accepted-findings:
+      - not_a_server_error GET /items/{id}      # ITEMS-412, fix planned
+      - billing:unsupported_method GET /invoices # this spec only
+```
+
+An entry is `<check> <operation>`, optionally `<spec>:` in front to scope it to
+one spec; text after ` #` is a comment for people. The gate then fails only on
+groups no entry covers (`ApiFuzzReport.newFindingGroups()`); accepted groups
+are marked in `report.md`, and entries that matched nothing in a completed run
+are listed under "Accepted findings no longer seen" — fixed or renamed, and due
+for removal. The outcome stays `FINDINGS` while any finding occurs, accepted or
+not: acceptance changes the verdict, not the facts.
 
 ## Running It
 

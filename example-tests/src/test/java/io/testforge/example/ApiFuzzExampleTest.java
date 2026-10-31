@@ -29,6 +29,8 @@ import org.springframework.context.annotation.Primary;
         "forge.api-fuzz.output-dir=build/api-fuzz/example",
         "forge.api-fuzz.methods=GET,POST",
         "forge.api-fuzz.base-url=http://localhost:8080",
+        // read once, decided to live with: the gate fails on new findings only
+        "forge.api-fuzz.accepted-findings[0]=not_a_server_error GET /api/v1/tasks  # TASKS-12",
         "forge.api-discovery.specs.demo.location=classpath:/openapi/demo-api.yaml"
 })
 class ApiFuzzExampleTest {
@@ -88,6 +90,9 @@ class ApiFuzzExampleTest {
         // report.md: findings grouped by check and operation, each with its reproduce command
         assertThat(report.artifacts()).containsKey("report.md");
         assertThat(report.findingGroups()).isEmpty();
+        assertThat(report.acceptedFindings()).containsExactly("not_a_server_error GET /api/v1/tasks");
+        // nothing matched it in this run: report.md lists it as no longer seen
+        assertThat(report.staleAcceptedFindings()).containsExactly("not_a_server_error GET /api/v1/tasks");
     }
 
     @Test
