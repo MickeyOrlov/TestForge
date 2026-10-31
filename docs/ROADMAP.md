@@ -43,7 +43,7 @@ template building blocks.
 | `module-kafka` | Kafka buffer/probe/collector (group per run, assigned before tests start), publisher with scenario headers, exactly-one/none assertions, failure diagnostics; contract validation composes outside the module. Plan: [kafka-layer-roadmap.md](kafka-layer-roadmap.md). |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers, per-scope response sequences, unused-stub detection; stubs checked against the downstream's document through `module-api-explorer`. Plan: [mock-layer-roadmap.md](mock-layer-roadmap.md). |
 | `module-reporting` | Run-scoped artifact collection with one run per test JVM, deterministic manifest/summary index with a failed test's evidence gathered under the test, resource usage monitor, and optional Allure attachments. Plan: [reporting-layer-roadmap.md](reporting-layer-roadmap.md). |
-| `module-web` | Playwright-powered environment prewarm, best-effort by design. |
+| `module-web` | Playwright-powered environment prewarm, best-effort by design; what each page answered in the log and `prewarm.md`, optional stop when the environment is down. Plan: [web-layer-roadmap.md](web-layer-roadmap.md). |
 
 ### Beta
 

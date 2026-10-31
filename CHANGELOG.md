@@ -93,6 +93,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-web`: prewarm reports what each page answered — status, where it
+  ended after redirects, time, error — one log line per page and `prewarm.md`
+  in the run index (`PrewarmRunner.lastReport()`), URLs redacted.
+  `forge.prewarm.fail-when-unreachable` (default `false`) stops the suite at
+  startup when not one page answers. Visiting sits behind a `PrewarmEngine`
+  bean (default: the browser).
 - `module-db-contract`: every change says which of the project's JPA entities
   it reaches (`DbChangeAssessment.usedBy()`), shown as a "Used by" column in
   `report.md` and in the gate's failure message. Entities are read lazily from

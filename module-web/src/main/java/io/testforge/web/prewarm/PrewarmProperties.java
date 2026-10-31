@@ -3,6 +3,7 @@ package io.testforge.web.prewarm;
 import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /**
  * Pages to visit once before the suite starts, so UI tests never hit a cold
@@ -17,14 +18,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       - https://staging.example.test/
  *       - https://staging.example.test/sign-in
  * </pre>
+ *
+ * @param failWhenUnreachable stop the suite at startup when not one page
+ *        answers (every visit failed or got a 5xx): the environment is down,
+ *        and every test would fail slowly for that one reason. Default
+ *        {@code false} — prewarm then only warns
  */
 @ConfigurationProperties(prefix = "forge.prewarm")
 public record PrewarmProperties(
         boolean enabled,
         List<String> urls,
         Boolean headless,
-        Duration navigationTimeout) {
+        Duration navigationTimeout,
+        Boolean failWhenUnreachable) {
 
+    @ConstructorBinding
     public PrewarmProperties {
         if (urls == null) {
             urls = List.of();
@@ -35,5 +43,12 @@ public record PrewarmProperties(
         if (navigationTimeout == null) {
             navigationTimeout = Duration.ofSeconds(40);
         }
+        if (failWhenUnreachable == null) {
+            failWhenUnreachable = false;
+        }
+    }
+
+    public PrewarmProperties(boolean enabled, List<String> urls, Boolean headless, Duration navigationTimeout) {
+        this(enabled, urls, headless, navigationTimeout, null);
     }
 }
