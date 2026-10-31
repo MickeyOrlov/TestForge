@@ -9,7 +9,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Invariants (do not break)
 
-- Best-effort: a prewarm failure is logged, never fails the suite.
+- Best-effort: a prewarm failure is logged and never fails the suite, unless
+  `fail-when-unreachable=true` and not one page answered. A browser that
+  cannot start never counts as an unreachable environment.
+- URLs go through `UrlRedactor` before they are logged or reported.
 - Exactly once per JVM.
 - Inert unless `forge.prewarm.enabled=true`; no browser starts in the default
   build.
@@ -17,7 +20,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `TestForgeWebAutoConfigurationTest` (offline, no browser).
+Own: `TestForgeWebAutoConfigurationTest`, `PrewarmRunnerTest` (offline, fake engine, no browser).
 
 ## Before you finish
 

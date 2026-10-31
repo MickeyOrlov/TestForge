@@ -182,7 +182,10 @@ must not replace each other. `example-tests` is never published.
    Turn `forge.reporting.resource-monitor.enabled=true` on for JVM memory/CPU
    sampling.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
-   `forge.prewarm.urls` for the CI profile.
+   `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
+   run: a page "ended at" a sign-in URL warmed the login wall, not the page.
+   `fail-when-unreachable=true` stops a CI run at startup when the environment
+   is down.
 19. **module-mobile-appium**: put real devices in explicit mobile profiles,
    never in the default build. `forge.mobile.appium.enabled=true` only creates
    beans; sessions open lazily when a test requests `AppiumSession` or
