@@ -23,6 +23,11 @@ final class BrowserJournal {
     private final Deque<String> pageErrors = new ArrayDeque<>();
     private final Deque<String> requests = new ArrayDeque<>();
     private int dropped;
+    private String correlation;
+
+    synchronized void correlation(String header, String id) {
+        this.correlation = header + ": " + id;
+    }
 
     synchronized void console(String type, String text) {
         if ("error".equals(type) || "warning".equals(type)) {
@@ -52,6 +57,9 @@ final class BrowserJournal {
         StringBuilder out = new StringBuilder("# Browser — ").append(testName).append("\n\n")
                 .append("- page: ").append(pageUrl == null ? "—" : UrlRedactor.redact(pageUrl)).append('\n')
                 .append("- title: ").append(title == null || title.isBlank() ? "—" : line(title)).append('\n');
+        if (correlation != null) {
+            out.append("- correlation: ").append(correlation).append('\n');
+        }
         if (dropped > 0) {
             out.append("- older entries dropped: ").append(dropped).append('\n');
         }

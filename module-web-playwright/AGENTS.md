@@ -21,6 +21,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   lines — never headers or bodies. Its listeners sit on the context, not the
   page, so popups count.
 
+- The correlation header goes to the base URL's origin only, never to
+  third-party origins.
+
 ## Tests
 
 Own: `TestForgePlaywrightAutoConfigurationTest` (offline, never launches a browser). Example: `PlaywrightSmokeIT` (`./gradlew :example-tests:browsersTest`).

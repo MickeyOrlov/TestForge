@@ -101,6 +101,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-web-playwright`: `forge.playwright.base-url` for relative
+  navigation, and the scenario's correlation id (`X-Request-Id` by default,
+  as in `module-http`) on every browser request to that origin — never to
+  third-party origins, where a custom header forces a CORS preflight.
+  `browser.md` names the id.
 - `module-web-playwright`: a failing UI test also leaves `browser.md` —
   requests that failed or answered 4xx/5xx, uncaught page errors, console
   errors and warnings, from every page of the test's context — written before

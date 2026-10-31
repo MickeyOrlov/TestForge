@@ -25,7 +25,24 @@ forge:
     default-timeout: 15000
     artifacts-on-failure: true
     artifacts-dir: build/playwright-artifacts
+    base-url: https://staging.example.test  # relative navigation resolves against it
+    correlation: true                       # default; needs base-url
+    correlation-header: X-Request-Id        # default, as in module-http
 ```
+
+### Base URL and correlation
+
+With `base-url` set, tests navigate relatively (`page.navigate("/checkout")`)
+and every browser request to that origin carries the scenario's correlation id
+— the same `ScenarioKeys.CORRELATION_ID` `module-http` sends, so the backend
+log lines of a UI test, its API calls and its reports share one value.
+`browser.md` names the id. Requests to other origins (a CDN, an identity
+provider) never get the header: a custom header on a cross-origin request
+forces a CORS preflight the third party may refuse. An id the page sets itself
+wins. The header is added through request routing, which turns off
+Playwright's HTTP cache for the context; set `correlation: false` where that
+matters more than the id. `PlaywrightCorrelationIT` shows both origins on a
+real browser.
 
 ## Usage
 

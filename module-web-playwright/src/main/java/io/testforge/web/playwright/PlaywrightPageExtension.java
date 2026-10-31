@@ -2,8 +2,15 @@ package io.testforge.web.playwright;
 
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Route;
 import com.microsoft.playwright.Tracing;
 import io.testforge.artifact.ArtifactSink;
+import io.testforge.core.context.ScenarioContext;
+import io.testforge.core.context.ScenarioKeys;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.UUID;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -106,6 +113,7 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                 tracingStarted = true;
             }
             BrowserJournal journal = new BrowserJournal();
+            correlate(context, properties, journal);
             // listen on the context, so pages a test opens itself (popups, new tabs) are heard too
             context.onConsoleMessage(message -> journal.console(message.type(), message.text()));
             context.onResponse(response -> journal.response(
@@ -120,6 +128,52 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
 
         Page page() {
             return page;
+        }
+
+        /**
+         * The scenario's correlation id on every browser request to the base URL's
+         * origin — the same id {@code module-http} sends, so a UI test's backend log
+         * lines, traces and HTTP reports share one value. Other origins (a CDN, an
+         * identity provider) never see the header: a custom header on a cross-origin
+         * request forces a CORS preflight the third party may refuse.
+         */
+        private static void correlate(BrowserContext context, PlaywrightProperties properties, BrowserJournal journal) {
+            if (!properties.correlation() || properties.baseUrl() == null) {
+                return;
+            }
+            String origin = origin(properties.baseUrl());
+            if (origin == null) {
+                return;
+            }
+            String id = ScenarioContext.find(ScenarioKeys.CORRELATION_ID).orElseGet(() -> {
+                String generated = "tf-" + UUID.randomUUID();
+                ScenarioContext.put(ScenarioKeys.CORRELATION_ID, generated);
+                return generated;
+            });
+            String header = properties.correlationHeader();
+            journal.correlation(header, id);
+            context.route(url -> origin.equals(origin(url)), route -> {
+                Map<String, String> headers = new HashMap<>(route.request().headers());
+                // an id the page set itself wins, as with module-http
+                if (headers.keySet().stream().noneMatch(name -> name.equalsIgnoreCase(header))) {
+                    headers.put(header, id);
+                }
+                route.resume(new Route.ResumeOptions().setHeaders(headers));
+            });
+        }
+
+        static String origin(String url) {
+            try {
+                URI uri = URI.create(url);
+                if (uri.getScheme() == null || uri.getHost() == null) {
+                    return null;
+                }
+                String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
+                int port = uri.getPort() != -1 ? uri.getPort() : "https".equals(scheme) ? 443 : 80;
+                return scheme + "://" + uri.getHost().toLowerCase(Locale.ROOT) + ":" + port;
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
         }
 
         void captureFailureArtifacts(ExtensionContext extensionContext) {

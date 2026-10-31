@@ -10,7 +10,7 @@ requests carried nothing tying them to the scenario's backend logs.
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **The browser's side of a failure** — failed requests, console errors, page errors in `browser.md` next to the screenshot | `module-web-playwright` | shipped |
-| 2 | **Base URL and correlation** — relative navigation, and the scenario's correlation id on every browser request | `module-web-playwright` | planned |
+| 2 | **Base URL and correlation** — relative navigation, and the scenario's correlation id on every browser request | `module-web-playwright` | shipped |
 | 3 | **Review** — close the gaps a review of the module finds | `module-web-playwright` | planned |
 
 ## Step 1 — the browser's side of a failure
@@ -23,3 +23,16 @@ have crashed), then the screenshot and trace, all registered under the test's
 `testKey`. URLs are redacted; headers and bodies are never recorded.
 `PlaywrightFailureArtifactsIT` proves it on a real browser with a page whose
 API call returns 500.
+
+## Step 2 — base URL and correlation
+
+`forge.playwright.base-url` becomes the context's base URL, so tests navigate
+relatively. With it set, every request to that origin carries the scenario's
+`CORRELATION_ID` in `X-Request-Id` (the `module-http` default; configurable),
+generated and stored in `ScenarioContext` if the test has none yet — a UI
+test's backend logs and its API calls then share one id, and `browser.md`
+names it. The header is added by routing only same-origin requests: a
+browser-wide extra header would reach CDNs and identity providers and force
+CORS preflights they may refuse. Routing disables Playwright's HTTP cache for
+the context, so `correlation: false` remains available.
+`PlaywrightCorrelationIT` proves it with two origins on a real browser.
