@@ -19,6 +19,9 @@ public final class CapturedQueries {
     private static final Pattern NUMBER_LITERAL = Pattern.compile("\\b\\d+(\\.\\d+)?\\b");
     private static final Pattern IN_LIST = Pattern.compile("(?i)\\bIN\\s*\\(\\s*\\?(\\s*,\\s*\\?)*\\s*\\)");
     private static final Pattern SPACE = Pattern.compile("\\s+");
+    private static final Pattern WHERE = Pattern.compile("(?i)\\bWHERE\\b");
+    private static final Pattern BOUNDED_READ = Pattern.compile("(?i)\\b(WHERE|LIMIT|FETCH\\s+(FIRST|NEXT)|TOP)\\b");
+    private static final Pattern TABLES = Pattern.compile("(?i)\\b(?:FROM|JOIN)\\s+([\\w.\"`\\[\\]]+)");
 
     /**
      * One executed statement.
@@ -35,6 +38,39 @@ public final class CapturedQueries {
             folded = NUMBER_LITERAL.matcher(folded).replaceAll("?");
             folded = IN_LIST.matcher(folded).replaceAll("IN (?)");
             return SPACE.matcher(folded.strip()).replaceAll(" ");
+        }
+
+        /** The SQL with string literals blanked, so a {@code 'where'} inside one is not read as a clause. */
+        String withoutLiterals() {
+            return STRING_LITERAL.matcher(sql).replaceAll("''");
+        }
+
+        /** Tables named after {@code FROM} and {@code JOIN}, unquoted and lower-cased. */
+        public List<String> tables() {
+            List<String> tables = new ArrayList<>();
+            java.util.regex.Matcher matcher = TABLES.matcher(withoutLiterals());
+            while (matcher.find()) {
+                String name = matcher.group(1).replaceAll("[\"`\\[\\]]", "").toLowerCase(Locale.ROOT);
+                if (!name.isEmpty() && !name.startsWith("(") && !tables.contains(name)) {
+                    tables.add(name);
+                }
+            }
+            return tables;
+        }
+
+        /** An {@code UPDATE} or {@code DELETE} with no {@code WHERE}, or a {@code TRUNCATE}: every row of a table. */
+        public boolean unboundedWrite() {
+            String text = withoutLiterals();
+            Kind kind = kind();
+            if (kind == Kind.UPDATE || kind == Kind.DELETE) {
+                return !WHERE.matcher(text).find();
+            }
+            return kind == Kind.OTHER && text.strip().toUpperCase(Locale.ROOT).startsWith("TRUNCATE");
+        }
+
+        /** A {@code SELECT} from a table with no {@code WHERE}, {@code LIMIT}, {@code FETCH} or {@code TOP}: the whole table. */
+        public boolean unfilteredRead() {
+            return kind() == Kind.SELECT && !tables().isEmpty() && !BOUNDED_READ.matcher(withoutLiterals()).find();
         }
 
         public Kind kind() {
@@ -109,6 +145,12 @@ public final class CapturedQueries {
         return new Expectation(this);
     }
 
+    /** {@code public.orders} → {@code orders}, for matching an allow-list written without the schema. */
+    static String bareName(String table) {
+        int dot = table.lastIndexOf('.');
+        return dot < 0 ? table : table.substring(dot + 1);
+    }
+
     /** {@code 12 statements (SELECT 11, UPDATE 1)} and the shapes, most frequent first. */
     @Override
     public String toString() {
@@ -166,6 +208,40 @@ public final class CapturedQueries {
             });
             return check(repeated.isEmpty(), "statements repeated more than " + times + " times (N+1?): "
                     + repeated);
+        }
+
+        /**
+         * No {@code UPDATE} or {@code DELETE} without a {@code WHERE}, and no
+         * {@code TRUNCATE}: a write that reaches every row of a table is the
+         * missing tenant filter, the mass update a test then reads as "my row
+         * changed".
+         */
+        public Expectation noUnboundedWrites() {
+            return offending(Statement::unboundedWrite, "writes without a WHERE (every row of the table): ");
+        }
+
+        /**
+         * No {@code SELECT} reads a whole table — no {@code WHERE}, {@code LIMIT},
+         * {@code FETCH} or {@code TOP} — except from {@code allowedTables}
+         * (reference data: countries, currencies). Fine on test data, a full
+         * scan on production volumes.
+         */
+        public Expectation noUnfilteredReads(String... allowedTables) {
+            java.util.Set<String> allowed = new java.util.HashSet<>();
+            for (String table : allowedTables) {
+                allowed.add(table.toLowerCase(Locale.ROOT));
+            }
+            return offending(statement -> statement.unfilteredRead()
+                            && !allowed.containsAll(statement.tables().stream().map(CapturedQueries::bareName).toList()),
+                    "reads of a whole table (no WHERE or LIMIT): ");
+        }
+
+        private Expectation offending(java.util.function.Predicate<Statement> test, String message) {
+            Map<String, Integer> found = new LinkedHashMap<>();
+            queries.statements.stream().filter(test).forEach(s -> found.merge(s.shape(), s.batch(), Integer::sum));
+            List<String> lines = new ArrayList<>();
+            found.forEach((shape, n) -> lines.add(n + " × " + shape));
+            return check(found.isEmpty(), message + lines);
         }
 
         private Expectation check(boolean ok, String message) {
