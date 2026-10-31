@@ -35,7 +35,7 @@ template building blocks.
 
 | Module | Status note |
 |---|---|
-| `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
+| `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`; `Waiter` timeouts name the last value and the last poll error. Plan: [core-layer-roadmap.md](core-layer-roadmap.md). |
 | `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`; schemas drafted from real payloads; schema version changes classified for consumers. Plan: [contract-layer-roadmap.md](contract-layer-roadmap.md). |
 | `module-data` | Unique values, template rendering, generators, `Factory`, `@Prepared` pool SPI, `Cleanup`. Plan: [data-layer-roadmap.md](data-layer-roadmap.md). |
 | `module-db` | `DbWaiter` (repository or SQL value/count, parameters bound), repository polling, SQL logging, schema drift checks with documented limits, `DbState` table diffs and setup rows, SQL in failure diagnostics. Plan: [db-layer-roadmap.md](db-layer-roadmap.md). |

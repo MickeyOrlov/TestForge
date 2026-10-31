@@ -17,10 +17,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   thread sharing here.
 - `Waiter` is the only way to wait. Never add an overload that sleeps for a
   fixed time.
+- A `Waiter` timeout is a `WaitTimeoutException` extending Awaitility's
+  `ConditionTimeoutException`; modules catch the latter, keep the hierarchy.
 
 ## Tests
 
-Own: `ArtifactSinkTest`, `TestArtifactTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
+Own: `ArtifactSinkTest`, `TestArtifactTest`, `WaiterTest`. Example: `WaiterTimeoutExampleTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
 
 ## Before you finish
 

@@ -119,6 +119,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `core`: a `Waiter` timeout throws `WaitTimeoutException` (still a
+  `ConditionTimeoutException`) naming the last value the condition saw, the
+  last error a poll threw and the number of polls — instead of only "did not
+  complete within 30 seconds" while every poll's exception was ignored.
 - `module-mobile-appium`: a failing mobile test also leaves `session.md`
   (device, platform, hub, session id, the capabilities sent with secret-looking
   values masked) and `device.log` (the last 200 lines of `logcat`/`syslog`);
