@@ -12,6 +12,12 @@ or more modules need it.
   cleanup between tests, or call `ScenarioContext.clear()` in an after-hook.
 - **`Waiter`** — the single entry point for waiting on asynchronous effects.
   Polls with a deadline instead of sleeping. Defaults come from `forge.wait.*`.
+  A timeout throws `WaitTimeoutException` (a `ConditionTimeoutException`)
+  naming the last value seen and the last error a poll threw:
+
+  ```
+  Waited PT30S for job j-7 becomes Completed (61 polls); last value: Job[id=j-7, status=Failed]
+  ```
 
 ## Configuration
 
