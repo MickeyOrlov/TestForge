@@ -11,7 +11,8 @@ failure artifacts for CI diagnostics.
 - **`PlaywrightPageExtension`** — JUnit 5 fixture: declare `Page` in the test
   signature, the extension opens a fresh context and closes it after the test.
 - **Failure artifacts** — on test failure the extension stores
-  `screenshot.png` and `trace.zip` under `forge.playwright.artifacts-dir`.
+  `browser.md`, `screenshot.png` and `trace.zip` under
+  `forge.playwright.artifacts-dir/<Class>-<method>/`.
 
 ## Configuration
 
@@ -46,6 +47,32 @@ Locator conventions: stable hooks first (`data-testid` via `getByTestId`),
 roles second (`getByRole`), CSS selectors last. See `PlaywrightSmokeIT` in
 example-tests — run it with `./gradlew :example-tests:browsersTest` after
 `./gradlew :module-web-playwright:playwrightInstall`.
+
+`browser.md` is the text to read first — what the browser saw that a
+screenshot cannot show:
+
+```text
+# Browser — CheckoutTest-showsTheTotal
+
+- page: https://shop.test/app
+- title: Broken checkout
+
+## Failed requests
+
+- GET https://shop.test/api/cart?session=*** -> 500
+
+## Page errors
+
+- Error: cannot render the total
+
+## Console
+
+- error: cart failed with 500
+```
+
+It covers every page of the test's context (popups and new tabs too), keeps
+the last 50 entries of each kind, redacts URLs, and never records headers or
+bodies. `PlaywrightFailureArtifactsIT` shows it on a real browser.
 
 Failure artifacts are best-effort diagnostics: if screenshot or trace capture
 fails, the original test failure still wins and the artifact error is attached

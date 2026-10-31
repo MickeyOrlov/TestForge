@@ -15,6 +15,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Artifacts are written only on failure and are best-effort: the original test
   failure always wins, an artifact error is attached as suppressed.
 
+## Diagnostics
+
+- `browser.md` holds redacted URLs, statuses, console and page-error first
+  lines — never headers or bodies. Its listeners sit on the context, not the
+  page, so popups count.
+
 ## Tests
 
 Own: `TestForgePlaywrightAutoConfigurationTest` (offline, never launches a browser). Example: `PlaywrightSmokeIT` (`./gradlew :example-tests:browsersTest`).
