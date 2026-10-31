@@ -29,53 +29,53 @@ public record KafkaMessageFilter(
     }
 
     boolean matches(KafkaMessage message, ObjectMapper objectMapper) {
+        return mismatches(message, objectMapper).isEmpty();
+    }
+
+    /**
+     * The criteria {@code message} fails, by name only — {@code key},
+     * {@code header X-Scope}, {@code $.payload.status} — never the values, so a
+     * timeout can say how close a message came without printing its payload.
+     */
+    List<String> mismatches(KafkaMessage message, ObjectMapper objectMapper) {
+        List<String> failed = new ArrayList<>();
         if (topic != null && !topic.equals(message.topic())) {
-            return false;
+            failed.add("topic");
+            return failed;
         }
         if (key != null && !normalize(key).equals(normalize(message.key()))) {
-            return false;
+            failed.add("key");
         }
-        for (String fragment : valueContains) {
-            if (!message.value().contains(fragment)) {
-                return false;
+        for (int i = 0; i < valueContains.size(); i++) {
+            if (!message.value().contains(valueContains.get(i))) {
+                failed.add("value contains #" + (i + 1));
             }
         }
-        for (Map.Entry<String, String> expectedHeader : headerEquals.entrySet()) {
+        for (Map.Entry<String, String> expectedHeader : new java.util.TreeMap<>(headerEquals).entrySet()) {
             if (!expectedHeader.getValue().equals(message.headers().get(expectedHeader.getKey()))) {
-                return false;
+                failed.add("header " + expectedHeader.getKey());
             }
         }
         if (!jsonPathEquals.isEmpty() || !jsonPathContains.isEmpty()) {
             JsonNode root = readJson(message, objectMapper);
             if (root == null) {
-                return false;
+                failed.add("value is not JSON");
+                return failed;
             }
-            if (!matchesJsonEquals(root)) {
-                return false;
-            }
-            return matchesJsonContains(root);
+            new java.util.TreeMap<>(jsonPathEquals).forEach((path, expected) -> {
+                JsonNode value = JsonPath.read(root, path);
+                if (value.isMissingNode() || !expected.equals(text(value))) {
+                    failed.add(path);
+                }
+            });
+            new java.util.TreeMap<>(jsonPathContains).forEach((path, expected) -> {
+                JsonNode value = JsonPath.read(root, path);
+                if (value.isMissingNode() || !text(value).contains(expected)) {
+                    failed.add(path + " contains");
+                }
+            });
         }
-        return true;
-    }
-
-    private boolean matchesJsonEquals(JsonNode root) {
-        for (Map.Entry<String, String> expectedValue : jsonPathEquals.entrySet()) {
-            JsonNode value = JsonPath.read(root, expectedValue.getKey());
-            if (value.isMissingNode() || !expectedValue.getValue().equals(text(value))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean matchesJsonContains(JsonNode root) {
-        for (Map.Entry<String, String> expectedValue : jsonPathContains.entrySet()) {
-            JsonNode value = JsonPath.read(root, expectedValue.getKey());
-            if (value.isMissingNode() || !text(value).contains(expectedValue.getValue())) {
-                return false;
-            }
-        }
-        return true;
+        return failed;
     }
 
     private JsonNode readJson(KafkaMessage message, ObjectMapper objectMapper) {

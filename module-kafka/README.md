@@ -55,6 +55,33 @@ KafkaMessage message = kafkaProbe.awaitMessage(filter);
 contractValidator.assertValid(message.value(), contract);
 ```
 
+### What must not happen, and duplicates
+
+```java
+// the matching event, and no second one within 2s: a retrying producer's duplicate fails
+kafkaProbe.awaitExactlyOne(accepted, Duration.ofSeconds(2));
+
+// an event that must never be sent: fails if one is buffered or arrives within 3s
+kafkaProbe.assertNoMessage(refundFor(orderId), Duration.ofSeconds(3));
+```
+
+`findMessages(filter)` returns every buffered match, newest first.
+
+### When nothing matched
+
+A timeout names how close the topic's messages came, without printing any
+payload:
+
+```
+No Kafka message matching KafkaMessageFilter[topic=orders, key=o-1, ...].
+3 messages buffered on orders; closest:
+  - orders/0@0 key=o-1 — failed: $.status
+  - orders/0@1 key=o-2 — failed: key, header X-Scope
+```
+
+An empty topic says so and points at `forge.kafka.topics`: the most common
+reason is a topic the collector was never told to read.
+
 ## Agent notes
 
 - Contract checks compose in the test (`awaitMessage` + validator) — never

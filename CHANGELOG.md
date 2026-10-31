@@ -12,6 +12,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-kafka`: `awaitExactlyOne(filter, settle)` catches a duplicate,
+  `assertNoMessage(filter, window)` the event that must not be sent, and
+  `findMessages(filter)` returns every match. An `awaitMessage` timeout now
+  lists the closest buffered messages with the criteria each failed (by name,
+  never the payload), or says the topic had nothing buffered.
 - `module-api-explorer`: stub contract (`forge.stub-contract`).
   `StubContractChecker.assertHonoured(wireMock)` or `assertHonoured(stub)`
   checks what WireMock stubs answer against the downstream's OpenAPI document

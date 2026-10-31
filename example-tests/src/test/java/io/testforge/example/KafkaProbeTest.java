@@ -122,4 +122,21 @@ class KafkaProbeTest {
                 .required("$.payload.items[0].sku", FieldType.STRING)
                 .build();
     }
+
+    @Test
+    void theEventThatMustNotBeSentAndTheDuplicateAreAssertionsToo() {
+        String orderId = "order-" + java.util.UUID.randomUUID();
+        KafkaMessageFilter accepted = KafkaMessageFilter.builder().topic("partner.events").key(orderId)
+                .jsonPathEquals("$.payload.status", "accepted").build();
+        KafkaMessageFilter refunded = KafkaMessageFilter.builder().topic("partner.events").key(orderId)
+                .jsonPathEquals("$.payload.status", "refunded").build();
+
+        messages.append(new KafkaMessage("partner.events", 0, 7, orderId,
+                "{\"payload\":{\"status\":\"accepted\"}}", Instant.now(), Map.of()));
+
+        // exactly one: a retrying producer that sends the event twice fails here
+        assertThat(kafka.awaitExactlyOne(accepted, java.time.Duration.ofMillis(300)).offset()).isEqualTo(7);
+        // and an accepted order must never produce a refund
+        kafka.assertNoMessage(refunded, java.time.Duration.ofMillis(300));
+    }
 }
