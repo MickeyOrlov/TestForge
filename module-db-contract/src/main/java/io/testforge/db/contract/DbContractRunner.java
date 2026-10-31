@@ -116,6 +116,16 @@ public class DbContractRunner {
      */
     public DbSchemaSnapshot writeSnapshot(Path file) {
         DbSchemaSnapshot snapshot = capture();
+        if (snapshot.tables().isEmpty()) {
+            // An empty baseline is a gate that can never fail: every table then reads
+            // as added, and added is non-breaking. It is almost always a wrong schema
+            // name or an include-tables pattern that matches nothing.
+            throw new IllegalStateException("Refusing to write an empty schema snapshot to " + file
+                    + ": no table in schema '" + properties.schema() + "' matched include-tables '"
+                    + nullToEmpty(properties.includeTables()) + "' / exclude-tables '"
+                    + nullToEmpty(properties.excludeTables()) + "'. A baseline without tables gates nothing; "
+                    + "check forge.db-contract.schema and the table patterns.");
+        }
         snapshotStore.write(file, snapshot);
         return snapshot;
     }
@@ -171,6 +181,14 @@ public class DbContractRunner {
                     + "to start gating on it.", baselineFile);
         }
         DbSchemaSnapshot baseline = baselinePresent ? snapshotStore.read(baselineFile) : null;
+        if (baseline != null && !baseline.schema().equalsIgnoreCase(current.schema())) {
+            // Comparing two different schemas reports every table as removed and added:
+            // a wall of BREAKING lines about nothing that moved.
+            throw new IllegalStateException("Baseline " + baselineFile + " was captured for schema '"
+                    + baseline.schema() + "', but this check inspects '" + current.schema() + "'. Point "
+                    + "forge.db-contract.baseline-file at that schema's baseline, or capture one with "
+                    + "writeBaseline().");
+        }
         List<DbChangeAssessment> assessments = baselinePresent ? assess(baseline, current) : List.of();
         List<DbRenameCandidates.Candidate> renames = baselinePresent
                 ? DbRenameCandidates.find(baseline, current)
@@ -247,10 +265,21 @@ public class DbContractRunner {
                     + "or call run() instead when the intent is to report without gating. "
                     + "The schema captured by this run is at " + report.currentSnapshot() + ".");
         }
+        if (snapshotStore.read(Path.of(report.baselineSnapshot())).tables().isEmpty()) {
+            // Written before writeBaseline() refused empty schemas, or by hand: same
+            // reasoning — every table would read as added, and the gate never fails.
+            throw new IllegalStateException("Baseline " + report.baselineSnapshot() + " contains no tables, so "
+                    + "every table reads as added and nothing can fail the gate. Capture a baseline of the "
+                    + "schema the tests depend on with writeBaseline().");
+        }
         if (!report.compatible()) {
             throw new DbContractException(report);
         }
         return report;
+    }
+
+    private static String nullToEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     private List<DbChangeAssessment> assess(DbSchemaSnapshot baseline, DbSchemaSnapshot current) {

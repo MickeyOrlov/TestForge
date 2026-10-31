@@ -274,6 +274,49 @@ class DbContractRunnerTest {
     }
 
     @Test
+    void anEmptySchemaIsNeverPromotedToABaseline(@TempDir Path dir) {
+        DbContractRunner runner = runner(dir, schema(), properties(dir, null));
+
+        assertThatThrownBy(runner::writeBaseline)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Refusing to write an empty schema snapshot")
+                .hasMessageContaining("schema 'public'");
+        assertThat(dir.resolve("baseline/schema-snapshot.json")).doesNotExist();
+    }
+
+    @Test
+    void anEmptyBaselineFailsTheGateClosedInsteadOfPassingForever(@TempDir Path dir) {
+        writeBaseline(dir, schema());
+        DbContractRunner runner = runner(dir, BASELINE, properties(dir, null));
+
+        assertThat(runner.run().changes()).singleElement()
+                .satisfies(change -> assertThat(change.compatibility()).isEqualTo(DbCompatibility.NON_BREAKING));
+        assertThatThrownBy(runner::assertCompatible)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("contains no tables");
+    }
+
+    @Test
+    void aBaselineOfAnotherSchemaIsRefusedRatherThanDiffedIntoNoise(@TempDir Path dir) {
+        store.write(dir.resolve("baseline/schema-snapshot.json"),
+                io.testforge.db.contract.model.DbSchemaSnapshot.of("archive", BASELINE.tables()));
+        DbContractRunner runner = runner(dir, BASELINE, properties(dir, null));
+
+        assertThatThrownBy(runner::run)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("captured for schema 'archive', but this check inspects 'public'");
+    }
+
+    @Test
+    void schemaNamesAreComparedIgnoringTheCaseTheVendorReports(@TempDir Path dir) {
+        store.write(dir.resolve("baseline/schema-snapshot.json"),
+                io.testforge.db.contract.model.DbSchemaSnapshot.of("PUBLIC", BASELINE.tables()));
+        DbContractRunner runner = runner(dir, BASELINE, properties(dir, null));
+
+        assertThat(runner.assertCompatible().changes()).isEmpty();
+    }
+
+    @Test
     void riskyChangesPassUntilAProjectOptsIn(@TempDir Path dir) {
         writeBaseline(dir, BASELINE);
         DbSchemaSnapshot current = schema(table("orders", List.of(

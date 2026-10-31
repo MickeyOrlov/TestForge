@@ -9,8 +9,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Invariants (do not break)
 
-- Fail closed: `assertCompatible()` fails when disabled or when there is no
-  baseline.
+- Fail closed: `assertCompatible()` fails when disabled, when there is no
+  baseline, or when the baseline holds no tables; `writeBaseline()` never
+  writes an empty one, and a baseline of another schema is refused.
 - Generic JDBC retrieval on purpose; do not let SchemaCrawler pick a vendor
   plugin.
 - Identifiers are stored as the vendor reports them; snapshots are comparable

@@ -27,6 +27,12 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-db-contract`: `writeBaseline()` recorded an empty schema (a wrong
+  schema name or an `include-tables` pattern matching nothing) — a baseline
+  under which every table reads as added and the gate can never fail. It now
+  refuses, and `assertCompatible()` fails closed on an existing empty
+  baseline. A baseline captured for another schema is refused instead of
+  diffed into every table removed and added.
 - `module-api-fuzz`: a run whose Schemathesis process died before writing a
   report parsed the previous run's report from the same directory and
   presented its findings as this run's. Only a report the run itself wrote
