@@ -141,6 +141,6 @@ class PoolLifecycleTest {
     void preloadEntriesAreValidated() {
         assertThatThrownBy(() -> new DataProperties.PreloadEntry(" ", null, 1, 0)).hasMessageContaining("'type'");
         assertThatThrownBy(() -> new DataProperties.PreloadEntry("x", null, -1, 0)).hasMessageContaining("negative");
-        assertThat(new DataProperties(0, null).pool().preload()).isEmpty();
+        assertThat(new DataProperties(0, null, null).pool().preload()).isEmpty();
     }
 }

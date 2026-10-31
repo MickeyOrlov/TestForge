@@ -150,7 +150,11 @@ must not replace each other. `example-tests` is never published.
    product API, typically a module-flow run inside `prepare(tags)`), then
    inject objects into tests with `@Prepared` + `PreparedParameterResolver`.
    Stock hot variants with `pool.preload(...)` in a suite hook; wire refill
-   or metrics through `PoolEventListener`.
+   or metrics through `PoolEventListener`. Declare the product's objects as
+   `Factory` instances, put `f.tagged()` into a field the product stores
+   (name, email, reference) and set `forge.data.isolation.run-tag` to the CI
+   run id, so tests on a shared environment filter with `DataIsolation::owns`
+   and `Factory.create(...)` removes what they made.
 14. **module-flow**: use `FlowRunner` for long setup paths where a scenario must
    reach a deep state through deterministic transitions. Keep steps small and
    idempotent; the runner should make failures readable by showing the path.

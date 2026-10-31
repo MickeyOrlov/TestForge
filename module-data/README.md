@@ -14,6 +14,8 @@ Small helpers for data-heavy tests.
   overridable per field, with named traits (see below).
 - **`@Prepared` / `PreparedDataPool` / `PreparedDataProvider`** — fixture-style
   injection of prepared domain objects (see below).
+- **`DataIsolation` / `DataIsolationExtension`** — run and per-test tags inside
+  generated values, so parallel tests and runs never see each other's data.
 - **`Cleanup` / `CleanupExtension`** — undo what a test created (see below).
 
 The module does not ship **domain** Object Mothers (order payloads, user
@@ -72,6 +74,54 @@ Map<String, Object> invalid = ORDERS.without("quantity").build();  // the key is
   labels never repeat in a JVM. `f.unique(type, generator)` draws from a
   `RunUniqueValues` registry — the factory's own by default; pass the bean with
   `.uniqueValues(registry)` to share it with the rest of the suite.
+
+## Isolation: only ever see your own data
+
+On a shared environment a list endpoint returns everyone's data. Put a tag
+into a value the test sends anyway and filter by it:
+
+```java
+@ExtendWith({DataIsolationExtension.class, CleanupExtension.class})
+class CustomersTest {
+
+    static final Factory<Map<String, Object>> CUSTOMERS = Factory.map("customer")
+            .field("email", f -> f.tagged() + "@example.test");   // tf-k3x9q-t4-customer-1@example.test
+
+    @Test
+    void listsMyCustomers() {
+        String id = CUSTOMERS.create(c -> api.request().body(c).post("/customers").path("id"),
+                created -> api.request().delete("/customers/{id}", created));
+        List<String> mine = api.request().get("/customers").jsonPath().<String>getList("email")
+                .stream().filter(DataIsolation::owns).toList();
+        ...
+    }
+}
+```
+
+- The **run tag** (`tf-k3x9q`) is fixed per JVM: generated, or
+  `forge.data.isolation.run-tag` (a CI run id). With `DataIsolationExtension`
+  each test adds its own part (`tf-k3x9q-t4`); it is logged with the test name.
+  `DataIsolation.tag(value)`, `f.tagged()` and `scopeTag()` use the current one.
+- `owns(value)` — this test's data (the run's, outside a test); `ownedByRun`
+  — any test of this run; `isTestData` — any run with the prefix, for a
+  sweeper job that removes what crashed runs left behind. Tags match whole:
+  `t1` never owns `t17`.
+- `Factory.create(persist, undo)` builds, persists and registers the undo
+  with `Cleanup` as `"<factory> <result>"`; nothing is registered when
+  persisting throws.
+- List `DataIsolationExtension` before `CleanupExtension`, so undo actions
+  still run inside the test's tag.
+
+```yaml
+forge:
+  data:
+    isolation:
+      prefix: tf                    # letters and digits; marks test data of every run
+      run-tag: ${GITHUB_RUN_ID:}    # blank: generated once per JVM
+```
+
+The tag is per JVM, not per Spring context: set `run-tag` in the environment
+profile, never per test class.
 
 ## Prepared objects: `@Prepared` + pool
 
@@ -172,3 +222,6 @@ class OrdersTest {
   `AuthContext`).
 - Uniqueness comes from `RunUniqueValues` + `Generators`; do not invent
   ad-hoc random suffixes in tests.
+- Isolation comes from `DataIsolation` tags inside values the system already
+  stores (names, emails, references); do not add fields the product does not
+  have just to carry a tag.

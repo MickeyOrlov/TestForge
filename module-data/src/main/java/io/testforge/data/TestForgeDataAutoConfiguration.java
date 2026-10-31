@@ -1,6 +1,7 @@
 package io.testforge.data;
 
 import io.testforge.artifact.ArtifactSink;
+import io.testforge.data.isolation.DataIsolation;
 import io.testforge.data.prepared.PoolEventListener;
 import io.testforge.data.prepared.PoolLifecycle;
 import io.testforge.data.prepared.PreparedDataPool;
@@ -31,6 +32,17 @@ public class TestForgeDataAutoConfiguration {
             DataProperties properties,
             ObjectProvider<ArtifactSink> artifactSink) {
         return new PoolLifecycle(pool, properties.pool(), artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
+    }
+
+    /** Applies {@code forge.data.isolation} to {@link DataIsolation} when the context starts. */
+    @Bean
+    public DataIsolationSettings dataIsolationSettings(DataProperties properties) {
+        DataIsolation.configure(properties.isolation().prefix(), properties.isolation().runTag());
+        return new DataIsolationSettings(DataIsolation.runTag());
+    }
+
+    /** The run tag this context configured. */
+    public record DataIsolationSettings(String runTag) {
     }
 
     @Bean
