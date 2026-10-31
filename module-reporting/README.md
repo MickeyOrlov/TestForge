@@ -113,6 +113,27 @@ Artifacts are deterministically ordered by `createdAt` -> `source` -> `category`
 - **resource-usage.txt** (resource-usage): `module-reporting/resource-usage.txt`
 ```
 
+## A failed test's evidence in one place
+
+With the failure diagnostics of several modules on, one red test leaves its
+HTTP exchanges, its SQL, its Kafka traffic and a screenshot in four different
+module directories. `summary.md` gathers them under the test:
+
+```markdown
+## Failed tests
+
+### OrdersTest-pays
+
+- module-db (failed-test-sql): `module-db/OrdersTest-pays.md`
+- module-http (failed-test-http): `module-http/OrdersTest-pays.md`
+- module-kafka (failed-test-kafka): `module-kafka/OrdersTest-pays.md`
+- module-web-playwright (ui-failure): `module-web-playwright/OrdersTest-pays/screenshot.png`
+```
+
+The key is `<Class>-<method>`: the name of a `failed-test-*` report, or a
+producer's `testKey` metadata (Playwright sets it). A producer joining in
+names its report the same way or sets `testKey`.
+
 ## One run, however many Spring contexts
 
 A suite caches several Spring contexts, and each one writes the index when
