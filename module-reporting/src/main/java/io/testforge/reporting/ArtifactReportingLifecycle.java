@@ -104,6 +104,12 @@ public class ArtifactReportingLifecycle implements SmartLifecycle, DisposableBea
             } else if (sink != null) {
                 problems = List.of("Artifacts could not be collected from foreign sink: " + sink.getClass().getName());
             }
+            if (layout != null) {
+                // contexts that closed earlier in this JVM wrote into the same run: index theirs too
+                RunIndex merged = RunIndex.add(layout.runRoot(), artifacts, problems);
+                artifacts = merged.artifacts();
+                problems = merged.problems();
+            }
 
             if (manifestWriter != null && layout != null) {
                 manifestWriter.writeManifest(layout, artifacts, problems);

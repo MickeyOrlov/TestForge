@@ -16,6 +16,11 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-reporting`: a suite with several Spring contexts produced one run
+  directory per context, each with a partial index — or, with a fixed
+  `run-id`, an index holding only the last context's artifacts. The run id is
+  now generated once per JVM and every context writes the union of the
+  run's artifacts.
 - `module-contract`: an invalid JSON Schema failed with "Schema contract is
   not a valid JSON Schema" and no hint which one; the message now names the
   contract and the parser's reason.

@@ -7,7 +7,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `core` only. Producers depend on the `ArtifactSink` seam in `core`, never on this module.
 
+Plan: [docs/reporting-layer-roadmap.md](../docs/reporting-layer-roadmap.md).
+
 ## Invariants (do not break)
+
+- One generated run id per JVM; every context's index is the union of the run's artifacts (`RunIndex`).
 
 - Best-effort: a reporting failure never fails a test.
 - Relative paths only; no payload copying; producer metadata must be safe to
