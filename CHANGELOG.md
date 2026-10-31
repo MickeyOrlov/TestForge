@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: setup rows. `db.into("orders").keyedBy("id").insert(row)`
+  inserts one row, returns its key (given or generated) and registers its
+  `DELETE` with `module-data`'s `Cleanup`, so it is removed after the test
+  even when it fails, children before parents. New module edge
+  `module-db → module-data`.
 - `module-db`: SQL in failure diagnostics. With
   `forge.db.diagnostics.enabled=true` and `@ExtendWith(DbDiagnosticsExtension.class)`,
   a failed test publishes `module-db/<Class>-<method>.md` — its last

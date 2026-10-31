@@ -46,6 +46,15 @@ public final class DbState {
     }
 
     public TableQuery table(String table) {
-        return new TableQuery(dataSource != null ? dataSource : registry.resolveDefault(), table);
+        return new TableQuery(target(), table);
+    }
+
+    /** Rows a test inserts for its own setup, removed after it. */
+    public TableWriter into(String table) {
+        return new TableWriter(target(), table);
+    }
+
+    private DataSource target() {
+        return dataSource != null ? dataSource : registry.resolveDefault();
     }
 }

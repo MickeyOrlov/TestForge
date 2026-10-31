@@ -148,7 +148,7 @@ public final class TableQuery {
         return value;
     }
 
-    private static String identifier(String name, String what) {
+    static String identifier(String name, String what) {
         if (name == null || !IDENTIFIER.matcher(name).matches()) {
             throw new IllegalArgumentException("'" + name + "' is not a plain " + what + " name");
         }

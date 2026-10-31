@@ -2,6 +2,8 @@ dependencies {
     api platform(libs.spring.boot.dependencies)
 
     api project(":core")
+    // TableWriter registers each inserted row's delete with Cleanup
+    api project(":module-data")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api "jakarta.persistence:jakarta.persistence-api"
 
