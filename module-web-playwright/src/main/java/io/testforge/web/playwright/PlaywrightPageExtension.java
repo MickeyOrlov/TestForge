@@ -136,7 +136,9 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
             Path path = directory.resolve(file);
             if (Files.isRegularFile(path)) {
                 artifactSink.registerFile(SOURCE, "ui-failure", directory.getFileName() + "/" + file, path, mediaType,
-                        Map.of("test", extensionContext.getDisplayName()));
+                        // testKey matches the <Class>-<method> name of the HTTP, SQL and Kafka reports of the test
+                        Map.of("test", extensionContext.getDisplayName(),
+                                "testKey", String.valueOf(directory.getFileName())));
             }
         }
 

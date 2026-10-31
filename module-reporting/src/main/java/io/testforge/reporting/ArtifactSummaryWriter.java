@@ -77,6 +77,19 @@ public class ArtifactSummaryWriter {
                 sb.append("\n");
             }
 
+            Map<String, List<TestArtifact>> failedTests = failedTests(safeArtifacts);
+            if (!failedTests.isEmpty()) {
+                sb.append("## Failed tests\n\n");
+                failedTests.forEach((test, evidence) -> {
+                    sb.append("### ").append(test).append("\n\n");
+                    for (TestArtifact artifact : evidence) {
+                        sb.append("- ").append(artifact.source()).append(" (").append(artifact.category())
+                                .append("): ").append(displayPath(layout, runRoot, artifact)).append("\n");
+                    }
+                    sb.append("\n");
+                });
+            }
+
             sb.append("## Diagnostics by Source\n\n");
             if (safeArtifacts.isEmpty()) {
                 sb.append("No artifacts recorded.\n\n");
@@ -116,6 +129,39 @@ public class ArtifactSummaryWriter {
             log.warn("Failed to write summary.md to {}: {}", runRoot, e.getMessage(), e);
             return Optional.empty();
         }
+    }
+
+    /**
+     * A failed test's evidence from every module, under the test: the HTTP
+     * exchanges, the SQL, the Kafka traffic and the screenshot of one failure
+     * read together. The key is metadata {@code testKey}, else — for a
+     * {@code failed-test-*} report named {@code <Class>-<method>.md} — the
+     * name without its extension, else metadata {@code test}.
+     */
+    static Map<String, List<TestArtifact>> failedTests(List<TestArtifact> artifacts) {
+        Map<String, List<TestArtifact>> byTest = new java.util.TreeMap<>();
+        for (TestArtifact artifact : artifacts) {
+            String key = testKey(artifact);
+            if (key != null) {
+                byTest.computeIfAbsent(key, ignored -> new java.util.ArrayList<>()).add(artifact);
+            }
+        }
+        return byTest;
+    }
+
+    private static String testKey(TestArtifact artifact) {
+        Map<String, String> metadata = artifact.metadata() == null ? Map.of() : artifact.metadata();
+        if (metadata.get("testKey") != null && !metadata.get("testKey").isBlank()) {
+            return metadata.get("testKey");
+        }
+        String category = artifact.category() == null ? "" : artifact.category();
+        if (category.startsWith("failed-test")) {
+            String name = artifact.name() == null ? "" : artifact.name();
+            int dot = name.lastIndexOf('.');
+            return dot > 0 ? name.substring(0, dot) : name;
+        }
+        String test = metadata.get("test");
+        return category.endsWith("-failure") && test != null && !test.isBlank() ? test : null;
     }
 
     /** Metadata keys that describe a producer's verdict, in display order. */
