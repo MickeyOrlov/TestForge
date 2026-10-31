@@ -61,6 +61,27 @@ class FlowRunnerTest {
     }
 
     @Test
+    void aFlowWithDeclaredTransitionsIsVerifiedAndDrawnBeforeItRuns() {
+        FlowRunner<ApprovalState> runner = flows.create("approval", List.of(
+                FlowStep.of(ApprovalState.SUBMITTED,
+                        ctx -> "MANAGER".equals(ctx.get("role", String.class))
+                                ? ApprovalState.MANAGER_REVIEW : ApprovalState.OPERATOR_REVIEW,
+                        ApprovalState.OPERATOR_REVIEW, ApprovalState.MANAGER_REVIEW),
+                FlowStep.of(ApprovalState.OPERATOR_REVIEW, ctx -> ApprovalState.APPROVED, ApprovalState.APPROVED),
+                FlowStep.of(ApprovalState.MANAGER_REVIEW, ctx -> ApprovalState.APPROVED, ApprovalState.APPROVED)));
+
+        // no dead end, and the target is reachable: checked without calling the system
+        runner.assertValid(ApprovalState.SUBMITTED, ApprovalState.APPROVED);
+        // paste into a README or review: ```mermaid
+        assertThat(runner.describe()).contains("SUBMITTED --> MANAGER_REVIEW", "SUBMITTED --> OPERATOR_REVIEW");
+
+        FlowContext manager = new FlowContext();
+        manager.put("role", "MANAGER");
+        assertThat(runner.run(ApprovalState.SUBMITTED, ApprovalState.APPROVED, manager).path())
+                .containsExactly(ApprovalState.SUBMITTED, ApprovalState.MANAGER_REVIEW, ApprovalState.APPROVED);
+    }
+
+    @Test
     void roleBasedApprovalPath() {
         FlowRunner<ApprovalState> runner = flows.create(List.of(
                 new RoleBranchStep(ApprovalState.SUBMITTED),

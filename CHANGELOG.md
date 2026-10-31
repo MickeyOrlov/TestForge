@@ -21,6 +21,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-flow`: declared transitions. `FlowStep.of(state, action, next...)`
+  states where a step may go; returning anything else fails at once.
+  `FlowRunner.verify(start, target)` / `assertValid` find dead ends and an
+  unreachable target before running, `describe()` renders a Mermaid state
+  diagram. Optional: `FlowStep.declaredNext()` defaults to empty.
 - `module-flow`: timed transitions. `FlowResult.transitions()` lists every
   step taken with its duration (`FlowTransition`), `duration()` the total; a
   timed-out flow names its slowest step, a failed step says how long it ran,
