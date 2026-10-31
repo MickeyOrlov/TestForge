@@ -9,7 +9,7 @@ wrote them.
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Compile check** — every generated spec compiled right after it is written; errors by file and line in the report; names Java will not take renamed | `module-api-codegen` | shipped |
-| 2 | **Documented clients** — the document's summaries, descriptions and expected statuses as Javadoc, with comment-breaking text neutralised | `module-api-codegen` | planned |
+| 2 | **Documented clients** — the document's summaries, descriptions and expected statuses as Javadoc, with comment-breaking text neutralised | `module-api-codegen` | shipped |
 | 3 | **What regeneration changed** — the generated surface compared with the previous run; a removed method or a changed signature called out as breaking for the tests that use it | `module-api-codegen` | planned |
 | 4 | **Review** — close the gaps a review of the module finds | `module-api-codegen` | planned |
 
@@ -32,3 +32,17 @@ Running it against awkward but legal documents found what it was built for:
   `@JsonProperty`;
 - an operation id like `toString` gets a `Call` suffix; parameters named `api`
   or `requestSpec` no longer collide with the generated method's own names.
+
+## Step 2 — documented clients
+
+The tag description goes on the client; summary and description on each
+method, then `<code>GET /tasks/{id}</code> — responds <code>200 Task</code>,
+<code>404</code>`; the schema description on each record, with property and
+parameter descriptions as `@param`.
+
+Document text is input that ends up inside generated Java. Left as it was, a
+description containing `*/` closes the comment and the rest compiles as code
+— a test shows a hostile document that would add a field and a static
+initialiser. `*/`, `/*`, backslashes (the compiler decodes `\u002a/` inside
+comments), `@`, braces and HTML are escaped; the hostile document compiles to
+classes with only their generated members.

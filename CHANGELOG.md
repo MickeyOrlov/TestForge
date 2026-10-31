@@ -59,6 +59,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-codegen`: generated clients and records carry the document's
+  words as Javadoc — tag, summary and description, the call with the statuses
+  it responds with (model named where one exists), parameter and property
+  descriptions. Document text is escaped so it cannot end the comment and add
+  code to a generated class.
 - `module-api-codegen`: every generated spec is compiled right after it is
   written (`forge.api-codegen.compile`, default `true`) into
   `<output-dir>/<spec>/classes`; a spec that does not compile fails and the

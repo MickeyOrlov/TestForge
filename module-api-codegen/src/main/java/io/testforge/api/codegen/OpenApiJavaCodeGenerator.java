@@ -38,7 +38,7 @@ public final class OpenApiJavaCodeGenerator {
         models.discoverNestedModels();
 
         List<GeneratedSource> sources = new ArrayList<>(models.render());
-        List<GeneratedSource> clients = renderClients(operations, models, specPackage + ".client");
+        List<GeneratedSource> clients = renderClients(operations, models, specPackage + ".client", tagDescriptions(openApi));
         sources.addAll(clients);
         sources.sort(Comparator.comparing(GeneratedSource::relativePath));
 
@@ -77,7 +77,8 @@ public final class OpenApiJavaCodeGenerator {
     private List<GeneratedSource> renderClients(
             List<OperationDefinition> operations,
             ModelRegistry models,
-            String clientPackage) {
+            String clientPackage,
+            Map<String, String> tagDescriptions) {
         Map<String, List<OperationDefinition>> byTag = new TreeMap<>();
         for (OperationDefinition operation : operations) {
             byTag.computeIfAbsent(tag(operation.operation()), ignored -> new ArrayList<>()).add(operation);
@@ -87,7 +88,8 @@ public final class OpenApiJavaCodeGenerator {
         List<GeneratedSource> clients = new ArrayList<>();
         for (Map.Entry<String, List<OperationDefinition>> entry : byTag.entrySet()) {
             String clientName = unique(JavaNames.type(entry.getKey()) + "ApiClient", usedClientNames);
-            clients.add(renderClient(clientPackage, clientName, entry.getValue(), models));
+            clients.add(renderClient(clientPackage, clientName, entry.getValue(), models,
+                    tagDescriptions.get(entry.getKey())));
         }
         return List.copyOf(clients);
     }
@@ -96,7 +98,8 @@ public final class OpenApiJavaCodeGenerator {
             String clientPackage,
             String clientName,
             List<OperationDefinition> operations,
-            ModelRegistry models) {
+            ModelRegistry models,
+            String tagDescription) {
         StringBuilder methods = new StringBuilder();
         Set<String> methodNames = new LinkedHashSet<>();
         Set<String> usedModels = new TreeSet<>();
@@ -117,7 +120,7 @@ public final class OpenApiJavaCodeGenerator {
         usedModels.forEach(model -> source.append("import ").append(models.modelPackage).append('.')
                 .append(model).append(";\n"));
         source.append("\n")
-                .append("/** Generated from OpenAPI. Regenerate instead of editing this file. */\n")
+                .append(javadoc("", paragraphs(tagDescription), List.of()))
                 .append("public final class ").append(clientName).append(" {\n\n")
                 .append("    private final ApiClient api;\n\n")
                 .append("    public ").append(clientName).append("(ApiClient api) {\n")
@@ -165,7 +168,8 @@ public final class OpenApiJavaCodeGenerator {
                     parameter.getName(),
                     location,
                     required,
-                    type));
+                    type,
+                    parameter.getDescription()));
         }
 
         RequestSchema request = requestSchema(operation);
@@ -182,7 +186,8 @@ public final class OpenApiJavaCodeGenerator {
                     "request",
                     "body",
                     required,
-                    requestType));
+                    requestType,
+                    operation.getRequestBody().getDescription()));
         }
 
         boolean acceptsJson = responseContentTypes(operation).stream().anyMatch(this::isJson);
@@ -193,12 +198,111 @@ public final class OpenApiJavaCodeGenerator {
                 request == null ? null : request.contentType(),
                 acceptsJson,
                 Boolean.TRUE.equals(operation.getDeprecated()),
-                parameters);
+                parameters,
+                operation.getSummary(),
+                operation.getDescription(),
+                responses(operation, models));
+    }
+
+    /** {@code 200 Task}, {@code 404}: what the document says comes back, model named where one exists. */
+    private List<String> responses(Operation operation, ModelRegistry models) {
+        if (operation.getResponses() == null) {
+            return List.of();
+        }
+        List<String> responses = new ArrayList<>();
+        operation.getResponses().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(response -> {
+                    Content content = response.getValue() == null ? null : response.getValue().getContent();
+                    Map.Entry<String, MediaType> selected = preferredContent(content);
+                    String type = selected == null || selected.getValue() == null
+                            ? null
+                            : models.knownType(selected.getValue().getSchema());
+                    responses.add(type == null ? response.getKey() : response.getKey() + " " + type);
+                });
+        return List.copyOf(responses);
+    }
+
+    private Map<String, String> tagDescriptions(OpenAPI openApi) {
+        Map<String, String> descriptions = new TreeMap<>();
+        if (openApi.getTags() != null) {
+            openApi.getTags().stream()
+                    .filter(tag -> tag != null && tag.getName() != null && tag.getDescription() != null)
+                    .forEach(tag -> descriptions.putIfAbsent(tag.getName(), tag.getDescription()));
+        }
+        return descriptions;
+    }
+
+    /**
+     * A Javadoc block from document text. The text is the document's, not
+     * ours: {@link JavaNames#javadocText} keeps it from closing the comment or
+     * reading as a tag. {@code tags} are lines built from already-safe parts
+     * ({@code @param ...}, the operation line) and are written as they are.
+     */
+    private static String javadoc(String indent, List<String> paragraphs, List<String> tags) {
+        return javadoc(indent, paragraphs, tags, true);
+    }
+
+    private static String javadoc(String indent, List<String> paragraphs, List<String> tags, boolean typeNote) {
+        List<String> lines = new ArrayList<>();
+        for (String paragraph : paragraphs) {
+            if (!lines.isEmpty()) {
+                lines.add("");
+            }
+            paragraph.lines().forEach(line -> lines.add(JavaNames.javadocText(line.strip())));
+        }
+        if (typeNote) {
+            if (!lines.isEmpty()) {
+                lines.add("");
+            }
+            lines.add((lines.isEmpty() ? "" : "<p>") + "Generated from OpenAPI. Regenerate instead of editing this file.");
+        }
+        if (!tags.isEmpty()) {
+            if (!lines.isEmpty()) {
+                lines.add("");
+            }
+            lines.addAll(tags);
+        }
+        StringBuilder out = new StringBuilder(indent).append("/**\n");
+        lines.forEach(line -> out.append(indent).append(line.isEmpty() ? " *" : " * " + line).append('\n'));
+        return out.append(indent).append(" */\n").toString();
+    }
+
+    private static List<String> paragraphs(String... texts) {
+        List<String> paragraphs = new ArrayList<>();
+        for (String text : texts) {
+            if (text != null && !text.isBlank()) {
+                paragraphs.add(text.strip());
+            }
+        }
+        return paragraphs;
+    }
+
+    private static String paramTag(String name, String description) {
+        String text = description == null || description.isBlank()
+                ? ""
+                : " " + JavaNames.javadocText(description.strip().replaceAll("\\s+", " "));
+        return "@param " + name + text;
     }
 
     private String renderMethod(ClientMethod method) {
         StringBuilder source = new StringBuilder();
         source.append("\n");
+        List<String> tags = method.parameters().stream()
+                .filter(parameter -> parameter.description() != null && !parameter.description().isBlank())
+                .map(parameter -> paramTag(parameter.javaName(), parameter.description()))
+                .toList();
+        // <code> rather than {@code}: entities are decoded in the one, shown as written in the other
+        String call = "<code>" + method.httpMethod() + " " + JavaNames.javadocText(method.path()) + "</code>"
+                + (method.responses().isEmpty() ? "" : " — responds "
+                        + String.join(", ", method.responses().stream()
+                                .map(response -> "<code>" + JavaNames.javadocText(response) + "</code>").toList()));
+        List<String> tagLines = new ArrayList<>(List.of(call));
+        if (!tags.isEmpty()) {
+            tagLines.add("");
+            tagLines.addAll(tags);
+        }
+        source.append(javadoc("    ", paragraphs(method.summary(), method.description()), tagLines, false));
         if (method.deprecated()) {
             source.append("    @Deprecated\n");
         }
@@ -395,7 +499,10 @@ public final class OpenApiJavaCodeGenerator {
             String requestContentType,
             boolean acceptsJson,
             boolean deprecated,
-            List<MethodParameter> parameters) {
+            List<MethodParameter> parameters,
+            String summary,
+            String description,
+            List<String> responses) {
     }
 
     private record MethodParameter(
@@ -403,7 +510,8 @@ public final class OpenApiJavaCodeGenerator {
             String wireName,
             String location,
             boolean required,
-            JavaType type) {
+            JavaType type,
+            String description) {
     }
 
     /** A Java type and the generated models it mentions, so a client imports exactly those. */
@@ -540,7 +648,8 @@ public final class OpenApiJavaCodeGenerator {
                                         entry.getValue(),
                                         name + JavaNames.type(entry.getKey()),
                                         required.contains(entry.getKey()),
-                                        false)));
+                                        false),
+                                entry.getValue() == null ? null : entry.getValue().getDescription()));
                     });
 
             StringBuilder source = new StringBuilder();
@@ -548,7 +657,11 @@ public final class OpenApiJavaCodeGenerator {
             if (fields.stream().anyMatch(ModelProperty::jsonProperty)) {
                 source.append("\nimport com.fasterxml.jackson.annotation.JsonProperty;\n");
             }
-            source.append("\n/** Generated from OpenAPI. Regenerate instead of editing this file. */\n")
+            List<String> tags = fields.stream()
+                    .filter(field -> field.description() != null && !field.description().isBlank())
+                    .map(field -> paramTag(field.javaName(), field.description()))
+                    .toList();
+            source.append("\n").append(javadoc("", paragraphs(schema.getDescription()), tags))
                     .append("public record ").append(name).append("(");
             if (fields.isEmpty()) {
                 source.append(") {\n}\n");
@@ -618,6 +731,25 @@ public final class OpenApiJavaCodeGenerator {
                 case "string" -> JavaType.plain(stringType(schema.getFormat()));
                 default -> JavaType.plain("Object");
             };
+        }
+
+        /**
+         * The type a response schema already maps to — a model, or a list of
+         * one — without registering anything: models are rendered before
+         * clients, so a type first named here would never be written.
+         */
+        private String knownType(Schema<?> schema) {
+            if (schema == null) {
+                return null;
+            }
+            String reference = referenceName(schema);
+            String known = namesByIdentity.get(reference == null ? schema : component(reference));
+            if (known != null) {
+                return known;
+            }
+            Schema<?> items = arrayItems(schema);
+            String item = items == null ? null : knownType(items);
+            return item == null ? null : "List<" + item + ">";
         }
 
         private String register(String requestedName, Schema<?> schema) {
@@ -779,6 +911,7 @@ public final class OpenApiJavaCodeGenerator {
             String wireName,
             String javaName,
             boolean jsonProperty,
-            JavaType type) {
+            JavaType type,
+            String description) {
     }
 }
