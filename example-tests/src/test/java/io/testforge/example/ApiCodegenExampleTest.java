@@ -59,6 +59,18 @@ class ApiCodegenExampleTest {
                 .contains("<code>POST /api/v1/tasks</code> — responds <code>201 Task</code>");
     }
 
+    @Test
+    void regeneratingSaysWhatChangedForTheTestsThatUseTheSources() {
+        assertThat(codegen.assertGenerated().specs().getFirst().comparedWith())
+                .as("a first generation has nothing to compare with").isNull();
+
+        ApiCodegenReport again = codegen.assertGenerated();
+
+        // the previous run's surface.json is the baseline; the same document changes nothing
+        assertThat(again.specs().getFirst().comparedWith()).endsWith("surface.json");
+        assertThat(again.specs().getFirst().changes()).isEmpty();
+    }
+
     private void deleteIfExists(Path path) throws IOException {
         if (!Files.exists(path)) {
             return;

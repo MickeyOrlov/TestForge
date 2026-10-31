@@ -36,6 +36,9 @@ forge:
     enabled: true
     output-dir: build/generated/testforge
     base-package: com.example.tests.generated
+    compile: true                       # compile each spec right after writing it
+    surface-baseline-dir:               # <spec>/surface.json to compare with; unset = previous run
+    fail-on-breaking-changes: false     # fail a spec that would break tests built on the baseline
 ```
 
 The spec registry is shared with `module-api-discovery`; locations are not
@@ -83,6 +86,36 @@ as a `@param`. The text is the document's, so it is treated as input: `*/`,
 backslashes (a unicode escape decodes inside comments too), a leading `@`,
 braces and HTML are escaped. A description cannot end the comment and add
 code to a generated class.
+
+## What regeneration changed
+
+Each generation writes `<output-dir>/<spec>/surface.json` — every client method
+with its parameters, every record with its components, types only — and
+compares itself with the previous one. `report.md` gets a section per spec:
+
+```text
+### What changed for tests
+
+- BREAKING `CreateTaskRequest.priority`: component added Integer: the record is built by tests, and every new CreateTaskRequest(...) call needs one more argument
+- BREAKING `TasksApiClient.listTasks`: method removed: tests that use it no longer compile
+- RISKY `TasksApiClient.search`: parameters renamed or reordered (String owner, String status) -> (String status, String owner): calls still compile and may now pass values to the wrong parameter
+- SAFE `Task.status`: component added String
+```
+
+A record tests build — a request body and whatever sits inside one — breaks on
+a new component; a response-only record does not, because tests only read it.
+The same changes are on `ApiCodegenSpecReport.changes()` and
+`breakingChanges()`.
+
+By default the baseline is the previous run's own output, which helps locally
+after pulling a new document. A clean CI checkout has none, so point
+`forge.api-codegen.surface-baseline-dir` at a directory holding
+`<spec>/surface.json` from the last accepted generation (a CI artifact or a
+checked-in copy), and set `forge.api-codegen.fail-on-breaking-changes=true`
+to fail a spec whose new sources would break tests compiled against it.
+Promoting a new baseline is copying the new `surface.json` there in a reviewed
+change, never a side effect of the check. A failed generation keeps the old
+`surface.json`, so the next successful run still compares with it.
 
 ## Compile check
 

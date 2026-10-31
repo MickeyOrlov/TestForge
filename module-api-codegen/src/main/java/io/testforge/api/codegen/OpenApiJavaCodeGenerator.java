@@ -38,7 +38,10 @@ public final class OpenApiJavaCodeGenerator {
         models.discoverNestedModels();
 
         List<GeneratedSource> sources = new ArrayList<>(models.render());
-        List<GeneratedSource> clients = renderClients(operations, models, specPackage + ".client", tagDescriptions(openApi));
+        Map<String, Map<String, String>> clientMembers = new TreeMap<>();
+        Set<String> requestModels = new TreeSet<>();
+        List<GeneratedSource> clients = renderClients(operations, models, specPackage + ".client",
+                tagDescriptions(openApi), clientMembers, requestModels);
         sources.addAll(clients);
         sources.sort(Comparator.comparing(GeneratedSource::relativePath));
 
@@ -48,7 +51,34 @@ public final class OpenApiJavaCodeGenerator {
                 clients.size(),
                 operations.size(),
                 sources,
-                List.copyOf(models.warnings));
+                List.copyOf(models.warnings),
+                surface(models, clientMembers, requestModels));
+    }
+
+    private GeneratedSurface surface(
+            ModelRegistry models,
+            Map<String, Map<String, String>> clientMembers,
+            Set<String> requestModels) {
+        // a record a test builds: a request body, and everything reachable inside one
+        Set<String> constructed = new TreeSet<>();
+        ArrayDeque<String> reachable = new ArrayDeque<>(requestModels);
+        while (!reachable.isEmpty()) {
+            String model = reachable.removeFirst();
+            if (constructed.add(model)) {
+                reachable.addAll(models.modelRefs.getOrDefault(model, Set.of()));
+            }
+        }
+        Map<String, GeneratedSurface.TypeSurface> types = new TreeMap<>();
+        models.modelMembers.forEach((name, members) -> types.put(name,
+                new GeneratedSurface.TypeSurface("record", constructed.contains(name), members)));
+        clientMembers.forEach((name, members) -> types.put(name,
+                new GeneratedSurface.TypeSurface("client", false, members)));
+        return new GeneratedSurface(types);
+    }
+
+    /** {@code java.util.List<java.time.LocalDate>} → {@code List<LocalDate>}: how a test writes it. */
+    private static String simple(String declaration) {
+        return declaration.replace("java.util.", "").replace("java.time.", "").replace("java.math.", "");
     }
 
     private List<OperationDefinition> operations(OpenAPI openApi) {
@@ -78,7 +108,9 @@ public final class OpenApiJavaCodeGenerator {
             List<OperationDefinition> operations,
             ModelRegistry models,
             String clientPackage,
-            Map<String, String> tagDescriptions) {
+            Map<String, String> tagDescriptions,
+            Map<String, Map<String, String>> clientMembers,
+            Set<String> requestModels) {
         Map<String, List<OperationDefinition>> byTag = new TreeMap<>();
         for (OperationDefinition operation : operations) {
             byTag.computeIfAbsent(tag(operation.operation()), ignored -> new ArrayList<>()).add(operation);
@@ -88,8 +120,10 @@ public final class OpenApiJavaCodeGenerator {
         List<GeneratedSource> clients = new ArrayList<>();
         for (Map.Entry<String, List<OperationDefinition>> entry : byTag.entrySet()) {
             String clientName = unique(JavaNames.type(entry.getKey()) + "ApiClient", usedClientNames);
+            Map<String, String> members = new LinkedHashMap<>();
             clients.add(renderClient(clientPackage, clientName, entry.getValue(), models,
-                    tagDescriptions.get(entry.getKey())));
+                    tagDescriptions.get(entry.getKey()), members, requestModels));
+            clientMembers.put(clientName, members);
         }
         return List.copyOf(clients);
     }
@@ -99,7 +133,9 @@ public final class OpenApiJavaCodeGenerator {
             String clientName,
             List<OperationDefinition> operations,
             ModelRegistry models,
-            String tagDescription) {
+            String tagDescription,
+            Map<String, String> members,
+            Set<String> requestModels) {
         StringBuilder methods = new StringBuilder();
         Set<String> methodNames = new LinkedHashSet<>();
         Set<String> usedModels = new TreeSet<>();
@@ -107,6 +143,10 @@ public final class OpenApiJavaCodeGenerator {
         for (OperationDefinition operation : operations) {
             ClientMethod method = clientMethod(operation, models, methodNames);
             method.parameters().forEach(parameter -> usedModels.addAll(parameter.type().models()));
+            requestModels.addAll(usedModels);
+            members.put(method.name(), method.parameters().stream()
+                    .map(parameter -> simple(parameter.type().declaration()) + " " + parameter.javaName())
+                    .collect(java.util.stream.Collectors.joining(", ", "(", ")")));
             methods.append(renderMethod(method));
         }
 
@@ -534,6 +574,9 @@ public final class OpenApiJavaCodeGenerator {
         private final Map<Schema<?>, String> namesByIdentity = new IdentityHashMap<>();
         private final ArrayDeque<String> pending = new ArrayDeque<>();
         private final Set<String> warnings = new TreeSet<>();
+        /** Filled while rendering: each record's components, and the models they mention. */
+        private final Map<String, Map<String, String>> modelMembers = new TreeMap<>();
+        private final Map<String, Set<String>> modelRefs = new TreeMap<>();
 
         private ModelRegistry(OpenAPI openApi, String modelPackage) {
             this.openApi = openApi;
@@ -651,6 +694,15 @@ public final class OpenApiJavaCodeGenerator {
                                         false),
                                 entry.getValue() == null ? null : entry.getValue().getDescription()));
                     });
+
+            Map<String, String> members = new LinkedHashMap<>();
+            Set<String> refs = new TreeSet<>();
+            fields.forEach(field -> {
+                members.put(field.javaName(), simple(field.type().declaration()));
+                refs.addAll(field.type().models());
+            });
+            modelMembers.put(name, members);
+            modelRefs.put(name, refs);
 
             StringBuilder source = new StringBuilder();
             source.append("package ").append(modelPackage).append(";\n");
