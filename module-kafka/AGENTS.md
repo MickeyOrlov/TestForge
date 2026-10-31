@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-kafka`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `KafkaMessageBuffer`, `KafkaProbe`, `KafkaMessageFilter`, optional `KafkaPollingCollector`.
+**Scope:** `KafkaMessageBuffer`, `KafkaProbe` (await, exactly one, none within a window), `KafkaMessageFilter`, optional `KafkaPollingCollector`. Plan: [docs/kafka-layer-roadmap.md](../docs/kafka-layer-roadmap.md).
 
 **May depend on:** `core` only. Never add a dependency on `module-contract`; they compose in the test.
 
@@ -11,7 +11,8 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 - Bounded buffer, newest-first search.
 - Collector runs only with `forge.kafka.enabled=true`.
-- Waiting goes through `Waiter`.
+- Waiting goes through `Waiter`; absence and settle windows use Awaitility's `during` — never a sleep.
+- Failure messages name offsets, keys and failed criteria, never a payload.
 
 ## Tests
 
