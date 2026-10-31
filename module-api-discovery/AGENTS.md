@@ -7,7 +7,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `core` only. It owns the `forge.api-discovery.specs` registry the other `module-api-*` reuse.
 
+Plan: [docs/discovery-layer-roadmap.md](../docs/discovery-layer-roadmap.md).
+
 ## Invariants (do not break)
+
+- Change impact is judged from the client's side: requests and responses in opposite directions; composed or unresolved schemas are UNKNOWN.
 
 - Offline: specs come from local files in the default build; URL specs only in
   environment profiles.

@@ -27,6 +27,7 @@ forge:
     baseline-dir: build/api-discovery/baseline
     fail-on-catalog-diff: true
     fail-on-shape-diff: true
+    fail-on-breaking-only: false   # true: fail only on changes that break clients
     specs:
       billing:
         location: classpath:/openapi/billing.yaml
@@ -61,6 +62,28 @@ Artifacts are written under `forge.api-discovery.output-dir`:
 
 If no baseline exists, current artifacts are written and the first run does not
 fail on diffs. Parser errors still fail the report.
+
+## What changed, for clients
+
+Every catalog and shape difference is also judged from the client's side and
+listed under *What changed for clients* in `report.md` (`ApiSpecReport.changes()`):
+
+```
+BREAKING GET /legacy: operation removed
+BREAKING POST /payments request $.currency: new required field: clients do not send it
+BREAKING POST /payments response 201 $.id: may now be null
+RISKY POST /payments: new responses [409]: a client may not handle them
+SAFE GET /payments/{id}: new operation
+```
+
+Requests and responses are judged in opposite directions — a client sends
+the one and reads the other: a newly required request field breaks it, a
+response field that may now be missing breaks it. `ONE_OF`, `ANY_OF` and
+unresolved schemas are `UNKNOWN`, never guessed.
+
+A gate that fails on every new endpoint gets switched off within a week. With
+`fail-on-breaking-only: true` the run fails only on `BREAKING` changes; the
+rest stays in the report for the reviewer.
 
 ## What this is — and is not
 
