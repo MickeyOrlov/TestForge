@@ -171,6 +171,24 @@ public class SchemaValidator {
     }
 
     /**
+     * The table and columns an entity maps, resolved exactly as the drift
+     * checks resolve them (naming strategy, overrides, embedded columns,
+     * inheritance) — without touching a database. Lets other checks say which
+     * of the project's entities a schema change reaches.
+     *
+     * @param entityClass the entity class to resolve
+     * @return the entity's table and its mapped column names, in declaration order
+     */
+    public EntityMapping mapping(Class<?> entityClass) {
+        List<String> columns = expectedColumns(entityClass).stream()
+                .map(MappedColumn::name)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        return new EntityMapping(entityClass.getSimpleName(), tableName(entityClass), columns);
+    }
+
+    /**
      * Returns a list of problems for the given entity: mapped columns that do
      * not exist in the database. Empty list means the mapping is in sync.
      */

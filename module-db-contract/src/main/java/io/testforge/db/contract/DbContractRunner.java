@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.artifact.ArtifactSink;
 import io.testforge.db.contract.diff.DbChange;
 import io.testforge.db.contract.diff.DbRenameCandidates;
+import io.testforge.db.contract.usage.DbSchemaUsage;
 import io.testforge.db.contract.diff.DbSchemaComparator;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.policy.DbChangeAssessment;
@@ -52,6 +53,7 @@ public class DbContractRunner {
     private final DbContractProperties properties;
     private final ObjectMapper objectMapper;
     private final ArtifactSink artifactSink;
+    private final DbSchemaUsage usage;
 
     public DbContractRunner(
             DataSourceRegistry registry,
@@ -68,6 +70,30 @@ public class DbContractRunner {
         this.properties = properties;
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
         this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
+        this.usage = DbSchemaUsage.NONE;
+    }
+
+    /**
+     * As the full constructor, also saying which of the project's entities each
+     * change reaches.
+     */
+    public DbContractRunner(
+            DataSourceRegistry registry,
+            DbSchemaInspector inspector,
+            DbSchemaSnapshotStore snapshotStore,
+            DbCompatibilityPolicy policy,
+            DbContractProperties properties,
+            ObjectMapper objectMapper,
+            ArtifactSink artifactSink,
+            DbSchemaUsage usage) {
+        this.registry = registry;
+        this.inspector = inspector;
+        this.snapshotStore = snapshotStore;
+        this.policy = policy;
+        this.properties = properties;
+        this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
+        this.artifactSink = artifactSink == null ? ArtifactSink.NO_OP : artifactSink;
+        this.usage = usage == null ? DbSchemaUsage.NONE : usage;
     }
 
     /**
@@ -231,9 +257,19 @@ public class DbContractRunner {
         List<DbChange> changes = DbSchemaComparator.compare(baseline, current);
         List<DbChangeAssessment> assessments = new ArrayList<>(changes.size());
         for (DbChange change : changes) {
-            assessments.add(policy.assess(change, baseline, current));
+            assessments.add(policy.assess(change, baseline, current).withUsedBy(usersOf(change)));
         }
         return List.copyOf(assessments);
+    }
+
+    /** Usage is context for the reader: a failure to work it out never changes the verdict or the gate. */
+    private List<String> usersOf(DbChange change) {
+        try {
+            return usage.usersOf(change);
+        } catch (RuntimeException e) {
+            log.warn("Could not tell which entities {} reaches: {}", change.path(), e.getMessage());
+            return List.of();
+        }
     }
 
     /**
@@ -334,8 +370,13 @@ public class DbContractRunner {
             return out.toString();
         }
 
-        out.append("| Verdict | Change | Object | Before | After | Why |\n");
-        out.append("| --- | --- | --- | --- | --- | --- |\n");
+        long reaching = report.changes().stream().filter(change -> !change.usedBy().isEmpty()).count();
+        if (reaching > 0) {
+            out.append("Changes reaching this project's entities: ").append(reaching).append(" of ")
+                    .append(report.changes().size()).append(".\n\n");
+        }
+        out.append("| Verdict | Change | Object | Before | After | Why | Used by |\n");
+        out.append("| --- | --- | --- | --- | --- | --- | --- |\n");
         for (DbChangeAssessment assessment : report.changes()) {
             DbChange change = assessment.change();
             out.append("| ").append(assessment.compatibility())
@@ -344,6 +385,7 @@ public class DbContractRunner {
                     .append(" | ").append(cell(change.before()))
                     .append(" | ").append(cell(change.after()))
                     .append(" | ").append(cell(assessment.reason()))
+                    .append(" | ").append(cell(String.join(", ", assessment.usedBy())))
                     .append(" |\n");
         }
         if (!report.renameCandidates().isEmpty()) {

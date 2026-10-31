@@ -234,6 +234,46 @@ class DbContractRunnerTest {
     }
 
     @Test
+    void eachChangeSaysWhichOfTheProjectsEntitiesItReaches(@TempDir Path dir) throws Exception {
+        writeBaseline(dir, BASELINE);
+        DbSchemaSnapshot current = schema(table("orders", List.of(id())));
+        DbSchemaInspector inspector = (dataSource, schemaName) -> current;
+        DbContractRunner runner = new DbContractRunner(REGISTRY, inspector, store, new DefaultDbCompatibilityPolicy(),
+                properties(dir, null), new ObjectMapper(), recordingSink,
+                io.testforge.db.contract.usage.DbSchemaUsage.ofMappings(List.of(
+                        new io.testforge.db.schema.EntityMapping("Order", "orders", List.of("id", "status")))));
+
+        DbContractReport report = runner.run();
+
+        assertThat(report.changes()).singleElement()
+                .satisfies(change -> assertThat(change.usedBy()).containsExactly("Order"));
+        assertThat(java.nio.file.Files.readString(Path.of(report.reportMarkdown())))
+                .contains("Changes reaching this project's entities: 1 of 1.")
+                .contains("| Used by |")
+                .contains("| Order |");
+        assertThatThrownBy(runner::assertCompatible)
+                .isInstanceOf(DbContractException.class)
+                .hasMessageContaining("COLUMN_REMOVED orders.status")
+                .hasMessageContaining("Used by Order.");
+    }
+
+    @Test
+    void aUsageThatFailsNeverChangesTheVerdict(@TempDir Path dir) {
+        writeBaseline(dir, BASELINE);
+        DbSchemaSnapshot current = schema(table("orders", List.of(id())));
+        DbSchemaInspector inspector = (dataSource, schemaName) -> current;
+        DbContractRunner runner = new DbContractRunner(REGISTRY, inspector, store, new DefaultDbCompatibilityPolicy(),
+                properties(dir, null), new ObjectMapper(), recordingSink, change -> {
+                    throw new IllegalStateException("metamodel unavailable");
+                });
+
+        DbContractReport report = runner.run();
+
+        assertThat(report.breakingCount()).isEqualTo(1);
+        assertThat(report.changes().getFirst().usedBy()).isEmpty();
+    }
+
+    @Test
     void riskyChangesPassUntilAProjectOptsIn(@TempDir Path dir) {
         writeBaseline(dir, BASELINE);
         DbSchemaSnapshot current = schema(table("orders", List.of(

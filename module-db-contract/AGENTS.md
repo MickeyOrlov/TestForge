@@ -18,6 +18,8 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Snapshots carry a format version; never read one from another version
   silently.
 - Baseline promotion is an explicit `writeBaseline()` call, never a side effect.
+- `usedBy` and rename candidates inform the reader; they never change a
+  verdict or the gate.
 
 ## Tests
 

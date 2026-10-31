@@ -9,7 +9,7 @@ anything in this project's tests touches the object that moved.
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Possibly renamed** — a removed and an added object with an identical shape paired in the report and the gate message; verdicts unchanged | `module-db-contract` | shipped |
-| 2 | **Who it hits** — changes on tables and columns the project's JPA entities map, named with the entity and field | `module-db-contract`, `module-db` | planned |
+| 2 | **Who it hits** — changes on tables and columns the project's JPA entities map, named with the entity | `module-db-contract`, `module-db` | shipped |
 | 3 | **Review** — close the gaps a review of the module finds | `module-db-contract` | planned |
 
 ## Step 1 — possibly renamed
@@ -22,3 +22,14 @@ uniqueness, predicate; foreign key: columns, target, actions; table: every
 column), and only when the pairing is unambiguous. The pairs appear under
 "Possibly renamed" in `report.md`, in the failure message and on
 `DbContractReport.renameCandidates()`.
+
+## Step 2 — who it hits
+
+`module-db` exposes `SchemaValidator.mapping(entity)` — the table and columns
+an entity maps, resolved by the same rules as the drift checks, reading no
+database. `module-db-contract` turns the persistence units' entities into a
+`DbSchemaUsage` (lazily, on the first check) and attaches `usedBy` to every
+assessment: a column change reaches the entities mapping that column, any
+other change the entities mapping the table. `report.md` shows a "Used by"
+column; the gate message names them. A failing lookup is logged and ignored —
+usage informs the reader and never moves a verdict.
