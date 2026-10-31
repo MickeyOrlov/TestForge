@@ -18,6 +18,10 @@ answered, but what the services actually persisted.
   test framework's mappings. Run one test per entity in a scheduled CI job.
   Use `forDataSource(name)` to validate against a non-default database.
 
+- **`DbState`** — table snapshots in plain JDBC: what an action changed, row
+  by row and column by column, with expectations that fail with the whole
+  diff (`changed(1, "status")` fails when `total` changed too).
+
 ## Configuration
 
 ```yaml
@@ -81,6 +85,42 @@ interface TaskRecordRepository extends JpaRepository<TaskRecord, Long> {
     }
 }
 ```
+
+## What an action changed: table snapshots
+
+`StateSnapshot` (core) compares entities. `DbState` compares rows, so no
+entity, repository or content-based `equals` is needed:
+
+```java
+@Autowired DbState db;
+
+TableSnapshot before = db.table("orders").keyedBy("id")
+        .where("customer_id = ?", customerId)      // only this test's rows
+        .ignoring("updated_at")                     // changes that do not count
+        .take();
+
+api.request().post("/orders/{id}/pay", orderId);
+
+before.diff().expect().added(0).removed(0).changed(1, "status", "paid_at");
+```
+
+A failed expectation carries the whole diff:
+
+```
+columns changed that should not have: [total] in orders where customer_id = ? (keyed by id)
+  ~ id=41 status: NEW → PAID; total: 10 → 0
+```
+
+- `+` added, `-` removed, `~` changed rows; `diff()` reads the same rows
+  again, so call it after the asynchronous write is done (`DbWaiter`).
+- Keys can span columns (`keyedBy("order_id", "line_no")`). Decimals compare
+  by value (`10.00` = `10.0`); LOBs are not compared.
+- On a shared database always narrow with `where(...)`: a whole-table
+  snapshot sees every parallel test's writes. More than 10 000 rows fails
+  (`maxRows(...)` to raise it).
+- Table and column names must be plain identifiers; the `where` clause is
+  the test's own SQL with `?` parameters.
+- `db.on("auditDataSource")` for a named datasource.
 
 ## Named datasources
 
