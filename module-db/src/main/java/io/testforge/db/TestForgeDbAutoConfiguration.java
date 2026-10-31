@@ -90,14 +90,32 @@ public class TestForgeDbAutoConfiguration {
         return new SqlJournal(properties.diagnostics().last());
     }
 
-    /** One proxy for both: logging ({@code log-sql}) and recording for diagnostics. */
     @Bean
-    @ConditionalOnExpression("${forge.db.log-sql:false} or ${forge.db.diagnostics.enabled:false}")
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.db.queries", name = "enabled", havingValue = "true")
+    public io.testforge.db.query.QueryRecorder queryRecorder() {
+        return new io.testforge.db.query.QueryRecorder();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.db.queries", name = "enabled", havingValue = "true")
+    public io.testforge.db.query.DbQueries dbQueries(io.testforge.db.query.QueryRecorder recorder) {
+        return new io.testforge.db.query.DbQueries(recorder);
+    }
+
+    /** One proxy for all: logging ({@code log-sql}), diagnostics, and query checks. */
+    @Bean
+    @ConditionalOnExpression("${forge.db.log-sql:false} or ${forge.db.diagnostics.enabled:false} "
+            + "or ${forge.db.queries.enabled:false}")
     public static SqlLoggingDataSourcePostProcessor sqlLoggingDataSourcePostProcessor(
-            Environment environment, ObjectProvider<SqlJournal> journal) {
+            Environment environment, ObjectProvider<SqlJournal> journal,
+            ObjectProvider<io.testforge.db.query.QueryRecorder> recorder) {
         boolean log = environment.getProperty("forge.db.log-sql", Boolean.class, false);
         boolean record = environment.getProperty("forge.db.diagnostics.enabled", Boolean.class, false);
-        return new SqlLoggingDataSourcePostProcessor(log, record ? journal::getIfAvailable : null);
+        boolean queries = environment.getProperty("forge.db.queries.enabled", Boolean.class, false);
+        return new SqlLoggingDataSourcePostProcessor(log, record ? journal::getIfAvailable : null,
+                queries ? recorder::getIfAvailable : null);
     }
 
     @Bean

@@ -20,6 +20,7 @@ public class SqlLoggingDataSourcePostProcessor implements BeanPostProcessor {
 
     private final boolean log;
     private final Supplier<SqlJournal> journal;
+    private final Supplier<io.testforge.db.query.QueryRecorder> recorder;
 
     /** Logging only, as before diagnostics existed. */
     public SqlLoggingDataSourcePostProcessor() {
@@ -31,19 +32,30 @@ public class SqlLoggingDataSourcePostProcessor implements BeanPostProcessor {
      *                datasource is wrapped before the journal bean exists
      */
     public SqlLoggingDataSourcePostProcessor(boolean log, Supplier<SqlJournal> journal) {
+        this(log, journal, null);
+    }
+
+    /** @param recorder looked up per statement, {@code null} when query checks are off */
+    public SqlLoggingDataSourcePostProcessor(boolean log, Supplier<SqlJournal> journal,
+                                             Supplier<io.testforge.db.query.QueryRecorder> recorder) {
         this.log = log;
         this.journal = journal;
+        this.recorder = recorder;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
-        if (bean instanceof DataSource dataSource && !(bean instanceof ProxyDataSource) && (log || journal != null)) {
+        if (bean instanceof DataSource dataSource && !(bean instanceof ProxyDataSource)
+                && (log || journal != null || recorder != null)) {
             ProxyDataSourceBuilder builder = ProxyDataSourceBuilder.create(dataSource).name(beanName);
             if (log) {
                 builder.logQueryBySlf4j(SLF4JLogLevel.INFO, "forge.sql").multiline();
             }
             if (journal != null) {
                 builder.listener(new SqlJournalListener(journal));
+            }
+            if (recorder != null) {
+                builder.listener(new io.testforge.db.query.QueryRecorderListener(recorder));
             }
             return builder.build();
         }
