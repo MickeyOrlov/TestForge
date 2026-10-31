@@ -123,6 +123,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: side-effect containment — `DbState.watch(queries...)` snapshots
+  several tables and `diff().expect().table(name, t -> ...).nothingElse()` /
+  `onlyChanged(...)` fails, with the diffs, when a table moved that the test
+  did not name. `watchSchema(excluded...)` watches every table of the schema
+  (primary key as row key) for databases a test owns.
 - `module-db`: row expectations on a table diff —
   `expect().row(42).changed("status", "NEW", "PAID").increasedBy("version", 1)
   .movedForward("updated_at").unchanged("created_at").onlyThese()`, plus

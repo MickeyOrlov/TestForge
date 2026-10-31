@@ -1,6 +1,14 @@
 package io.testforge.db.state;
 
 import io.testforge.db.datasource.DataSourceRegistry;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import javax.sql.DataSource;
 
@@ -47,6 +55,89 @@ public final class DbState {
 
     public TableQuery table(String table) {
         return new TableQuery(target(), table);
+    }
+
+    /**
+     * Several tables at once, so a test can assert that an action changed what
+     * it should and nothing else; see {@link DbSnapshot}.
+     */
+    public DbSnapshot watch(TableQuery... queries) {
+        if (queries == null || queries.length == 0) {
+            throw new IllegalArgumentException("watch(...) needs at least one table");
+        }
+        Map<String, TableSnapshot> tables = new LinkedHashMap<>();
+        for (TableQuery query : queries) {
+            if (tables.putIfAbsent(query.table(), query.take()) != null) {
+                throw new IllegalArgumentException("table " + query.table() + " is watched twice");
+            }
+        }
+        return new DbSnapshot(tables);
+    }
+
+    /**
+     * Every table of the connection's current schema, each keyed by its
+     * primary key, except {@code excluded} (case ignored) — for a database the
+     * test owns (an embedded one, a container per run), where "nothing else in
+     * the database moved" is a checkable statement. On a shared database every
+     * parallel test's writes would count; use {@link #watch} with {@code where}
+     * clauses there. A table without a primary key is matched on all its
+     * columns; each table still refuses more than 10 000 rows.
+     */
+    public DbSnapshot watchSchema(String... excluded) {
+        java.util.Set<String> skip = new java.util.HashSet<>();
+        for (String table : excluded) {
+            skip.add(table.toLowerCase(java.util.Locale.ROOT));
+        }
+        DataSource target = target();
+        Map<String, TableSnapshot> tables = new LinkedHashMap<>();
+        try (Connection connection = target.getConnection()) {
+            DatabaseMetaData meta = connection.getMetaData();
+            String schema = connection.getSchema();
+            List<String> names = new ArrayList<>();
+            try (ResultSet result = meta.getTables(connection.getCatalog(), schema, "%", new String[] {"TABLE"})) {
+                while (result.next()) {
+                    names.add(result.getString("TABLE_NAME"));
+                }
+            }
+            names.sort(String.CASE_INSENSITIVE_ORDER);
+            for (String name : names) {
+                if (skip.contains(name.toLowerCase(java.util.Locale.ROOT))) {
+                    continue;
+                }
+                List<String> key = primaryKey(meta, connection.getCatalog(), schema, name);
+                TableQuery query = new TableQuery(target, name);
+                query.keyedBy(key.isEmpty() ? List.of(columns(meta, connection.getCatalog(), schema, name)) : key);
+                tables.put(name, query.take());
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not list the tables to watch: " + e.getMessage(), e);
+        }
+        if (tables.isEmpty()) {
+            throw new IllegalStateException("watchSchema() found no table to watch in the connection's schema");
+        }
+        return new DbSnapshot(tables);
+    }
+
+    private static List<String> primaryKey(DatabaseMetaData meta, String catalog, String schema, String table)
+            throws SQLException {
+        Map<Integer, String> ordered = new java.util.TreeMap<>();
+        try (ResultSet result = meta.getPrimaryKeys(catalog, schema, table)) {
+            while (result.next()) {
+                ordered.put(result.getInt("KEY_SEQ"), result.getString("COLUMN_NAME"));
+            }
+        }
+        return new ArrayList<>(ordered.values());
+    }
+
+    private static String[] columns(DatabaseMetaData meta, String catalog, String schema, String table)
+            throws SQLException {
+        List<String> columns = new ArrayList<>();
+        try (ResultSet result = meta.getColumns(catalog, schema, table, "%")) {
+            while (result.next()) {
+                columns.add(result.getString("COLUMN_NAME"));
+            }
+        }
+        return columns.toArray(String[]::new);
     }
 
     /** Rows a test inserts for its own setup, removed after it. */

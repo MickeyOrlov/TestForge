@@ -44,6 +44,11 @@ public final class TableQuery {
     }
 
     /** The columns that identify a row; one or more. Required. */
+    public TableQuery keyedBy(java.util.Collection<String> columns) {
+        return keyedBy(columns.toArray(String[]::new));
+    }
+
+    /** The columns that identify a row; one or more. Required. */
     public TableQuery keyedBy(String... columns) {
         key.clear();
         for (String column : columns) {
@@ -85,6 +90,10 @@ public final class TableQuery {
 
     String describe() {
         return table + (where == null ? "" : " where " + where) + " (keyed by " + String.join(", ", key) + ")";
+    }
+
+    String table() {
+        return table;
     }
 
     List<String> key() {
