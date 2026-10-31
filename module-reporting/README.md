@@ -142,6 +142,10 @@ run id per JVM), and each writes the union of what every context of the run
 indexed so far — the last one to close leaves the complete `manifest.json`
 and `summary.md`.
 
+Each context also runs its own resource monitor when it is enabled, so a
+multi-context suite writes several overlapping `resource-usage*.txt` samples
+of the same JVM; read the one with the longest window.
+
 Separate JVMs (Gradle `maxParallelForks > 1`) generate separate runs. A fixed
 `run-id` shared by parallel JVMs makes them write one directory, and the
 index then holds only the last JVM's artifacts: leave it unset there, or
