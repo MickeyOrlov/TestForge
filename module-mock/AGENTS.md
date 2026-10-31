@@ -11,6 +11,8 @@ Plan: [docs/mock-layer-roadmap.md](../docs/mock-layer-roadmap.md).
 
 ## Invariants (do not break)
 
+- A scope id is never blank; `close()` is idempotent.
+
 - Default stubs priority 10+, scoped stubs priority 1 and ALWAYS with the scope
   matcher.
 - Never register an unscoped catch-all from a test.

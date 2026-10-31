@@ -41,7 +41,7 @@ template building blocks.
 | `module-db` | `DbWaiter` (repository or SQL value/count, parameters bound), repository polling, SQL logging, schema drift checks with documented limits, `DbState` table diffs and setup rows, SQL in failure diagnostics. Plan: [db-layer-roadmap.md](db-layer-roadmap.md). |
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
 | `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
-| `module-mock` | Scenario-scoped WireMock stubs for shared mock servers. |
+| `module-mock` | Scenario-scoped WireMock stubs for shared mock servers, per-scope response sequences, unused-stub detection; stubs checked against the downstream's document through `module-api-explorer`. Plan: [mock-layer-roadmap.md](mock-layer-roadmap.md). |
 | `module-reporting` | Run-scoped artifact collection, deterministic manifest/summary index, resource usage monitor, and optional Allure attachments. |
 | `module-web` | Playwright-powered environment prewarm, best-effort by design. |
 
@@ -116,6 +116,8 @@ surface is still expected to evolve.
 - Database layer: table snapshots and per-column diffs, SQL of failed tests in
   the run index, setup rows removed after the test, `DbWaiter.awaitValue`
   ([plan](db-layer-roadmap.md)).
+- Mock layer: response sequences per scope, unused stubs, stubs held to the
+  downstream's contract ([plan](mock-layer-roadmap.md)).
 - The run index's `summary.md` points at every report, including the ones a
   module keeps in its own output directory, and lists failing verdicts first.
 - Every diagnostic-producing module publishes into the unified run index:
@@ -178,6 +180,10 @@ Target module: `module-mock`
   cookie (`ScopeMarker`), scoped journal assertions (`requests`, `verify`),
   readable mismatch diagnostics, and scoped stubs plus unmatched requests as
   failure artifacts.
+- Delivered after that ([plan](mock-layer-roadmap.md)): response sequences
+  per scope for retry tests, unused scoped stubs (reported, optionally
+  failing), and the stub contract check against the downstream's OpenAPI
+  document.
 - Remaining: none planned; expand only when an adaptation needs it.
 
 ### Messaging Abstraction
