@@ -126,6 +126,9 @@ try (AppiumSession session = appiumDriverFactory.startSession("android-local")) 
   screen/page classes to the template.
 - Remote providers use `extra-capabilities`; do not add provider-specific
   clients in v1.
+- A failure in `@BeforeEach`/`@AfterEach` is captured like a failing test.
+- A session that cannot start is reported with the device and redacted hub,
+  never with Selenium's capability dump; keep it that way.
 - `session.md` masks every capability under a key that looks secret
   (`key`, `token`, `secret`, `password`, `credential`, `auth`) and drops the
   hub URL's user info; keep provider credentials in those places.

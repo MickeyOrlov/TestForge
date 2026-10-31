@@ -8,13 +8,16 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
+import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-public class AppiumExtension implements ParameterResolver, TestExecutionExceptionHandler, AfterEachCallback {
+public class AppiumExtension
+        implements ParameterResolver, TestExecutionExceptionHandler, LifecycleMethodExecutionExceptionHandler,
+        AfterEachCallback {
 
     private static final Namespace NAMESPACE = Namespace.create(AppiumExtension.class);
     private static final String SESSIONS_KEY = "sessions";
@@ -50,9 +53,26 @@ public class AppiumExtension implements ParameterResolver, TestExecutionExceptio
                         .formatted(type.getName(), session.driver().getClass().getName()));
     }
 
+    /** A sign-in in {@code @BeforeEach(AppiumSession)} that fails leaves the same evidence as a test. */
+    @Override
+    public void handleBeforeEachMethodExecutionException(ExtensionContext extensionContext, Throwable throwable)
+            throws Throwable {
+        handleTestExecutionException(extensionContext, throwable);
+    }
+
+    @Override
+    public void handleAfterEachMethodExecutionException(ExtensionContext extensionContext, Throwable throwable)
+            throws Throwable {
+        handleTestExecutionException(extensionContext, throwable);
+    }
+
     @Override
     public void handleTestExecutionException(ExtensionContext extensionContext, Throwable throwable) throws Throwable {
         Sessions sessions = sessions(extensionContext);
+        // a failing test and then a failing @AfterEach would capture twice; the first is the story
+        if (!sessions.markCaptured()) {
+            throw throwable;
+        }
         for (AppiumSession session : sessions.all()) {
             try {
                 session.captureFailureArtifacts(testName(extensionContext), testKey(extensionContext));
@@ -116,6 +136,15 @@ public class AppiumExtension implements ParameterResolver, TestExecutionExceptio
     private static final class Sessions implements AutoCloseable {
 
         private final Map<String, AppiumSession> sessions = new LinkedHashMap<>();
+        private boolean captured;
+
+        boolean markCaptured() {
+            if (captured) {
+                return false;
+            }
+            captured = true;
+            return true;
+        }
 
         AppiumSession session(String requestedDevice, Supplier<AppiumSession> opener) {
             String key = requestedDevice == null || requestedDevice.isBlank() ? "<default>" : requestedDevice;
