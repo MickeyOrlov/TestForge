@@ -236,6 +236,30 @@ tables at the same time — and fails on data no test owns.
 writes the table concurrently. Both need `DataIsolationExtension` so the test
 has its own tag. Mind `maxRows` on large tables.
 
+### A failed action leaves nothing behind
+
+```java
+DbSnapshot before = db.watch(
+        db.table("orders").keyedBy("id").where("customer_id = ?", customer),
+        db.table("payments").keyedBy("id").where("customer_id = ?", customer));
+
+Throwable declined = before.expectRolledBack(() -> api.checkout(cart, declinedCard));
+```
+
+The action must throw, and every watched table must be as it was; otherwise
+the failure shows what the half-done action left:
+
+```
+the action failed (CardDeclined: card declined) but left changes behind — it is not atomic:
+orders where customer_id = ? (keyed by id)
+  + id=1 {status=NEW}
+```
+
+`assertUnchanged()` is the same check for a rejection that does not throw (an
+HTTP 402 from the API), and `assertUnchangedWithin(Duration)` waits for a
+saga's compensation to undo the change asynchronously. All three exist on a
+single `TableSnapshot` too.
+
 ## Rules the data must keep
 
 A backend can write exactly the row a test expected and still break the data

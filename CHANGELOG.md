@@ -128,6 +128,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: atomicity checks on `DbSnapshot` and `TableSnapshot` —
+  `expectRolledBack(action)` (the action must fail and leave every watched row
+  as it was, or the failure lists what it left), `assertUnchanged()` for a
+  rejection without an exception, `assertUnchangedWithin(timeout)` for an
+  asynchronous compensation.
 - `module-db`: `CapturedQueries.expect().noUnboundedWrites()` (no `UPDATE`/
   `DELETE` without `WHERE`, no `TRUNCATE`) and `noUnfilteredReads(allowed...)`
   (no `SELECT` of a whole table outside an allow-list of reference tables).
