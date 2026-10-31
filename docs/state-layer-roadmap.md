@@ -9,4 +9,10 @@ checkable before a single test needs it.
 |---|---|---|---|
 | 1 | **Recipes under their own name** — coverage, artifacts and failures per recipe; what a state cost | `module-state` | shipped |
 | 2 | **Supported targets and recipe verification** — an unknown tag fails with the supported ones; every recipe's flow verified for every target in one test | `module-state` | shipped |
-| 3 | **Review** — close the gaps a review of the module finds | `module-state` | planned |
+| 3 | **Review** — close the gaps a review of the module finds | `module-state` | shipped |
+
+All three steps shipped (PRs #71–#73). The review found the setup phase
+unguarded: a tag the recipe could not map left a bare
+`IllegalArgumentException` with no recipe or tags in it, and a recipe that
+materialized nothing threw a `NullPointerException`. Both now name the recipe
+and the tags.

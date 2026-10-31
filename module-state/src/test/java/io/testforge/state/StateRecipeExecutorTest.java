@@ -120,8 +120,8 @@ class StateRecipeExecutorTest {
         };
 
         assertThatThrownBy(() -> executor.prepare(empty, List.of("approved")))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("materialized object");
+                .isInstanceOf(StateRecipeException.class)
+                .hasMessage("State recipe state:Application reached APPROVED for tags [approved] but materialized nothing");
     }
 
     @Test
@@ -150,5 +150,14 @@ class StateRecipeExecutorTest {
 
         assertThat(preparation.flowResult().transitions()).hasSize(2);
         assertThat(preparation.duration()).isEqualTo(preparation.flowResult().duration());
+    }
+
+    @Test
+    void aTagTheRecipeCannotMapNamesTheRecipeAndTheTags() {
+        assertThatThrownBy(() -> executor.prepare(new ApplicationRecipe(), List.of("archived")))
+                .isInstanceOf(StateRecipeException.class)
+                .hasMessageStartingWith("State recipe state:Application could not be set up for tags [archived]:")
+                .hasMessageContaining("No enum constant")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 }
