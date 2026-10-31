@@ -53,7 +53,7 @@ depend on opt-in runtime integrations.
 | Module | Status note |
 |---|---|
 | `module-contract-monitor` | JUnit-friendly Kafka contract drift monitor with shape snapshots, baseline diffs, and reports. |
-| `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks. |
+| `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks; every change judged for clients, optional fail-on-breaking-only gate. Plan: [discovery-layer-roadmap.md](discovery-layer-roadmap.md). |
 | `module-db-contract` | Schema snapshot, bounded diff, and compatibility classification (`BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN`) with a CI gate. Reading is delegated to SchemaCrawler; the model, diff, policy and report belong to TestForge. |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-auth` | Credentials per role (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login), cached with early refresh, `@AsUser` and reserved `anonymous` role, role shown in failure diagnostics, access matrix (operation × role) through `module-api-explorer`. |
@@ -119,6 +119,9 @@ surface is still expected to evolve.
 - Flow layer: timed transitions, declared transitions verified and drawn
   before running, transition coverage across the suite
   ([plan](flow-layer-roadmap.md)).
+- Discovery layer: API changes judged for clients with a breaking-only gate,
+  and operation coverage — documented operations no test called — from the
+  contract guard ([plan](discovery-layer-roadmap.md)).
 - Reporting layer: one complete index per test JVM however many Spring
   contexts, a failed test's evidence from every module under the test
   ([plan](reporting-layer-roadmap.md)).

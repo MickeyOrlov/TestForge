@@ -81,6 +81,9 @@ the one and reads the other: a newly required request field breaks it, a
 response field that may now be missing breaks it. `ONE_OF`, `ANY_OF` and
 unresolved schemas are `UNKNOWN`, never guessed.
 
+A body that disappears entirely has no current shape to diff; the catalog
+diff reports it instead (`response 200 no longer sent as [application/json]`).
+
 A gate that fails on every new endpoint gets switched off within a week. With
 `fail-on-breaking-only: true` the run fails only on `BREAKING` changes; the
 rest stays in the report for the reviewer.
