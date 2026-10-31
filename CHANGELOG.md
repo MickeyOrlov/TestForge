@@ -35,6 +35,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-contract`: `ContractDrafts.fromSamples(name, samples)` drafts a
+  JSON Schema from real payloads — required fields, union of types, merged
+  array items — with no sample values copied, as a starting point to review
+  and commit.
 - `module-state`: `StateRecipe.targets()` declares the tags a recipe can
   prepare; an unknown tag fails with the supported ones.
   `StateRecipeExecutor.verify(recipe)` and the `StateRecipes` bean

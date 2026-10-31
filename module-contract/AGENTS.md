@@ -7,7 +7,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `core` only. Kafka, HTTP and files call *into* this module, never the other way.
 
+Plan: [docs/contract-layer-roadmap.md](../docs/contract-layer-roadmap.md).
+
 ## Invariants (do not break)
+
+- `ContractDrafts` copies shape only, never a sample value.
 
 - The `FieldRule` DSL is frozen. Patterns, enums, ranges → `SchemaContract`,
   never a new DSL keyword.
