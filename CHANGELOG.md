@@ -12,6 +12,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-kafka`: `KafkaPublisher.publish(topic, key, payload[, headers])`
+  sends a test's own event (String as is, objects as JSON) and waits for the
+  acknowledgement; `forge.kafka.publish.scope-header` / `correlation-header`
+  add the scenario's ids from `ScenarioContext`, `publish.headers` static ones.
 - `module-kafka`: `awaitExactlyOne(filter, settle)` catches a duplicate,
   `assertNoMessage(filter, window)` the event that must not be sent, and
   `findMessages(filter)` returns every match. An `awaitMessage` timeout now

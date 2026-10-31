@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-kafka`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `KafkaMessageBuffer`, `KafkaProbe` (await, exactly one, none within a window), `KafkaMessageFilter`, optional `KafkaPollingCollector`. Plan: [docs/kafka-layer-roadmap.md](../docs/kafka-layer-roadmap.md).
+**Scope:** `KafkaMessageBuffer`, `KafkaProbe` (await, exactly one, none within a window), `KafkaMessageFilter`, `KafkaPublisher`, optional `KafkaPollingCollector`. Plan: [docs/kafka-layer-roadmap.md](../docs/kafka-layer-roadmap.md).
 
 **May depend on:** `core` only. Never add a dependency on `module-contract`; they compose in the test.
 

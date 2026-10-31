@@ -9,7 +9,9 @@ Kafka message probing for tests and scheduled contract drift checks.
 - **`KafkaMessageBuffer`** — bounded in-memory message journal, newest-first
   search, safe for asynchronous tests.
 - **`KafkaProbe` / `KafkaMessageFilter`** — wait for messages by topic, key,
-  headers, text fragments, or JSON paths.
+  headers, text fragments, or JSON paths; exactly one; none within a window.
+- **`KafkaPublisher`** — publish a test's own event with the scenario's
+  scope and correlation headers.
 
 Contract checks are **composition, not a dependency**: the probe finds the
 message, module-contract's validator judges its shape. Either module can be
@@ -54,6 +56,32 @@ KafkaMessage message = kafkaProbe.awaitMessage(filter);
 // optional shape check — composes with module-contract when it is present
 contractValidator.assertValid(message.value(), contract);
 ```
+
+### Publishing a test event
+
+Start the flow under test the way production starts it — through the topic:
+
+```java
+@Autowired KafkaPublisher kafkaPublisher;
+
+KafkaMessage sent = kafkaPublisher.publish("orders.commands", orderId,
+        Map.of("type", "PAY", "orderId", orderId));   // a String goes as is, anything else as JSON
+```
+
+```yaml
+forge:
+  kafka:
+    publish:
+      scope-header: X-Test-Scope         # the scenario's scope id (ScenarioContext), like module-http
+      correlation-header: X-Request-Id   # the scenario's correlation id
+      headers: { source: testforge }     # on every published event
+      send-timeout: 10s                  # default
+```
+
+The bean exists wherever Spring Boot made a `KafkaTemplate`; it sends
+nothing until a test publishes. The send waits for the broker's
+acknowledgement, so a rejected event fails at the publishing line. Headers
+passed to `publish(..., headers)` win over configured ones.
 
 ### What must not happen, and duplicates
 
