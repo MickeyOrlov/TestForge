@@ -7,6 +7,8 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `core` only.
 
+Plan: [docs/mock-layer-roadmap.md](../docs/mock-layer-roadmap.md).
+
 ## Invariants (do not break)
 
 - Default stubs priority 10+, scoped stubs priority 1 and ALWAYS with the scope

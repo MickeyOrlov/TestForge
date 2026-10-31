@@ -85,6 +85,25 @@ try (MockScope scope = mocks.scope()) {
 Another scenario's traffic never counts, so these assertions stay correct when
 tests run in parallel against one shared mock.
 
+### A downstream that fails, then recovers
+
+To test the system's retries, answer the same request differently each time:
+
+```java
+try (MockScope scope = mocks.scope()) {
+    scope.sequence(post(urlPathEqualTo("/payments")),
+            aResponse().withStatus(503),
+            aResponse().withStatus(503),
+            okJson("{\"status\":\"accepted\"}"));   // repeats from here on
+    // drive the scenario; assert it retried: scope.verify(3, postRequestedFor(...))
+}
+```
+
+The sequence is a WireMock scenario named after the scope id, so parallel
+scenarios each walk their own and the default stubs answer everyone else.
+Faults work as steps too: `aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)`
+or `.withFixedDelay(5000)` for a timeout.
+
 ## Diagnostics
 
 When a `MockScope` closes, it publishes a JSON diagnostic artifact (`<scopeId>.json`) summarizing registered stubs and scope-attributed unmatched requests. Each unmatched request includes a `closestStub` field explaining why it matched no scoped stub:

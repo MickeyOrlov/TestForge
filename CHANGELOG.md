@@ -7,6 +7,10 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-mock`: `MockScope.sequence(request, responses...)` answers the same
+  request differently each time, then repeats the last response — for retry
+  tests (`503, 503, 200`). A WireMock scenario per scope keeps parallel
+  scenarios' sequences apart; every step is a scoped stub removed on close.
 - `module-db`: `DbWaiter.awaitValue(description, sql, expected, params...)`
   waits until the first column equals a value (numbers by value);
   `awaitRowCount` takes `?` parameters too. Both time out with what the
