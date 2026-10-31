@@ -8,4 +8,9 @@ a sample, it still needed to say which drift matters to consumers.
 |---|---|---|---|
 | 1 | **A sample, not one message** — the newest N matching messages validated and their shapes merged | `module-contract-monitor` | shipped |
 | 2 | **Drift impact** — each shape change judged for consumers; fail only on breaking drift | `module-contract-monitor` | shipped |
-| 3 | **Review** — close the gaps a review of the module finds | `module-contract-monitor` | planned |
+| 3 | **Review** — close the gaps a review of the module finds | `module-contract-monitor` | shipped |
+
+All three steps shipped (PRs #83–#85). The review found a leak beside the
+redaction: the message artifact redacted the payload but wrote Kafka header
+values as they were — an `authorization` header included. It now lists
+header names only.

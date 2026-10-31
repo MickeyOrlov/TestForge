@@ -21,6 +21,9 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-contract-monitor`: `<case>.message.json` wrote Kafka header values
+  as they were — tokens and personal data included — despite the payload
+  being redacted; it now lists header names only.
 - `module-reporting`: a suite with several Spring contexts produced one run
   directory per context, each with a partial index — or, with a fixed
   `run-id`, an index holding only the last context's artifacts. The run id is
