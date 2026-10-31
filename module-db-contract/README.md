@@ -87,6 +87,14 @@ true. Two conditions make it untrue, and both raise an `IllegalStateException`:
 | `enabled: false` | disabled report, `enabled: false`, no database touched | `IllegalStateException` |
 | enabled, no baseline | captures and reports, `baselinePresent: false` | `IllegalStateException` |
 | enabled, baseline present | report | gate verdict; `DbContractException` on failure |
+| baseline captured for another schema | `IllegalStateException` | `IllegalStateException` |
+| baseline with no tables | report (every table reads as added) | `IllegalStateException` |
+
+An empty baseline is a gate that can never fail — every table reads as added,
+and added is non-breaking — so `writeBaseline()` refuses to write one, naming
+the schema and table patterns that matched nothing. A baseline of a different
+schema would diff into a wall of removed-and-added tables about nothing that
+moved, so it is refused too; schema names are compared ignoring case.
 
 Both are configuration failures, raised the same way a missing schema or a
 foreign snapshot format is, and deliberately **not** schema verdicts: nothing was
