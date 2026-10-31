@@ -140,6 +140,11 @@ public final class DbState {
         return columns.toArray(String[]::new);
     }
 
+    /** Rules the data must keep — no orphans, no duplicates, only known values; see {@link DbInvariants}. */
+    public DbInvariants invariants() {
+        return new DbInvariants(target());
+    }
+
     /** Rows a test inserts for its own setup, removed after it. */
     public TableWriter into(String table) {
         return new TableWriter(target(), table);
