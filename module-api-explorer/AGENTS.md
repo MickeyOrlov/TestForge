@@ -10,6 +10,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 ## Invariants (do not break)
 
 - Inert unless `forge.api-explorer.enabled=true`. The contract guard and the access matrix have their own switches (`forge.contract-guard.enabled`, `forge.access-matrix.enabled`).
+- The stub contract checker reads WireMock stub definitions only (WireMock is `compileOnly`, the auto-configuration is `@ConditionalOnClass`); unstated parts are NOT_CHECKED, never a pass.
 - The access matrix records statuses only, never bodies, and plans requests through the same `SafetyPolicy` as exploration.
 - GET/HEAD/OPTIONS by default; any write method needs both the method listed and
   `allow-unsafe-methods=true`. Never weaken `SafetyPolicy` to make a test

@@ -158,6 +158,39 @@ forge:
 Start in `record` mode on an existing suite, read the first report, then
 switch the CI profile to `fail`.
 
+## Stub contract: mocks that cannot lie about the downstream
+
+A WireMock stub that returns a field the real service never sends — or drops
+one it always does — makes a test pass against a service that does not exist.
+Register the downstream's own document and hold the stubs to it:
+
+```yaml
+forge:
+  api-discovery:
+    specs:
+      payments:
+        location: classpath:/openapi/payments.yaml   # the downstream's document
+  stub-contract:
+    enabled: true
+    specs: [payments]               # optional; default every registered spec
+    strip-prefix: /payments-service # optional; the mock URL prefix the document does not know
+```
+
+```java
+@Autowired StubContractChecker stubContract;
+
+stubContract.assertHonoured(wireMock);                 // every stub on the server, e.g. the defaults
+stubContract.assertHonoured(scope.stub(get(...)...));  // one scoped stub (module-mock)
+```
+
+- The same matching and checks as the contract guard: required fields,
+  types, documented statuses, `UNDOCUMENTED_OPERATION` for a stubbed call the
+  service does not have.
+- What a stub does not state is listed as *not checked*, never passed: URL
+  regex matchers, faults, body files, templated bodies.
+- Reads stub definitions only, sends nothing. Needs WireMock on the classpath
+  (`module-mock` brings it); inert unless `forge.stub-contract.enabled=true`.
+
 ## Access matrix: who may call what
 
 Every operation of the document, called once per role, each status held to a

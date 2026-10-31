@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: stub contract (`forge.stub-contract`).
+  `StubContractChecker.assertHonoured(wireMock)` or `assertHonoured(stub)`
+  checks what WireMock stubs answer against the downstream's OpenAPI document
+  with the contract guard's checks; URL patterns, faults, body files and
+  templated bodies are reported as not checked. `strip-prefix` for mock URL
+  prefixes. WireMock is optional (`compileOnly`).
 - `module-mock`: unused stubs. `MockScope.unusedStubs()` names scoped stubs
   no request hit (`POST /refunds → 409`, or a sequence step never reached);
   the scope artifact lists them under `unusedStubs`. With
