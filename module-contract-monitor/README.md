@@ -72,7 +72,8 @@ class ContractMonitorIT {
 Artifacts are written under `forge.contract-monitor.output-dir`:
 
 - `<case>.shape.json` — payload shape only, no values
-- `<case>.message.json` — Kafka envelope with redacted payload shape
+- `<case>.message.json` — Kafka envelope (topic, offset, key, header names) with
+  the payload's shape only; header values are never written
 - `report.json`
 - `report.md`
 

@@ -159,6 +159,19 @@ class ContractMonitorRunnerTest {
                 new PayloadShapeNormalizer(), objectMapper, properties, sink);
     }
 
+    @Test
+    void theMessageArtifactKeepsHeaderNamesButNeverTheirValues() throws Exception {
+        KafkaMessageBuffer buffer = new KafkaMessageBuffer(10);
+        buffer.append(new KafkaMessage("partner.events", 0, 42, "request-1", validPayload(),
+                Instant.parse("2026-06-10T10:00:00Z"), Map.of("authorization", "Bearer secret-token", "source", "partner")));
+
+        ContractMonitorReport report = runner(buffer).run();
+
+        String artifact = Files.readString(Path.of(report.cases().getFirst().messageArtifact()));
+        assertThat(artifact).contains("authorization").contains("source")
+                .doesNotContain("secret-token").doesNotContain("SKU-1");
+    }
+
     private ContractMonitorRunner runner(KafkaMessageBuffer buffer) {
         return new ContractMonitorRunner(
                 List.of(monitorCase()),

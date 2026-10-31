@@ -225,7 +225,8 @@ public class ContractMonitorRunner {
         envelope.put("offset", message.offset());
         envelope.put("key", message.key());
         envelope.put("timestamp", message.timestamp().toString());
-        envelope.put("headers", message.headers());
+        // names only: header values carry tokens and personal data as often as payloads do
+        envelope.put("headers", new java.util.TreeSet<>(message.headers().keySet()));
         envelope.put("payload", payload);
         return envelope;
     }
