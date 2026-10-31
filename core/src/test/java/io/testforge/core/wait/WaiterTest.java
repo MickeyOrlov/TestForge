@@ -122,4 +122,24 @@ class WaiterTest {
                 .hasMessageStartingWith("Waited PT0.1S for never");
         assertThatThrownBy(() -> quick.withTimeout(Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void anAssertionInsideTheConditionIsRetriedLikeAnyOtherNotYet() {
+        // the Waiter before TestForge's own timeout messages ignored these through
+        // Awaitility's ignoreExceptions(); an assertion in a condition must keep retrying
+        AtomicInteger polls = new AtomicInteger();
+
+        String value = waiter.await("assertion eventually holds", () -> {
+            org.assertj.core.api.Assertions.assertThat(polls.incrementAndGet()).isGreaterThanOrEqualTo(3);
+            return "ok";
+        }, ok -> true);
+
+        assertThat(value).isEqualTo("ok");
+        assertThatThrownBy(() -> waiter.awaitTrue("never holds", () -> {
+            org.assertj.core.api.Assertions.assertThat("Running").isEqualTo("Completed");
+            return true;
+        }))
+                .isInstanceOf(WaitTimeoutException.class)
+                .hasMessageContaining("last error: AssertionFailedError");
+    }
 }

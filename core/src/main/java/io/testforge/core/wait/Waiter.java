@@ -29,9 +29,9 @@ public class Waiter {
 
     /**
      * Polls {@code supplier} until its value satisfies {@code until},
-     * then returns the last value. Exceptions thrown while polling are
-     * treated as "not ready yet" — and the last one is reported if the wait
-     * times out.
+     * then returns the last value. Exceptions and assertion errors thrown
+     * while polling are treated as "not ready yet" — and the last one is
+     * reported if the wait times out.
      *
      * <p>Polling happens on the calling thread ({@code pollInSameThread}):
      * no extra poller thread per await — cheap on virtual threads — and the
@@ -129,8 +129,9 @@ public class Waiter {
                         observed.polls.incrementAndGet();
                         try {
                             return condition.call();
-                        } catch (Exception e) {
-                            // not ready yet; kept so a timeout can say why every poll failed
+                        } catch (Exception | AssertionError e) {
+                            // not ready yet — an assertion inside the condition included, as with
+                            // Awaitility's ignoreExceptions(); kept so a timeout can say why every poll failed
                             observed.error.set(e);
                             return false;
                         }

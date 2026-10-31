@@ -39,4 +39,12 @@ class JsonPathTest {
         assertThat(JsonPath.read(root, "$[x].id").isMissingNode()).isTrue();
         assertThat(JsonPath.read(null, "$.a").isMissingNode()).isTrue();
     }
+
+    @org.junit.jupiter.api.Test
+    void aNullPathIsRefusedWithAHint() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> JsonPath.read(
+                        new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode(), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("\"$\"");
+    }
 }

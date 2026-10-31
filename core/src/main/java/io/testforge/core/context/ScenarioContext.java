@@ -51,7 +51,7 @@ public final class ScenarioContext {
     }
 
     public static <T> void put(ContextKey<T> key, T value) {
-        Objects.requireNonNull(value, () -> "Scenario context value for '%s' must not be null; use remove semantics via clear() or a dedicated absent state".formatted(key.name()));
+        Objects.requireNonNull(value, () -> "Scenario context value for '%s' must not be null; use remove(key) to drop it".formatted(key.name()));
         store().put(key, value);
     }
 
@@ -63,6 +63,12 @@ public final class ScenarioContext {
 
     public static <T> Optional<T> find(ContextKey<T> key) {
         return Optional.ofNullable(key.type().cast(store().get(key)));
+    }
+
+    /** Drops one value, leaving the rest of the scenario's context in place. */
+    public static <T> Optional<T> remove(ContextKey<T> key) {
+        Objects.requireNonNull(key, "key");
+        return Optional.ofNullable(key.type().cast(store().remove(key)));
     }
 
     public static void clear() {
