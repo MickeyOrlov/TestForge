@@ -33,6 +33,8 @@ forge:
     default-datasource: primaryDataSource  # optional; bean name
     repository-polling:
       enabled: true # default: false
+    queries:
+      enabled: false   # true: DbQueries — what SQL an action ran (wraps the datasources)
     diagnostics:
       enabled: true # default: false; SQL of failed tests in the run index
       last: 20      # statements kept per test thread
@@ -280,6 +282,36 @@ db.invariants()
 the child side of an orphan check included. `verify()` returns the report
 without throwing. Run the same rules after a scenario, or over the whole
 database from a scheduled job (no `within`) to catch what any test left.
+
+## What SQL an action ran
+
+With `forge.db.queries.enabled=true`, `DbQueries` captures the statements an
+action ran and checks a budget:
+
+```java
+@Autowired DbQueries queries;
+
+CapturedQueries sql = queries.during(() -> api.listOrders(customer));
+sql.expect()
+        .atMost(3)                                   // statements in all
+        .atMost(0, CapturedQueries.Kind.UPDATE)      // a read writes nothing
+        .noRepeated(2);                              // the N+1: one shape once per row
+```
+
+```
+statements repeated more than 2 times (N+1?): [50 × SELECT sku FROM items WHERE order_id = ?]
+51 statements (SELECT 51)
+  50 × SELECT sku FROM items WHERE order_id = ?
+  1 × SELECT id FROM orders WHERE customer_id = ?
+```
+
+Statements are grouped by shape — literals and `IN (...)` lists folded — and a
+batch counts each row. The window sees every thread, so an application serving
+the request on its own threads in the test's JVM counts; `duringThisThread`
+keeps only the caller's statements (for parallel suites, or MockMvc).
+`returning(() -> ...)` keeps the action's result. Take `DbState` snapshots
+outside the window: their reads count too. Only SQL text and timing are kept,
+never parameter values.
 
 ## Rows for setup, removed after the test
 

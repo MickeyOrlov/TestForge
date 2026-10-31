@@ -128,6 +128,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: query budgets — with `forge.db.queries.enabled=true`,
+  `DbQueries.during(action)` captures every statement any thread ran during
+  an action (`duringThisThread` for the caller only), and
+  `expect().atMost(n)`, `atMost(n, kind)`, `none(kind)`, `noRepeated(times)`
+  catch an action that runs too much SQL, writes from a read, or runs one
+  statement once per row (N+1).
 - `module-db`: `TableDiff.expect().onlyOwnData(tagColumn)` — every row an
   action added, changed or removed carries a test tag from `module-data`'s
   `DataIsolation`; data no test owns fails, other tests' rows are tolerated
