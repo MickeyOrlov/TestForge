@@ -20,6 +20,8 @@ public final class CapturedQueries {
     private static final Pattern IN_LIST = Pattern.compile("(?i)\\bIN\\s*\\(\\s*\\?(\\s*,\\s*\\?)*\\s*\\)");
     private static final Pattern SPACE = Pattern.compile("\\s+");
     private static final Pattern WHERE = Pattern.compile("(?i)\\bWHERE\\b");
+    private static final Pattern LEADING_COMMENTS = Pattern.compile("^(\\s*(/\\*.*?\\*/|--[^\\n]*\\n))+", Pattern.DOTALL);
+    private static final Pattern MAIN_KEYWORD = Pattern.compile("(?i)\\b(SELECT|INSERT|UPDATE|DELETE|MERGE)\\b");
     private static final Pattern BOUNDED_READ = Pattern.compile("(?i)\\b(WHERE|LIMIT|FETCH\\s+(FIRST|NEXT)|TOP)\\b");
     private static final Pattern TABLES = Pattern.compile("(?i)\\b(?:FROM|JOIN)\\s+([\\w.\"`\\[\\]]+)");
 
@@ -30,7 +32,7 @@ public final class CapturedQueries {
      * @param error the failure's type, or {@code null}
      */
     public record Statement(String dataSource, String sql, int batch, long millis, String error, String thread,
-                            Thread owner) {
+                            long threadId) {
 
         /** {@code SELECT * FROM items WHERE order_id = ?}: literals and IN-lists folded, so repeats group. */
         public String shape() {
@@ -58,14 +60,36 @@ public final class CapturedQueries {
             return tables;
         }
 
-        /** An {@code UPDATE} or {@code DELETE} with no {@code WHERE}, or a {@code TRUNCATE}: every row of a table. */
+        /**
+         * An {@code UPDATE} or {@code DELETE} with no {@code WHERE} of its own, or a
+         * {@code TRUNCATE}: every row of a table. Only the statement's top level
+         * counts — a {@code WHERE} inside a subquery or CTE filters that, not the write.
+         */
         public boolean unboundedWrite() {
-            String text = withoutLiterals();
+            String top = topLevel();
             Kind kind = kind();
             if (kind == Kind.UPDATE || kind == Kind.DELETE) {
-                return !WHERE.matcher(text).find();
+                return !WHERE.matcher(top).find();
             }
-            return kind == Kind.OTHER && text.strip().toUpperCase(Locale.ROOT).startsWith("TRUNCATE");
+            return kind == Kind.OTHER && top.strip().toUpperCase(Locale.ROOT).startsWith("TRUNCATE");
+        }
+
+        /** Literals blanked, leading comments dropped, every parenthesised group removed. */
+        String topLevel() {
+            String text = LEADING_COMMENTS.matcher(withoutLiterals()).replaceFirst("");
+            StringBuilder out = new StringBuilder();
+            int depth = 0;
+            for (char c : text.toCharArray()) {
+                if (c == '(') {
+                    depth++;
+                    out.append(depth == 1 ? " " : "");
+                } else if (c == ')') {
+                    depth = Math.max(0, depth - 1);
+                } else if (depth == 0) {
+                    out.append(c);
+                }
+            }
+            return out.toString();
         }
 
         /** A {@code SELECT} from a table with no {@code WHERE}, {@code LIMIT}, {@code FETCH} or {@code TOP}: the whole table. */
@@ -73,8 +97,18 @@ public final class CapturedQueries {
             return kind() == Kind.SELECT && !tables().isEmpty() && !BOUNDED_READ.matcher(withoutLiterals()).find();
         }
 
+        /**
+         * From the first keyword, after leading comments and parentheses; for a
+         * {@code WITH} statement, from the statement that follows the CTEs — a
+         * {@code WITH … UPDATE} is an update.
+         */
         public Kind kind() {
-            String first = sql.strip().split("\\s+", 2)[0].toUpperCase(Locale.ROOT);
+            String text = LEADING_COMMENTS.matcher(withoutLiterals()).replaceFirst("").replaceFirst("^[\\s(]+", "");
+            String first = text.split("\\s+", 2)[0].toUpperCase(Locale.ROOT);
+            if (first.equals("WITH")) {
+                java.util.regex.Matcher main = MAIN_KEYWORD.matcher(topLevel());
+                first = main.find() ? main.group(1).toUpperCase(Locale.ROOT) : "SELECT";
+            }
             return switch (first) {
                 case "SELECT", "WITH" -> Kind.SELECT;
                 case "INSERT" -> Kind.INSERT;
@@ -89,22 +123,27 @@ public final class CapturedQueries {
     /** An open capture; collects until closed. */
     static final class Window {
 
-        private final Thread only;
+        private final long only;
         private final List<Statement> statements = Collections.synchronizedList(new ArrayList<>());
         private volatile boolean closed;
 
-        Window(Thread only) {
+        /** @param only a thread id, or {@code -1} for every thread */
+        Window(long only) {
             this.only = only;
         }
 
         void offer(Statement statement) {
-            if (!closed && (only == null || only == statement.owner())) {
+            if (!closed && (only < 0 || only == statement.threadId())) {
                 statements.add(statement);
             }
         }
 
         CapturedQueries close() {
             closed = true;
+            return snapshot();
+        }
+
+        CapturedQueries snapshot() {
             synchronized (statements) {
                 return new CapturedQueries(List.copyOf(statements));
             }

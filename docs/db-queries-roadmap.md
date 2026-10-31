@@ -5,13 +5,15 @@ database. These assert how it got there: how many statements it ran, whether
 one ran once per row, whether a write had no `WHERE`, whether a failed action
 left half its writes behind, and which statement was slow.
 
+All five steps shipped (PRs #114–#118).
+
 | Step | What | Status |
 |---|---|---|
 | 1 | **Query budget** — statements per action, per kind, and the N+1: one statement shape run once per row | shipped |
 | 2 | **Unbounded statements** — an `UPDATE`/`DELETE` without `WHERE`, a `SELECT` of a whole table | shipped |
 | 3 | **Atomicity** — an action that failed left nothing behind | shipped |
 | 4 | **Slow statements** — which statement of a scenario took longer than allowed | shipped |
-| 5 | **Review** — close the gaps a review finds | planned |
+| 5 | **Review** — close the gaps a review finds | shipped |
 
 ## Step 1 — query budget
 
@@ -59,3 +61,19 @@ whole. `failed()` / `noErrors()` catch a statement that failed inside an action
 that itself succeeded — a duplicate key the code caught and answered 200 to, a
 deadlock retried in silence. Times on a shared database measure the
 environment too; the limits are meant for gross regressions.
+
+## Step 5 — review
+
+- **Comments and parentheses hid the kind.** A statement starting with
+  `/* … */` (Hibernate's `use_sql_comments`) or `(` was `OTHER`, so it escaped
+  every per-kind check. Leading comments and parentheses are skipped.
+- **A CTE hid a write.** `WITH … UPDATE …` read as a `SELECT`, and the CTE's
+  `WHERE` made the update look bounded: a mass update through a CTE passed
+  `noUnboundedWrites()`. The kind comes from the statement after the CTEs, and
+  a write is judged by its own top-level `WHERE` — which also fixes
+  `UPDATE t SET a = (SELECT … WHERE …)` without a `WHERE` of its own.
+- **An action that threw lost its statements.** `during` closed the window and
+  rethrew; `open()` / `openThisThread()` return a window the test closes, its
+  statements readable while open and after.
+- **Threads held.** Each captured statement kept a reference to its `Thread`,
+  in a public record; it keeps the thread id now.

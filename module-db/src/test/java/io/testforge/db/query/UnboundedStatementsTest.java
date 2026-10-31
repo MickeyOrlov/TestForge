@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class UnboundedStatementsTest {
 
     private static CapturedQueries.Statement sql(String text) {
-        return new CapturedQueries.Statement("shop", text, 1, 1, null, "main", Thread.currentThread());
+        return new CapturedQueries.Statement("shop", text, 1, 1, null, "main", Thread.currentThread().threadId());
     }
 
     private static CapturedQueries captured(String... statements) {

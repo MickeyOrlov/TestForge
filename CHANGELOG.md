@@ -30,6 +30,13 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-db`: query checks read a statement's kind past leading comments
+  and parentheses (Hibernate's `use_sql_comments` made every statement
+  `OTHER`), treat `WITH … UPDATE` as an update, and judge a write by its own
+  top-level `WHERE` — a `WHERE` inside a CTE or subquery no longer makes an
+  `UPDATE` of every row look bounded. Captured statements hold a thread id,
+  not the `Thread`. `DbQueries.open()` keeps the statements of an action that
+  threw.
 - `module-db`: `watchSchema()` failed with a SQL syntax error on a table
   named after a reserved word (`order`, `user`); discovered tables are now
   quoted exactly as the metadata names them. A table over the row limit names
