@@ -85,6 +85,14 @@ try (MockScope scope = mocks.scope()) {
 Another scenario's traffic never counts, so these assertions stay correct when
 tests run in parallel against one shared mock.
 
+### Stubs held to the downstream's contract
+
+`StubContractChecker` in `module-api-explorer` (`forge.stub-contract`) checks
+a stub's response against the downstream's OpenAPI document —
+`stubContract.assertHonoured(scope.stub(...))` for one scoped stub, or
+`assertHonoured(wireMock)` for every stub on the server. `module-mock` itself
+stays free of OpenAPI.
+
 ### Stubs the scenario never called
 
 A test that stubs `/refunds` and passes without ever calling it was green for

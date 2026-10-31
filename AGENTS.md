@@ -13,7 +13,7 @@ module-contract/ JSON message contracts for API/queue/file drift checks
 module-contract-monitor/ Kafka drift monitor: contract validation + shape diff report
 module-api-discovery/ OpenAPI catalog + schema shape snapshots
 module-api-codegen/ OpenAPI-first Java records + typed ApiClient skeletons
-module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report; contract guard for every ApiClient response; access matrix (operation × role)
+module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report; contract guard for every ApiClient response; access matrix (operation × role); stub contract (WireMock stubs vs the downstream's document)
 module-data/   RunUniqueValues, TemplateRenderer for generated test data
 module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator, DbState table diffs
 module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
