@@ -12,7 +12,7 @@ right row *and* breaks something next to it fails the test.
 | 1 | **Exact row expectations** — a row's column moved from → to, a version grew by one, a timestamp moved forward, the rest untouched | shipped |
 | 2 | **Side-effect containment** — snapshot several tables, assert that only the expected ones and rows changed | shipped |
 | 3 | **Data invariants** — orphans, duplicate business keys, values outside an allowed set, NULLs where logic forbids them | shipped |
-| 4 | **Cross-table consistency, with waiting** — every new order has its outbox row; totals add up | planned |
+| 4 | **Cross-table consistency, with waiting** — every new order has its outbox row; totals add up | shipped |
 | 5 | **Only the test's own data** — the rows an action touched carry the test's run tag | planned |
 | 6 | **Review** — close the gaps a review finds | planned |
 
@@ -52,3 +52,14 @@ database the test owns. Shared databases keep `watch` with `where` clauses.
 test's own data. `verify()` reports, `assertHolds()` fails with every broken
 rule, its count and up to five rows. Identifiers are validated; conditions are
 the test's own SQL, as in `where(...)`.
+
+## Step 4 — cross-table consistency, with waiting
+
+Three more rules: `everyRowHas(column, matchingColumn)` — each order has its
+outbox event, the orphan check read the other way round;
+`totalMatches(total, key, part, partKey)` — a stored total equals the sum of
+its parts, zero when there are none; `countMatches(count, key, childKey)`.
+`assertHoldsWithin(Duration)` runs the rules on the core `Waiter` until they
+hold, for what the system completes asynchronously (the relay, a projection,
+a recalculation), and fails at the deadline with the last report — the rules
+still broken, not a bare timeout.

@@ -68,4 +68,23 @@ class DataInvariantsExampleTest {
                 .hasMessageContaining("unique: inv_orders(external_id): 1 value")
                 .hasMessageContaining("duplicates=2");
     }
+
+    @Test
+    void theOutboxEventThatArrivesLaterIsWaitedFor() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS inv_outbox (id BIGINT PRIMARY KEY, aggregate_id BIGINT)");
+        placeOrder(customer);
+        java.util.concurrent.ScheduledExecutorService relay = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        try {
+            // the outbox relay writes the event a moment after the order, as it does in production
+            relay.schedule(() -> jdbc.update("INSERT INTO inv_outbox VALUES (?, ?)", customer, customer),
+                    200, java.util.concurrent.TimeUnit.MILLISECONDS);
+
+            db.invariants()
+                    .within("inv_orders", "customer_id = ?", customer)
+                    .everyRowHas("inv_orders.id", "inv_outbox.aggregate_id")
+                    .assertHoldsWithin(java.time.Duration.ofSeconds(10));
+        } finally {
+            relay.shutdownNow();
+        }
+    }
 }
