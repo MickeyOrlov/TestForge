@@ -38,7 +38,7 @@ public final class BrowserPrewarmEngine implements PrewarmEngine {
                                 UrlRedactor.redact(page.url()), System.currentTimeMillis() - started, null);
                     } catch (RuntimeException e) {
                         return new PrewarmVisit(UrlRedactor.redact(url), null, null,
-                                System.currentTimeMillis() - started, firstLine(e.getMessage()));
+                                System.currentTimeMillis() - started, firstLine(UrlRedactor.scrub(e.getMessage(), url)));
                     }
                 }
 

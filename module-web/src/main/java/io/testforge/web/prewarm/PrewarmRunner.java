@@ -3,12 +3,13 @@ package io.testforge.web.prewarm;
 import io.testforge.artifact.ArtifactSink;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Visits the configured pages exactly once per JVM and says what each one
+ * Visits each configured page once per JVM and says what each one
  * answered. A prewarm failure is logged but never fails the suite — tests
  * against a cold environment are slower, not wrong — unless
  * {@code fail-when-unreachable} asks to stop when not one page answered.
@@ -16,13 +17,14 @@ import org.slf4j.LoggerFactory;
 public class PrewarmRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PrewarmRunner.class);
-    private static final AtomicBoolean DONE = new AtomicBoolean(false);
+    /** Every page prewarmed in this JVM, so a second context warms only what the first did not. */
+    private static final Set<String> VISITED = ConcurrentHashMap.newKeySet();
     private static final String SOURCE = "module-web";
 
     private final PrewarmProperties properties;
     private final PrewarmEngine engine;
     private final ArtifactSink sink;
-    private final AtomicBoolean done;
+    private final Set<String> visited;
     private volatile PrewarmReport lastReport;
 
     public PrewarmRunner(PrewarmProperties properties) {
@@ -30,15 +32,15 @@ public class PrewarmRunner {
     }
 
     public PrewarmRunner(PrewarmProperties properties, PrewarmEngine engine, ArtifactSink sink) {
-        this(properties, engine, sink, DONE);
+        this(properties, engine, sink, VISITED);
     }
 
-    /** {@code done} is the once-per-JVM guard; tests pass their own. */
-    PrewarmRunner(PrewarmProperties properties, PrewarmEngine engine, ArtifactSink sink, AtomicBoolean done) {
+    /** {@code visited} is the once-per-JVM record of warmed pages; tests pass their own. */
+    PrewarmRunner(PrewarmProperties properties, PrewarmEngine engine, ArtifactSink sink, Set<String> visited) {
         this.properties = properties;
         this.engine = engine;
         this.sink = sink == null ? ArtifactSink.NO_OP : sink;
-        this.done = done;
+        this.visited = visited;
     }
 
     /** What the last {@link #runOnce()} of this runner found; {@code null} before it ran. */
@@ -53,15 +55,18 @@ public class PrewarmRunner {
         if (properties.urls().isEmpty()) {
             return remember(PrewarmReport.skipped("no URLs configured"));
         }
-        if (!done.compareAndSet(false, true)) {
-            log.debug("Prewarm already ran in this JVM; skipping");
+        // each page once per JVM: a second context with the same pages skips, one with
+        // other pages (another environment, another profile) still warms those
+        List<String> pending = properties.urls().stream().distinct().filter(visited::add).toList();
+        if (pending.isEmpty()) {
+            log.debug("Every prewarm page was already visited in this JVM; skipping");
             return remember(PrewarmReport.skipped("already ran in this JVM"));
         }
 
         long started = System.currentTimeMillis();
         List<PrewarmVisit> visits = new ArrayList<>();
         try (PrewarmEngine.Session session = engine.open(properties)) {
-            for (String url : properties.urls()) {
+            for (String url : pending) {
                 PrewarmVisit visit = session.visit(url);
                 visits.add(visit);
                 if (visit.reached()) {
@@ -73,12 +78,11 @@ public class PrewarmRunner {
         } catch (RuntimeException e) {
             if (visits.isEmpty()) {
                 // could not start a browser: says nothing about the environment
-                log.warn("Prewarm could not start, suite continues against a cold environment: {}",
-                        BrowserPrewarmEngine.firstLine(e.getMessage()));
-                return publish(PrewarmReport.skipped("could not start: "
-                        + BrowserPrewarmEngine.firstLine(e.getMessage())));
+                String reason = BrowserPrewarmEngine.firstLine(scrubAll(e.getMessage(), pending));
+                log.warn("Prewarm could not start, suite continues against a cold environment: {}", reason);
+                return publish(PrewarmReport.skipped("could not start: " + reason));
             }
-            log.warn("Prewarm stopped early: {}", BrowserPrewarmEngine.firstLine(e.getMessage()));
+            log.warn("Prewarm stopped early: {}", BrowserPrewarmEngine.firstLine(scrubAll(e.getMessage(), pending)));
         }
         PrewarmReport report = new PrewarmReport(visits, System.currentTimeMillis() - started, null);
         log.info("Prewarm finished: {} of {} page(s) answered in {} ms",
@@ -88,6 +92,14 @@ public class PrewarmRunner {
             throw new PrewarmException(report);
         }
         return report;
+    }
+
+    private static String scrubAll(String message, List<String> urls) {
+        String scrubbed = message;
+        for (String url : urls) {
+            scrubbed = UrlRedactor.scrub(scrubbed, url);
+        }
+        return scrubbed;
     }
 
     private PrewarmReport publish(PrewarmReport report) {

@@ -7,6 +7,9 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-web`: prewarm visits each page once per JVM instead of running once
+  per JVM: a second Spring context with other pages (another profile or
+  environment) now warms those instead of skipping silently.
 - `module-api-codegen`: generated names are built whole — the client for
   untagged operations is `DefaultApiClient` (was `DefaultTypeApiClient`), a
   `class` tag gives `ClassApiClient`, and inline response models read
@@ -27,6 +30,11 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-web`: a failed visit's error quoted the URL as configured, so
+  basic-auth credentials in a staging URL reached the log, `prewarm.md` and the
+  failure message; errors are now scrubbed to the redacted URL. A page a
+  browser echoed back normalized (`https://s.test` → `https://s.test/`) was
+  reported as redirected; URLs are compared normalized.
 - `module-db-contract`: `writeBaseline()` recorded an empty schema (a wrong
   schema name or an `include-tables` pattern matching nothing) — a baseline
   under which every table reads as added and the gate can never fail. It now

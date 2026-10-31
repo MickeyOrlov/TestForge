@@ -7,8 +7,9 @@ UI-environment helpers. For now: prewarm.
 Test environments answer the first page load slowly — cold SSR/CDN caches,
 lazy-compiled bundles. Without prewarm the first UI tests of a run fail on
 navigation timeouts and their retries mask real bugs. `PrewarmRunner` visits
-the configured pages exactly once per JVM, right after the Spring context
-starts, before any test runs.
+the configured pages right after the Spring context starts, before any test
+runs — each page once per JVM, so a second context with the same pages skips
+and one with other pages warms those.
 
 A prewarm failure logs a warning and lets the suite continue: a cold
 environment makes tests slower, not wrong.
