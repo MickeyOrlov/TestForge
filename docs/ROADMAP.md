@@ -42,7 +42,7 @@ template building blocks.
 | `module-flow` | Deterministic state-machine setup with timed paths, declared transitions (verify, Mermaid diagram), suite-wide transition coverage and decorators. Plan: [flow-layer-roadmap.md](flow-layer-roadmap.md). |
 | `module-kafka` | Kafka buffer/probe/collector (group per run, assigned before tests start), publisher with scenario headers, exactly-one/none assertions, failure diagnostics; contract validation composes outside the module. Plan: [kafka-layer-roadmap.md](kafka-layer-roadmap.md). |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers, per-scope response sequences, unused-stub detection; stubs checked against the downstream's document through `module-api-explorer`. Plan: [mock-layer-roadmap.md](mock-layer-roadmap.md). |
-| `module-reporting` | Run-scoped artifact collection, deterministic manifest/summary index, resource usage monitor, and optional Allure attachments. |
+| `module-reporting` | Run-scoped artifact collection with one run per test JVM, deterministic manifest/summary index with a failed test's evidence gathered under the test, resource usage monitor, and optional Allure attachments. Plan: [reporting-layer-roadmap.md](reporting-layer-roadmap.md). |
 | `module-web` | Playwright-powered environment prewarm, best-effort by design. |
 
 ### Beta
@@ -119,6 +119,9 @@ surface is still expected to evolve.
 - Flow layer: timed transitions, declared transitions verified and drawn
   before running, transition coverage across the suite
   ([plan](flow-layer-roadmap.md)).
+- Reporting layer: one complete index per test JVM however many Spring
+  contexts, a failed test's evidence from every module under the test
+  ([plan](reporting-layer-roadmap.md)).
 - Contract layer: first schemas drafted from real payloads, schema version
   changes classified for consumers ([plan](contract-layer-roadmap.md)).
 - State layer: recipes under their own flow name, declared targets with a
