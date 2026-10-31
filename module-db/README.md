@@ -210,6 +210,30 @@ connection's schema, keyed by its primary key (a table without one is matched
 on all its columns). On a shared database every parallel test's writes would
 count there; use `watch(...)` with `where` clauses instead.
 
+### Only the test's own data
+
+On a shared environment a test must not reach rows it did not create. Watch the
+table whole and require every row the action added, changed or removed to carry
+a test tag (`DataIsolation.tag(...)` from `module-data`) in the column the test
+writes it into:
+
+```java
+TableSnapshot before = db.table("customers").keyedBy("id").take();   // no where: see what else moved
+api.upgrade(customer);
+before.diff().expect().onlyOwnData("name");
+```
+
+```
+rows outside the tests' data were touched (name carries no test tag):
+    ~ id=3 name=Real Customer Ltd (not test data)
+```
+
+`onlyOwnData` tolerates rows of other tests — parallel tests write to the same
+tables at the same time — and fails on data no test owns.
+`onlyThisTestsData` fails on other tests' rows too, for runs where nothing else
+writes the table concurrently. Both need `DataIsolationExtension` so the test
+has its own tag. Mind `maxRows` on large tables.
+
 ## Rules the data must keep
 
 A backend can write exactly the row a test expected and still break the data

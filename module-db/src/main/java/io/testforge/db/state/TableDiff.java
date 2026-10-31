@@ -54,16 +54,22 @@ public record TableDiff(
      *                row count as changed, but {@link Expectation#row} can check them
      */
     public record RowChange(Map<String, Object> key, Map<String, ValueChange> columns,
-                            Map<String, ValueChange> ignored) {
+                            Map<String, ValueChange> ignored, Map<String, Object> values) {
 
         public RowChange {
             key = Collections.unmodifiableMap(new LinkedHashMap<>(key));
             columns = Collections.unmodifiableMap(new LinkedHashMap<>(columns));
             ignored = ignored == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(ignored));
+            values = values == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(values));
+        }
+
+        public RowChange(Map<String, Object> key, Map<String, ValueChange> columns,
+                         Map<String, ValueChange> ignored) {
+            this(key, columns, ignored, Map.of());
         }
 
         public RowChange(Map<String, Object> key, Map<String, ValueChange> columns) {
-            this(key, columns, Map.of());
+            this(key, columns, Map.of(), Map.of());
         }
     }
 
@@ -156,6 +162,53 @@ public record TableDiff(
         /** Nothing at all happened to these rows. */
         public Expectation nothing() {
             return check(diff.isEmpty(), "expected no changes");
+        }
+
+        /**
+         * Every row this diff saw added, changed or removed carries a tag from
+         * this run's tests in {@code tagColumn} — a name, an email, a reference
+         * the test wrote through {@code DataIsolation.tag(...)}. Rows tagged by
+         * other tests are tolerated (parallel tests on a shared database write
+         * at the same time); a row that is not test data at all fails: the
+         * action reached data nobody's test owns.
+         */
+        public Expectation onlyOwnData(String tagColumn) {
+            return ownership(tagColumn, false);
+        }
+
+        /**
+         * As {@link #onlyOwnData}, but a row tagged by another test fails too —
+         * for a run whose tests do not write to this table at the same time.
+         */
+        public Expectation onlyThisTestsData(String tagColumn) {
+            return ownership(tagColumn, true);
+        }
+
+        private Expectation ownership(String tagColumn, boolean strict) {
+            String column = TableQuery.identifier(tagColumn, "tag column").toLowerCase(java.util.Locale.ROOT);
+            List<String> outside = new ArrayList<>();
+            diff.added.forEach(row -> owned(column, row, "+ " + format(keyColumns(row)), strict, outside));
+            diff.changed.forEach(change -> owned(column, change.values(), "~ " + format(change.key()), strict, outside));
+            diff.touched.forEach(change -> owned(column, change.values(), "~ " + format(change.key()), strict, outside));
+            diff.removed.forEach(row -> owned(column, row, "- " + format(keyColumns(row)), strict, outside));
+            return check(outside.isEmpty(), "rows outside " + (strict ? "this test's" : "the tests'")
+                    + " data were touched (" + column + " carries no " + (strict ? "tag of this test" : "test tag")
+                    + "):\n    " + String.join("\n    ", outside) + "\n");
+        }
+
+        private static void owned(String column, Map<String, Object> row, String label, boolean strict,
+                                  List<String> outside) {
+            if (!row.containsKey(column)) {
+                throw new IllegalArgumentException("'" + column + "' is not a column of the diff; columns: "
+                        + row.keySet());
+            }
+            String value = String.valueOf(row.get(column));
+            boolean ours = io.testforge.data.isolation.DataIsolation.owns(value);
+            boolean someTests = io.testforge.data.isolation.DataIsolation.isTestData(value);
+            if (!ours && (strict || !someTests)) {
+                outside.add(label + " " + column + "=" + row.get(column)
+                        + (someTests ? " (another test's)" : " (not test data)"));
+            }
         }
 
         /**
