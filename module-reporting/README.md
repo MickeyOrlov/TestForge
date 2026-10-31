@@ -49,7 +49,7 @@ forge:
 
 - **`forge.reporting.artifacts.enabled`** (boolean, default: `false`): Enables run-scoped artifact collection, directory layout management, `RunArtifactSink`, `manifest.json`, and `summary.md` generation.
 - **`forge.reporting.artifacts.dir`** (Path, default: `build/testforge-artifacts`): Base output directory for test run artifacts.
-- **`forge.reporting.artifacts.run-id`** (String, optional): Custom run identifier. If omitted, a time-sortable run ID is generated automatically (e.g. `20260816-001435-123-a1b2c3`).
+- **`forge.reporting.artifacts.run-id`** (String, optional): Custom run identifier. If omitted, a time-sortable run ID is generated once per JVM (e.g. `20260816-001435-123-a1b2c3`), so every Spring context of a test JVM writes into the same run.
 - **`forge.reporting.resource-monitor.enabled`** (boolean, default: `false`): Enables background JVM memory and CPU sampling.
 - **`forge.reporting.resource-monitor.period`** (Duration, default: `2s`): Sampling interval for the resource monitor.
 
@@ -112,6 +112,19 @@ Artifacts are deterministically ordered by `createdAt` -> `source` -> `category`
 
 - **resource-usage.txt** (resource-usage): `module-reporting/resource-usage.txt`
 ```
+
+## One run, however many Spring contexts
+
+A suite caches several Spring contexts, and each one writes the index when
+it closes. All contexts of a test JVM share one run directory (one generated
+run id per JVM), and each writes the union of what every context of the run
+indexed so far — the last one to close leaves the complete `manifest.json`
+and `summary.md`.
+
+Separate JVMs (Gradle `maxParallelForks > 1`) generate separate runs. A fixed
+`run-id` shared by parallel JVMs makes them write one directory, and the
+index then holds only the last JVM's artifacts: leave it unset there, or
+include the fork in it.
 
 ## Reading Failed Runs in CI Without Allure
 

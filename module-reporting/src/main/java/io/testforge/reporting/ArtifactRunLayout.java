@@ -219,6 +219,19 @@ public class ArtifactRunLayout {
         return relativize(targetPath != null ? Paths.get(targetPath) : null);
     }
 
+    /**
+     * One generated run id for the whole JVM. A test suite caches several
+     * Spring contexts; each one generating its own id split one run into as
+     * many directories, each with a partial index.
+     */
+    public static String jvmRunId() {
+        return JvmRun.ID;
+    }
+
+    private static final class JvmRun {
+        static final String ID = generateRunId();
+    }
+
     private static String generateRunId() {
         String timestamp = TIMESTAMP_FORMATTER.format(Instant.now());
         int randomNum = ThreadLocalRandom.current().nextInt(0x100000, 0x1000000);

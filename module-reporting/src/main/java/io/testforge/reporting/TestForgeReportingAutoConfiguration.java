@@ -48,9 +48,11 @@ public class TestForgeReportingAutoConfiguration {
             name = "enabled",
             havingValue = "true")
     public ArtifactRunLayout artifactRunLayout(ReportingProperties properties) {
+        String runId = properties.artifacts().runId();
+        // every context of the test JVM writes into the same run unless a run id is configured
         return new ArtifactRunLayout(
                 properties.artifacts().dir(),
-                properties.artifacts().runId());
+                runId != null && !runId.isBlank() ? runId : ArtifactRunLayout.jvmRunId());
     }
 
     /**
