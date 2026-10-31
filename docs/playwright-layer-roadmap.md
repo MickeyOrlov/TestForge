@@ -7,11 +7,13 @@ got, the console error, the uncaught exception — so every red UI test meant
 opening a trace to learn what one line could have said. And the browser's
 requests carried nothing tying them to the scenario's backend logs.
 
+All three steps shipped (PRs #99–#101).
+
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **The browser's side of a failure** — failed requests, console errors, page errors in `browser.md` next to the screenshot | `module-web-playwright` | shipped |
 | 2 | **Base URL and correlation** — relative navigation, and the scenario's correlation id on every browser request | `module-web-playwright` | shipped |
-| 3 | **Review** — close the gaps a review of the module finds | `module-web-playwright` | planned |
+| 3 | **Review** — close the gaps a review of the module finds | `module-web-playwright` | shipped |
 
 ## Step 1 — the browser's side of a failure
 
@@ -36,3 +38,18 @@ browser-wide extra header would reach CDNs and identity providers and force
 CORS preflights they may refuse. Routing disables Playwright's HTTP cache for
 the context, so `correlation: false` remains available.
 `PlaywrightCorrelationIT` proves it with two origins on a real browser.
+
+## Step 3 — review
+
+- **Lifecycle failures left nothing.** The extension handled failures of the
+  test method only. A sign-in in `@BeforeEach(Page page)` that does not get
+  through — the commonest UI failure — produced no screenshot, trace or
+  `browser.md`. Before/after-each failures are captured too, once per test.
+- **Locale-dependent browser type.** `toLowerCase()` without a locale turned
+  `CHROMIUM` into `chromıum` under a Turkish default locale, and the provider
+  refused to start.
+- **Silent downloads, cryptic launch failures.** Playwright downloads every
+  bundled browser when one is missing — it fetched WebKit here on the first
+  run of a Chromium-only suite. `download-browsers: false` turns that off for
+  images that bake browsers in, and a launch failure now names the install
+  command.

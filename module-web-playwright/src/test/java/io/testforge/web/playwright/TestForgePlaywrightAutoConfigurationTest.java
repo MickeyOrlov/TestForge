@@ -33,5 +33,27 @@ class TestForgePlaywrightAutoConfigurationTest {
         assertThat(properties.defaultTimeout()).isEqualTo(30_000.0);
         assertThat(properties.artifactsOnFailure()).isTrue();
         assertThat(properties.artifactsDir()).isEqualTo("build/playwright-artifacts");
+        assertThat(properties.baseUrl()).isNull();
+        assertThat(properties.correlation()).isTrue();
+        assertThat(properties.correlationHeader()).isEqualTo("X-Request-Id");
+        assertThat(properties.downloadBrowsers()).isTrue();
+    }
+
+    @Test
+    void theNewSettingsBindFromProperties() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(BindOnly.class)
+                .withPropertyValues("forge.playwright.base-url=https://staging.example.test",
+                        "forge.playwright.correlation-header=X-Trace", "forge.playwright.download-browsers=false")
+                .run(context -> {
+                    PlaywrightProperties properties = context.getBean(PlaywrightProperties.class);
+                    assertThat(properties.baseUrl()).isEqualTo("https://staging.example.test");
+                    assertThat(properties.correlationHeader()).isEqualTo("X-Trace");
+                    assertThat(properties.downloadBrowsers()).isFalse();
+                });
+    }
+
+    @org.springframework.boot.context.properties.EnableConfigurationProperties(PlaywrightProperties.class)
+    static class BindOnly {
     }
 }

@@ -37,4 +37,18 @@ class PlaywrightFailureArtifactsIT {
                 .contains("cannot render the total")
                 .doesNotContain("s3cret");
     }
+
+    @Test
+    void aSignInThatFailsInBeforeEachLeavesTheSameEvidence() throws Exception {
+        EngineTestKit.engine("junit-jupiter")
+                .selectors(selectClass(PlaywrightSignInFailureTestkitFixture.class))
+                .execute()
+                .testEvents()
+                .assertStatistics(stats -> stats.failed(1));
+
+        Path dir = Path.of("build/playwright-artifacts-fixture/PlaywrightSignInFailureTestkitFixture-opensTheDashboard");
+        assertThat(dir.resolve("screenshot.png")).exists();
+        assertThat(dir.resolve("trace.zip")).exists();
+        assertThat(Files.readString(dir.resolve("browser.md"))).contains("- title: Sign in");
+    }
 }

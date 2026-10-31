@@ -23,6 +23,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 - The correlation header goes to the base URL's origin only, never to
   third-party origins.
+- Failure artifacts cover lifecycle methods too, and are captured once per test.
 
 ## Tests
 

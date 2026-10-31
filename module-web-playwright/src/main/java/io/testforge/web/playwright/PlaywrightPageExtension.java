@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
+import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
@@ -37,7 +38,8 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
  * }
  * }</pre>
  */
-public class PlaywrightPageExtension implements ParameterResolver, TestExecutionExceptionHandler {
+public class PlaywrightPageExtension
+        implements ParameterResolver, TestExecutionExceptionHandler, LifecycleMethodExecutionExceptionHandler {
 
     private static final Namespace NAMESPACE = Namespace.create(PlaywrightPageExtension.class);
     private static final String FIXTURE_KEY = "fixture";
@@ -66,6 +68,23 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
         // the store closes AutoCloseable resources when the test finishes
         extensionContext.getStore(NAMESPACE).put(FIXTURE_KEY, fixture);
         return fixture.page();
+    }
+
+    /**
+     * A sign-in in {@code @BeforeEach(Page page)} that fails is the commonest UI
+     * failure of all, and it is not a test-method failure: without this it left
+     * no screenshot, trace or {@code browser.md}.
+     */
+    @Override
+    public void handleBeforeEachMethodExecutionException(ExtensionContext extensionContext, Throwable throwable)
+            throws Throwable {
+        handleTestExecutionException(extensionContext, throwable);
+    }
+
+    @Override
+    public void handleAfterEachMethodExecutionException(ExtensionContext extensionContext, Throwable throwable)
+            throws Throwable {
+        handleTestExecutionException(extensionContext, throwable);
     }
 
     @Override
@@ -176,10 +195,14 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
             }
         }
 
+        private boolean captured;
+
         void captureFailureArtifacts(ExtensionContext extensionContext) {
-            if (!properties.artifactsOnFailure()) {
+            // a failing test and then a failing @AfterEach would capture twice; the first is the story
+            if (!properties.artifactsOnFailure() || captured) {
                 return;
             }
+            captured = true;
 
             Path directory = artifactDirectory(extensionContext);
             try {

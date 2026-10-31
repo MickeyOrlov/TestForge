@@ -30,6 +30,12 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-web-playwright`: a failure in `@BeforeEach`/`@AfterEach` — a
+  sign-in through the injected `Page` — left no screenshot, trace or
+  `browser.md`; lifecycle failures are captured too, once per test. The
+  browser type is lower-cased with `Locale.ROOT` (under a Turkish locale
+  `CHROMIUM` became `chromıum`), and a launch failure names the install
+  command.
 - `module-web`: a failed visit's error quoted the URL as configured, so
   basic-auth credentials in a staging URL reached the log, `prewarm.md` and the
   failure message; errors are now scrubbed to the redacted URL. A page a
@@ -101,6 +107,9 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-web-playwright`: `forge.playwright.download-browsers=false` stops
+  Playwright from downloading every bundled browser when one is missing —
+  for CI images that bake browsers in.
 - `module-web-playwright`: `forge.playwright.base-url` for relative
   navigation, and the scenario's correlation id (`X-Request-Id` by default,
   as in `module-http`) on every browser request to that origin — never to
