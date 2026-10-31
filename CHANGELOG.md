@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-mock`: unused stubs. `MockScope.unusedStubs()` names scoped stubs
+  no request hit (`POST /refunds → 409`, or a sequence step never reached);
+  the scope artifact lists them under `unusedStubs`. With
+  `forge.mock.fail-on-unused-stubs=true` closing such a scope fails after its
+  stubs are removed — suppressed under the test's own failure if it had one.
 - `module-mock`: `MockScope.sequence(request, responses...)` answers the same
   request differently each time, then repeats the last response — for retry
   tests (`503, 503, 200`). A WireMock scenario per scope keeps parallel

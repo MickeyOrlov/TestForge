@@ -23,6 +23,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     base-url: http://wiremock.staging.example.test:8080
  *     scope-json-path: "$.metadata.test_scope"
  *     # or: scope-header: X-Test-Scope
+ *     fail-on-unused-stubs: true   # default false: a scope closing with a never-called stub fails
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.mock")
@@ -31,9 +32,13 @@ public record MockProperties(
         String scopeJsonPath,
         String scopeHeader,
         String scopeQueryParam,
-        String scopeCookie) {
+        String scopeCookie,
+        Boolean failOnUnusedStubs) {
 
     public MockProperties {
+        if (failOnUnusedStubs == null) {
+            failOnUnusedStubs = false;
+        }
         if (scopeJsonPath == null || scopeJsonPath.isBlank()) {
             scopeJsonPath = "$.testScope";
         }
