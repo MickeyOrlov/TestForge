@@ -34,7 +34,12 @@ forge:
     timeout: 60s
     max-transitions: 100
     max-visits-per-state: 5
+    publish-successful-paths: false   # default: only failed runs write flow-path-<name>.txt
 ```
+
+The timeout is checked between steps; a step that blocks is not interrupted,
+so a step that waits must bound its own wait (`Waiter`, `DbWaiter`).
+`FlowContext.put(key, null)` removes the key.
 
 ## Usage
 

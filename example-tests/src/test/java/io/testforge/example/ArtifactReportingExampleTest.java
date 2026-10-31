@@ -27,7 +27,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest(properties = {
         "forge.reporting.artifacts.enabled=true",
         "forge.reporting.artifacts.dir=build/artifact-reporting-example",
-        "forge.reporting.artifacts.run-id=example-run"
+        "forge.reporting.artifacts.run-id=example-run",
+        // successful flow paths are opt-in; this example shows one in the index
+        "forge.flow.publish-successful-paths=true"
 })
 class ArtifactReportingExampleTest {
 

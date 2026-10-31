@@ -8,8 +8,17 @@ public class FlowContext {
 
     private final Map<String, Object> values = new HashMap<>();
 
+    /**
+     * Stores {@code value}; {@code null} removes the key — {@link #get} already
+     * treats a null as absent, and a null kept here would break the snapshot a
+     * successful run returns.
+     */
     public <T> void put(String key, T value) {
-        values.put(key, value);
+        if (value == null) {
+            values.remove(key);
+        } else {
+            values.put(key, value);
+        }
     }
 
     @SuppressWarnings("unchecked")
