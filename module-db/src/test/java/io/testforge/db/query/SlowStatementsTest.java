@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class SlowStatementsTest {
 
     private static CapturedQueries.Statement sql(String text, long millis, String error) {
-        return new CapturedQueries.Statement("shop", text, 1, millis, error, "http-nio-1", Thread.currentThread());
+        return new CapturedQueries.Statement("shop", text, 1, millis, error, "http-nio-1", 1L);
     }
 
     private final CapturedQueries scenario = new CapturedQueries(List.of(

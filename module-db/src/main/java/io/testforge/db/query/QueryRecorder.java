@@ -20,7 +20,7 @@ public final class QueryRecorder {
     }
 
     CapturedQueries.Window open(boolean thisThreadOnly) {
-        CapturedQueries.Window window = new CapturedQueries.Window(thisThreadOnly ? Thread.currentThread() : null);
+        CapturedQueries.Window window = new CapturedQueries.Window(thisThreadOnly ? Thread.currentThread().threadId() : -1);
         open.add(window);
         return window;
     }

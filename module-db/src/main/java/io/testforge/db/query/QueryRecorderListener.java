@@ -35,7 +35,7 @@ public final class QueryRecorderListener implements QueryExecutionListener {
         for (QueryInfo query : queries) {
             int batch = Math.max(1, query.getQueryArgsList().size());
             target.record(new CapturedQueries.Statement(execution.getDataSourceName(), query.getQuery(), batch,
-                    execution.getElapsedTime(), error, thread, Thread.currentThread()));
+                    execution.getElapsedTime(), error, thread, Thread.currentThread().threadId()));
         }
     }
 }

@@ -360,7 +360,15 @@ Statements are grouped by shape — literals and `IN (...)` lists folded — and
 batch counts each row. The window sees every thread, so an application serving
 the request on its own threads in the test's JVM counts; `duringThisThread`
 keeps only the caller's statements (for parallel suites, or MockMvc).
-`returning(() -> ...)` keeps the action's result. Take `DbState` snapshots
+`returning(() -> ...)` keeps the action's result. For an action that throws,
+open the window yourself — its statements stay readable afterwards:
+
+```java
+try (DbQueries.QueryCapture capture = queries.open()) {
+    assertThatThrownBy(() -> api.checkout(cart, declinedCard));
+    capture.queries().expect().none(CapturedQueries.Kind.INSERT);
+}
+``` Take `DbState` snapshots
 outside the window: their reads count too. Only SQL text and timing are kept,
 never parameter values.
 

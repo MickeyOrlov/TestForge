@@ -52,6 +52,52 @@ public final class DbQueries {
         }).queries();
     }
 
+    /**
+     * An open window, for an action that may throw: the statements stay
+     * readable after it did — what a failed checkout ran is often the point.
+     *
+     * <pre>{@code
+     * try (QueryCapture capture = queries.open()) {
+     *     assertThatThrownBy(() -> api.checkout(cart, declinedCard));
+     *     capture.queries().expect().none(CapturedQueries.Kind.INSERT);
+     * }
+     * }</pre>
+     */
+    public QueryCapture open() {
+        return new QueryCapture(recorder, recorder.open(false));
+    }
+
+    /** As {@link #open()}, for the calling thread's statements only. */
+    public QueryCapture openThisThread() {
+        return new QueryCapture(recorder, recorder.open(true));
+    }
+
+    /** A capture window the test closes itself; {@link #queries()} works while open and after. */
+    public static final class QueryCapture implements AutoCloseable {
+
+        private final QueryRecorder recorder;
+        private final CapturedQueries.Window window;
+        private CapturedQueries closed;
+
+        private QueryCapture(QueryRecorder recorder, CapturedQueries.Window window) {
+            this.recorder = recorder;
+            this.window = window;
+        }
+
+        /** What the window has seen so far, or everything once it is closed. */
+        public synchronized CapturedQueries queries() {
+            return closed != null ? closed : window.snapshot();
+        }
+
+        @Override
+        public synchronized void close() {
+            if (closed == null) {
+                closed = window.close();
+                recorder.close(window);
+            }
+        }
+    }
+
     private <T> Result<T> capture(boolean thisThreadOnly, Supplier<T> action) {
         CapturedQueries.Window window = recorder.open(thisThreadOnly);
         try {
