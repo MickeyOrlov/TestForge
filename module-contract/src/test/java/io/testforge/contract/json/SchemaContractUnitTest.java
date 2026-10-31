@@ -74,4 +74,15 @@ class SchemaContractUnitTest {
         assertThatThrownBy(() -> SchemaContract.fromResource("x", "contracts/does-not-exist.json"))
                 .hasMessageContaining("contracts/does-not-exist.json");
     }
+
+    @Test
+    void aBrokenSchemaNamesItsContract() {
+        JsonContractValidator strictValidator = new JsonContractValidator(ContractMappers.strict(),
+                new ContractProperties(false, 100));
+
+        assertThatThrownBy(() -> strictValidator.validate("{}",
+                        SchemaContract.of("partner-event", "{\"type\": ")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("Schema contract 'partner-event' is not a valid JSON Schema:");
+    }
 }

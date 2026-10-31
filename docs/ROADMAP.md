@@ -36,7 +36,7 @@ template building blocks.
 | Module | Status note |
 |---|---|
 | `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
-| `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`. |
+| `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`; schemas drafted from real payloads; schema version changes classified for consumers. Plan: [contract-layer-roadmap.md](contract-layer-roadmap.md). |
 | `module-data` | Unique values, template rendering, generators, `Factory`, `@Prepared` pool SPI, `Cleanup`. Plan: [data-layer-roadmap.md](data-layer-roadmap.md). |
 | `module-db` | `DbWaiter` (repository or SQL value/count, parameters bound), repository polling, SQL logging, schema drift checks with documented limits, `DbState` table diffs and setup rows, SQL in failure diagnostics. Plan: [db-layer-roadmap.md](db-layer-roadmap.md). |
 | `module-flow` | Deterministic state-machine setup with timed paths, declared transitions (verify, Mermaid diagram), suite-wide transition coverage and decorators. Plan: [flow-layer-roadmap.md](flow-layer-roadmap.md). |
@@ -119,6 +119,8 @@ surface is still expected to evolve.
 - Flow layer: timed transitions, declared transitions verified and drawn
   before running, transition coverage across the suite
   ([plan](flow-layer-roadmap.md)).
+- Contract layer: first schemas drafted from real payloads, schema version
+  changes classified for consumers ([plan](contract-layer-roadmap.md)).
 - State layer: recipes under their own flow name, declared targets with a
   clear error for a typo, every recipe verified up front
   ([plan](state-layer-roadmap.md)).
