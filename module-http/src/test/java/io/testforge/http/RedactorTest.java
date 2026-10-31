@@ -79,4 +79,14 @@ class RedactorTest {
         assertThat(redactor.body("  ")).isEqualTo("  ");
         assertThat(redactor(List.of(), List.of()).body("{\"password\":\"p\"}")).isEqualTo("{\"password\":\"p\"}");
     }
+
+    @Test
+    void secretsInAQueryStringAreMaskedAndTheRestOfTheUriKept() {
+        Redactor redactor = redactor(List.of("api-key"), List.of("token"));
+
+        assertThat(redactor.uri("http://api.test/reports?api_key=k-1&page=2&token=t&flag"))
+                .isEqualTo("http://api.test/reports?api_key=***&page=2&token=***&flag");
+        assertThat(redactor.uri("http://api.test/reports")).isEqualTo("http://api.test/reports");
+        assertThat(redactor.uri(null)).isNull();
+    }
 }

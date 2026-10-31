@@ -24,7 +24,8 @@ public class TestForgeAuthAutoConfiguration {
     public TokenProvider tokenProvider(AuthProperties properties) {
         Clock clock = Clock.systemUTC();
         HttpClient http = HttpClient.newBuilder().connectTimeout(properties.requestTimeout()).build();
-        return new TokenProvider(TokenSources.from(properties, http, clock), clock, properties.refreshSkew());
+        return new TokenProvider(TokenSources.from(properties, http, clock), TokenSources.placements(properties), clock,
+                properties.refreshSkew());
     }
 
     @Configuration(proxyBeanMethods = false)

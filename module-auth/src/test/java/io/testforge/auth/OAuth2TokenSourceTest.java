@@ -61,7 +61,7 @@ class OAuth2TokenSourceTest {
 
     private AuthProperties.RoleProperties clientCredentials() {
         return new AuthProperties.RoleProperties(TokenType.CLIENT_CREDENTIALS, null, url(), "tests-admin",
-                "s3cr3t&value", null, null, "admin read", null, null);
+                "s3cr3t&value", null, null, "admin read", null, null, null, null);
     }
 
     @Test
@@ -80,7 +80,7 @@ class OAuth2TokenSourceTest {
     @Test
     void passwordGrantSendsTheUserCredentials() {
         source(new AuthProperties.RoleProperties(TokenType.PASSWORD, null, url(), "web", null,
-                "alice", "pa ss", null, null, null)).fetch();
+                "alice", "pa ss", null, null, null, null, null)).fetch();
 
         assertThat(lastForm.get())
                 .containsEntry("grant_type", "password")

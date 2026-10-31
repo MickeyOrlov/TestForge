@@ -12,7 +12,11 @@ import java.util.Optional;
  * including the TestForge {@code ApiClient}, which applies every {@code Filter}
  * bean.
  *
- * <p>A header the test set itself is left alone — a test that sends an
+ * <p>The credential goes where the role says ({@link CredentialPlacement}): the
+ * {@code forge.auth.header} for tokens, a header or query parameter for an API
+ * key, a cookie for a session.
+ *
+ * <p>A header, parameter or cookie the test set itself is left alone — a test that sends an
  * expired or foreign token on purpose keeps control. With no {@link AsUser},
  * no {@link AuthContext#runAs} and no {@code default-role}, the request goes
  * out anonymous; {@link AuthContext#ANONYMOUS} makes it anonymous even with a
@@ -42,11 +46,33 @@ public class AuthFilter implements OrderedFilter {
         }
         Optional<String> role = AuthContext.currentRole().or(() -> Optional.ofNullable(properties.defaultRole())
                 .filter(value -> !value.isBlank()));
-        if (role.isPresent() && !requestSpec.getHeaders().hasHeaderWithName(properties.header())) {
-            String scheme = properties.scheme().isBlank() ? "" : properties.scheme() + " ";
-            requestSpec.header(properties.header(), scheme + tokens.forRole(role.get()));
-        }
+        role.ifPresent(name -> apply(requestSpec, name));
         return ctx.next(requestSpec, responseSpec);
+    }
+
+    private void apply(FilterableRequestSpecification requestSpec, String role) {
+        CredentialPlacement placement = tokens.placement(role)
+                .orElseGet(() -> CredentialPlacement.header(properties.header(), properties.scheme()));
+        switch (placement.kind()) {
+            case HEADER -> {
+                if (!requestSpec.getHeaders().hasHeaderWithName(placement.name())) {
+                    requestSpec.header(placement.name(), placement.prefix() + tokens.forRole(role));
+                }
+            }
+            case QUERY -> {
+                if (!requestSpec.getQueryParams().containsKey(placement.name())) {
+                    requestSpec.queryParam(placement.name(), tokens.forRole(role));
+                }
+            }
+            case COOKIE -> {
+                String cookie = tokens.forRole(role);
+                int separator = cookie.indexOf('=');
+                String name = cookie.substring(0, separator);
+                if (!requestSpec.getCookies().hasCookieWithName(name)) {
+                    requestSpec.cookie(name, cookie.substring(separator + 1));
+                }
+            }
+        }
     }
 
     @Override

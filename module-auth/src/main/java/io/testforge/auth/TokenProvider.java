@@ -3,6 +3,7 @@ package io.testforge.auth;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,15 +22,30 @@ public class TokenProvider {
     private final Map<String, TokenSource> sources;
     private final Clock clock;
     private final Duration refreshSkew;
+    private final Map<String, CredentialPlacement> placements;
     private final Map<String, AccessToken> cache = new ConcurrentHashMap<>();
 
     public TokenProvider(Map<String, TokenSource> sources, Clock clock, Duration refreshSkew) {
+        this(sources, Map.of(), clock, refreshSkew);
+    }
+
+    public TokenProvider(Map<String, TokenSource> sources, Map<String, CredentialPlacement> placements,
+                         Clock clock, Duration refreshSkew) {
         this.sources = Map.copyOf(sources);
+        this.placements = Map.copyOf(placements);
         this.clock = clock;
         this.refreshSkew = refreshSkew;
     }
 
-    /** The raw token for {@code role}, ready for an {@code Authorization} header. */
+    /** Where {@code role}'s credential goes; empty means the global {@code forge.auth.header}. */
+    public Optional<CredentialPlacement> placement(String role) {
+        return Optional.ofNullable(placements.get(role));
+    }
+
+    /**
+     * The raw credential for {@code role}: a token for an {@code Authorization}
+     * header, an API key, or {@code name=value} for a session cookie.
+     */
     public String forRole(String role) {
         return token(role).value();
     }

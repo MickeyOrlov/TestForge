@@ -39,6 +39,40 @@ class TestForgeAuthAutoConfigurationTest {
     }
 
     @Test
+    void apiKeyAndSessionRolesBindWithTheirPlacement() {
+        runner.withPropertyValues(
+                        "forge.auth.enabled=true",
+                        "forge.auth.roles.integration.type=api-key",
+                        "forge.auth.roles.integration.token=key-1",
+                        "forge.auth.roles.integration.api-key.in=query",
+                        "forge.auth.roles.integration.api-key.name=api_key",
+                        "forge.auth.roles.web.type=session",
+                        "forge.auth.roles.web.username=alice",
+                        "forge.auth.roles.web.password=secret",
+                        "forge.auth.roles.web.session.login-url=http://app.example.test/login",
+                        "forge.auth.roles.web.session.format=form")
+                .run(context -> {
+                    TokenProvider tokens = context.getBean(TokenProvider.class);
+                    assertThat(tokens.placement("integration")).contains(CredentialPlacement.query("api_key"));
+                    assertThat(tokens.placement("web")).contains(CredentialPlacement.cookie());
+                    assertThat(tokens.forRole("integration")).isEqualTo("key-1");
+                });
+    }
+
+    @Test
+    void aSessionRoleWithoutItsLoginFieldsFailsAtStartup() {
+        runner.withPropertyValues(
+                        "forge.auth.enabled=true",
+                        "forge.auth.roles.web.type=session",
+                        "forge.auth.roles.key.type=api-key")
+                .run(context -> assertThat(context).hasFailed().getFailure()
+                        .rootCause()
+                        .hasMessageContaining("web: needs 'session.login-url'")
+                        .hasMessageContaining("web: needs 'username'")
+                        .hasMessageContaining("key: api-key role needs 'token'"));
+    }
+
+    @Test
     void everyMisconfiguredRoleIsReportedAtStartup() {
         runner.withPropertyValues(
                         "forge.auth.enabled=true",
@@ -70,7 +104,7 @@ class TestForgeAuthAutoConfigurationTest {
         assertThat(properties.refreshSkew()).hasSeconds(30);
         assertThat(properties.localJwt().issuer()).isEqualTo("testforge");
         assertThat(properties.localJwt().ttl()).hasMinutes(15);
-        assertThat(new AuthProperties.RoleProperties(null, "t", null, null, null, null, null, null, null, null).type())
+        assertThat(new AuthProperties.RoleProperties(null, "t", null, null, null, null, null, null, null, null, null, null).type())
                 .isEqualTo(TokenType.STATIC);
     }
 }

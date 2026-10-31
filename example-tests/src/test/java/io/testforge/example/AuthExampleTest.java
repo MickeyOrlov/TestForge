@@ -50,6 +50,14 @@ class AuthExampleTest {
         registry.add("forge.auth.roles.member.type", () -> "local-jwt");
         registry.add("forge.auth.roles.member.subject", () -> "member-1");
         registry.add("forge.auth.roles.member.claims.roles", () -> "member");
+        registry.add("forge.auth.roles.integration.type", () -> "api-key");
+        registry.add("forge.auth.roles.integration.token", () -> "example-only-key");
+        registry.add("forge.auth.roles.web.type", () -> "session");
+        registry.add("forge.auth.roles.web.username", () -> "web-user");
+        registry.add("forge.auth.roles.web.password", () -> "example-only-password");
+        registry.add("forge.auth.roles.web.session.login-url", () -> base + "/login");
+        registry.add("forge.auth.roles.web.session.format", () -> "form");
+        registry.add("forge.auth.roles.web.session.cookie", () -> "SESSION");
         // generated per run: a committed signing secret would be a real secret
         registry.add("forge.auth.local-jwt.secret", () -> UUID.randomUUID() + "-" + UUID.randomUUID());
     }
@@ -70,6 +78,35 @@ class AuthExampleTest {
         server.stubFor(get(urlPathEqualTo("/me")).atPriority(1)
                 .withHeader("Authorization", matching("Bearer [\\w-]+\\.[\\w-]+\\.[\\w-]+"))
                 .willReturn(okJson("{\"id\":\"member-1\"}")));
+        server.stubFor(get(urlPathEqualTo("/reports")).atPriority(10).willReturn(unauthorized()));
+        server.stubFor(get(urlPathEqualTo("/reports")).atPriority(1)
+                .withHeader("X-API-Key", equalTo("example-only-key"))
+                .willReturn(okJson("{\"reports\":[]}")));
+        // a login form that redirects and sets the session cookie, like most web apps
+        server.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post(urlPathEqualTo("/login"))
+                .withRequestBody(equalTo("username=web-user&password=example-only-password"))
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.aResponse().withStatus(302)
+                        .withHeader("Location", "/home")
+                        .withHeader("Set-Cookie", "SESSION=web-session-1; Path=/; HttpOnly")));
+        server.stubFor(get(urlPathEqualTo("/cart")).atPriority(10).willReturn(unauthorized()));
+        server.stubFor(get(urlPathEqualTo("/cart")).atPriority(1)
+                .withCookie("SESSION", equalTo("web-session-1"))
+                .willReturn(okJson("{\"items\":0}")));
+    }
+
+    @Test
+    @AsUser("integration")
+    void anIntegrationTestSendsItsApiKey() {
+        assertThat(api.request().get("/reports").statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    @AsUser("web")
+    void aWebTestLogsInOnceAndCarriesTheSessionCookie() {
+        assertThat(api.request().get("/cart").statusCode()).isEqualTo(200);
+        assertThat(api.request().get("/cart").statusCode()).isEqualTo(200);
+
+        server.verify(1, com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor(urlPathEqualTo("/login")));
     }
 
     @Test

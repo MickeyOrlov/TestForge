@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-auth`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Tokens per role: `TokenProvider` cache, token sources (static, OAuth2 client credentials/password, local HS256 JWT), `@AsUser`/`AuthContext` role selection, `AuthFilter` for REST Assured.
+**Scope:** Tokens per role: `TokenProvider` cache, token sources (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login) with a `CredentialPlacement` per role (header, query, cookie), `@AsUser`/`AuthContext` role selection, `AuthFilter` for REST Assured.
 
 **May depend on:** `core` only. REST Assured is `compileOnly`; `AuthFilter` is created behind `@ConditionalOnClass`, so the module does not depend on `module-http` and stays deletable.
 
@@ -12,7 +12,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - A token value never reaches a log, an exception message or `toString()`.
   Error messages name the role and endpoint, never the request body.
 - No automatic retry on 401/403: a rejected fresh token is a finding.
-- A header the test set explicitly is never replaced.
+- A header, query parameter or cookie the test set explicitly is never replaced.
 - Invalid role configuration fails at startup with every problem listed.
 - Inert unless `forge.auth.enabled=true`; no token is fetched before a role is
   first used.
@@ -20,7 +20,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `TokenProviderTest` (cache, refresh window, one fetch under parallel load), `LocalJwtSignerTest` (signature verified independently), `OAuth2TokenSourceTest` (JDK `HttpServer`, offline), `AuthFilterTest`, `AsUserExtensionTest` (incl. `@Nested`), `TestForgeAuthAutoConfigurationTest`. Example: `AuthExampleTest`.
+Own: `TokenProviderTest` (cache, refresh window, one fetch under parallel load), `LocalJwtSignerTest` (signature verified independently), `OAuth2TokenSourceTest` and `SessionLoginSourceTest` (JDK `HttpServer`, offline), `AuthFilterTest`, `AsUserExtensionTest` (incl. `@Nested`), `TestForgeAuthAutoConfigurationTest`. Example: `AuthExampleTest`.
 
 ## Before you finish
 

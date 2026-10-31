@@ -27,6 +27,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       partner:
  *         type: static
  *         token: ${PARTNER_TOKEN}
+ *       integration:
+ *         type: api-key
+ *         token: ${INTEGRATION_KEY}
+ *         api-key:
+ *           in: header                # or query
+ *           name: X-API-Key           # default
+ *       web:
+ *         type: session
+ *         username: tests-web
+ *         password: ${WEB_PASSWORD}
+ *         session:
+ *           login-url: https://app.staging.example.test/login
+ *           format: json              # or form
+ *           cookie: SESSION           # optional; default the first cookie set
  *     local-jwt:
  *       issuer: testforge
  *       secret: ${LOCAL_JWT_SECRET}   # at least 32 bytes
@@ -77,13 +91,58 @@ public record AuthProperties(
             String password,
             String scope,
             String subject,
-            Map<String, String> claims) {
+            Map<String, String> claims,
+            ApiKeyProperties apiKey,
+            SessionProperties session) {
 
         public RoleProperties {
             if (type == null) {
                 type = TokenType.STATIC;
             }
             claims = Map.copyOf(claims == null ? Map.of() : claims);
+            if (apiKey == null) {
+                apiKey = new ApiKeyProperties(null, null);
+            }
+            if (session == null) {
+                session = new SessionProperties(null, null, null, null, null);
+            }
+        }
+    }
+
+    /** Where {@link TokenType#API_KEY} puts the key. */
+    public record ApiKeyProperties(Placement in, String name) {
+
+        public enum Placement { HEADER, QUERY }
+
+        public ApiKeyProperties {
+            if (in == null) {
+                in = Placement.HEADER;
+            }
+            if (name == null || name.isBlank()) {
+                name = "X-API-Key";
+            }
+        }
+    }
+
+    /**
+     * How {@link TokenType#SESSION} logs in: one request with the role's
+     * {@code username} and {@code password}, answered with a session cookie.
+     */
+    public record SessionProperties(String loginUrl, Format format, String usernameField, String passwordField,
+                                    String cookie) {
+
+        public enum Format { JSON, FORM }
+
+        public SessionProperties {
+            if (format == null) {
+                format = Format.JSON;
+            }
+            if (usernameField == null || usernameField.isBlank()) {
+                usernameField = "username";
+            }
+            if (passwordField == null || passwordField.isBlank()) {
+                passwordField = "password";
+            }
         }
     }
 

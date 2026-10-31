@@ -7,6 +7,14 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-auth`: two more ways in. `type: api-key` sends a fixed key in a
+  header (`X-API-Key` by default) or a query parameter; `type: session` logs
+  in once (JSON or form) and sends the session cookie the login sets, cached
+  until its `Max-Age`. A parameter or cookie the test set itself is never
+  replaced. `TokenProvider.placement(role)` says where each role's
+  credential goes.
+- `module-http`: `Redactor.uri` masks secret query values in HTTP logs and
+  failure diagnostics (`?api_key=***`).
 - `module-api-explorer`: access matrix (`forge.access-matrix`). Every
   operation of the document is called once per role — including the reserved
   `anonymous`, which sends no token — and each status is held to a declared

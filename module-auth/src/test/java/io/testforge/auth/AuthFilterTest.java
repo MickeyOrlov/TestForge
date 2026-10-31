@@ -18,6 +18,9 @@ class AuthFilterTest {
 
     private HttpServer server;
     private final AtomicReference<String> seen = new AtomicReference<>();
+    private final AtomicReference<String> seenQuery = new AtomicReference<>();
+    private final AtomicReference<String> seenCookie = new AtomicReference<>();
+    private final AtomicReference<String> seenApiKey = new AtomicReference<>();
     private final TokenProvider tokens = new TokenProvider(
             Map.of("admin", () -> new AccessToken("admin-token", null)), Clock.systemUTC(), Duration.ZERO);
 
@@ -26,6 +29,9 @@ class AuthFilterTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             seen.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            seenQuery.set(exchange.getRequestURI().getQuery());
+            seenCookie.set(exchange.getRequestHeaders().getFirst("Cookie"));
+            seenApiKey.set(exchange.getRequestHeaders().getFirst("X-API-Key"));
             exchange.sendResponseHeaders(204, -1);
             exchange.close();
         });
@@ -91,11 +97,58 @@ class AuthFilterTest {
     void aRoleConfiguredAsAnonymousIsRejected() {
         var props = new AuthProperties(true, null, null, null, null, null,
                 Map.of(AuthContext.ANONYMOUS, new AuthProperties.RoleProperties(
-                        TokenType.STATIC, "t", null, null, null, null, null, null, null, null)), null);
+                        TokenType.STATIC, "t", null, null, null, null, null, null, null, null, null, null)), null);
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> TokenSources.from(props, null, Clock.systemUTC()))
                 .isInstanceOf(AuthException.class)
                 .hasMessageContaining("anonymous: reserved name");
+    }
+
+    private final TokenProvider placed = new TokenProvider(
+            Map.of("integration", () -> new AccessToken("key-1", null),
+                    "partner", () -> new AccessToken("key-2", null),
+                    "web", () -> new AccessToken("SESSION=s-42", null)),
+            Map.of("integration", CredentialPlacement.query("api_key"),
+                    "partner", CredentialPlacement.header("X-API-Key", null),
+                    "web", CredentialPlacement.cookie()),
+            Clock.systemUTC(), Duration.ZERO);
+
+    @Test
+    void anApiKeyGoesIntoItsQueryParameter() {
+        AuthContext.runAs("integration", () -> send(new AuthFilter(placed, properties(null, null)), null));
+
+        assertThat(seenQuery.get()).isEqualTo("api_key=key-1");
+        assertThat(seen.get()).isNull();
+    }
+
+    @Test
+    void anApiKeyHeaderCarriesNoScheme() {
+        var request = given().baseUri("http://127.0.0.1:" + server.getAddress().getPort())
+                .filter(new AuthFilter(placed, properties(null, null)));
+        AuthContext.runAs("partner", () -> request.get("/ping"));
+
+        assertThat(seenApiKey.get()).isEqualTo("key-2");
+        assertThat(seen.get()).isNull();
+    }
+
+    @Test
+    void aSessionTravelsAsItsCookie() {
+        AuthContext.runAs("web", () -> send(new AuthFilter(placed, properties(null, null)), null));
+
+        assertThat(seenCookie.get()).isEqualTo("SESSION=s-42");
+        assertThat(seen.get()).isNull();
+    }
+
+    @Test
+    void aQueryParameterOrCookieTheTestSetIsNeverReplaced() {
+        String base = "http://127.0.0.1:" + server.getAddress().getPort();
+        AuthFilter filter = new AuthFilter(placed, properties(null, null));
+        AuthContext.runAs("integration", () -> given().baseUri(base).filter(filter).queryParam("api_key", "revoked")
+                .get("/ping"));
+        assertThat(seenQuery.get()).isEqualTo("api_key=revoked");
+
+        AuthContext.runAs("web", () -> given().baseUri(base).filter(filter).cookie("SESSION", "expired").get("/ping"));
+        assertThat(seenCookie.get()).isEqualTo("SESSION=expired");
     }
 
     @Test
