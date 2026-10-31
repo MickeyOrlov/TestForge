@@ -141,6 +141,26 @@ Response did not match status 200 and $.status == DONE within PT30S (61 attempts
 last response: status 202, body {"status":"PENDING"}
 ```
 
+## Every page of a list
+
+```java
+List<Order> all = Pagination.byPageNumber(page -> api.request().queryParam("page", page).get("/orders"))
+        .items("items", Order.class)      // GPath; "$" (default) for a root array
+        .collect();
+```
+
+| Strategy | Call receives | Stops at |
+|---|---|---|
+| `byPageNumber(page -> …)` | page number, from 1 (`startAt(0)` for zero-based) | an empty page |
+| `byOffset(offset -> …, limit)` | offset | a page shorter than `limit` |
+| `byCursor(cursor -> …, "next_cursor")` | `null`, then the cursor from the response | a missing or blank cursor |
+| `byLinkHeader(url -> …)` | `null`, then the `rel="next"` URL | no `rel="next"` link |
+
+It fails with an `AssertionError` instead of misbehaving: on a non-2xx page
+(`Page 2 answered 500`), when the server returns the same page twice (it
+ignores the paging parameter — the classic endless loop), and after
+`maxPages` pages (default 100).
+
 ## When a test fails: its HTTP exchanges in the run index
 
 The module keeps the scenario's last exchanges in memory (per thread,
