@@ -27,6 +27,16 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-api-fuzz`: a run whose Schemathesis process died before writing a
+  report parsed the previous run's report from the same directory and
+  presented its findings as this run's. Only a report the run itself wrote
+  (new or rewritten since it started) is parsed; otherwise the spec is an
+  execution error that says older reports were ignored.
+- `module-api-fuzz`: `UrlRedactor` removed only user info, so an `api_key` or
+  signature in the base URL's query string reached `run.json` and
+  `report.md`; every query value is now masked.
+- `module-api-fuzz`: errors name their spec, and a process's stderr is cut to
+  its last 20 lines (2000 characters) instead of a whole traceback.
 - `module-db`: `DbWaiter`'s Javadoc still linked the old
   `awaitRowCount(String, String, int)` and broke the Javadoc task that
   `publishTestForgeLibraries` runs (the default build does not); its example

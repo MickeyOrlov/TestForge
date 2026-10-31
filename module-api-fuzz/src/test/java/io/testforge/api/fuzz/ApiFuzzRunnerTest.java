@@ -35,6 +35,15 @@ class ApiFuzzRunnerTest {
         private Path ndjsonWriteTarget = null;
         private Exception versionException = null;
         private String ndjsonInWorkingDir = null;
+        private Path reportFile = null;
+        private String reportFileContent = null;
+
+        /** Writes {@code file} during the run, as Schemathesis writes its timestamped report. */
+        public FakeProcessRunner withReportFile(Path file, String content) {
+            this.reportFile = file;
+            this.reportFileContent = content;
+            return this;
+        }
 
         public FakeProcessRunner withNdjsonInWorkingDir(String content) {
             this.ndjsonInWorkingDir = content;
@@ -75,6 +84,14 @@ class ApiFuzzRunnerTest {
                 try {
                     Files.createDirectories(workingDir);
                     Files.writeString(workingDir.resolve("report.ndjson"), ndjsonInWorkingDir);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+            if (reportFile != null) {
+                try {
+                    Files.createDirectories(reportFile.getParent());
+                    Files.writeString(reportFile, reportFileContent);
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -429,21 +446,20 @@ class ApiFuzzRunnerTest {
                 {"ScenarioFinished": {"status": "failure", "phase": "Fuzzing", "recorder": {"label": "GET /stale", "cases": {"A": {"value": {"method": "GET", "path": "/stale", "id": "A"}}}, "checks": {"A": [{"name": "not_a_server_error", "status": "failure", "failure_info": {"failure": {"type": "X", "message": "stale"}}}]}}}}
                 {"EngineFinished": {"running_time": 0.1}}
                 """);
-        Path fresh = dir.resolve("ndjson-20260101T000000Z.ndjson");
-        Files.writeString(fresh, """
+        Files.setLastModifiedTime(stale, java.nio.file.attribute.FileTime.fromMillis(1_000_000L));
+        String fresh = """
                 {"Initialize": {"command": "st run", "schemathesis_version": "4.24.3", "seed": 7}}
                 {"ScenarioFinished": {"status": "success", "phase": "Fuzzing", "recorder": {"label": "GET /fresh", "cases": {}, "checks": {}}}}
                 {"EngineFinished": {"running_time": 0.1}}
-                """);
-        Files.setLastModifiedTime(stale, java.nio.file.attribute.FileTime.fromMillis(1_000_000L));
-        Files.setLastModifiedTime(fresh, java.nio.file.attribute.FileTime.fromMillis(9_000_000_000L));
+                """;
 
         ApiFuzzProperties props = new ApiFuzzProperties(
                 true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
                 null, false, null, 7L, null, null, null, null, "st", null,
                 null);
-        // Writes nothing: the two files above are the only candidates.
-        FakeProcessRunner fakeRunner = new FakeProcessRunner();
+        // Writes the run's own timestamped report next to the stale one.
+        FakeProcessRunner fakeRunner = new FakeProcessRunner()
+                .withReportFile(dir.resolve("ndjson-20260101T000000Z.ndjson"), fresh);
         SchemathesisExecutor executor = new SchemathesisExecutor(fakeRunner);
         ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
                 "demo", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")
@@ -456,6 +472,65 @@ class ApiFuzzRunnerTest {
         // The stale file declares a failure; the fresh one does not.
         assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.PASSED);
         assertThat(report.findings()).isEmpty();
+    }
+
+    @Test
+    void aReportThisRunDidNotWriteIsNeverParsedAsItsResult() throws Exception {
+        // Schemathesis died before writing a report; the previous run's report,
+        // with its findings, is still in the directory. Parsing it reported
+        // stale findings as this run's.
+        Path dir = tempDir.resolve("demo");
+        Files.createDirectories(dir);
+        Path previous = dir.resolve("ndjson-20200101T000000Z.ndjson");
+        Files.writeString(previous, """
+                {"Initialize": {"command": "st run", "schemathesis_version": "4.24.3", "seed": 1}}
+                {"ScenarioFinished": {"status": "failure", "phase": "Fuzzing", "recorder": {"label": "GET /stale", "cases": {"A": {"value": {"method": "GET", "path": "/stale", "id": "A"}}}, "checks": {"A": [{"name": "not_a_server_error", "status": "failure", "failure_info": {"failure": {"type": "X", "message": "stale"}}}]}}}}
+                """);
+        Path previousFixed = dir.resolve("report.ndjson");
+        Files.writeString(previousFixed, Files.readString(previous));
+
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
+                null, false, null, 7L, null, null, null, null, "st", null,
+                null);
+        FakeProcessRunner fakeRunner = new FakeProcessRunner()
+                .withRunResult(new ProcessResult(1, "", "Traceback ...\nRuntimeError: worker crashed", false));
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "demo", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")));
+        ApiFuzzRunner runner = new ApiFuzzRunner(new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir),
+                new SchemathesisExecutor(fakeRunner), reportParser, evidenceWriter, discoveryProps, props);
+
+        ApiFuzzReport report = runner.run();
+
+        assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.EXECUTION_ERROR);
+        assertThat(report.findings()).isEmpty();
+        assertThat(report.errors()).singleElement().asString()
+                .contains("NDJSON report file is missing for spec 'demo'")
+                .contains("not written by this run");
+    }
+
+    @Test
+    void errorsNameTheirSpecAndKeepOnlyTheEndOfStderr() throws Exception {
+        String longStderr = java.util.stream.IntStream.rangeClosed(1, 50)
+                .mapToObj(line -> "line " + line).collect(java.util.stream.Collectors.joining("\n"));
+        ApiFuzzProperties props = new ApiFuzzProperties(
+                true, tempDir.toString(), List.of("demo"), "http://localhost:8080",
+                null, false, null, 7L, null, null, null, null, "st", null,
+                null);
+        FakeProcessRunner fakeRunner = new FakeProcessRunner()
+                .withRunResult(new ProcessResult(2, "", longStderr, false));
+        ApiDiscoveryProperties discoveryProps = new ApiDiscoveryProperties(null, null, null, null, null, Map.of(
+                "demo", new ApiDiscoveryProperties.Spec("classpath:/openapi/demo.yaml")));
+        ApiFuzzRunner runner = new ApiFuzzRunner(new FuzzSpecMaterializer(discoveryProps, resourceLoader, tempDir),
+                new SchemathesisExecutor(fakeRunner), reportParser, evidenceWriter, discoveryProps, props);
+
+        ApiFuzzReport report = runner.run();
+
+        assertThat(report.errors()).singleElement().asString()
+                .startsWith("Spec 'demo': Schemathesis configuration error (exit code 2): (last 20 lines) line 31")
+                .endsWith("line 50")
+                .doesNotContain("line 30\n");
+        assertThat(ApiFuzzRunner.tail("")).isEqualTo("(no stderr)");
     }
 
     @Test

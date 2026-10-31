@@ -15,7 +15,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   enforces the method policy too. Change both together.
 - Execution/config errors always fail `assertHealthy()`; findings fail only with
   `fail-on-findings=true`.
-- URLs in evidence and in `report.md` go through `UrlRedactor`.
+- URLs in evidence and in `report.md` go through `UrlRedactor`, which masks
+  every query value, not a list of known-secret names.
+- Only a report the current run wrote is parsed: the directory is
+  snapshotted before the process starts.
 - `report.md` holds check names, operation labels, a message's first line and
   TestForge's own arguments — never request headers or bodies.
 
