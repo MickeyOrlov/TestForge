@@ -11,7 +11,7 @@ right row *and* breaks something next to it fails the test.
 |---|---|---|
 | 1 | **Exact row expectations** — a row's column moved from → to, a version grew by one, a timestamp moved forward, the rest untouched | shipped |
 | 2 | **Side-effect containment** — snapshot several tables, assert that only the expected ones and rows changed | shipped |
-| 3 | **Data invariants** — orphans, duplicate business keys, values outside an allowed set, NULLs where logic forbids them | planned |
+| 3 | **Data invariants** — orphans, duplicate business keys, values outside an allowed set, NULLs where logic forbids them | shipped |
 | 4 | **Cross-table consistency, with waiting** — every new order has its outbox row; totals add up | planned |
 | 5 | **Only the test's own data** — the rows an action touched carry the test's run tag | planned |
 | 6 | **Review** — close the gaps a review finds | planned |
@@ -40,3 +40,15 @@ offending tables with their diffs. `watchSchema(excluded...)` watches every
 table of the connection's schema, keyed by primary key from the JDBC metadata
 and by all columns where there is none: the strongest statement, for a
 database the test owns. Shared databases keep `watch` with `where` clauses.
+
+## Step 3 — data invariants
+
+`DbState.invariants()` collects rules and runs them in one connection:
+`noOrphans(child.column, parent.column)` (`NOT EXISTS`, NULLs aside),
+`unique(table, columns...)` (`GROUP BY … HAVING COUNT(*) > 1`),
+`allowedValues(table, column, values...)` (enums by name),
+`notNull(table, columns...)` and `holds(table, condition)` for anything else.
+`within(table, condition, params...)` scopes every rule reading a table to the
+test's own data. `verify()` reports, `assertHolds()` fails with every broken
+rule, its count and up to five rows. Identifiers are validated; conditions are
+the test's own SQL, as in `where(...)`.

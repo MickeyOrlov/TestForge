@@ -210,6 +210,39 @@ connection's schema, keyed by its primary key (a table without one is matched
 on all its columns). On a shared database every parallel test's writes would
 count there; use `watch(...)` with `where` clauses instead.
 
+## Rules the data must keep
+
+A backend can write exactly the row a test expected and still break the data
+around it: a retry inserts the order twice, a delete leaves items behind, a new
+status sneaks in. `db.invariants()` checks rules the schema may not enforce:
+
+```java
+db.invariants()
+        .within("orders", "customer_id = ?", customer)      // the test's own rows on a shared database
+        .noOrphans("order_items.order_id", "orders.id")
+        .unique("orders", "external_id")
+        .allowedValues("orders", "status", Status.NEW, Status.PAID, Status.CANCELLED)
+        .notNull("orders", "customer_id", "created_at")
+        .holds("orders", "total >= 0")
+        .assertHolds();
+```
+
+Every rule runs; the failure lists each broken one with how many rows (or
+distinct values) broke it and up to five of them:
+
+```
+2 of 5 invariant(s) broken:
+  - no orphans: every order_items.order_id exists as orders.id: 1 row
+      {id=101, order_id=2, sku=B}
+  - unique: orders(external_id): 1 value
+      {external_id=ext-1, duplicates=2}
+```
+
+`within(table, condition, params...)` narrows every rule reading that table —
+the child side of an orphan check included. `verify()` returns the report
+without throwing. Run the same rules after a scenario, or over the whole
+database from a scheduled job (no `within`) to catch what any test left.
+
 ## Rows for setup, removed after the test
 
 For a state the product's API cannot produce, or cannot produce fast:

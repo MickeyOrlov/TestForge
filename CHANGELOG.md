@@ -123,6 +123,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: data invariants — `DbState.invariants()` with `noOrphans`,
+  `unique`, `allowedValues`, `notNull` and `holds(table, condition)`, scoped
+  per table with `within(...)`; `assertHolds()` lists every broken rule with
+  its row count and up to five offending rows.
 - `module-db`: side-effect containment — `DbState.watch(queries...)` snapshots
   several tables and `diff().expect().table(name, t -> ...).nothingElse()` /
   `onlyChanged(...)` fails, with the diffs, when a table moved that the test
