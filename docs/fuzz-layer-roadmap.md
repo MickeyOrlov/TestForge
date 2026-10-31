@@ -7,11 +7,13 @@ broke a check was its own finding, so fifty cases tripping
 how to rerun one. And `fail-on-findings` was all or nothing: one known,
 accepted finding kept the gate off for everything else.
 
+All three steps shipped (PRs #90–#92).
+
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Findings a person can read** — grouped by check and operation, `report.md` per run with the command that reproduces each | `module-api-fuzz` | shipped |
 | 2 | **Accepted findings** — known findings listed once; the gate fails only on new ones, and says which accepted ones no longer occur | `module-api-fuzz` | shipped |
-| 3 | **Review** — close the gaps a review of the module finds | `module-api-fuzz` | planned |
+| 3 | **Review** — close the gaps a review of the module finds | `module-api-fuzz` | shipped |
 
 ## Step 1 — findings a person can read
 
@@ -34,3 +36,20 @@ longer matched, so the list shrinks as things get fixed instead of rotting.
 The outcome stays `FINDINGS` — acceptance changes the verdict, not the facts —
 and a run that did not complete reports nothing stale, since it proved
 nothing.
+
+## Step 3 — review
+
+- **Stale reports read as fresh.** The report lookup took the newest
+  `.ndjson` in the directory. When Schemathesis died before writing one, that
+  was the previous run's — and its findings were reported as this run's. The
+  runner now snapshots the directory before the process starts and parses only
+  a file the run created or rewrote; without one the spec is an execution
+  error that says older reports were ignored.
+- **Query secrets in evidence.** `UrlRedactor` dropped user info but kept the
+  query string, so `?api_key=…` on a base URL reached `run.json` and the
+  reproduce command. Every query value is now masked: the module cannot know
+  which parameter names are secret in someone else's API.
+- **Errors without a spec, stderr without an end.** With several specs a
+  timeout did not say whose it was, and a configuration error carried the
+  whole stderr. Errors are prefixed with the spec; stderr keeps its last 20
+  lines.

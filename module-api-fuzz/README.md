@@ -81,7 +81,7 @@ bearer = "$STAGING_TOKEN"
 
 ## Reproducibility
 
-Every run writes run evidence (run id, spec identity, credential-free target URL, Schemathesis version, seed, phases, methods, generation mode, exit status, report locations) so a failure can be perfectly reproduced. 
+Every run writes run evidence (run id, spec identity, credential-free target URL — user info dropped, every query value masked — Schemathesis version, seed, phases, methods, generation mode, exit status, report locations) so a failure can be perfectly reproduced. 
 
 To reproduce a failure: rerun Schemathesis locally with the same `--seed`, and use the VCR cassette or `st replay` rather than any TestForge-specific replay machinery.
 

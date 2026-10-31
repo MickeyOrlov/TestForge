@@ -36,6 +36,8 @@ public class ApiFuzzRunner {
     private final ArtifactSink artifactSink;
 
     private static final String SOURCE = "module-api-fuzz";
+    static final int MAX_STDERR_LINES = 20;
+    static final int MAX_STDERR_CHARS = 2000;
 
     public ApiFuzzRunner(
             FuzzSpecMaterializer materializer,
@@ -163,6 +165,8 @@ public class ApiFuzzRunner {
             Duration timeout = Duration.ofSeconds(effectiveProperties.timeoutSeconds());
             List<String> argsForExecutor = commandArgs.subList(1, commandArgs.size());
 
+            // a report this run did not write must never be parsed as its result
+            Map<Path, FileTime> reportsBefore = ndjsonFiles(specOutputDir, outputDir);
             ProcessResult result = executor.run(argsForExecutor, specOutputDir, timeout);
 
             int exitCode = result.exitCode();
@@ -170,16 +174,18 @@ public class ApiFuzzRunner {
 
             if (result.timedOut()) {
                 log.error("Schemathesis execution timed out for spec '{}'", specId);
-                aggregateErrors.add("Schemathesis execution timed out after " + effectiveProperties.timeoutSeconds() + " seconds");
+                aggregateErrors.add("Spec '" + specId + "': Schemathesis execution timed out after "
+                        + effectiveProperties.timeoutSeconds() + " seconds");
                 specOutcome = ApiFuzzOutcome.EXECUTION_ERROR;
             } else if (exitCode == 2) {
                 log.error("Schemathesis configuration error (exit code 2) for spec '{}': {}", specId, result.stderr());
-                aggregateErrors.add("Schemathesis configuration error (exit code 2): " + result.stderr());
+                aggregateErrors.add("Spec '" + specId + "': Schemathesis configuration error (exit code 2): "
+                        + tail(result.stderr()));
                 specOutcome = ApiFuzzOutcome.CONFIGURATION_ERROR;
             } else {
                 Path reportPath;
                 try {
-                    reportPath = findNdjsonReport(specOutputDir, outputDir);
+                    reportPath = findNdjsonReport(specOutputDir, outputDir, reportsBefore);
                 } catch (ApiFuzzException e) {
                     // Reading the directory failed. That is an execution problem
                     // with a real cause, not "no findings" and not "no report".
@@ -189,7 +195,9 @@ public class ApiFuzzRunner {
                 }
                 if (reportPath == null || !Files.exists(reportPath)) {
                     log.error("NDJSON report file is missing for spec '{}'", specId);
-                    aggregateErrors.add("NDJSON report file is missing for spec '" + specId + "'");
+                    aggregateErrors.add("NDJSON report file is missing for spec '" + specId + "'"
+                            + (reportsBefore.isEmpty() ? "" : " (older reports in the directory were not written "
+                                    + "by this run and are not used)"));
                     specOutcome = ApiFuzzOutcome.EXECUTION_ERROR;
                 } else {
                     try {
@@ -209,7 +217,8 @@ public class ApiFuzzRunner {
                             }
                         } else if (exitCode != 0) {
                             log.error("Schemathesis process exited with code {} for spec '{}'", exitCode, specId);
-                            aggregateErrors.add("Schemathesis process exited with code " + exitCode + ": " + result.stderr());
+                            aggregateErrors.add("Spec '" + specId + "': Schemathesis process exited with code "
+                                    + exitCode + ": " + tail(result.stderr()));
                             specOutcome = ApiFuzzOutcome.EXECUTION_ERROR;
                         } else {
                             specOutcome = ApiFuzzOutcome.PASSED;
@@ -401,10 +410,10 @@ public class ApiFuzzRunner {
      *     produced the worst possible diagnostic: the caller reported a missing
      *     report while the real cause (permissions, an I/O error) went unsaid.
      */
-    private Path findNdjsonReport(Path specOutputDir, Path outputDir) {
+    private Path findNdjsonReport(Path specOutputDir, Path outputDir, Map<Path, FileTime> before) {
         for (Path dir : List.of(specOutputDir, outputDir)) {
             Path fixedName = dir.resolve("report.ndjson");
-            if (Files.exists(fixedName)) {
+            if (Files.exists(fixedName) && writtenSince(fixedName, before)) {
                 return fixedName;
             }
             if (!Files.isDirectory(dir)) {
@@ -413,6 +422,7 @@ public class ApiFuzzRunner {
             try (var stream = Files.list(dir)) {
                 Optional<Path> newest = stream
                         .filter(p -> p.getFileName().toString().endsWith(".ndjson"))
+                        .filter(p -> writtenSince(p, before))
                         .max(Comparator.comparing(ApiFuzzRunner::lastModifiedOrEpoch));
                 if (newest.isPresent()) {
                     return newest.get();
@@ -423,6 +433,47 @@ public class ApiFuzzRunner {
             }
         }
         return null;
+    }
+
+    /**
+     * Every {@code .ndjson} file in the report directories with its modification
+     * time, taken before a run. Picking "the newest file" alone parsed the last
+     * run's report — and its findings — whenever Schemathesis died before
+     * writing one of its own.
+     */
+    private static Map<Path, FileTime> ndjsonFiles(Path... dirs) {
+        Map<Path, FileTime> files = new HashMap<>();
+        for (Path dir : dirs) {
+            if (!Files.isDirectory(dir)) {
+                continue;
+            }
+            try (var stream = Files.list(dir)) {
+                stream.filter(p -> p.getFileName().toString().endsWith(".ndjson"))
+                        .forEach(p -> files.put(p.toAbsolutePath().normalize(), lastModifiedOrEpoch(p)));
+            } catch (IOException e) {
+                // the lookup after the run reports an unreadable directory with its cause
+            }
+        }
+        return files;
+    }
+
+    /** New since the snapshot, or rewritten: the run produced it. */
+    private static boolean writtenSince(Path file, Map<Path, FileTime> before) {
+        FileTime previous = before.get(file.toAbsolutePath().normalize());
+        return previous == null || !previous.equals(lastModifiedOrEpoch(file));
+    }
+
+    /** The end of a process's stderr, where the reason usually is; a whole traceback is not an error line. */
+    static String tail(String stderr) {
+        if (stderr == null || stderr.isBlank()) {
+            return "(no stderr)";
+        }
+        List<String> lines = stderr.strip().lines().toList();
+        String tail = String.join("\n", lines.subList(Math.max(0, lines.size() - MAX_STDERR_LINES), lines.size()));
+        if (tail.length() > MAX_STDERR_CHARS) {
+            tail = "..." + tail.substring(tail.length() - MAX_STDERR_CHARS);
+        }
+        return lines.size() > MAX_STDERR_LINES ? "(last " + MAX_STDERR_LINES + " lines) " + tail : tail;
     }
 
     private static FileTime lastModifiedOrEpoch(Path path) {
