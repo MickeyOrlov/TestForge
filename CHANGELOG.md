@@ -6,6 +6,13 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-db`: `DbState` table snapshots. `db.table("orders").keyedBy("id")
+  .where("customer_id = ?", id).take()` before an action, `.diff()` after:
+  added, removed and changed rows per column, read with plain JDBC.
+  `expect().added(0).removed(0).changed(1, "status")` fails with the whole
+  diff, including changes in columns that should not have moved.
+
 ### Changed
 - `module-auth` is Beta (was Experimental).
 

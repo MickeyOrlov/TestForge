@@ -8,6 +8,7 @@ import io.testforge.db.repository.RepositoryPollingAspect;
 import io.testforge.db.repository.RepositoryPollingProperties;
 import io.testforge.db.schema.SchemaNamingStrategy;
 import io.testforge.db.schema.SchemaValidator;
+import io.testforge.db.state.DbState;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
@@ -70,6 +71,13 @@ public class TestForgeDbAutoConfiguration {
         return new SchemaValidator(registry)
                 .withNaming(naming.getIfAvailable(() -> SchemaNamingStrategy.named(properties.schemaNaming())))
                 .withImplicitForeignKeys(properties.implicitForeignKeys());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(DataSource.class)
+    public DbState dbState(DataSourceRegistry registry) {
+        return new DbState(registry);
     }
 
     @Bean

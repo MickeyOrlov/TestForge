@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-db`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Gray-box DB checks: `DbWaiter`, `RepositoryPollingAspect`, SQL logging, `SchemaValidator` (entity ↔ table drift), `DataSourceRegistry`.
+**Scope:** Gray-box DB checks: `DbWaiter`, `RepositoryPollingAspect`, SQL logging, `SchemaValidator` (entity ↔ table drift), `DataSourceRegistry`, `DbState` table snapshots and diffs. Plan: [docs/db-layer-roadmap.md](../docs/db-layer-roadmap.md).
 
 **May depend on:** `core` only.
 
@@ -23,6 +23,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   the database has extra.
 - Nullability drift is one-directional by design.
 - Repository polling is opt-in (`forge.db.repository-polling.enabled`).
+- `DbState` stays plain JDBC: table and column names are validated identifiers, never concatenated user input; snapshots are bounded (`maxRows`).
 
 ## Tests
 
