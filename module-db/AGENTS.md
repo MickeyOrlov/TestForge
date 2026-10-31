@@ -3,9 +3,9 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-db`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Gray-box DB checks: `DbWaiter`, `RepositoryPollingAspect`, SQL logging, `SchemaValidator` (entity ↔ table drift), `DataSourceRegistry`, `DbState` table snapshots and diffs, `SqlJournal` + `DbDiagnosticsExtension` (SQL of failed tests). Plan: [docs/db-layer-roadmap.md](../docs/db-layer-roadmap.md).
+**Scope:** Gray-box DB checks: `DbWaiter`, `RepositoryPollingAspect`, SQL logging, `SchemaValidator` (entity ↔ table drift), `DataSourceRegistry`, `DbState` table snapshots and diffs, `TableWriter` setup rows with registered deletes, `SqlJournal` + `DbDiagnosticsExtension` (SQL of failed tests). Plan: [docs/db-layer-roadmap.md](../docs/db-layer-roadmap.md).
 
-**May depend on:** `core` only.
+**May depend on:** `core`, `module-data` (only `Cleanup`, for `TableWriter`'s deletes).
 
 ## Invariants (do not break)
 

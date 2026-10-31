@@ -18,7 +18,8 @@ answered, but what the services actually persisted.
   test framework's mappings. Run one test per entity in a scheduled CI job.
   Use `forDataSource(name)` to validate against a non-default database.
 
-- **`DbState`** — table snapshots in plain JDBC: what an action changed, row
+- **`DbState`** — `into(table).insert(row)` for setup rows removed after the
+  test (`module-data` `Cleanup`), and table snapshots in plain JDBC: what an action changed, row
   by row and column by column, with expectations that fail with the whole
   diff (`changed(1, "status")` fails when `total` changed too).
 
@@ -124,6 +125,35 @@ columns changed that should not have: [total] in orders where customer_id = ? (k
 - Table and column names must be plain identifiers; the `where` clause is
   the test's own SQL with `?` parameters.
 - `db.on("auditDataSource")` for a named datasource.
+
+## Rows for setup, removed after the test
+
+For a state the product's API cannot produce, or cannot produce fast:
+
+```java
+@ExtendWith(CleanupExtension.class)   // module-data
+class ArchivedOrdersTest {
+
+    @Autowired DbState db;
+
+    @Test
+    void archivedOrdersAreReadOnly() {
+        Map<String, Object> customer = db.into("customers").keyedBy("id")
+                .insert(Map.of("name", "c-" + UUID.randomUUID()));
+        db.into("orders").keyedBy("id")
+                .insert(Map.of("customer_id", customer.get("id"), "status", "ARCHIVED"));
+        ...
+    }
+}
+```
+
+- `insert` returns the row's key — from the values given, or from the keys
+  the database generated.
+- Its `DELETE` is registered with `Cleanup` the moment the insert succeeds and
+  runs after the test, even a failed one, newest first: a child row inserted
+  after its parent is removed before it. `withoutCleanup()` leaves it.
+- Prefer the API for setup; direct inserts skip the product's own rules and
+  are an explicit choice of the test.
 
 ## When a test fails: the SQL it ran
 

@@ -46,6 +46,7 @@ final class Modules {
             Map.entry("module-api-explorer", Set.of("module-api-discovery", "module-http", "module-auth")),
             Map.entry("module-api-fuzz", Set.of("module-api-discovery")),
             Map.entry("module-contract-monitor", Set.of("module-kafka", "module-contract")),
+            Map.entry("module-db", Set.of("module-data")),
             Map.entry("module-db-contract", Set.of("module-db")),
             Map.entry("module-state", Set.of("module-flow", "module-data")));
 
