@@ -34,8 +34,7 @@ final class TokenSources {
                     if (blank(props.token())) {
                         problems.add(role + ": static role needs 'token'");
                     } else {
-                        AccessToken token = new AccessToken(props.token(), null);
-                        sources.put(role, () -> token);
+                        sources.put(role, staticToken(role, props.token(), clock));
                     }
                 }
                 case CLIENT_CREDENTIALS, PASSWORD -> {
@@ -80,6 +79,22 @@ final class TokenSources {
             throw new AuthException("Invalid forge.auth.roles configuration: " + String.join("; ", problems));
         }
         return sources;
+    }
+
+    /**
+     * A static token that is a JWT carries its expiry: the provider then knows
+     * when it ends, and an expired one fails with that reason instead of every
+     * request coming back 401.
+     */
+    static TokenSource staticToken(String role, String value, Clock clock) {
+        AccessToken token = new AccessToken(value, JwtExpiry.of(value).orElse(null));
+        return () -> {
+            if (token.expiresBefore(clock.instant())) {
+                throw new AuthException(("Static token for role '%s' expired at %s; renew the secret behind "
+                        + "forge.auth.roles.%s.token").formatted(role, token.expiresAt(), role));
+            }
+            return token;
+        };
     }
 
     /** Where each role's credential goes; roles not listed use the global header and scheme. */

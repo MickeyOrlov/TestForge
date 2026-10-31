@@ -56,6 +56,7 @@ depend on opt-in runtime integrations.
 | `module-api-discovery` | OpenAPI endpoint catalog and request/response schema shape snapshots for CI drift checks. |
 | `module-db-contract` | Schema snapshot, bounded diff, and compatibility classification (`BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN`) with a CI gate. Reading is delegated to SchemaCrawler; the model, diff, policy and report belong to TestForge. |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
+| `module-auth` | Credentials per role (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login), cached with early refresh, `@AsUser` and reserved `anonymous` role, role shown in failure diagnostics, access matrix (operation × role) through `module-api-explorer`. |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
 | `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts. Real devices are opt-in. |
@@ -70,7 +71,6 @@ surface is still expected to evolve.
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
 | `module-api-fuzz` | Thin adapter for the Schemathesis CLI engine. Handles configuration, safety policy, and result ingestion. |
-| `module-auth` | Tokens per role (static, OAuth2 client credentials/password, local HS256 JWT), cached with early refresh, `@AsUser` role selection, `Authorization` filter picked up by `ApiClient`. |
 
 ## Completed
 
@@ -105,7 +105,14 @@ surface is still expected to evolve.
 - State recipes that compose reusable setup flows and prepared data.
 - Flow runner with guardrails, path reporting, and decorators.
 - Role-based authentication for API tests: `module-auth` token providers,
-  `@AsUser`, local JWT signing without an identity provider.
+  `@AsUser`, local JWT signing without an identity provider; API keys and
+  session-cookie login; the role of every request in failure diagnostics; an
+  access matrix that calls every operation as every role
+  ([plan](auth-layer-roadmap.md)).
+- HTTP layer: contract guard on every `ApiClient` response, failed-test HTTP
+  diagnostics, `ResponsePoller`, `Pagination` ([plan](http-layer-roadmap.md)).
+- Test data layer: `Cleanup`, `Factory`, data isolation tags, leftovers in the
+  run index ([plan](data-layer-roadmap.md)).
 - The run index's `summary.md` points at every report, including the ones a
   module keeps in its own output directory, and lists failing verdicts first.
 - Every diagnostic-producing module publishes into the unified run index:

@@ -11,7 +11,9 @@ the token into a log on the first try.
   per role even when parallel tests ask at once. No retry on a 401: a request
   rejected with a fresh token is a finding.
 - **Token sources** per role (`type`):
-  - `static` — a fixed token from configuration (an environment variable);
+  - `static` — a fixed token from configuration (an environment variable); a
+    JWT's `exp` is honoured, so an expired CI secret fails with that reason
+    rather than as a wall of 401s;
   - `client-credentials` / `password` — OAuth2 token endpoint
     (`client_secret_post`), JDK HTTP client, no extra dependency;
   - `local-jwt` — HS256 JWT signed with a shared test secret, for systems under
@@ -150,5 +152,11 @@ The note never contains the credential. The modules share only the name
   `TokenProvider`.
 - Role selection is thread-bound, like `ScenarioContext`: code that sends
   requests from another thread must call `AuthContext.runAs` there.
+- A `session` role keeps one cookie. Applications that also demand a CSRF
+  token on writes need a project `Filter` that reads it.
+- A static token's expiry is read from its `exp` claim only when it is a JWT;
+  the claim is read, never verified.
 
-Example: `example-tests/.../AuthExampleTest.java`.
+Example: `example-tests/.../AuthExampleTest.java`; the access matrix:
+`AccessMatrixExampleTest.java`.
+
