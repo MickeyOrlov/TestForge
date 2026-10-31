@@ -16,6 +16,9 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-contract`: an invalid JSON Schema failed with "Schema contract is
+  not a valid JSON Schema" and no hint which one; the message now names the
+  contract and the parser's reason.
 - `module-state`: a tag a recipe could not map surfaced as a bare
   exception, and a recipe that materialized nothing as a
   `NullPointerException`; both are now `StateRecipeException`s naming the

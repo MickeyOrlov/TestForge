@@ -40,7 +40,14 @@ final class SchemaEngine {
     }
 
     List<ContractViolation> validate(JsonNode root, SchemaContract contract, ContractProperties properties) {
-        JsonSchema schema = compiledSchemas.computeIfAbsent(contract.schemaJson(), this::compile);
+        JsonSchema schema;
+        try {
+            schema = compiledSchemas.computeIfAbsent(contract.schemaJson(), this::compile);
+        } catch (IllegalArgumentException e) {
+            // with dozens of contracts in a suite, which one is broken is the first thing to know
+            throw new IllegalArgumentException("Schema contract '" + contract.name() + "' is not a valid JSON Schema: "
+                    + rootMessage(e), e);
+        }
 
         Set<ValidationMessage> messages = schema.validate(root);
 
@@ -92,5 +99,13 @@ final class SchemaEngine {
         return COMPOSITE_KEYWORDS.contains(keyword)
                 ? KEYWORD_PRIORITY.size() + 100
                 : KEYWORD_PRIORITY.size();
+    }
+
+    private static String rootMessage(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root.getMessage();
     }
 }

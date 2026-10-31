@@ -8,4 +8,9 @@ changes without anyone noticing what that does to consumers.
 |---|---|---|---|
 | 1 | **Draft from samples** — a first JSON Schema from real payloads, shape only, to review and commit | `module-contract` | shipped |
 | 2 | **Schema change review** — two versions of a contract compared, each change classified for consumers (breaking, risky, safe) | `module-contract` | shipped |
-| 3 | **Review** — close the gaps a review of the module finds | `module-contract` | planned |
+| 3 | **Review** — close the gaps a review of the module finds | `module-contract` | shipped |
+
+All three steps shipped (PRs #74–#76). The review confirmed the strict
+parser is what the validator really uses and that schema violation messages
+carry no payload values; it found one gap: an invalid schema did not say
+which contract it was. It does now.
