@@ -29,7 +29,15 @@ forge:
     fail-on-contract-violation: true
     fail-on-shape-diff: true
     fail-on-missing-message: true
+    sample-size: 20   # newest matching messages validated and merged per case
 ```
+
+Each case validates up to `sample-size` newest matching messages from the
+buffer. A violation is reported once with its share (`in 3 of 20 sampled
+messages, newest at offset 812`), and the shape snapshot is the union of the
+sample's shapes — a path any message has, with every type seen
+(`NULL|STRING`). One message alone made a field that message happened to omit
+look removed, and let a producer that breaks one message in five pass.
 
 ## Usage
 

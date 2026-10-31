@@ -102,7 +102,9 @@ public class ContractMonitorRunner {
     }
 
     private ContractMonitorCaseReport runCase(ContractMonitorCase monitorCase, Path outputDir) {
-        KafkaMessage message = kafkaProbe.findMessage(monitorCase.filter()).orElse(null);
+        List<KafkaMessage> sample = kafkaProbe.findMessages(monitorCase.filter()).stream()
+                .limit(properties.sampleSize()).toList();
+        KafkaMessage message = sample.isEmpty() ? null : sample.getFirst();
         if (message == null) {
             return new ContractMonitorCaseReport(
                     monitorCase.name(),
@@ -122,13 +124,13 @@ public class ContractMonitorRunner {
         String safeName = safeFileName(monitorCase.name());
         Path messageArtifact = outputDir.resolve(safeName + ".message.json");
         Path shapeArtifact = outputDir.resolve(safeName + ".shape.json");
-        List<ContractViolation> violations = monitorCase.contract().validate(validator, message.value());
+        List<ContractViolation> violations = sampleViolations(monitorCase, sample);
 
         Map<String, String> shape = Map.of();
         ShapeDiff diff = ShapeDiff.noBaseline();
         String normalizationError = null;
         try {
-            shape = new TreeMap<>(normalizer.normalize(message.value()));
+            shape = mergedShape(sample);
             writeJson(shapeArtifact, shape);
             diff = diffAgainstBaseline(safeName, shape);
         } catch (RuntimeException e) {
@@ -153,7 +155,49 @@ public class ContractMonitorRunner {
                 diff,
                 normalizationError,
                 messageArtifact.toString(),
-                shape.isEmpty() ? null : shapeArtifact.toString());
+                shape.isEmpty() ? null : shapeArtifact.toString(),
+                sample.size());
+    }
+
+    /**
+     * Every distinct violation across the sample, once, saying how many sampled
+     * messages had it and the newest offset: a producer that breaks one message
+     * in five shows up, without twenty copies of the same line.
+     */
+    private List<ContractViolation> sampleViolations(ContractMonitorCase monitorCase, List<KafkaMessage> sample) {
+        Map<String, ContractViolation> first = new java.util.LinkedHashMap<>();
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        Map<String, Long> offsets = new java.util.HashMap<>();
+        for (KafkaMessage message : sample) {
+            for (ContractViolation violation : monitorCase.contract().validate(validator, message.value())) {
+                String key = violation.path() + "|" + violation.code() + "|" + violation.message();
+                first.putIfAbsent(key, violation);
+                offsets.putIfAbsent(key, message.offset());
+                counts.merge(key, 1, Integer::sum);
+            }
+        }
+        List<ContractViolation> merged = new ArrayList<>();
+        first.forEach((key, violation) -> merged.add(sample.size() == 1 ? violation : new ContractViolation(
+                violation.contract(), violation.path(), violation.code(), violation.message()
+                        + " — in " + counts.get(key) + " of " + sample.size() + " sampled messages, newest at offset "
+                        + offsets.get(key))));
+        return merged;
+    }
+
+    /**
+     * The union of the sample's shapes: a path any message has is in it, and a
+     * path whose type differs between messages carries all of them,
+     * {@code NULL|STRING}.
+     */
+    private Map<String, String> mergedShape(List<KafkaMessage> sample) {
+        Map<String, java.util.Set<String>> types = new TreeMap<>();
+        for (KafkaMessage message : sample) {
+            normalizer.normalize(message.value()).forEach((path, type) ->
+                    types.computeIfAbsent(path, ignored -> new java.util.TreeSet<>()).addAll(List.of(type.split("\\|"))));
+        }
+        Map<String, String> shape = new TreeMap<>();
+        types.forEach((path, seen) -> shape.put(path, String.join("|", seen)));
+        return shape;
     }
 
     private ShapeDiff diffAgainstBaseline(String safeName, Map<String, String> current) {
@@ -204,7 +248,8 @@ public class ContractMonitorRunner {
             out.append("- contract: ").append(caseReport.contractName()).append('\n');
             if (caseReport.messageFound()) {
                 out.append("- topic: ").append(caseReport.topic()).append('\n');
-                out.append("- offset: ").append(caseReport.offset()).append('\n');
+                out.append("- offset: ").append(caseReport.offset()).append(" (newest)\n");
+                out.append("- messagesSampled: ").append(caseReport.messagesSampled()).append('\n');
             }
             appendViolations(out, caseReport);
             appendDiff(out, caseReport.shapeDiff());
