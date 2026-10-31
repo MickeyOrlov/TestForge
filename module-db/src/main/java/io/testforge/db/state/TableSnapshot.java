@@ -24,6 +24,21 @@ public final class TableSnapshot {
         return rows.size();
     }
 
+    /** Runs an action that must fail, then requires these rows to be as they were; returns what it threw. */
+    public Throwable expectRolledBack(DbAction action) {
+        return Rollback.expect(action, this::diff, () -> diff().isEmpty());
+    }
+
+    /** These rows are as they were — for a rejection that did not throw. */
+    public void assertUnchanged() {
+        diff().expect().nothing();
+    }
+
+    /** These rows are back as they were within {@code timeout}: a compensation undid the change. */
+    public void assertUnchangedWithin(java.time.Duration timeout) {
+        Rollback.within(timeout, this::diff, () -> diff().isEmpty());
+    }
+
     /** Reads the same rows again and compares. */
     public TableDiff diff() {
         Map<List<Object>, Map<String, Object>> now = query.read();

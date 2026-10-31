@@ -9,7 +9,7 @@ left half its writes behind, and which statement was slow.
 |---|---|---|
 | 1 | **Query budget** — statements per action, per kind, and the N+1: one statement shape run once per row | shipped |
 | 2 | **Unbounded statements** — an `UPDATE`/`DELETE` without `WHERE`, a `SELECT` of a whole table | shipped |
-| 3 | **Atomicity** — an action that failed left nothing behind | planned |
+| 3 | **Atomicity** — an action that failed left nothing behind | shipped |
 | 4 | **Slow statements** — which statement of a scenario took longer than allowed | planned |
 | 5 | **Review** — close the gaps a review finds | planned |
 
@@ -37,3 +37,15 @@ aside (schema prefixes ignored when matching). String literals are blanked
 before looking for the clauses. The checks read SQL text, not plans: a
 whole-table subquery under a filtered outer query passes, and a `WHERE` that
 filters nothing (`WHERE 1 = 1`) counts as a filter.
+
+## Step 3 — atomicity
+
+`DbSnapshot.expectRolledBack(action)` (and the same on `TableSnapshot`) runs an
+action that must throw, then requires every watched row to be as it was. A
+success fails with what it changed; a failure that left rows fails with them,
+the action's exception attached as the cause — the lost `@Transactional`, the
+two writes in two transactions. It returns the exception for further checks.
+`assertUnchanged()` covers a rejection that does not throw, and
+`assertUnchangedWithin(Duration)` a saga whose compensation undoes the write
+later. (Built on the data snapshots rather than the SQL capture, so it is
+listed here for the question it answers — what a failure left — not for how.)

@@ -35,6 +35,31 @@ public final class DbSnapshot {
         return tables.keySet();
     }
 
+    /**
+     * Runs an action that must fail, then requires every watched table to be
+     * as it was: a failed payment leaves no half-written order, no orphan
+     * payment row. Returns what the action threw, for further checks.
+     */
+    public Throwable expectRolledBack(DbAction action) {
+        return Rollback.expect(action, this::diff, () -> diff().isEmpty());
+    }
+
+    /** No watched table moved — for a rejection that did not throw, such as an HTTP 4xx. */
+    public void assertUnchanged() {
+        DbDiff diff = diff();
+        if (!diff.isEmpty()) {
+            throw new AssertionError("expected no watched table to change:\n" + diff);
+        }
+    }
+
+    /**
+     * Every watched table is back as it was within {@code timeout} — a saga's
+     * compensation undoing what the failed step wrote, asynchronously.
+     */
+    public void assertUnchangedWithin(java.time.Duration timeout) {
+        Rollback.within(timeout, this::diff, () -> diff().isEmpty());
+    }
+
     public DbDiff diff() {
         Map<String, TableDiff> diffs = new LinkedHashMap<>();
         tables.forEach((name, snapshot) -> diffs.put(name, snapshot.diff()));
