@@ -77,6 +77,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-fuzz`: findings carry their spec and group by check and
+  operation (`ApiFuzzReport.findingGroups()`); every run writes
+  `<output-dir>/report.md` with one entry per group — cases, phases, methods,
+  first message line — and the command that reproduces it (same seed and
+  config, URL redacted, `--include-name` for the operation). The
+  `fail-on-findings` message names checks, not every case.
 - `module-api-codegen`: each generation writes `<spec>/surface.json` (client
   methods and record components, types only) and reports what changed for the
   tests that use the sources — a removed method or changed signature as

@@ -28,4 +28,9 @@ public record ApiFuzzReport(
     public boolean hasFindings() {
         return outcome == ApiFuzzOutcome.FINDINGS || (findings != null && !findings.isEmpty());
     }
+
+    /** The findings grouped by spec, check and operation, most frequent first. */
+    public List<ApiFuzzFindingGroup> findingGroups() {
+        return ApiFuzzFindingGroup.of(findings);
+    }
 }
