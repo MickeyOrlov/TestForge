@@ -13,7 +13,7 @@ right row *and* breaks something next to it fails the test.
 | 2 | **Side-effect containment** — snapshot several tables, assert that only the expected ones and rows changed | shipped |
 | 3 | **Data invariants** — orphans, duplicate business keys, values outside an allowed set, NULLs where logic forbids them | shipped |
 | 4 | **Cross-table consistency, with waiting** — every new order has its outbox row; totals add up | shipped |
-| 5 | **Only the test's own data** — the rows an action touched carry the test's run tag | planned |
+| 5 | **Only the test's own data** — the rows an action touched carry the test's run tag | shipped |
 | 6 | **Review** — close the gaps a review finds | planned |
 
 ## Step 1 — exact row expectations
@@ -63,3 +63,13 @@ its parts, zero when there are none; `countMatches(count, key, childKey)`.
 hold, for what the system completes asynchronously (the relay, a projection,
 a recalculation), and fails at the deadline with the last report — the rules
 still broken, not a bare timeout.
+
+## Step 5 — only the test's own data
+
+A table watched whole, then `expect().onlyOwnData(tagColumn)`: every added,
+changed (ignored-column moves included) and removed row must carry a tag from
+`DataIsolation`. Rows tagged by other tests are tolerated, since parallel tests
+write concurrently; a row no test owns fails — the action reached real data on
+the shared environment. `onlyThisTestsData` is the strict form for runs where
+nothing else writes the table. `RowChange` now keeps the row's current values,
+so the tag column is checked even when it did not change.

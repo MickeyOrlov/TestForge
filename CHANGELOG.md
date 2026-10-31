@@ -123,6 +123,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: `TableDiff.expect().onlyOwnData(tagColumn)` — every row an
+  action added, changed or removed carries a test tag from `module-data`'s
+  `DataIsolation`; data no test owns fails, other tests' rows are tolerated
+  (`onlyThisTestsData` is the strict form). `RowChange.values()` holds the
+  changed row's current values.
 - `module-db`: cross-table invariants — `everyRowHas("orders.id",
   "outbox.aggregate_id")`, `totalMatches(...)` (a stored total equals the sum
   of its parts) and `countMatches(...)` — and `assertHoldsWithin(timeout)`,

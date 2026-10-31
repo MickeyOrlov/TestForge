@@ -49,9 +49,9 @@ public final class TableSnapshot {
                 }
             });
             if (!columns.isEmpty()) {
-                changed.add(new TableDiff.RowChange(key(key), columns, ignored));
+                changed.add(new TableDiff.RowChange(key(key), columns, ignored, row));
             } else if (!ignored.isEmpty()) {
-                touched.add(new TableDiff.RowChange(key(key), Map.of(), ignored));
+                touched.add(new TableDiff.RowChange(key(key), Map.of(), ignored, row));
             }
         });
         rows.forEach((key, row) -> {
