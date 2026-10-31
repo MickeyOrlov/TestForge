@@ -87,6 +87,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db-contract`: likely renames are pointed out — a removed and an
+  added table, column, index or foreign key with an identical shape are
+  paired under "Possibly renamed" in `report.md` and the gate's failure
+  message (`DbContractReport.renameCandidates()`). Verdicts are unchanged.
 - `module-api-fuzz`: `forge.api-fuzz.accepted-findings` lists known finding
   groups (`<check> <operation>`, optionally `<spec>:`-scoped, ` # comment`
   allowed); `fail-on-findings` then fails only on new groups

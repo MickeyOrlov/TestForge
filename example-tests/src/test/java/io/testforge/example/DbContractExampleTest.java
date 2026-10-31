@@ -119,6 +119,20 @@ class DbContractExampleTest {
     }
 
     @Test
+    void renamingAColumnStaysBreakingAndTheReportSaysItLooksLikeARename() throws Exception {
+        execute("ALTER TABLE contract_demo_orders ALTER COLUMN amount RENAME TO total");
+
+        DbContractReport report = dbContractRunner.run();
+
+        // a consumer selecting "amount" fails either way, so the verdict is not softened
+        assertThat(report.compatible()).isFalse();
+        assertThat(report.renameCandidates()).singleElement()
+                .satisfies(candidate -> assertThat(candidate.describe())
+                        .isEqualTo("CONTRACT_DEMO_ORDERS.AMOUNT -> CONTRACT_DEMO_ORDERS.TOTAL"));
+        assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("### Possibly renamed");
+    }
+
+    @Test
     void aRiskyChangeIsReportedButDoesNotFailUntilTheProjectOptsIn() throws Exception {
         execute("ALTER TABLE contract_demo_orders ALTER COLUMN status SET DATA TYPE VARCHAR(8)");
 

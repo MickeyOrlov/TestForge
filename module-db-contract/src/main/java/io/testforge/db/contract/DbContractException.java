@@ -1,6 +1,7 @@
 package io.testforge.db.contract;
 
 import io.testforge.db.contract.policy.DbChangeAssessment;
+import io.testforge.db.contract.diff.DbRenameCandidates;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +38,16 @@ public class DbContractException extends RuntimeException {
                 + report.riskyCount() + " risky, "
                 + report.unknownCount() + " unknown change(s)."
                 + System.lineSeparator() + offenders
+                + renames(report)
                 + System.lineSeparator() + "Report: " + report.reportMarkdown();
+    }
+
+    private static String renames(DbContractReport report) {
+        if (report.renameCandidates().isEmpty()) {
+            return "";
+        }
+        return System.lineSeparator() + "Possibly renamed (same shape, matched by name): "
+                + report.renameCandidates().stream().map(DbRenameCandidates.Candidate::describe)
+                        .collect(Collectors.joining(", "));
     }
 }

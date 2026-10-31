@@ -3,6 +3,7 @@ package io.testforge.db.contract;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.artifact.ArtifactSink;
 import io.testforge.db.contract.diff.DbChange;
+import io.testforge.db.contract.diff.DbRenameCandidates;
 import io.testforge.db.contract.diff.DbSchemaComparator;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.policy.DbChangeAssessment;
@@ -143,8 +144,10 @@ public class DbContractRunner {
                     + "comparing anything. Promote the captured snapshot with writeBaseline() "
                     + "to start gating on it.", baselineFile);
         }
-        List<DbChangeAssessment> assessments = baselinePresent
-                ? assess(snapshotStore.read(baselineFile), current)
+        DbSchemaSnapshot baseline = baselinePresent ? snapshotStore.read(baselineFile) : null;
+        List<DbChangeAssessment> assessments = baselinePresent ? assess(baseline, current) : List.of();
+        List<DbRenameCandidates.Candidate> renames = baselinePresent
+                ? DbRenameCandidates.find(baseline, current)
                 : List.of();
 
         int breaking = count(assessments, DbCompatibility.BREAKING);
@@ -168,7 +171,8 @@ public class DbContractRunner {
                 baselineFile.toString(),
                 currentSnapshotFile.toString(),
                 reportJson.toString(),
-                reportMarkdown.toString());
+                reportMarkdown.toString(),
+                renames);
 
         writeReports(report, reportJson, reportMarkdown);
         registerArtifact(currentSnapshotFile, "schema-snapshot.json", "application/json", report);
@@ -341,6 +345,16 @@ public class DbContractRunner {
                     .append(" | ").append(cell(change.after()))
                     .append(" | ").append(cell(assessment.reason()))
                     .append(" |\n");
+        }
+        if (!report.renameCandidates().isEmpty()) {
+            out.append("\n### Possibly renamed\n\n")
+                    .append("Objects are matched by name, so each of these reads above as a removal and an ")
+                    .append("addition, and the verdicts stand: a consumer using the old name fails either way. ")
+                    .append("The two have an identical shape, which usually means one rename.\n\n");
+            report.renameCandidates().forEach(candidate -> out.append("- ")
+                    .append(candidate.kind().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '))
+                    .append(" `").append(candidate.describe()).append("` — ")
+                    .append(cell(candidate.shape())).append('\n'));
         }
         return out.toString();
     }

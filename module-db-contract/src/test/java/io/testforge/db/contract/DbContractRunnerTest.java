@@ -212,6 +212,28 @@ class DbContractRunnerTest {
     }
 
     @Test
+    void aLikelyRenameIsPointedOutWithoutSofteningTheVerdict(@TempDir Path dir) throws Exception {
+        writeBaseline(dir, BASELINE);
+        DbSchemaSnapshot current = schema(table("orders", List.of(
+                id(), column("state", ColumnTypeFamily.CHARACTER, "varchar(32)", true))));
+
+        DbContractRunner runner = runner(dir, current, properties(dir, null));
+        DbContractReport report = runner.run();
+
+        assertThat(report.breakingCount()).isEqualTo(1);
+        assertThat(report.renameCandidates()).singleElement()
+                .satisfies(candidate -> assertThat(candidate.describe()).isEqualTo("orders.status -> orders.state"));
+        assertThat(java.nio.file.Files.readString(Path.of(report.reportMarkdown())))
+                .contains("### Possibly renamed")
+                .contains("- column `orders.status -> orders.state` — varchar(32) [CHARACTER] NULL");
+        assertThatThrownBy(runner::assertCompatible)
+                .isInstanceOf(DbContractException.class)
+                .hasMessageContaining("Possibly renamed (same shape, matched by name): orders.status -> orders.state");
+        assertThat(new ObjectMapper().readValue(Path.of(report.reportJson()).toFile(), DbContractReport.class)
+                .renameCandidates()).isEqualTo(report.renameCandidates());
+    }
+
+    @Test
     void riskyChangesPassUntilAProjectOptsIn(@TempDir Path dir) {
         writeBaseline(dir, BASELINE);
         DbSchemaSnapshot current = schema(table("orders", List.of(

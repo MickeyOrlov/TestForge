@@ -1,5 +1,6 @@
 package io.testforge.db.contract;
 
+import io.testforge.db.contract.diff.DbRenameCandidates;
 import io.testforge.db.contract.policy.DbChangeAssessment;
 import io.testforge.db.contract.policy.DbCompatibility;
 import java.util.List;
@@ -25,6 +26,8 @@ import java.util.List;
  * @param currentSnapshot  path of the snapshot captured by this run
  * @param reportJson       path of the JSON report
  * @param reportMarkdown   path of the Markdown report
+ * @param renameCandidates removed and added objects with an identical shape,
+ *                         likely one rename; the changes keep their verdicts
  */
 public record DbContractReport(
         boolean enabled,
@@ -41,13 +44,25 @@ public record DbContractReport(
         String baselineSnapshot,
         String currentSnapshot,
         String reportJson,
-        String reportMarkdown) {
+        String reportMarkdown,
+        List<DbRenameCandidates.Candidate> renameCandidates) {
 
     public DbContractReport {
         changes = changes == null ? List.of() : List.copyOf(changes);
+        renameCandidates = renameCandidates == null ? List.of() : List.copyOf(renameCandidates);
         if (worstClassified == null || !worstClassified.classified()) {
             worstClassified = DbCompatibility.NON_BREAKING;
         }
+    }
+
+    public DbContractReport(
+            boolean enabled, String generatedAt, String schema, boolean baselinePresent, boolean compatible,
+            DbCompatibility worstClassified, int breakingCount, int riskyCount, int unknownCount,
+            int nonBreakingCount, List<DbChangeAssessment> changes, String baselineSnapshot,
+            String currentSnapshot, String reportJson, String reportMarkdown) {
+        this(enabled, generatedAt, schema, baselinePresent, compatible, worstClassified, breakingCount, riskyCount,
+                unknownCount, nonBreakingCount, changes, baselineSnapshot, currentSnapshot, reportJson,
+                reportMarkdown, List.of());
     }
 
     /**

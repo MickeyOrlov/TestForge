@@ -169,7 +169,15 @@ Other deliberate limits, all of them visible in the tests:
 
 - **Objects are matched by name.** A renamed table, column, index or foreign key
   reports as a removal plus an addition — that is the honest reading of two
-  snapshots with no rename log between them.
+  snapshots with no rename log between them. The verdicts stay as they are (a
+  consumer using the old name fails either way), but when a removed and an
+  added object in the same place have an identical shape — same type,
+  nullability and default for a column; same columns, uniqueness and
+  predicate for an index; same columns and target for a foreign key; same
+  columns for a table — the report pairs them under **Possibly renamed**
+  (`DbContractReport.renameCandidates()`), and so does the gate's failure
+  message. Ambiguous pairs are not guessed. Index and foreign-key renames are
+  common when a migration tool regenerates constraint names.
 - **Primary-key constraint names are recorded but not compared.** Renaming the
   constraint shows in the snapshot's git diff and in no contract change.
 - **The unique index backing a primary key is dropped** from the model, so
