@@ -93,6 +93,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-web`: `forge.prewarm.mode=http` warms with plain GET requests that
+  follow redirects — no browser download; client bundles stay cold, so
+  `browser` remains the default. `PrewarmExampleTest` exercises prewarm end
+  to end offline against WireMock.
 - `module-web`: prewarm reports what each page answered — status, where it
   ended after redirects, time, error — one log line per page and `prewarm.md`
   in the run index (`PrewarmRunner.lastReport()`), URLs redacted.

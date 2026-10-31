@@ -20,7 +20,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `TestForgeWebAutoConfigurationTest`, `PrewarmRunnerTest` (offline, fake engine, no browser).
+Own: `TestForgeWebAutoConfigurationTest`, `PrewarmRunnerTest` (fake engine), `HttpPrewarmEngineTest` (local HTTP server) — all offline, no browser. Example: `PrewarmExampleTest` (HTTP mode against WireMock).
 
 ## Before you finish
 

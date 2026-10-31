@@ -2,6 +2,7 @@ package io.testforge.web;
 
 import io.testforge.artifact.ArtifactSink;
 import io.testforge.web.prewarm.BrowserPrewarmEngine;
+import io.testforge.web.prewarm.HttpPrewarmEngine;
 import io.testforge.web.prewarm.PrewarmEngine;
 import io.testforge.web.prewarm.PrewarmProperties;
 import io.testforge.web.prewarm.PrewarmRunner;
@@ -22,7 +23,9 @@ public class TestForgeWebAutoConfiguration {
     @ConditionalOnMissingBean
     public PrewarmRunner prewarmRunner(PrewarmProperties properties, ObjectProvider<PrewarmEngine> engine,
                                        ObjectProvider<ArtifactSink> sink) {
-        return new PrewarmRunner(properties, engine.getIfAvailable(BrowserPrewarmEngine::new),
+        return new PrewarmRunner(properties, engine.getIfAvailable(() -> properties.mode() == PrewarmProperties.Mode.HTTP
+                        ? new HttpPrewarmEngine()
+                        : new BrowserPrewarmEngine()),
                 sink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 
