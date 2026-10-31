@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 
 class TemplateRendererTest {
 
-    private final TemplateRenderer renderer = new TemplateRenderer(new DataProperties(0, null));
+    private final TemplateRenderer renderer = new TemplateRenderer(new DataProperties(0, null, null));
 
     @Test
     void replacesVariablesAndLeavesTheRestUntouched() {
@@ -53,10 +53,10 @@ class TemplateRendererTest {
 
     @Test
     void depthLimitStopsRunawayExpansionThatIsNotACycle() {
-        TemplateRenderer shallow = new TemplateRenderer(new DataProperties(2, null));
+        TemplateRenderer shallow = new TemplateRenderer(new DataProperties(2, null, null));
         Map<String, String> chain = Map.of("a", "%{b}%", "b", "%{c}%", "c", "%{d}%", "d", "end");
 
-        assertThat(new TemplateRenderer(new DataProperties(5, null)).render("%{a}%", chain)).isEqualTo("end");
+        assertThat(new TemplateRenderer(new DataProperties(5, null, null)).render("%{a}%", chain)).isEqualTo("end");
         assertThatThrownBy(() -> shallow.render("%{a}%", chain))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("max depth: 2");
@@ -70,6 +70,6 @@ class TemplateRendererTest {
 
     @Test
     void defaultDepthIsTen() {
-        assertThat(new DataProperties(0, null).maxTemplateDepth()).isEqualTo(10);
+        assertThat(new DataProperties(0, null, null).maxTemplateDepth()).isEqualTo(10);
     }
 }

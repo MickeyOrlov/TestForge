@@ -16,10 +16,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *           tags: [active]
  *           count: 5
  *           refill-below: 2      # optional: top up to count in the background
+ *     isolation:
+ *       prefix: tf               # marks test data of every run
+ *       run-tag: ${CI_RUN_ID:}   # blank: generated once per JVM
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.data")
-public record DataProperties(int maxTemplateDepth, PoolProperties pool) {
+public record DataProperties(int maxTemplateDepth, PoolProperties pool, IsolationProperties isolation) {
 
     public DataProperties {
         if (maxTemplateDepth <= 0) {
@@ -28,6 +31,16 @@ public record DataProperties(int maxTemplateDepth, PoolProperties pool) {
         if (pool == null) {
             pool = new PoolProperties(null);
         }
+        if (isolation == null) {
+            isolation = new IsolationProperties(null, null);
+        }
+    }
+
+    /**
+     * @param prefix marks test data of every run; letters and digits, default {@code tf}
+     * @param runTag this run's id; letters and digits, blank generates one per JVM
+     */
+    public record IsolationProperties(String prefix, String runTag) {
     }
 
     /** Variants stocked when the context starts. */

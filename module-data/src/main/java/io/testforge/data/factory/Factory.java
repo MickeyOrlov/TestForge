@@ -1,6 +1,8 @@
 package io.testforge.data.factory;
 
 import io.testforge.data.RunUniqueValues;
+import io.testforge.data.cleanup.Cleanup;
+import io.testforge.data.isolation.DataIsolation;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
@@ -72,11 +75,23 @@ public final class Factory<T> {
         /** A readable default: the factory name and the sequence, e.g. {@code customer-7}. */
         String label();
 
+        /**
+         * The label behind the current test's isolation tag, e.g.
+         * {@code tf-k3x9q-t4-customer-7}: what parallel tests and runs filter by.
+         */
+        String tagged();
+
         /** A value the generator produced that no earlier build of the run used for {@code type}. */
         String unique(String type, Supplier<String> generator);
 
         /** The fields present in this build, in declaration order. */
         Set<String> names();
+    }
+
+    /** Undoes what {@link #create} persisted. */
+    @FunctionalInterface
+    public interface Undo<R> {
+        void undo(R created) throws Exception;
     }
 
     private static final Value OMITTED = fields -> null;
@@ -229,6 +244,26 @@ public final class Factory<T> {
         return assembler.assemble(new Build(sequence.incrementAndGet()));
     }
 
+    /**
+     * Builds an object, persists it on the environment and registers its undo
+     * with {@link Cleanup} as {@code "<factory> <result>"}, so it is removed after
+     * the test even when the test fails:
+     *
+     * <pre>{@code
+     * String id = CUSTOMERS.create(c -> api.request().body(c).post("/customers").path("id"),
+     *         created -> api.request().delete("/customers/{id}", created));
+     * }</pre>
+     *
+     * Nothing is registered when persisting throws.
+     */
+    public <R> R create(Function<? super T, R> persist, Undo<? super R> undo) {
+        Objects.requireNonNull(persist, "persist");
+        Objects.requireNonNull(undo, "undo");
+        R created = persist.apply(build());
+        Cleanup.register(name + " " + created, () -> undo.undo(created));
+        return created;
+    }
+
     public List<T> build(int count) {
         if (count < 0) {
             throw new IllegalArgumentException("count must not be negative");
@@ -323,6 +358,11 @@ public final class Factory<T> {
         @Override
         public String label() {
             return name + "-" + number;
+        }
+
+        @Override
+        public String tagged() {
+            return DataIsolation.tag(label());
         }
 
         @Override

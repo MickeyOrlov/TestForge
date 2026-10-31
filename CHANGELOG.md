@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-data`: data isolation for shared environments. `DataIsolation`
+  carries a run tag (`tf-k3x9q`, or `forge.data.isolation.run-tag` such as a
+  CI run id) and, with `DataIsolationExtension`, a per-test part
+  (`tf-k3x9q-t4`); `tag(value)` and a factory's `f.tagged()` put it into
+  values, `owns`, `ownedByRun` and `isTestData` filter what the environment
+  returns or what a sweeper may remove. `Factory.create(persist, undo)`
+  persists a built object and registers its undo with `Cleanup`.
 - `module-data`: `Factory` builds test objects and payloads with readable,
   unique defaults — `Factory.forRecord(Customer.class)`, `Factory.map("order")`
   or `Factory.of(name, assembler)` — overridden per field (`with`, `without`),
