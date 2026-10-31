@@ -19,6 +19,18 @@ or more modules need it.
   Waited PT30S for job j-7 becomes Completed (61 polls); last value: Job[id=j-7, status=Failed]
   ```
 
+  A state the value will not leave can end the wait at once, and one wait can
+  have its own deadline:
+
+  ```java
+  waiter.withTimeout(Duration.ofMinutes(3)).await("report r-1 is ready",
+          () -> reports.get("r-1"),
+          report -> report.status() == READY,
+          report -> report.status() == FAILED);   // WaitAbortedException now, not a timeout in 3 minutes
+  ```
+
+  Polls are never spaced wider than half the deadline.
+
 ## Configuration
 
 ```yaml

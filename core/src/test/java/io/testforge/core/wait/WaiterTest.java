@@ -74,4 +74,52 @@ class WaiterTest {
                 .satisfies(e -> assertThat(e.getMessage().length()).isLessThan(Waiter.MAX_VALUE_CHARS + 200))
                 .hasMessageEndingWith("...");
     }
+
+    @Test
+    void aTerminalStateStopsTheWaitAtOnce() {
+        AtomicInteger polls = new AtomicInteger();
+        Waiter patient = waiter.withTimeout(Duration.ofSeconds(30));
+
+        long started = System.nanoTime();
+        WaitAbortedException aborted = (WaitAbortedException) org.assertj.core.api.Assertions.catchThrowable(() ->
+                patient.await("job j1 completes",
+                        () -> new Job("j1", polls.incrementAndGet() < 3 ? "Running" : "Failed"),
+                        job -> "Completed".equals(job.status()),
+                        job -> "Failed".equals(job.status())));
+
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(5));
+        assertThat(aborted).isInstanceOf(AssertionError.class)
+                .hasMessage("Stopped waiting for job j1 completes after 3 polls: Job[id=j1, status=Failed] "
+                        + "is a state it will not leave");
+        assertThat(aborted.value()).isEqualTo(new Job("j1", "Failed"));
+    }
+
+    @Test
+    void withoutATerminalStateTheFailFastWaitBehavesLikeAPlainOne() {
+        AtomicInteger polls = new AtomicInteger();
+
+        Job job = waiter.await("job completes",
+                () -> new Job("j1", polls.incrementAndGet() < 3 ? "Running" : "Completed"),
+                done -> "Completed".equals(done.status()),
+                failed -> "Failed".equals(failed.status()));
+
+        assertThat(job.status()).isEqualTo("Completed");
+        assertThatThrownBy(() -> waiter.await("stays running", () -> new Job("j2", "Running"),
+                done -> false, failed -> false)).isInstanceOf(WaitTimeoutException.class);
+    }
+
+    @Test
+    void oneWaitCanHaveItsOwnDeadline() {
+        Waiter quick = new Waiter(new WaitProperties(Duration.ofSeconds(30), Duration.ofMillis(500)))
+                .withTimeout(Duration.ofMillis(100));
+
+        assertThat(quick.properties().timeout()).isEqualTo(Duration.ofMillis(100));
+        assertThat(quick.properties().pollInterval()).as("the configured interval is kept")
+                .isEqualTo(Duration.ofMillis(500));
+        assertThat(quick.withPollInterval(Duration.ofMillis(10)).properties().pollInterval())
+                .isEqualTo(Duration.ofMillis(10));
+        assertThatThrownBy(() -> quick.await("never", () -> "x", value -> false))
+                .hasMessageStartingWith("Waited PT0.1S for never");
+        assertThatThrownBy(() -> quick.withTimeout(Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
+    }
 }
