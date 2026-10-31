@@ -23,6 +23,9 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *        answers (every visit failed or got a 5xx): the environment is down,
  *        and every test would fail slowly for that one reason. Default
  *        {@code false} — prewarm then only warns
+ * @param mode how pages are visited: {@code browser} (default) runs them in
+ *        headless Chromium, warming client bundles too; {@code http} sends
+ *        plain GETs and needs no browser download
  */
 @ConfigurationProperties(prefix = "forge.prewarm")
 public record PrewarmProperties(
@@ -30,7 +33,11 @@ public record PrewarmProperties(
         List<String> urls,
         Boolean headless,
         Duration navigationTimeout,
-        Boolean failWhenUnreachable) {
+        Boolean failWhenUnreachable,
+        Mode mode) {
+
+    /** How pages are visited. */
+    public enum Mode { BROWSER, HTTP }
 
     @ConstructorBinding
     public PrewarmProperties {
@@ -46,9 +53,17 @@ public record PrewarmProperties(
         if (failWhenUnreachable == null) {
             failWhenUnreachable = false;
         }
+        if (mode == null) {
+            mode = Mode.BROWSER;
+        }
+    }
+
+    public PrewarmProperties(boolean enabled, List<String> urls, Boolean headless, Duration navigationTimeout,
+                             Boolean failWhenUnreachable) {
+        this(enabled, urls, headless, navigationTimeout, failWhenUnreachable, null);
     }
 
     public PrewarmProperties(boolean enabled, List<String> urls, Boolean headless, Duration navigationTimeout) {
-        this(enabled, urls, headless, navigationTimeout, null);
+        this(enabled, urls, headless, navigationTimeout, null, null);
     }
 }
