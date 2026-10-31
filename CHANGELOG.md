@@ -48,6 +48,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-contract-monitor`: `ShapeDiff.impact()` judges each drift for
+  consumers (`BREAKING` for a vanished path or a newly possible type, `SAFE`
+  for new paths and narrowed types), listed in `report.md`;
+  `forge.contract-monitor.fail-on-breaking-drift-only=true` fails only on
+  breaking drift.
 - `module-api-explorer`: operation coverage. The contract guard counts the
   documented operations the suite's `ApiClient` calls reached;
   `api-coverage.md` in the run index lists those no test called

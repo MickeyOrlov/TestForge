@@ -30,6 +30,7 @@ forge:
     fail-on-shape-diff: true
     fail-on-missing-message: true
     sample-size: 20   # newest matching messages validated and merged per case
+    fail-on-breaking-drift-only: false   # true: shape drift fails only when it breaks consumers
 ```
 
 Each case validates up to `sample-size` newest matching messages from the
@@ -78,6 +79,22 @@ Artifacts are written under `forge.contract-monitor.output-dir`:
 If no baseline shape exists, the current shape is written and shape diff does
 not fail. Contract violations and missing messages still follow their fail
 flags.
+
+## Which drift matters to consumers
+
+Every shape difference is also judged for a consumer of the baseline and
+listed under *for consumers* in `report.md` (`ShapeDiff.impact()`):
+
+```
+BREAKING $.id: may now arrive as [NULL] (was STRING)
+BREAKING $.legacy: no sampled message has it any more
+SAFE $.amount: narrowed NUMBER|NULL → NUMBER
+SAFE $.channel: new STRING
+```
+
+With `fail-on-breaking-drift-only: true`, a new field or a narrowed type is
+reported but does not fail the run; a vanished path or a type that may now
+arrive does.
 
 ## What this is — and is not
 

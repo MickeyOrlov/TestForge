@@ -140,7 +140,8 @@ public class ContractMonitorRunner {
         writeJson(messageArtifact, redactedMessage(message, shape));
 
         boolean failed = (!violations.isEmpty() && properties.failOnContractViolation())
-                || (!diff.empty() && properties.failOnShapeDiff())
+                || (!diff.empty() && properties.failOnShapeDiff()
+                        && (!properties.failOnBreakingDriftOnly() || diff.breaking()))
                 || (normalizationError != null && properties.failOnShapeDiff());
 
         return new ContractMonitorCaseReport(
@@ -305,6 +306,8 @@ public class ContractMonitorRunner {
                 .append(" -> ")
                 .append(change.currentType())
                 .append('\n'));
+        out.append("- for consumers:\n");
+        diff.impact().forEach(change -> out.append("  - ").append(change).append('\n'));
     }
 
     private void writeJson(Path path, Object value) {

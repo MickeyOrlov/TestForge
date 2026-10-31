@@ -11,13 +11,15 @@ public record ContractMonitorProperties(
         Boolean failOnContractViolation,
         Boolean failOnShapeDiff,
         Boolean failOnMissingMessage,
-        Integer sampleSize) {
+        Integer sampleSize,
+        Boolean failOnBreakingDriftOnly) {
 
     /** Without a sample size: the default sample. */
     public ContractMonitorProperties(Boolean enabled, String outputDir, String baselineDir,
                                      Boolean failOnContractViolation, Boolean failOnShapeDiff,
                                      Boolean failOnMissingMessage) {
-        this(enabled, outputDir, baselineDir, failOnContractViolation, failOnShapeDiff, failOnMissingMessage, null);
+        this(enabled, outputDir, baselineDir, failOnContractViolation, failOnShapeDiff, failOnMissingMessage, null,
+                null);
     }
 
     /**
@@ -28,6 +30,9 @@ public record ContractMonitorProperties(
      */
     @ConstructorBinding
     public ContractMonitorProperties {
+        if (failOnBreakingDriftOnly == null) {
+            failOnBreakingDriftOnly = false;
+        }
         if (sampleSize == null || sampleSize <= 0) {
             sampleSize = 20;
         }
