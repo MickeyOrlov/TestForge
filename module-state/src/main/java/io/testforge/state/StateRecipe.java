@@ -26,4 +26,13 @@ public interface StateRecipe<T, S> {
     }
 
     T materialize(FlowResult<S> result, StateRequest request);
+
+    /**
+     * The name the recipe's flow runs under: in failure messages, the
+     * flow-path artifact and {@code flow-coverage.md}. Defaults to
+     * {@code state:<Type>}, so two recipes never pool their coverage.
+     */
+    default String name() {
+        return "state:" + type().getSimpleName();
+    }
 }

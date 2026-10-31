@@ -31,14 +31,15 @@ public class StateRecipeExecutor {
         S targetState = Objects.requireNonNull(recipe.targetState(request), "target state");
         Collection<? extends FlowStep<S>> steps = Objects.requireNonNull(recipe.steps(request, context), "flow steps");
 
-        FlowRunner<S> runner = flowRunnerFactory.create(steps);
+        // named after the recipe: one "flow" bucket for every recipe made coverage and artifacts meaningless
+        FlowRunner<S> runner = flowRunnerFactory.create(recipe.name(), steps);
         FlowResult<S> result;
         try {
             result = runner.run(initialState, targetState, context);
         } catch (RuntimeException e) {
             throw new StateRecipeException(
-                    "State recipe failed for %s, tags %s, target %s"
-                            .formatted(recipe.type().getSimpleName(), request.tags(), targetState),
+                    "State recipe %s failed for tags %s, target %s"
+                            .formatted(recipe.name(), request.tags(), targetState),
                     e);
         }
 

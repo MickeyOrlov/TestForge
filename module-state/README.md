@@ -53,6 +53,14 @@ For variants with extra tags:
 DemoTicket ticket
 ```
 
+## What a state costs, and which branches were never prepared
+
+Every recipe's flow runs under the recipe's `name()` — `state:<Type>` by
+default — so `flow-coverage.md` lists each recipe's untaken branches on its
+own, and failure messages say `State recipe state:DemoTicket failed for tags
+[...]`. `prepareDetailed(...).duration()` and `flowResult().transitions()`
+say what the state cost, step by step.
+
 ## Agent notes
 
 - A state recipe should drive the product through public APIs or accepted test

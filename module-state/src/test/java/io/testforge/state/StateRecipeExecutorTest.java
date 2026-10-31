@@ -104,7 +104,7 @@ class StateRecipeExecutorTest {
 
         assertThatThrownBy(() -> executor.prepare(broken, List.of("approved")))
                 .isInstanceOf(StateRecipeException.class)
-                .hasMessageContaining("Application")
+                .hasMessageContaining("State recipe state:Application failed")
                 .hasMessageContaining("[approved]")
                 .hasMessageContaining("APPROVED")
                 .hasRootCauseMessage("submit endpoint returned 500");
@@ -130,5 +130,25 @@ class StateRecipeExecutorTest {
 
         assertThat(provider.type()).isEqualTo(Application.class);
         assertThat(provider.prepare(List.of("approved")).status()).isEqualTo(Status.APPROVED);
+    }
+
+    @Test
+    void eachRecipeRunsUnderItsOwnFlowNameSoCoverageStaysApart() {
+        FlowRunnerFactory flows = new FlowRunnerFactory(new FlowProperties(null, 0, 0));
+        StateRecipeExecutor named = new StateRecipeExecutor(flows, new StateProperties(null));
+
+        named.prepare(new ApplicationRecipe(), List.of("approved"));
+
+        assertThat(flows.coverage().entries()).extracting(entry -> entry.flow())
+                .containsExactly("state:Application");
+    }
+
+    @Test
+    void aPreparationSaysWhatTheStateCostStepByStep() {
+        StatePreparation<Application, Status> preparation =
+                executor.prepareDetailed(new ApplicationRecipe(), List.of("approved"));
+
+        assertThat(preparation.flowResult().transitions()).hasSize(2);
+        assertThat(preparation.duration()).isEqualTo(preparation.flowResult().duration());
     }
 }

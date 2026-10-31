@@ -7,6 +7,8 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `module-flow`, `module-data`.
 
+Plan: [docs/state-layer-roadmap.md](../docs/state-layer-roadmap.md).
+
 ## Invariants (do not break)
 
 - Recipes drive product/test-support APIs; direct DB writes are a project
