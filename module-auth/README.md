@@ -15,7 +15,13 @@ the token into a log on the first try.
   - `client-credentials` / `password` — OAuth2 token endpoint
     (`client_secret_post`), JDK HTTP client, no extra dependency;
   - `local-jwt` — HS256 JWT signed with a shared test secret, for systems under
-    test that accept one; no identity provider involved.
+    test that accept one; no identity provider involved;
+  - `api-key` — a fixed key from `token`, sent in a header (`X-API-Key` by
+    default, no scheme) or a query parameter (`api-key.in: query`);
+  - `session` — one login request (`session.login-url`, JSON or form with the
+    role's `username`/`password`); the session cookie it sets — on a 2xx or a
+    redirect, which is not followed — is sent as a cookie on every request and
+    cached until its `Max-Age` runs out.
 - **`@AsUser("admin")`** — on a test method or class (`@Nested` classes inherit
   the outer one). **`AuthContext.runAs` / `callAs`** switch role for a block.
 - **`AuthFilter`** — REST Assured filter that adds `Authorization: Bearer …`
@@ -48,6 +54,22 @@ forge:
       partner:
         type: static
         token: ${PARTNER_TOKEN}
+      integration:
+        type: api-key
+        token: ${INTEGRATION_KEY}
+        api-key:
+          in: header            # default; or query
+          name: X-API-Key       # default
+      web:
+        type: session
+        username: tests-web
+        password: ${WEB_PASSWORD}
+        session:
+          login-url: https://app.staging.example.test/login
+          format: json          # default; or form
+          username-field: username   # default
+          password-field: password   # default
+          cookie: SESSION       # optional; default the first cookie the login sets
     local-jwt:
       issuer: testforge         # default
       secret: ${LOCAL_JWT_SECRET}  # at least 32 bytes
@@ -100,6 +122,12 @@ To check every operation × every role at once, use the access matrix in
 - `Authorization` is masked in HTTP logs by `module-http`
   (`forge.http.logging.redact-headers`); the filter runs before logging, so the
   logged request shows the header masked rather than missing.
+- An API key in a query string is masked in HTTP logs and failure diagnostics:
+  `module-http` masks query values whose name is a redacted header or field
+  (`api_key` follows the default `api-key` header). A custom parameter name
+  goes into `forge.http.logging.redact-json-fields`.
+- `Cookie` and `X-API-Key` headers are masked by `module-http`'s defaults.
+- Login errors name the role, URL and status, never the password.
 - Inert unless `forge.auth.enabled=true`.
 
 ## Limits

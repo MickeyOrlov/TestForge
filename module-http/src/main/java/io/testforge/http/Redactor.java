@@ -41,6 +41,44 @@ public class Redactor {
     }
 
     /**
+     * Masks query parameter values whose name is a redacted header or field
+     * ({@code api_key} matches the {@code api-key} header too): a URI reaches
+     * logs and failure diagnostics whole, and an API key in a query string is
+     * as much a secret as one in a header.
+     */
+    public String uri(Object uri) {
+        if (uri == null) {
+            return null;
+        }
+        String text = uri.toString();
+        int query = text.indexOf('?');
+        if (query < 0) {
+            return text;
+        }
+        StringBuilder out = new StringBuilder(text.substring(0, query + 1));
+        String[] pairs = text.substring(query + 1).split("&", -1);
+        for (int i = 0; i < pairs.length; i++) {
+            String pair = pairs[i];
+            int equals = pair.indexOf('=');
+            String name = (equals < 0 ? pair : pair.substring(0, equals)).toLowerCase(Locale.ROOT);
+            out.append(i == 0 ? "" : "&");
+            if (equals >= 0 && secretName(name)) {
+                out.append(pair, 0, equals + 1).append(MASK);
+            } else {
+                out.append(pair);
+            }
+        }
+        return out.toString();
+    }
+
+    private boolean secretName(String name) {
+        String dashed = name.replace('_', '-');
+        String underscored = name.replace('-', '_');
+        return jsonFields.contains(name) || headerNames.contains(name)
+                || headerNames.contains(dashed) || jsonFields.contains(underscored);
+    }
+
+    /**
      * Masks configured fields in a JSON body. Bodies that are not JSON fall
      * back to a textual pass over {@code "field": "value"} and
      * {@code field=value} pairs — enough for form posts and query strings,

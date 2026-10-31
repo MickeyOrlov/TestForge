@@ -47,6 +47,20 @@ final class TokenSources {
                     }
                     sources.put(role, new OAuth2TokenSource(role, props, http, properties.requestTimeout(), clock));
                 }
+                case API_KEY -> {
+                    if (blank(props.token())) {
+                        problems.add(role + ": api-key role needs 'token'");
+                    } else {
+                        AccessToken key = new AccessToken(props.token(), null);
+                        sources.put(role, () -> key);
+                    }
+                }
+                case SESSION -> {
+                    require(problems, role, "session.login-url", props.session().loginUrl());
+                    require(problems, role, "username", props.username());
+                    require(problems, role, "password", props.password());
+                    sources.put(role, new SessionLoginSource(role, props, http, properties.requestTimeout(), clock));
+                }
                 case LOCAL_JWT -> {
                     if (signer == null) {
                         try {
@@ -66,6 +80,21 @@ final class TokenSources {
             throw new AuthException("Invalid forge.auth.roles configuration: " + String.join("; ", problems));
         }
         return sources;
+    }
+
+    /** Where each role's credential goes; roles not listed use the global header and scheme. */
+    static Map<String, CredentialPlacement> placements(AuthProperties properties) {
+        Map<String, CredentialPlacement> placements = new LinkedHashMap<>();
+        properties.roles().forEach((role, props) -> {
+            switch (props.type()) {
+                case API_KEY -> placements.put(role, props.apiKey().in() == AuthProperties.ApiKeyProperties.Placement.QUERY
+                        ? CredentialPlacement.query(props.apiKey().name())
+                        : CredentialPlacement.header(props.apiKey().name(), null));
+                case SESSION -> placements.put(role, CredentialPlacement.cookie());
+                default -> placements.put(role, CredentialPlacement.header(properties.header(), properties.scheme()));
+            }
+        });
+        return placements;
     }
 
     private static void require(List<String> problems, String role, String field, String value) {

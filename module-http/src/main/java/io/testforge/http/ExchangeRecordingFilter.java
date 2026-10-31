@@ -41,12 +41,12 @@ public class ExchangeRecordingFilter implements OrderedFilter {
         String requestBody = body(requestSpec.getBody() instanceof String text ? text : null);
         try {
             Response response = ctx.next(requestSpec, responseSpec);
-            journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), requestSpec.getURI(),
+            journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), redactor.uri(requestSpec.getURI()),
                     response.getStatusCode(), millisSince(startedAt), headers, requestBody,
                     body(textual(response.getContentType()) ? response.asString() : null), null));
             return response;
         } catch (RuntimeException e) {
-            journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), requestSpec.getURI(), null,
+            journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), redactor.uri(requestSpec.getURI()), null,
                     millisSince(startedAt), headers, requestBody, null, e.toString()));
             throw e;
         }

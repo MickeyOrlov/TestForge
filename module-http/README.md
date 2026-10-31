@@ -18,8 +18,9 @@ correlation, redacted logging — as a preconfigured REST Assured
   assertions can search service logs and traces by the same value.
 - **`HttpLoggingFilter`** — one line per request in the `forge.http` logger
   (the HTTP counterpart of `forge.sql`), headers and bodies at DEBUG.
-- **`Redactor`** — masks credentials in headers and bodies before anything is
-  logged. CI logs outlive the run that produced them.
+- **`Redactor`** — masks credentials in headers, bodies and query strings
+  (`?api_key=***`: a query name matching a redacted header or field) before
+  anything is logged. CI logs outlive the run that produced them.
 - **`RetryFilter`** — opt-in retry for infrastructure statuses on safe methods
   only, spaced through `Waiter`.
 - **`ApiRequestCustomizer`** — extension point for per-specification concerns

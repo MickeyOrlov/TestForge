@@ -49,7 +49,7 @@ public class HttpLoggingFilter implements OrderedFilter {
         try {
             Response response = ctx.next(requestSpec, responseSpec);
             long millis = (System.nanoTime() - startedAt) / 1_000_000;
-            log.info("{} {} -> {} ({} ms)", requestSpec.getMethod(), requestSpec.getURI(),
+            log.info("{} {} -> {} ({} ms)", requestSpec.getMethod(), redactor.uri(requestSpec.getURI()),
                     response.getStatusCode(), millis);
             if (bodies && log.isDebugEnabled()) {
                 logDetails(requestSpec, response);
@@ -57,7 +57,7 @@ public class HttpLoggingFilter implements OrderedFilter {
             return response;
         } catch (RuntimeException e) {
             long millis = (System.nanoTime() - startedAt) / 1_000_000;
-            log.warn("{} {} -> failed after {} ms: {}", requestSpec.getMethod(), requestSpec.getURI(),
+            log.warn("{} {} -> failed after {} ms: {}", requestSpec.getMethod(), redactor.uri(requestSpec.getURI()),
                     millis, e.toString());
             throw e;
         }
