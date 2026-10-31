@@ -305,6 +305,19 @@ statements repeated more than 2 times (N+1?): [50 × SELECT sku FROM items WHERE
   1 × SELECT id FROM orders WHERE customer_id = ?
 ```
 
+Two checks look at what each statement reaches:
+
+```java
+sql.expect()
+        .noUnboundedWrites()                         // no UPDATE/DELETE without WHERE, no TRUNCATE
+        .noUnfilteredReads("countries", "currencies"); // no SELECT of a whole table, reference data aside
+```
+
+A `'where'` inside a string literal is not taken for the clause. A read counts
+as bounded with `WHERE`, `LIMIT`, `FETCH FIRST` or `TOP` anywhere in it, so a
+whole-table subquery under a filtered outer query is not flagged — the checks
+read SQL text, not query plans.
+
 Statements are grouped by shape — literals and `IN (...)` lists folded — and a
 batch counts each row. The window sees every thread, so an application serving
 the request on its own threads in the test's JVM counts; `duringThisThread`

@@ -59,4 +59,24 @@ class QueryBudgetExampleTest {
                 .hasMessageContaining("statements repeated more than 3 times (N+1?)")
                 .hasMessageContaining("10 × ");
     }
+
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Test
+    void aMassUpdateAndAWholeTableReadAreFlagged() {
+        // a table of this example's own: the mass update must not reach other examples' rows
+        jdbc.execute("CREATE TABLE IF NOT EXISTS qb_tasks (id BIGINT PRIMARY KEY, status VARCHAR(16))");
+        CapturedQueries sql = queries.during(() -> {
+            // the bug: "complete my tasks" without the owner filter, then a page that loads everything
+            jdbc.update("UPDATE qb_tasks SET status = 'completed'");
+            repository.findAll();
+        });
+
+        assertThatThrownBy(() -> sql.expect().noUnboundedWrites())
+                .hasMessageContaining("writes without a WHERE (every row of the table): "
+                        + "[1 × UPDATE qb_tasks SET status = ?]");
+        assertThatThrownBy(() -> sql.expect().noUnfilteredReads())
+                .hasMessageContaining("reads of a whole table (no WHERE or LIMIT)");
+    }
 }

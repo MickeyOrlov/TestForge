@@ -128,6 +128,9 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: `CapturedQueries.expect().noUnboundedWrites()` (no `UPDATE`/
+  `DELETE` without `WHERE`, no `TRUNCATE`) and `noUnfilteredReads(allowed...)`
+  (no `SELECT` of a whole table outside an allow-list of reference tables).
 - `module-db`: query budgets — with `forge.db.queries.enabled=true`,
   `DbQueries.during(action)` captures every statement any thread ran during
   an action (`duringThisThread` for the caller only), and
