@@ -7,11 +7,18 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-flow`: a successful run no longer writes `flow-path-<name>.txt`
+  unless `forge.flow.publish-successful-paths=true` — a suite runs flows
+  hundreds of times and the run index flooded; failed runs still always
+  write theirs, and `flow-coverage.md` covers what succeeded.
 - `module-kafka`: the collector joins a consumer group of its own per run
   (`forge.kafka.unique-group-id`, default `true`): two runs sharing one group
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-flow`: `FlowContext.put(key, null)` made a flow that reached its
+  target fail with a `NullPointerException` while building the result; a
+  null now removes the key, matching how `get` already treated it.
 - `module-kafka`: the collector's startup waits until partitions are
   assigned and positioned, so an event sent right after the context starts is
   no longer lost with `auto-offset-reset: latest`; a collector that stopped on

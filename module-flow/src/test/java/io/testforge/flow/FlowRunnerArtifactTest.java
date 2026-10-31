@@ -17,7 +17,7 @@ class FlowRunnerArtifactTest {
     @Test
     void publishesFlowPathArtifactOnSuccessfulRun() {
         RecordingArtifactSink fakeSink = new RecordingArtifactSink();
-        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5), fakeSink);
+        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5, true), fakeSink);
 
         FlowRunner<DemoState> runner = factory.create("demo-flow", List.of(
                 new SimpleStep(DemoState.START, DemoState.AUTHORIZE),
@@ -43,7 +43,7 @@ class FlowRunnerArtifactTest {
     @Test
     void publishesFlowPathArtifactOnFailingRunAndPreservesOriginalException() {
         RecordingArtifactSink fakeSink = new RecordingArtifactSink();
-        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5), fakeSink);
+        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5, true), fakeSink);
 
         IllegalStateException originalCause = new IllegalStateException("Database connection lost");
         FlowRunner<DemoState> runner = factory.create("failing-flow", List.of(
@@ -72,7 +72,7 @@ class FlowRunnerArtifactTest {
 
     @Test
     void doesNotPublishOrThrowWithNoOpArtifactSink() {
-        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5), ArtifactSink.NO_OP);
+        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5, true), ArtifactSink.NO_OP);
 
         FlowRunner<DemoState> runner = factory.create("noop-flow", List.of(
                 new SimpleStep(DemoState.START, DemoState.AUTHORIZE),
@@ -94,7 +94,7 @@ class FlowRunnerArtifactTest {
     @Test
     void publishesWithCustomFlowNameWithoutClashing() {
         RecordingArtifactSink fakeSink = new RecordingArtifactSink();
-        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5), fakeSink);
+        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5, true), fakeSink);
 
         FlowRunner<DemoState> flow1 = factory.create("checkout-flow", List.of(
                 new SimpleStep(DemoState.START, DemoState.READY)
@@ -131,7 +131,7 @@ class FlowRunnerArtifactTest {
             }
         };
 
-        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5), faultySink);
+        FlowRunnerFactory factory = new FlowRunnerFactory(new FlowProperties(null, 100, 5, true), faultySink);
 
         FlowRunner<DemoState> successRunner = factory.create("faulty-success", List.of(
                 new SimpleStep(DemoState.START, DemoState.READY)

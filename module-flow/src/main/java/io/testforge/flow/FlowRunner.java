@@ -219,7 +219,16 @@ public class FlowRunner<S> {
                 .map(transition -> "; slowest step: " + transition).orElse("");
     }
 
+    /**
+     * A failed run always writes its path; a successful one only with
+     * {@code publish-successful-paths} — a suite runs flows hundreds of times,
+     * and the run index should point at what went wrong, not drown it. The
+     * suite-wide picture of what succeeded is {@code flow-coverage.md}.
+     */
     private void publishArtifact(List<S> path, List<FlowTransition<S>> transitions, Throwable failure) {
+        if (failure == null && !properties.publishSuccessfulPaths()) {
+            return;
+        }
         try {
             String outcome;
             if (failure == null) {

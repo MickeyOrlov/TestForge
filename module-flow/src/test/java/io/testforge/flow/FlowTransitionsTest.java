@@ -98,4 +98,56 @@ class FlowTransitionsTest {
         assertThatThrownBy(() -> runner.run(Order.NEW, Order.SHIPPED))
                 .hasMessageContaining("Flow step failed at state: NEW after 900 ms");
     }
+
+    @Test
+    void aNullPutIntoTheContextNoLongerBreaksASuccessfulRun() {
+        FlowRunner<Order> runner = new FlowRunnerFactory(new FlowProperties(null, 10, 3)).create(List.of(
+                new FlowStep<Order>() {
+                    @Override
+                    public Order state() {
+                        return Order.NEW;
+                    }
+
+                    @Override
+                    public Order execute(FlowContext context) {
+                        context.put("coupon", null);
+                        context.put("orderId", "o-1");
+                        return Order.SHIPPED;
+                    }
+                }), List.of());
+
+        FlowResult<Order> result = runner.run(Order.NEW, Order.SHIPPED);
+
+        assertThat(result.contextSnapshot()).containsOnlyKeys("orderId");
+    }
+
+    @Test
+    void aSuccessfulRunPublishesNoPathUnlessAskedTo() {
+        java.util.List<String> written = new java.util.concurrent.CopyOnWriteArrayList<>();
+        ArtifactSink sink = new ArtifactSink() {
+            @Override
+            public java.nio.file.Path directoryFor(String source) {
+                return java.nio.file.Path.of("unused");
+            }
+
+            @Override
+            public void register(io.testforge.artifact.TestArtifact artifact) {
+            }
+
+            @Override
+            public io.testforge.artifact.TestArtifact write(String source, String category, String name,
+                                                            String mediaType, String content) {
+                written.add(name);
+                return null;
+            }
+        };
+        List<FlowStep<Order>> steps = List.of(FlowStep.of(Order.NEW, ctx -> Order.SHIPPED, Order.SHIPPED));
+
+        new FlowRunnerFactory(new FlowProperties(null, 10, 3), Clock.systemUTC(), sink)
+                .create("quiet", steps, List.of()).run(Order.NEW, Order.SHIPPED);
+        new FlowRunnerFactory(new FlowProperties(null, 10, 3, true), Clock.systemUTC(), sink)
+                .create("loud", steps, List.of()).run(Order.NEW, Order.SHIPPED);
+
+        assertThat(written).containsExactly("flow-path-loud.txt");
+    }
 }
