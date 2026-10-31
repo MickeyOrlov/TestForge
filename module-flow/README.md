@@ -48,6 +48,12 @@ FlowRunner<OrderState> timed = flowRunnerFactory.create(
         steps, List.of(new LoggingFlowStepDecorator<>(), myMetricsDecorator));
 ```
 
+`result.transitions()` lists every step taken with how long it ran
+(`FlowTransition(from, to, duration)`), `result.duration()` the total. A flow
+that timed out names its slowest step (`slowest step: AUTHORIZE -> READY
+(41000 ms)`), a failed step says how long it ran before failing, and the
+`flow-path-<name>.txt` artifact lists the timed steps.
+
 Branching example: put `role` or `amount` into `FlowContext` in a setup hook,
 then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`
 — see `FlowRunnerTest.roleBasedApprovalPath` in example-tests.
