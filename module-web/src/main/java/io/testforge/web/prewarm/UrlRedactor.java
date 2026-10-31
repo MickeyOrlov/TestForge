@@ -15,6 +15,28 @@ final class UrlRedactor {
     private UrlRedactor() {
     }
 
+    /**
+     * An error message with every spelling of {@code url} that carries a secret
+     * replaced by its redacted form. Playwright quotes the URL it was navigating
+     * to — credentials included — in its errors.
+     */
+    static String scrub(String message, String url) {
+        if (message == null || url == null) {
+            return message;
+        }
+        String redacted = redact(url);
+        String scrubbed = message.replace(url, redacted);
+        try {
+            String userInfo = new URI(url).getRawUserInfo();
+            if (userInfo != null && !userInfo.isEmpty()) {
+                scrubbed = scrubbed.replace(userInfo + "@", "");
+            }
+        } catch (URISyntaxException ignored) {
+            // nothing more to find
+        }
+        return scrubbed;
+    }
+
     static String redact(String url) {
         if (url == null) {
             return null;

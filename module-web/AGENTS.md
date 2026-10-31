@@ -13,7 +13,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   `fail-when-unreachable=true` and not one page answered. A browser that
   cannot start never counts as an unreachable environment.
 - URLs go through `UrlRedactor` before they are logged or reported.
-- Exactly once per JVM.
+- Each page at most once per JVM; a context with pages not yet warmed visits those.
 - Inert unless `forge.prewarm.enabled=true`; no browser starts in the default
   build.
 - Browser testing belongs in `module-web-playwright`, not here.

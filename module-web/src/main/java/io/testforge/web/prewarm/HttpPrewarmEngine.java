@@ -39,8 +39,8 @@ public final class HttpPrewarmEngine implements PrewarmEngine {
                     Thread.currentThread().interrupt();
                     return failed(url, started, "interrupted");
                 } catch (Exception e) {
-                    return failed(url, started, e.getClass().getSimpleName()
-                            + (e.getMessage() == null ? "" : ": " + BrowserPrewarmEngine.firstLine(e.getMessage())));
+                    return failed(url, started, e.getClass().getSimpleName() + (e.getMessage() == null ? ""
+                            : ": " + BrowserPrewarmEngine.firstLine(UrlRedactor.scrub(e.getMessage(), url))));
                 }
             }
 

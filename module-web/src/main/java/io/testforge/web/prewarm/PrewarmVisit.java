@@ -18,7 +18,27 @@ public record PrewarmVisit(String url, Integer status, String finalUrl, long mil
 
     /** It answered somewhere else than asked — typically a redirect to a sign-in page. */
     public boolean redirected() {
-        return finalUrl != null && !finalUrl.equals(url);
+        return finalUrl != null && !normalized(finalUrl).equals(normalized(url));
+    }
+
+    /**
+     * A browser reports {@code https://s.test} back as {@code https://s.test/}
+     * and drops a default port; neither is a redirect.
+     */
+    static String normalized(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value).normalize();
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            int port = uri.getPort();
+            boolean defaultPort = port == -1 || ("http".equals(scheme) && port == 80)
+                    || ("https".equals(scheme) && port == 443);
+            String path = uri.getRawPath() == null || uri.getRawPath().isEmpty() ? "/" : uri.getRawPath();
+            return scheme + "://" + host + (defaultPort ? "" : ":" + port) + path
+                    + (uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery());
+        } catch (IllegalArgumentException e) {
+            return value;
+        }
     }
 
     /** {@code https://staging.example.test/ -> 200 in 812 ms}. */

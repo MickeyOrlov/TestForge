@@ -9,7 +9,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 /** Offline: a fake engine answers instead of a browser. */
@@ -60,7 +59,7 @@ class PrewarmRunnerTest {
                 engine(Map.of(
                         "https://s.test/", new PrewarmVisit("https://s.test/", 200, "https://s.test/", 812, null),
                         "https://s.test/app", new PrewarmVisit("https://s.test/app", 200, "https://s.test/sign-in", 95, null)),
-                        asked), sink, new AtomicBoolean());
+                        asked), sink, new java.util.HashSet<>());
 
         PrewarmReport report = runner.runOnce();
 
@@ -79,7 +78,7 @@ class PrewarmRunnerTest {
     void anUnreachableEnvironmentOnlyWarnsByDefault() {
         PrewarmRunner runner = new PrewarmRunner(properties(false, "https://s.test/"),
                 engine(Map.of("https://s.test/", new PrewarmVisit("https://s.test/", 502, "https://s.test/", 30, null)),
-                        new ArrayList<>()), sink, new AtomicBoolean());
+                        new ArrayList<>()), sink, new java.util.HashSet<>());
 
         PrewarmReport report = runner.runOnce();
 
@@ -92,7 +91,7 @@ class PrewarmRunnerTest {
                 engine(Map.of(
                         "https://s.test/", new PrewarmVisit("https://s.test/", 503, "https://s.test/", 30, null),
                         "https://s.test/app", new PrewarmVisit("https://s.test/app", null, null, 40000,
-                                "Timeout 40000ms exceeded")), new ArrayList<>()), sink, new AtomicBoolean());
+                                "Timeout 40000ms exceeded")), new ArrayList<>()), sink, new java.util.HashSet<>());
 
         assertThatThrownBy(runner::runOnce)
                 .isInstanceOf(PrewarmException.class)
@@ -109,7 +108,7 @@ class PrewarmRunnerTest {
                 engine(Map.of(
                         "https://s.test/", new PrewarmVisit("https://s.test/", 401, "https://s.test/", 30, null),
                         "https://s.test/app", new PrewarmVisit("https://s.test/app", 500, "https://s.test/app", 30, null)),
-                        new ArrayList<>()), sink, new AtomicBoolean());
+                        new ArrayList<>()), sink, new java.util.HashSet<>());
 
         assertThat(runner.runOnce().environmentReached()).isTrue();
     }
@@ -119,7 +118,7 @@ class PrewarmRunnerTest {
         PrewarmEngine broken = properties -> {
             throw new IllegalStateException("Executable doesn't exist at /ms-playwright/chromium\nmore");
         };
-        PrewarmRunner runner = new PrewarmRunner(properties(true, "https://s.test/"), broken, sink, new AtomicBoolean());
+        PrewarmRunner runner = new PrewarmRunner(properties(true, "https://s.test/"), broken, sink, new java.util.HashSet<>());
 
         PrewarmReport report = runner.runOnce();
 
@@ -129,7 +128,7 @@ class PrewarmRunnerTest {
 
     @Test
     void itRunsOncePerGuardAndSaysWhyItSkipped() {
-        AtomicBoolean once = new AtomicBoolean();
+        java.util.Set<String> once = new java.util.HashSet<>();
         List<String> asked = new ArrayList<>();
         PrewarmEngine engine = engine(Map.of("https://s.test/",
                 new PrewarmVisit("https://s.test/", 200, "https://s.test/", 1, null)), asked);
@@ -139,8 +138,44 @@ class PrewarmRunnerTest {
 
         assertThat(asked).hasSize(1);
         assertThat(second.skipped()).isEqualTo("already ran in this JVM");
-        assertThat(new PrewarmRunner(new PrewarmProperties(true, List.of(), null, null), engine, sink, new AtomicBoolean())
+        assertThat(new PrewarmRunner(new PrewarmProperties(true, List.of(), null, null), engine, sink, new java.util.HashSet<>())
                 .runOnce().skipped()).isEqualTo("no URLs configured");
+    }
+
+    @Test
+    void aSecondContextWarmsOnlyThePagesTheFirstDidNot() {
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        List<String> asked = new ArrayList<>();
+        PrewarmEngine engine = engine(Map.of(
+                "https://s.test/", new PrewarmVisit("https://s.test/", 200, "https://s.test/", 1, null),
+                "https://other.test/", new PrewarmVisit("https://other.test/", 200, "https://other.test/", 1, null)),
+                asked);
+
+        new PrewarmRunner(properties(false, "https://s.test/"), engine, sink, visited).runOnce();
+        PrewarmReport second = new PrewarmRunner(properties(false, "https://s.test/", "https://other.test/"),
+                engine, sink, visited).runOnce();
+
+        assertThat(asked).containsExactly("https://s.test/", "https://other.test/");
+        assertThat(second.visits()).extracting(PrewarmVisit::url).containsExactly("https://other.test/");
+    }
+
+    @Test
+    void aNormalizedEchoOfTheSamePageIsNotARedirect() {
+        assertThat(new PrewarmVisit("https://s.test", 200, "https://s.test/", 1, null).redirected()).isFalse();
+        assertThat(new PrewarmVisit("https://S.test:443/a", 200, "https://s.test/a", 1, null).redirected()).isFalse();
+        assertThat(new PrewarmVisit("https://s.test/a", 200, "https://s.test/sign-in", 1, null).redirected()).isTrue();
+    }
+
+    @Test
+    void errorsNeverQuoteTheCredentialsOfTheUrlTheyFailedOn() {
+        String url = "https://qa:s3cret@staging.example.test/app?token=abc";
+
+        String scrubbed = UrlRedactor.scrub("net::ERR_NAME_NOT_RESOLVED at " + url + "\nCall log:", url);
+
+        assertThat(scrubbed).doesNotContain("s3cret").doesNotContain("token=abc")
+                .contains("https://staging.example.test/app?token=***");
+        assertThat(UrlRedactor.scrub("navigating to qa:s3cret@staging.example.test", url))
+                .isEqualTo("navigating to staging.example.test");
     }
 
     @Test
