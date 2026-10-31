@@ -12,6 +12,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-kafka`: `KafkaDiagnosticsExtension` — a failed test publishes
+  `module-kafka/<Class>-<method>.md` with the events it published and the
+  messages buffered while it ran (only its own scope's when
+  `publish.scope-header` is set). Positions, keys and header names;
+  payloads only with `forge.kafka.diagnostics.payloads=true`.
 - `module-kafka`: `KafkaPublisher.publish(topic, key, payload[, headers])`
   sends a test's own event (String as is, objects as JSON) and waits for the
   acknowledgement; `forge.kafka.publish.scope-header` / `correlation-header`

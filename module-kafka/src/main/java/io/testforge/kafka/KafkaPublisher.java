@@ -40,6 +40,10 @@ public class KafkaPublisher {
     private final KafkaOperations<String, String> kafka;
     private final ObjectMapper objectMapper;
     private final KafkaProbeProperties.PublishProperties properties;
+    private final ThreadLocal<java.util.Deque<KafkaMessage>> published =
+            ThreadLocal.withInitial(java.util.ArrayDeque::new);
+
+    static final int PUBLISHED_KEPT = 50;
 
     public KafkaPublisher(KafkaOperations<String, String> kafka, ObjectMapper objectMapper,
                           KafkaProbeProperties.PublishProperties properties) {
@@ -72,8 +76,28 @@ public class KafkaPublisher {
                     + properties.sendTimeout(), e);
         }
         Instant timestamp = metadata.hasTimestamp() ? Instant.ofEpochMilli(metadata.timestamp()) : Instant.now();
-        return new KafkaMessage(topic, metadata.partition(), metadata.hasOffset() ? metadata.offset() : -1,
-                key, value, timestamp, sent);
+        KafkaMessage message = new KafkaMessage(topic, metadata.partition(),
+                metadata.hasOffset() ? metadata.offset() : -1, key, value, timestamp, sent);
+        java.util.Deque<KafkaMessage> mine = published.get();
+        mine.addLast(message);
+        while (mine.size() > PUBLISHED_KEPT) {
+            mine.removeFirst();
+        }
+        return message;
+    }
+
+    /** What this thread published since {@link #clearPublished()}, oldest first: for failure diagnostics. */
+    public java.util.List<KafkaMessage> publishedByThisThread() {
+        return java.util.List.copyOf(published.get());
+    }
+
+    public void clearPublished() {
+        published.get().clear();
+    }
+
+    /** The configured scope header, or {@code null}: received messages are attributed to a scenario by it. */
+    public String scopeHeader() {
+        return properties.scopeHeader();
     }
 
     private Map<String, String> headers(Map<String, String> explicit) {

@@ -23,6 +23,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       headers:                          # sent on every published event
  *         source: testforge
  *       send-timeout: 10s
+ *     diagnostics:
+ *       last: 20          # messages per failed test
+ *       payloads: false   # default: positions, keys and header names only
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.kafka")
@@ -32,11 +35,15 @@ public record KafkaProbeProperties(
         Duration pollTimeout,
         int maxMessagesPerTopic,
         boolean seekToBeginningOnStart,
-        PublishProperties publish) {
+        PublishProperties publish,
+        DiagnosticsProperties diagnostics) {
 
     public KafkaProbeProperties {
         if (publish == null) {
             publish = new PublishProperties(null, null, null, null);
+        }
+        if (diagnostics == null) {
+            diagnostics = new DiagnosticsProperties(null, null);
         }
         if (topics == null) {
             topics = List.of();
@@ -60,6 +67,23 @@ public record KafkaProbeProperties(
             headers = java.util.Map.copyOf(headers == null ? java.util.Map.of() : headers);
             if (sendTimeout == null || sendTimeout.isZero() || sendTimeout.isNegative()) {
                 sendTimeout = Duration.ofSeconds(10);
+            }
+        }
+    }
+
+    /**
+     * What a failed test's Kafka report shows. Payloads stay out unless asked
+     * for: an event body is as likely to carry personal data as an HTTP one,
+     * and this module has no redactor.
+     */
+    public record DiagnosticsProperties(Integer last, Boolean payloads) {
+
+        public DiagnosticsProperties {
+            if (last == null || last <= 0) {
+                last = 20;
+            }
+            if (payloads == null) {
+                payloads = false;
             }
         }
     }

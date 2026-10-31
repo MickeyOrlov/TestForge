@@ -110,6 +110,32 @@ No Kafka message matching KafkaMessageFilter[topic=orders, key=o-1, ...].
 An empty topic says so and points at `forge.kafka.topics`: the most common
 reason is a topic the collector was never told to read.
 
+### When a test fails: its Kafka traffic
+
+```java
+@SpringBootTest
+@ExtendWith(KafkaDiagnosticsExtension.class)
+class OrderEventsTest { ... }
+```
+
+A failed test publishes `module-kafka/<Class>-<method>.md` to the run index:
+the events it published through `KafkaPublisher`, then the messages that
+reached the buffer while it ran. With `forge.kafka.publish.scope-header` set
+and a scope in the scenario, only messages carrying that scope are listed —
+parallel tests' traffic stays out.
+
+```yaml
+forge:
+  kafka:
+    diagnostics:
+      last: 20          # per list
+      payloads: false   # default: topic/partition@offset, key, timestamp, header names
+```
+
+Payloads appear only with `payloads: true`, shortened to 500 characters:
+this module has no redactor, and event bodies carry personal data as often
+as HTTP ones. The original failure is rethrown unchanged.
+
 ## Agent notes
 
 - Contract checks compose in the test (`awaitMessage` + validator) — never
