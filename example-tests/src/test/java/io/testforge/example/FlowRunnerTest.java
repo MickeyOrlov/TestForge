@@ -79,6 +79,11 @@ class FlowRunnerTest {
         manager.put("role", "MANAGER");
         assertThat(runner.run(ApprovalState.SUBMITTED, ApprovalState.APPROVED, manager).path())
                 .containsExactly(ApprovalState.SUBMITTED, ApprovalState.MANAGER_REVIEW, ApprovalState.APPROVED);
+
+        // across the suite: the operator branch was declared but no test took it (flow-coverage.md)
+        assertThat(flows.coverage().entries()).filteredOn(entry -> entry.flow().equals("approval"))
+                .singleElement().satisfies(entry -> assertThat(entry.uncovered())
+                        .contains("SUBMITTED -> OPERATOR_REVIEW", "OPERATOR_REVIEW -> APPROVED"));
     }
 
     @Test

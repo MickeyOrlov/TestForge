@@ -73,6 +73,26 @@ FlowStep.of(SUBMITTED,
   that declare nothing are not checked and draw as `--> ?`. The method is
   `declaredNext`, so a `record Step(S state, S next)` keeps compiling.
 
+### Which branches the suite never took
+
+Every runner records the declared transitions it took into the shared
+`FlowCoverage` (per flow name, across runners and tests). When the context
+stops, `module-flow/flow-coverage.md` lands in the run index:
+
+```
+## approval
+- runs: 14
+- declared transitions taken: 2 of 4
+- never taken by any test:
+  - `MANAGER_REVIEW -> APPROVED`
+  - `SUBMITTED -> MANAGER_REVIEW`
+```
+
+Report-only (`healthy: true`, `uncovered` as metadata): a green suite that
+never exercised the manager review is a gap to read about. Name runners
+(`create("approval", steps)`) so coverage adds up; only declared transitions
+count. `flowRunnerFactory.coverage()` gives the same in a test.
+
 Branching example: put `role` or `amount` into `FlowContext` in a setup hook,
 then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`
 — see `FlowRunnerTest.roleBasedApprovalPath` in example-tests.

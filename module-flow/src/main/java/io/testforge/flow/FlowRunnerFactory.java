@@ -12,6 +12,7 @@ public class FlowRunnerFactory {
     private final FlowProperties properties;
     private final Clock clock;
     private final ArtifactSink artifactSink;
+    private final FlowCoverage coverage;
 
     public FlowRunnerFactory(FlowProperties properties) {
         this(properties, Clock.systemUTC(), ArtifactSink.NO_OP);
@@ -26,9 +27,20 @@ public class FlowRunnerFactory {
     }
 
     public FlowRunnerFactory(FlowProperties properties, Clock clock, ArtifactSink artifactSink) {
+        this(properties, clock, artifactSink, new FlowCoverage());
+    }
+
+    /** Runners record their transitions into {@code coverage}, shared by the whole suite. */
+    public FlowRunnerFactory(FlowProperties properties, Clock clock, ArtifactSink artifactSink,
+                             FlowCoverage coverage) {
         this.properties = properties;
         this.clock = clock;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
+        this.coverage = coverage != null ? coverage : new FlowCoverage();
+    }
+
+    public FlowCoverage coverage() {
+        return coverage;
     }
 
     public <S> FlowRunner<S> create(Collection<? extends FlowStep<S>> steps) {
@@ -57,7 +69,9 @@ public class FlowRunnerFactory {
         for (FlowStep<S> step : steps) {
             decorated.add(decorate(step, decorators));
         }
-        return new FlowRunner<>(name, decorated, properties, clock, artifactSink);
+        FlowRunner<S> runner = new FlowRunner<>(name, decorated, properties, clock, artifactSink, coverage);
+        coverage.declare(runner.name(), steps);
+        return runner;
     }
 
     private static <S> FlowStep<S> decorate(
