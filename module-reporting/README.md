@@ -213,3 +213,5 @@ The Markdown index is meant to be opened first after a red CI run:
 | `module-api-fuzz` | `api-fuzz` | every entry of `ApiFuzzReport.artifacts()` (config, NDJSON, run evidence) |
 | `module-web-playwright` | `ui-failure` | `screenshot.png`, `trace.zip` of a failed test |
 | `module-mobile-appium` | `mobile-failure` | `screenshot.png`, `page-source.xml` of a failed test |
+| `module-http` | `failed-test-http` | the failed test's last HTTP exchanges, redacted (`HttpDiagnosticsExtension`) |
+| `module-api-explorer` | `contract-guard` | `contract-guard.json`: contract findings of ordinary tests |

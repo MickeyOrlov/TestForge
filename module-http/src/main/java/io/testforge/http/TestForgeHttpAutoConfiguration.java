@@ -70,6 +70,21 @@ public class TestForgeHttpAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.http.diagnostics", name = "enabled", matchIfMissing = true)
+    public HttpExchangeJournal httpExchangeJournal(HttpProperties properties) {
+        return new HttpExchangeJournal(properties.diagnostics().last());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.http.diagnostics", name = "enabled", matchIfMissing = true)
+    public ExchangeRecordingFilter exchangeRecordingFilter(HttpExchangeJournal journal, Redactor redactor,
+                                                           HttpProperties properties) {
+        return new ExchangeRecordingFilter(journal, redactor, properties.logging().maxBodyChars());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "forge.http.retry", name = "enabled", havingValue = "true")
     public RetryFilter httpRetryFilter(HttpProperties properties) {
         HttpProperties.RetryProperties retry = properties.retry();

@@ -17,6 +17,7 @@ import io.testforge.core.context.ScenarioContext;
 import io.testforge.core.context.ScenarioContextExtension;
 import io.testforge.core.context.ScenarioKeys;
 import io.testforge.http.ApiClient;
+import io.testforge.http.HttpDiagnosticsExtension;
 import io.testforge.mock.MockScope;
 import io.testforge.mock.ScopedMockClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +41,8 @@ import org.springframework.test.context.DynamicPropertySource;
  * configured in one place.
  */
 @SpringBootTest
-@ExtendWith(ScenarioContextExtension.class)
+// HttpDiagnosticsExtension: if a test here fails, its last HTTP exchanges land in the run index
+@ExtendWith({ScenarioContextExtension.class, HttpDiagnosticsExtension.class})
 class ApiClientExampleTest {
 
     static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());

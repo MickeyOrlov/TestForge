@@ -119,6 +119,30 @@ try (MockScope scope = mocks.scope()) {
 The filter is a no-op when the scenario never opened a scope: tests that talk
 only to the real system under test keep sending untouched payloads.
 
+## When a test fails: its HTTP exchanges in the run index
+
+The module keeps the scenario's last exchanges in memory (per thread,
+redacted like the log). Register the extension and a failed test publishes
+them to the run index as `module-http/<Class>-<method>.md` — what was sent,
+what came back, oldest first — so a red CI run explains itself:
+
+```java
+@SpringBootTest
+@ExtendWith(HttpDiagnosticsExtension.class)
+class OrdersTest { ... }
+```
+
+```yaml
+forge:
+  http:
+    diagnostics:
+      enabled: true   # default
+      last: 10        # exchanges kept per scenario
+```
+
+The original failure is always rethrown unchanged. Nothing is written for
+passing tests, and nothing at all without `module-reporting` enabled.
+
 To check every response against the OpenAPI document during ordinary tests,
 turn on the contract guard (`forge.contract-guard.enabled`, in
 [module-api-explorer](../module-api-explorer/README.md#contract-guard-the-contract-checked-in-every-functional-test)).

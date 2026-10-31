@@ -4,9 +4,18 @@ dependencies {
     api project(":core")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api libs.rest.assured
+
+    // HttpDiagnosticsExtension reads the journal from the test's Spring context
+    implementation "org.springframework:spring-test"
 }
 
 dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.junit.platform:junit-platform-testkit"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// fixtures run only through EngineTestKit (they fail on purpose)
+tasks.named("test") {
+    exclude "**/*TestkitFixture*"
 }
