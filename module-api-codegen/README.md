@@ -61,6 +61,29 @@ class GenerateApiSourcesTest {
 readable error when a spec cannot be parsed or generation fails. Running it
 again removes stale files only for the generated spec.
 
+## Javadoc from the document
+
+Clients and records carry the document's own words: a tag's description on the
+client, an operation's summary and description on its method, followed by the
+call and what it responds with —
+
+```java
+/**
+ * One task by id.
+ *
+ * <code>GET /tasks/&#123;id&#125;</code> — responds <code>200 Task</code>, <code>404</code>
+ *
+ * @param id The task's id.
+ */
+public Response getTask(String id) {
+```
+
+— and a schema's description on its record, with each property's description
+as a `@param`. The text is the document's, so it is treated as input: `*/`,
+backslashes (a unicode escape decodes inside comments too), a leading `@`,
+braces and HTML are escaped. A description cannot end the comment and add
+code to a generated class.
+
 ## Compile check
 
 Every spec is compiled right after it is written, into

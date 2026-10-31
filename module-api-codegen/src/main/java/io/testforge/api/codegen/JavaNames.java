@@ -84,6 +84,27 @@ final class JavaNames {
                 .replace("\n", "\\n");
     }
 
+    /**
+     * Document text made safe inside a Javadoc comment. The document is input,
+     * not code: {@code *}{@code /} would end the comment and let the rest of a
+     * description compile as Java, a backslash could spell the same thing as a
+     * unicode escape (which the compiler decodes inside comments too), and a
+     * leading {@code @} would read as a tag. HTML is escaped so the text shows
+     * as written.
+     */
+    static String javadocText(String value) {
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\\", "&#92;")
+                .replace("*/", "*&#47;")
+                .replace("/*", "&#47;*")
+                .replace("@", "&#64;")
+                .replace("{", "&#123;")
+                .replace("}", "&#125;")
+                .replace("\r", "");
+    }
+
     static boolean keyword(String value) {
         return KEYWORDS.contains(value);
     }

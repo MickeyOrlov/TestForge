@@ -54,7 +54,9 @@ class ApiCodegenExampleTest {
         assertThat(Files.readString(sourceRoot.resolve(
                 "io/testforge/generated/demo/client/TasksApiClient.java")))
                 .contains("Response listTasks()")
-                .contains("Response createTask(CreateTaskRequest request)");
+                .contains("Response createTask(CreateTaskRequest request)")
+                // what the document says comes back, as Javadoc on the method
+                .contains("<code>POST /api/v1/tasks</code> — responds <code>201 Task</code>");
     }
 
     private void deleteIfExists(Path path) throws IOException {
