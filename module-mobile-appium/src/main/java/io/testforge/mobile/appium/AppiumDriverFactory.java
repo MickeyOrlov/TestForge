@@ -62,8 +62,27 @@ public class AppiumDriverFactory {
         return createDriver(devices.resolve(deviceId));
     }
 
+    /**
+     * A session that cannot be created is reported without its secrets:
+     * Selenium's own message quotes every capability sent — a device cloud's
+     * {@code accessKey} included — and the hub URL with its user info. The
+     * original exception is not attached for the same reason; its type and
+     * scrubbed first line say what went wrong.
+     */
     public AppiumDriver createDriver(ResolvedAppiumDevice device) {
-        return newDriver(device, capabilitiesMapper.toCapabilities(device));
+        DesiredCapabilities capabilities = capabilitiesMapper.toCapabilities(device);
+        try {
+            return newDriver(device, capabilities);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            java.util.Set<String> secrets = CapabilityRedactor.secrets(capabilities.asMap(), device.hubUrl().toString());
+            String first = e.getMessage() == null ? ""
+                    : e.getMessage().strip().lines().findFirst().orElse("");
+            throw new IllegalStateException("Could not start an Appium session on device '" + device.deviceId()
+                    + "' at " + CapabilityRedactor.hub(device.hubUrl().toString()) + ": "
+                    + e.getClass().getSimpleName() + ": " + CapabilityRedactor.scrub(first, secrets));
+        }
     }
 
     protected AppiumDriver newDriver(ResolvedAppiumDevice device, DesiredCapabilities capabilities) {
@@ -82,8 +101,11 @@ public class AppiumDriverFactory {
     private URL hubUrl(URI hubUrl) {
         try {
             return hubUrl.toURL();
-        } catch (MalformedURLException | IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid Appium hub URL: " + hubUrl, e);
+        } catch (IllegalArgumentException e) {
+            throw CapabilityRedactor.invalidHub(e);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Invalid Appium hub URL (" + e.getMessage().split(":")[0]
+                    + "); the value is not repeated here because it may carry credentials");
         }
     }
 }

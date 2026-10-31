@@ -101,7 +101,7 @@ public class AppiumNodeManager implements SmartLifecycle {
         try {
             hubUrl = URI.create(properties.hubUrl());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid Appium hub URL: " + properties.hubUrl(), e);
+            throw CapabilityRedactor.invalidHub(e);
         }
         Waiter waiter = new Waiter(new WaitProperties(
                 properties.node().startupTimeout(),

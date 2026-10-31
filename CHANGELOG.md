@@ -30,6 +30,13 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-mobile-appium`: a session that could not start surfaced Selenium's
+  message, which quotes every capability — a device cloud's `accessKey`
+  included — and the hub URL with its user info; it is now reported with the
+  device, the redacted hub and a scrubbed first line, without the original
+  exception attached. An invalid hub URL is no longer echoed. A failure in
+  `@BeforeEach`/`@AfterEach` leaves the same artifacts as a failing test,
+  captured once.
 - `module-mobile-appium`: the local Appium node's output went to a pipe
   nobody read; once its buffer filled the node blocked on its next log line,
   mid-suite. It now goes to `<artifacts-dir>/appium-node.log`. A node that

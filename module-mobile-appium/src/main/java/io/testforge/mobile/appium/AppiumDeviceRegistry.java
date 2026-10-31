@@ -100,7 +100,7 @@ public class AppiumDeviceRegistry {
         try {
             return URI.create(properties.hubUrl());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid Appium hub URL: " + properties.hubUrl(), e);
+            throw CapabilityRedactor.invalidHub(e);
         }
     }
 
