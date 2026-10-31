@@ -73,9 +73,14 @@ class AppiumArtifactCollectorTest {
     }
 
     private AppiumSession session(AppiumDriver driver, AppiumArtifactCollector collector) {
+        return session(driver, collector, "http://localhost:4723", Map.of());
+    }
+
+    private AppiumSession session(AppiumDriver driver, AppiumArtifactCollector collector, String hub,
+                                  Map<String, Object> extraCapabilities) {
         ResolvedAppiumDevice device = new ResolvedAppiumDevice(
                 "android-local",
-                URI.create("http://localhost:4723"),
+                URI.create(hub),
                 "Android",
                 "Pixel 8",
                 "UiAutomator2",
@@ -85,7 +90,7 @@ class AppiumArtifactCollectorTest {
                 null,
                 null,
                 null,
-                Map.of());
+                extraCapabilities);
         return new AppiumSession(driver, device, temp, collector);
     }
 
@@ -119,7 +124,9 @@ class AppiumArtifactCollectorTest {
         session(driver, enabledCollector(true)).captureFailureArtifacts("LoginIT logsIn").orElseThrow();
 
         assertThat(sink.registered).extracting(artifact -> artifact.name()).containsExactly(
-                "LoginIT_logsIn_android-local/screenshot.png", "LoginIT_logsIn_android-local/page-source.xml");
+                "LoginIT_logsIn_android-local/session.md",
+                "LoginIT_logsIn_android-local/screenshot.png",
+                "LoginIT_logsIn_android-local/page-source.xml");
         assertThat(sink.registered.getFirst().metadata())
                 .containsEntry("test", "LoginIT logsIn")
                 .containsEntry("device", "android-local");
@@ -134,6 +141,53 @@ class AppiumArtifactCollectorTest {
         assertThatThrownBy(() -> session(driver, enabledCollector(true)).captureFailureArtifacts("t"))
                 .hasMessageContaining("screenshot");
         assertThat(sink.registered).extracting(artifact -> artifact.name())
-                .containsExactly("t_android-local/page-source.xml");
+                .containsExactly("t_android-local/session.md", "t_android-local/page-source.xml");
+    }
+
+    @Test
+    void theSessionSummaryNamesTheDeviceAndCapabilitiesWithSecretsMasked() throws Exception {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        when(driver.getSessionId()).thenReturn(new org.openqa.selenium.remote.SessionId("abc-123"));
+        when(driver.getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+        when(driver.getPageSource()).thenReturn("<hierarchy/>");
+        AppiumSession session = session(driver, enabledCollector(true),
+                "https://ci-user:k3y@hub.cloud.example/wd/hub",
+                Map.of("provider:options", Map.of("accessKey", "k3y", "projectName", "TestForge"),
+                        "appium:newCommandTimeout", 120));
+
+        Path directory = session.captureFailureArtifacts("LoginIT logsIn", "LoginIT-logsIn").orElseThrow();
+
+        assertThat(Files.readString(directory.resolve("session.md")))
+                .contains("# Appium session — LoginIT logsIn")
+                .contains("- device: android-local")
+                .contains("- platform: Android")
+                .contains("- hub: https://hub.cloud.example/wd/hub")
+                .contains("- session id: abc-123")
+                .contains("- appium:app: /apps/demo.apk")
+                .contains("- appium:newCommandTimeout: 120")
+                .contains("- provider:options: {accessKey=***, projectName=TestForge}")
+                .doesNotContain("k3y")
+                .doesNotContain("ci-user");
+        assertThat(sink.registered).allSatisfy(artifact ->
+                assertThat(artifact.metadata()).containsEntry("testKey", "LoginIT-logsIn"));
+    }
+
+    @Test
+    void theTailOfTheDeviceLogIsKept() throws Exception {
+        AppiumDriver driver = mock(AppiumDriver.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        when(driver.getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{1});
+        when(driver.getPageSource()).thenReturn("<hierarchy/>");
+        when(driver.manage().logs().getAvailableLogTypes()).thenReturn(java.util.Set.of("logcat", "server"));
+        java.util.List<org.openqa.selenium.logging.LogEntry> entries = new java.util.ArrayList<>();
+        for (int i = 1; i <= AppiumArtifactCollector.DEVICE_LOG_LINES + 50; i++) {
+            entries.add(new org.openqa.selenium.logging.LogEntry(java.util.logging.Level.INFO, i, "line " + i));
+        }
+        when(driver.manage().logs().get("logcat")).thenReturn(new org.openqa.selenium.logging.LogEntries(entries));
+
+        Path directory = session(driver, enabledCollector(true)).captureFailureArtifacts("CrashIT").orElseThrow();
+
+        String log = Files.readString(directory.resolve("device.log"));
+        assertThat(log).startsWith("# logcat, last 200 of 250 lines\n")
+                .contains("line 51\n").endsWith("line 250\n").doesNotContain("line 50\n");
     }
 }

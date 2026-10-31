@@ -15,8 +15,11 @@ local node startup and failure artifacts.
   and artifact root, then quits the driver on close.
 - **`AppiumExtension` / `@MobileDevice`** — JUnit fixture injection for
   `AppiumSession` or `AppiumDriver`.
-- **`AppiumArtifactCollector`** — captures `screenshot.png` and
-  `page-source.xml` on failure when enabled.
+- **`AppiumArtifactCollector`** — on failure, when enabled, writes
+  `session.md` (device, platform, hub, session id, capabilities sent — secrets
+  masked), `screenshot.png`, `page-source.xml` and `device.log` (the last 200
+  lines of `logcat` or `syslog`). Each carries the test's `testKey`, so the run
+  summary groups it with the test's HTTP, SQL and Kafka reports.
 - **`AppiumNodeManager`** — optional local `appium` process lifecycle; disabled
   unless `node.auto-start=true`.
 
@@ -118,3 +121,6 @@ try (AppiumSession session = appiumDriverFactory.startSession("android-local")) 
   screen/page classes to the template.
 - Remote providers use `extra-capabilities`; do not add provider-specific
   clients in v1.
+- `session.md` masks every capability under a key that looks secret
+  (`key`, `token`, `secret`, `password`, `credential`, `auth`) and drops the
+  hub URL's user info; keep provider credentials in those places.

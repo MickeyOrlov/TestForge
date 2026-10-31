@@ -48,6 +48,11 @@ public final class AppiumSession implements AutoCloseable {
         return artifactCollector.capture(this, testName);
     }
 
+    /** As {@link #captureFailureArtifacts(String)}, grouped in the run summary under {@code testKey}. */
+    public Optional<Path> captureFailureArtifacts(String testName, String testKey) {
+        return artifactCollector.capture(this, testName, testKey);
+    }
+
     @Override
     public void close() {
         driver.quit();

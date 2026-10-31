@@ -107,6 +107,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-mobile-appium`: a failing mobile test also leaves `session.md`
+  (device, platform, hub, session id, the capabilities sent with secret-looking
+  values masked) and `device.log` (the last 200 lines of `logcat`/`syslog`);
+  every artifact carries the test's `testKey` so the run summary groups it
+  with the test's other reports.
 - `module-web-playwright`: `forge.playwright.download-browsers=false` stops
   Playwright from downloading every bundled browser when one is missing —
   for CI images that bake browsers in.
