@@ -25,6 +25,10 @@ final class TokenSources {
         for (var entry : new java.util.TreeMap<>(properties.roles()).entrySet()) {
             String role = entry.getKey();
             AuthProperties.RoleProperties props = entry.getValue();
+            if (AuthContext.ANONYMOUS.equals(role)) {
+                problems.add(role + ": reserved name, it means 'no token'; pick another role name");
+                continue;
+            }
             switch (props.type()) {
                 case STATIC -> {
                     if (blank(props.token())) {

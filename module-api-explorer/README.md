@@ -158,6 +158,68 @@ forge:
 Start in `record` mode on an existing suite, read the first report, then
 switch the CI profile to `fail`.
 
+## Access matrix: who may call what
+
+Every operation of the document, called once per role, each status held to a
+declared rule. A role that gets `200` where it should get `403` is a hole in
+the product's authorization — the bug functional tests rarely look for,
+because each test only checks the role it was written for.
+
+```yaml
+forge:
+  api-discovery:
+    specs:
+      orders:
+        location: classpath:/openapi/orders.yaml
+  api-explorer:
+    parameters:
+      defaults:
+        orderId: "o-1"          # path values, exactly as for exploration
+  auth:
+    enabled: true
+    roles: { admin: ..., member: ... }
+  access-matrix:
+    enabled: true
+    roles: [admin, member, anonymous]   # default: the roles the rules name
+    expect:
+      admin: allow
+      member: allow
+      anonymous: "401"
+    operations:
+      readAuditLog:
+        member: deny
+    fail-on-undeclared: false            # default
+```
+
+```java
+@Autowired AccessMatrixRunner matrix;
+
+@Test
+void everyRoleGetsWhatItShould() {
+    matrix.assertHealthy();
+}
+```
+
+- Rules: `allow` (any status below 500 except 401/403 — a 404 for a missing
+  id still means the caller was let in), `deny` (401 or 403), or explicit
+  statuses and classes: `404`, `401,403,404`, `2xx`. A bad rule fails the
+  context with every bad key listed.
+- `anonymous` is reserved: no token, even with `forge.auth.default-role`.
+  A role `forge.auth.roles` does not configure fails before any request.
+- Requests are planned as exploration plans them and obey the same method
+  policy: GET/HEAD/OPTIONS only, unless both write keys are set. Skipped cells
+  say why (unsafe method, missing parameter value).
+- A 5xx or a failed call is an *error*, not a pass: it says nothing about
+  access. Violations and errors fail `assertHealthy()`; undeclared cells fail
+  it only with `fail-on-undeclared`.
+- `access-matrix.md` lists violations first, then the matrix, then
+  *Proposed expectations* — the YAML the run observed for undeclared cells.
+  Review it before pasting: an observed `allow` may be exactly the hole.
+- Only statuses are recorded, never bodies. Both reports are registered in
+  the run index with `healthy` and `violations`.
+- Independent of `forge.api-explorer.enabled`; inert unless
+  `forge.access-matrix.enabled=true`.
+
 ## Stateful exploration: values from one call feeding the next
 
 Most item endpoints need an id that exists. Tell the explorer where to find

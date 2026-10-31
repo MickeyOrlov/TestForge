@@ -71,6 +71,34 @@ class AuthFilterTest {
     }
 
     @Test
+    void theAnonymousRoleSendsNoTokenEvenWithADefaultRole() {
+        AuthContext.runAs(AuthContext.ANONYMOUS, () -> send(new AuthFilter(tokens, properties("admin", null)), null));
+
+        assertThat(seen.get()).isNull();
+    }
+
+    @Test
+    void anonymousIsReportedOnlyInsideItsBlock() {
+        AuthContext.runAs(AuthContext.ANONYMOUS, () -> {
+            assertThat(AuthContext.anonymous()).isTrue();
+            assertThat(AuthContext.currentRole()).isEmpty();
+        });
+
+        assertThat(AuthContext.anonymous()).isFalse();
+    }
+
+    @Test
+    void aRoleConfiguredAsAnonymousIsRejected() {
+        var props = new AuthProperties(true, null, null, null, null, null,
+                Map.of(AuthContext.ANONYMOUS, new AuthProperties.RoleProperties(
+                        TokenType.STATIC, "t", null, null, null, null, null, null, null, null)), null);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> TokenSources.from(props, null, Clock.systemUTC()))
+                .isInstanceOf(AuthException.class)
+                .hasMessageContaining("anonymous: reserved name");
+    }
+
+    @Test
     void anExplicitHeaderIsNeverReplaced() {
         AuthContext.runAs("admin", () -> send(new AuthFilter(tokens, properties(null, null)), "Bearer expired"));
 

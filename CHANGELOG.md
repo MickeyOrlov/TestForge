@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-api-explorer`: access matrix (`forge.access-matrix`). Every
+  operation of the document is called once per role — including the reserved
+  `anonymous`, which sends no token — and each status is held to a declared
+  rule (`allow`, `deny`, `404`, `2xx`, …) per role or per operation.
+  `AccessMatrixRunner.assertHealthy()` fails on violations and errors;
+  `access-matrix.md` shows violations, the matrix and the expectations the
+  run would propose for undeclared cells. Same parameter values and method
+  safety policy as exploration; statuses only, never bodies.
+- `module-auth`: reserved role `AuthContext.ANONYMOUS` — no token even with
+  `default-role`.
 - `module-data`: leftovers in the run index. Every cleanup action that could
   not be undone is recorded (test, description, first line of the error, the
   isolation tag the data carries, whether the test failed too) and published

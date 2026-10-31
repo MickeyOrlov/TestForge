@@ -43,7 +43,7 @@ final class Modules {
     /** The only module-to-module edges allowed. Everything may depend on {@code core}. */
     static final Map<String, Set<String>> ALLOWED_DEPENDENCIES = Map.ofEntries(
             Map.entry("module-api-codegen", Set.of("module-api-discovery", "module-http")),
-            Map.entry("module-api-explorer", Set.of("module-api-discovery", "module-http")),
+            Map.entry("module-api-explorer", Set.of("module-api-discovery", "module-http", "module-auth")),
             Map.entry("module-api-fuzz", Set.of("module-api-discovery")),
             Map.entry("module-contract-monitor", Set.of("module-kafka", "module-contract")),
             Map.entry("module-db-contract", Set.of("module-db")),

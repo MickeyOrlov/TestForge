@@ -1,2 +1,3 @@
 io.testforge.api.explorer.TestForgeApiExplorerAutoConfiguration
 io.testforge.api.explorer.TestForgeContractGuardAutoConfiguration
+io.testforge.api.explorer.TestForgeAccessMatrixAutoConfiguration
