@@ -10,7 +10,7 @@ left half its writes behind, and which statement was slow.
 | 1 | **Query budget** — statements per action, per kind, and the N+1: one statement shape run once per row | shipped |
 | 2 | **Unbounded statements** — an `UPDATE`/`DELETE` without `WHERE`, a `SELECT` of a whole table | shipped |
 | 3 | **Atomicity** — an action that failed left nothing behind | shipped |
-| 4 | **Slow statements** — which statement of a scenario took longer than allowed | planned |
+| 4 | **Slow statements** — which statement of a scenario took longer than allowed | shipped |
 | 5 | **Review** — close the gaps a review finds | planned |
 
 ## Step 1 — query budget
@@ -49,3 +49,13 @@ two writes in two transactions. It returns the exception for further checks.
 `assertUnchangedWithin(Duration)` a saga whose compensation undoes the write
 later. (Built on the data snapshots rather than the SQL capture, so it is
 listed here for the question it answers — what a failure left — not for how.)
+
+## Step 4 — slow statements, swallowed failures
+
+`CapturedQueries` keeps the driver's time per statement: `slowest(n)`,
+`totalMillis()`, `expect().noneSlowerThan(limit)` (each offender with its time,
+shape and thread) and `totalUnder(budget)` for the action's database time as a
+whole. `failed()` / `noErrors()` catch a statement that failed inside an action
+that itself succeeded — a duplicate key the code caught and answered 200 to, a
+deadlock retried in silence. Times on a shared database measure the
+environment too; the limits are meant for gross regressions.
