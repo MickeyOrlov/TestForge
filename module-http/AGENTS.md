@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-http`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `ApiClient`: REST Assured specification per environment/service with scope and correlation propagation, redacted logging, opt-in retry, failed-test HTTP diagnostics (`HttpExchangeJournal`, `HttpDiagnosticsExtension`).
+**Scope:** `ApiClient`: REST Assured specification per environment/service with scope and correlation propagation, redacted logging, opt-in retry, failed-test HTTP diagnostics (`HttpExchangeJournal`, `HttpDiagnosticsExtension`), response polling (`ResponsePoller`, `ResponseConditions`).
 
 **May depend on:** `core` only.
 
@@ -21,9 +21,13 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   problems as suppressed. The journal stays per thread and bounded, and only
   stores redacted text.
 
+- Waiting on a response goes through `ResponsePoller` (and so `Waiter`); a
+  timeout message always names the condition and shows the last response
+  redacted.
+
 ## Tests
 
-Own: `RedactorTest`, `JsonScopeWriterTest`, `HttpPropertiesTest`, `TestForgeHttpAutoConfigurationTest`, `HttpDiagnosticsExtensionTest` (runs `HttpDiagnosticsTestkitFixture` through EngineTestKit; the fixture is excluded from the normal test task because it fails on purpose). Examples: `ApiClientExampleTest`, `ApiRetryExampleTest`, `HttpRedactionTest`.
+Own: `RedactorTest`, `JsonScopeWriterTest`, `HttpPropertiesTest`, `TestForgeHttpAutoConfigurationTest`, `ResponsePollerTest`, `HttpDiagnosticsExtensionTest` (runs `HttpDiagnosticsTestkitFixture` through EngineTestKit; the fixture is excluded from the normal test task because it fails on purpose). Examples: `ApiClientExampleTest`, `ApiRetryExampleTest`, `HttpRedactionTest`.
 
 ## Before you finish
 

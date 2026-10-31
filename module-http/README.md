@@ -119,6 +119,28 @@ try (MockScope scope = mocks.scope()) {
 The filter is a no-op when the scenario never opened a scope: tests that talk
 only to the real system under test keep sending untouched payloads.
 
+## Waiting for an asynchronous API
+
+Start a job, then wait until it is done — no sleep, no loop in the test:
+
+```java
+@Autowired ResponsePoller poll;
+
+Response done = poll.until(() -> api.request().get("/jobs/{id}", id),
+        allOf(status(200), jsonPath("status", "DONE")));        // ResponseConditions.*
+```
+
+It polls through `Waiter` with `forge.wait.timeout` / `poll-interval`
+(overridable per call: `poll.until(call, condition, Duration.ofMinutes(2))`).
+A call that throws counts as "not yet". On timeout the test fails with the
+condition, the number of attempts and the last response — status and a
+redacted, shortened body:
+
+```
+Response did not match status 200 and $.status == DONE within PT30S (61 attempts);
+last response: status 202, body {"status":"PENDING"}
+```
+
 ## When a test fails: its HTTP exchanges in the run index
 
 The module keeps the scenario's last exchanges in memory (per thread,

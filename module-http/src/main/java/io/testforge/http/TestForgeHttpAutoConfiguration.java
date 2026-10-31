@@ -83,6 +83,13 @@ public class TestForgeHttpAutoConfiguration {
         return new ExchangeRecordingFilter(journal, redactor, properties.logging().maxBodyChars());
     }
 
+    /** forge.wait's defaults when core's auto-configuration provides them, Waiter's own otherwise. */
+    @Bean
+    @ConditionalOnMissingBean
+    public ResponsePoller responsePoller(ObjectProvider<WaitProperties> waits, Redactor redactor) {
+        return new ResponsePoller(waits.getIfAvailable(() -> new WaitProperties(null, null)), redactor);
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "forge.http.retry", name = "enabled", havingValue = "true")
