@@ -19,7 +19,7 @@ public class AsUserExtension implements BeforeEachCallback, AfterEachCallback {
         Optional<AsUser> annotation = AnnotationSupport.findAnnotation(context.getTestMethod(), AsUser.class)
                 .or(() -> context.getTestClass().flatMap(AsUserExtension::findOnClassOrEnclosing));
         annotation.ifPresent(asUser -> {
-            context.getStore(NAMESPACE).put(PREVIOUS, AuthContext.currentRole().orElse(null));
+            context.getStore(NAMESPACE).put(PREVIOUS, AuthContext.current().orElse(null));
             context.getStore(NAMESPACE).put(APPLIED, true);
             AuthContext.set(asUser.value());
         });

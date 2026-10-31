@@ -1,0 +1,29 @@
+openapi: 3.0.3
+info:
+  title: Access Demo API
+  version: 1.0.0
+paths:
+  /api/v1/tasks:
+    get:
+      operationId: listTasks
+      responses:
+        '200':
+          description: OK
+  /api/v1/tasks/{taskId}:
+    get:
+      operationId: getTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+  /api/v1/admin/audit:
+    get:
+      operationId: readAuditLog
+      responses:
+        '200':
+          description: OK

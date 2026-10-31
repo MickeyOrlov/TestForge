@@ -5,11 +5,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation; the contract guard (`forge.contract-guard`) applies the same checks to every `ApiClient` response of ordinary tests. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (all four steps of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
-**May depend on:** `module-api-discovery`, `module-http`.
+**May depend on:** `module-api-discovery`, `module-http`, `module-auth` (only `AuthContext`, for the access matrix's role switching).
 
 ## Invariants (do not break)
 
-- Inert unless `forge.api-explorer.enabled=true`.
+- Inert unless `forge.api-explorer.enabled=true`. The contract guard and the access matrix have their own switches (`forge.contract-guard.enabled`, `forge.access-matrix.enabled`).
+- The access matrix records statuses only, never bodies, and plans requests through the same `SafetyPolicy` as exploration.
 - GET/HEAD/OPTIONS by default; any write method needs both the method listed and
   `allow-unsafe-methods=true`. Never weaken `SafetyPolicy` to make a test
   pass.

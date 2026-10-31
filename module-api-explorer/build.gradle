@@ -7,6 +7,8 @@ dependencies {
     api project(":module-api-discovery")
     // the HTTP client, its filters and its redaction — no second client
     api project(":module-http")
+    // the access matrix switches roles through AuthContext; the module is inert unless forge.auth is enabled
+    api project(":module-auth")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api "com.fasterxml.jackson.core:jackson-databind"
 

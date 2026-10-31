@@ -84,6 +84,14 @@ class AccountsTest {
 A header the test sets itself is never replaced, so negative tests with an
 expired or foreign token stay in the test's control.
 
+`anonymous` is a reserved role: `@AsUser("anonymous")` or
+`AuthContext.runAs(AuthContext.ANONYMOUS, ...)` sends no token even when
+`default-role` is set — the way to ask what a caller without credentials gets.
+Configuring a role with that name fails at startup.
+
+To check every operation × every role at once, use the access matrix in
+`module-api-explorer` (`forge.access-matrix`).
+
 ## Safety
 
 - `AccessToken.toString()` prints `***`, never the value.

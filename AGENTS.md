@@ -13,7 +13,7 @@ module-contract/ JSON message contracts for API/queue/file drift checks
 module-contract-monitor/ Kafka drift monitor: contract validation + shape diff report
 module-api-discovery/ OpenAPI catalog + schema shape snapshots
 module-api-codegen/ OpenAPI-first Java records + typed ApiClient skeletons
-module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report; contract guard for every ApiClient response
+module-api-explorer/ runs an OpenAPI document against a live API; runtime contract report; contract guard for every ApiClient response; access matrix (operation × role)
 module-data/   RunUniqueValues, TemplateRenderer for generated test data
 module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator
 module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
@@ -85,6 +85,10 @@ must not replace each other. `example-tests` is never published.
    one `forge.auth.roles.<role>` entry per test persona (secrets from env
    vars), `@AsUser("<role>")` on tests; `local-jwt` when the system under test
    accepts a shared signing secret, so CI needs no identity provider.
+   Once roles exist, declare who may call what in `forge.access-matrix`
+   (module-api-explorer) and run `AccessMatrixRunner.assertHealthy()` from an
+   environment job: it calls every read operation as every role and fails on
+   a role that gets in where it should not.
 5. **module-db**: add JPA entities + Spring Data repositories for the service
    tables tests need to assert on (separate Gradle module per service DB if
    there are many). Write one `SchemaValidator` test per entity and schedule

@@ -15,7 +15,8 @@ import java.util.Optional;
  * <p>A header the test set itself is left alone — a test that sends an
  * expired or foreign token on purpose keeps control. With no {@link AsUser},
  * no {@link AuthContext#runAs} and no {@code default-role}, the request goes
- * out anonymous.
+ * out anonymous; {@link AuthContext#ANONYMOUS} makes it anonymous even with a
+ * default role.
  *
  * <p>Runs after correlation and before logging, so the logged request shows
  * the header (masked by {@code forge.http.logging.redact-headers}).
@@ -36,6 +37,9 @@ public class AuthFilter implements OrderedFilter {
     public Response filter(FilterableRequestSpecification requestSpec,
                            FilterableResponseSpecification responseSpec,
                            FilterContext ctx) {
+        if (AuthContext.anonymous()) {
+            return ctx.next(requestSpec, responseSpec);
+        }
         Optional<String> role = AuthContext.currentRole().or(() -> Optional.ofNullable(properties.defaultRole())
                 .filter(value -> !value.isBlank()));
         if (role.isPresent() && !requestSpec.getHeaders().hasHeaderWithName(properties.header())) {
