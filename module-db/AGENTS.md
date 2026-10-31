@@ -26,6 +26,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - SQL diagnostics are opt-in (`forge.db.diagnostics.enabled`) because they wrap the DataSource; logging and recording share one proxy.
 - `DbState` stays plain JDBC: table and column names are validated identifiers, never concatenated user input; snapshots are bounded (`maxRows`).
 
+- Deeper checks (`row(...)`, `watch`/`watchSchema`, `invariants()`,
+  `onlyOwnData`) only read; they never change a row. Discovered table names
+  are quoted, user-given ones are validated as plain identifiers.
+
 ## Tests
 
 Own: `SchemaDriftTest`, `SchemaInheritanceTest`, `SchemaIndexForeignKeyDriftTest`, `MultiDataSourceIsolationTest` and others. Examples: `DbWaiterTest`, `MultiDataSourceExampleTest`, `SchemaValidatorTest`, `PostgresSchemaValidationIT` (tag `containers`).

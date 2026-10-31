@@ -30,6 +30,11 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-db`: `watchSchema()` failed with a SQL syntax error on a table
+  named after a reserved word (`order`, `user`); discovered tables are now
+  quoted exactly as the metadata names them. A table over the row limit names
+  the exclusion to use. `assertHoldsWithin` failed only at the deadline when
+  a rule could not run at all (a typo in a condition); it now fails at once.
 - `core`: the `Waiter` timeout messages above first stopped retrying a
   condition that threw an `AssertionError` (Awaitility's `ignoreExceptions()`
   had retried it), so an `assertThat` inside a wait failed on its first poll.

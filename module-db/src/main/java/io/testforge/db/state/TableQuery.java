@@ -32,6 +32,8 @@ public final class TableQuery {
 
     private final DataSource dataSource;
     private final String table;
+    /** What the SELECT names: the table itself, or its quoted form for a table found in the metadata. */
+    private final String sqlName;
     private final List<String> key = new ArrayList<>();
     private final Set<String> ignored = new LinkedHashSet<>();
     private String where;
@@ -41,6 +43,23 @@ public final class TableQuery {
     TableQuery(DataSource dataSource, String table) {
         this.dataSource = dataSource;
         this.table = identifier(table, "table");
+        this.sqlName = this.table;
+    }
+
+    private TableQuery(DataSource dataSource, String table, String sqlName) {
+        this.dataSource = dataSource;
+        this.table = table;
+        this.sqlName = sqlName;
+    }
+
+    /**
+     * A table found in the database's metadata: named exactly as the database
+     * reports it, quoted, so a table called {@code order} or {@code user} — a
+     * reserved word — still reads.
+     */
+    static TableQuery discovered(DataSource dataSource, String table, String quote) {
+        String q = quote == null || quote.isBlank() ? "\"" : quote.strip();
+        return new TableQuery(dataSource, table, q + table.replace(q, q + q) + q);
     }
 
     /** The columns that identify a row; one or more. Required. */
@@ -106,7 +125,7 @@ public final class TableQuery {
 
     /** Rows by key, columns lowercased, in key order of the query. */
     Map<List<Object>, Map<String, Object>> read() {
-        String sql = "SELECT * FROM " + table + (where == null ? "" : " WHERE " + where);
+        String sql = "SELECT * FROM " + sqlName + (where == null ? "" : " WHERE " + where);
         Map<List<Object>, Map<String, Object>> rows = new LinkedHashMap<>();
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
