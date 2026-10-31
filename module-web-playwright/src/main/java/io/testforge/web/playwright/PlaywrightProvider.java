@@ -5,6 +5,8 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import jakarta.annotation.PreDestroy;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * One browser process per JVM; isolation comes from a fresh
@@ -18,8 +20,12 @@ public class PlaywrightProvider {
 
     public PlaywrightProvider(PlaywrightProperties properties) {
         this.properties = properties;
-        this.playwright = Playwright.create();
-        BrowserType browserType = switch (properties.browserType().toLowerCase()) {
+        this.playwright = properties.downloadBrowsers()
+                ? Playwright.create()
+                : Playwright.create(new Playwright.CreateOptions()
+                        .setEnv(Map.of("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")));
+        // Locale.ROOT: under a Turkish locale "CHROMIUM".toLowerCase() is "chromıum"
+        BrowserType browserType = switch (properties.browserType().toLowerCase(Locale.ROOT)) {
             case "firefox" -> playwright.firefox();
             case "webkit" -> playwright.webkit();
             case "chromium" -> playwright.chromium();
@@ -28,8 +34,20 @@ public class PlaywrightProvider {
                             .formatted(properties.browserType()));
         };
 
-        this.browser = browserType.launch(new BrowserType.LaunchOptions()
-                .setHeadless(properties.headless()));
+        try {
+            this.browser = browserType.launch(new BrowserType.LaunchOptions()
+                    .setHeadless(properties.headless()));
+        } catch (RuntimeException e) {
+            playwright.close();
+            throw new IllegalStateException("Could not launch " + properties.browserType() + ": "
+                    + firstLine(e.getMessage()) + ". Install the browser into the runner image with "
+                    + "./gradlew :module-web-playwright:playwrightInstall (or `playwright install "
+                    + properties.browserType() + "`).", e);
+        }
+    }
+
+    private static String firstLine(String message) {
+        return message == null ? "unknown error" : message.strip().lines().findFirst().orElse("unknown error");
     }
 
     /** Fresh, isolated context with the configured default timeout applied. */

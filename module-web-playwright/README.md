@@ -28,6 +28,7 @@ forge:
     base-url: https://staging.example.test  # relative navigation resolves against it
     correlation: true                       # default; needs base-url
     correlation-header: X-Request-Id        # default, as in module-http
+    download-browsers: true                 # default; false in images that bake browsers in
 ```
 
 ### Base URL and correlation
@@ -91,6 +92,9 @@ It covers every page of the test's context (popups and new tabs too), keeps
 the last 50 entries of each kind, redacts URLs, and never records headers or
 bodies. `PlaywrightFailureArtifactsIT` shows it on a real browser.
 
+A failure in `@BeforeEach` or `@AfterEach` — a sign-in that does not get
+through — leaves the same artifacts as one in the test method, captured once.
+
 Failure artifacts are best-effort diagnostics: if screenshot or trace capture
 fails, the original test failure still wins and the artifact error is attached
 as a suppressed exception. Upload `build/playwright-artifacts` from browser CI
@@ -103,6 +107,9 @@ jobs to inspect failures locally with `npx playwright show-trace trace.zip`.
   must never start in a default offline build; browser-backed examples carry
   `@Tag("browser")`.
 - Browser binaries belong in the CI runner image, not in per-run downloads.
+  Playwright itself downloads every bundled browser when one is missing; set
+  `forge.playwright.download-browsers=false` in such images so a missing
+  browser fails at once with the install command instead.
 - Page objects live in the adapted project; this module only owns lifecycle.
 - Do not grow a second UI framework here: assertions, page objects, auth state
   and project-specific helpers belong in the adapted test module.

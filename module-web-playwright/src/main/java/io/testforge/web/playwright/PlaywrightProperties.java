@@ -18,12 +18,17 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     base-url: https://staging.example.test
  *     correlation: true
  *     correlation-header: X-Request-Id
+ *     download-browsers: true
  * </pre>
  *
  * @param baseUrl           what relative navigation ({@code page.navigate("/checkout")}) resolves against
  * @param correlation       send the scenario's correlation id on the browser's requests to the
  *                          {@code base-url} origin (default {@code true}; needs {@code base-url})
  * @param correlationHeader the header it travels in; the same default as {@code module-http}
+ * @param downloadBrowsers  let Playwright download missing browsers when it starts (default
+ *                          {@code true}, Playwright's own behaviour); {@code false} in CI images
+ *                          that bake browsers in, so a missing one fails at once instead of
+ *                          downloading every bundled browser on every run
  */
 @ConfigurationProperties(prefix = "forge.playwright")
 public record PlaywrightProperties(
@@ -34,7 +39,8 @@ public record PlaywrightProperties(
         String artifactsDir,
         String baseUrl,
         Boolean correlation,
-        String correlationHeader) {
+        String correlationHeader,
+        Boolean downloadBrowsers) {
 
     @ConstructorBinding
     public PlaywrightProperties {
@@ -62,10 +68,13 @@ public record PlaywrightProperties(
         if (correlationHeader == null || correlationHeader.isBlank()) {
             correlationHeader = "X-Request-Id";
         }
+        if (downloadBrowsers == null) {
+            downloadBrowsers = true;
+        }
     }
 
     public PlaywrightProperties(Boolean headless, Double defaultTimeout, String browserType,
                                 Boolean artifactsOnFailure, String artifactsDir) {
-        this(headless, defaultTimeout, browserType, artifactsOnFailure, artifactsDir, null, null, null);
+        this(headless, defaultTimeout, browserType, artifactsOnFailure, artifactsDir, null, null, null, null);
     }
 }
