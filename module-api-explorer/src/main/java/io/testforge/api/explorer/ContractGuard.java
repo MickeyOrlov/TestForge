@@ -34,7 +34,21 @@ public class ContractGuard {
     private final ContractGuardProperties properties;
     private final Map<String, Finding> findings = new ConcurrentHashMap<>();
     private final AtomicLong checked = new AtomicLong();
+    private final Map<String, AtomicLong> calls = new ConcurrentHashMap<>();
     private volatile List<Route> routes;
+
+    /**
+     * Which documented operations the suite's {@code ApiClient} calls reached.
+     *
+     * @param called   {@code spec GET /orders/{id}} and how often, most called first
+     * @param uncalled documented operations no call reached, by spec and key
+     */
+    public record Coverage(Map<String, Long> called, List<String> uncalled) {
+
+        public int documented() {
+            return called.size() + uncalled.size();
+        }
+    }
 
     /** One distinct problem and how often the suite ran into it. */
     public record Finding(String operation, String target, Integer status, String kind, String location,
@@ -69,6 +83,7 @@ public class ContractGuard {
                     "the document has no operation for this method and path"));
             return problems;
         }
+        calls.computeIfAbsent(coverageKey(operation.get()), ignored -> new AtomicLong()).incrementAndGet();
         for (ContractMismatch mismatch : checker.check(operation.get(), exchange)) {
             problems.add(record(operation.get().key(), target, exchange.status(), mismatch.kind().name(),
                     mismatch.location(), mismatch.detail()));
@@ -86,6 +101,22 @@ public class ContractGuard {
 
     public long checkedResponses() {
         return checked.get();
+    }
+
+    /** Documented operations, called and not, as far as this run's responses reached them. */
+    public Coverage coverage() {
+        Map<String, Long> called = new java.util.LinkedHashMap<>();
+        calls.entrySet().stream()
+                .sorted(Map.Entry.<String, AtomicLong>comparingByValue(Comparator.comparingLong(AtomicLong::get))
+                        .reversed().thenComparing(Map.Entry.comparingByKey()))
+                .forEach(entry -> called.put(entry.getKey(), entry.getValue().get()));
+        List<String> uncalled = routes().stream().map(route -> coverageKey(route.operation()))
+                .distinct().filter(key -> !calls.containsKey(key)).sorted().toList();
+        return new Coverage(called, uncalled);
+    }
+
+    private static String coverageKey(ExplorableOperation operation) {
+        return operation.specId() + " " + operation.key();
     }
 
     Optional<ExplorableOperation> find(String method, String path) {

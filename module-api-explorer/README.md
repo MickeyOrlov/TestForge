@@ -158,6 +158,12 @@ forge:
 Start in `record` mode on an existing suite, read the first report, then
 switch the CI profile to `fail`.
 
+The guard also knows which documented operations the suite's calls reached:
+`api-coverage.md` in the run index lists every operation no test called and
+how often each called one was hit (`guard.coverage()` in a test). Report-only
+(`healthy: true`, `uncalled` count as metadata): an untested `DELETE` is a
+gap to read about, not a failed build.
+
 ## Stub contract: mocks that cannot lie about the downstream
 
 A WireMock stub that returns a field the real service never sends — or drops
