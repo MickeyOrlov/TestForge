@@ -37,7 +37,7 @@ template building blocks.
 |---|---|
 | `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
 | `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`. |
-| `module-data` | Unique values, template rendering, generators, `@Prepared` pool SPI. |
+| `module-data` | Unique values, template rendering, generators, `Factory`, `@Prepared` pool SPI, `Cleanup`. Plan: [data-layer-roadmap.md](data-layer-roadmap.md). |
 | `module-db` | `DbWaiter`, repository polling, SQL logging, schema drift checks (missing columns, column type families, nullability) with documented limits. |
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
 | `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
