@@ -35,6 +35,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-contract`: `ContractChanges.compare(before, after)` classifies
+  every difference between two schema versions for consumers of the old one
+  (`BREAKING`, `RISKY`, `UNKNOWN`, `SAFE`); `assertNoBreaking` fails a review
+  job on breaking changes.
 - `module-contract`: `ContractDrafts.fromSamples(name, samples)` drafts a
   JSON Schema from real payloads — required fields, union of types, merged
   array items — with no sample values copied, as a starting point to review

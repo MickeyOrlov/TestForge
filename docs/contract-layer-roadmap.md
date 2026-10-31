@@ -7,5 +7,5 @@ changes without anyone noticing what that does to consumers.
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Draft from samples** — a first JSON Schema from real payloads, shape only, to review and commit | `module-contract` | shipped |
-| 2 | **Schema change review** — two versions of a contract compared, each change classified for consumers (breaking, risky, safe) | `module-contract` | planned |
+| 2 | **Schema change review** — two versions of a contract compared, each change classified for consumers (breaking, risky, safe) | `module-contract` | shipped |
 | 3 | **Review** — close the gaps a review of the module finds | `module-contract` | planned |

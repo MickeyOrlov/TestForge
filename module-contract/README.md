@@ -17,6 +17,8 @@ Message contract validation for event/API payload drift checks.
   most actionable one.
 - **`ContractDrafts.fromSamples(name, samples)`** — a first JSON Schema drafted
   from real payloads (shape only), to review and commit.
+- **`ContractChanges.compare(v1, v2)`** — what a new schema version means for
+  consumers of the old one: breaking, risky, safe, unknown.
 - **`ContractMappers.strict()`** — parser preset used by the validator:
   duplicate keys and trailing garbage are violations (`invalid-json`), not
   silently repaired input.
@@ -84,6 +86,37 @@ Files.writeString(Path.of("src/test/resources/contracts/partner-event.schema.jso
   the next. Tighten by hand: enums, formats, `additionalProperties: false`.
 - A draft is a starting point, never regenerated on every run: a schema
   rebuilt from today's payloads accepts exactly the drift it should catch.
+
+## What a new schema version means for consumers
+
+Before the producer ships v2, compare it with the v1 consumers were built
+against:
+
+```java
+List<ContractChange> changes = ContractChanges.compare(
+        SchemaContract.fromResource("partner-event", "contracts/partner-event.v1.schema.json"),
+        SchemaContract.fromResource("partner-event", "contracts/partner-event.v2.schema.json"));
+ContractChanges.assertNoBreaking(changes);
+```
+
+```
+BREAKING $.amount: no longer required: may be missing
+BREAKING $.amount: may now arrive as [null] (was [number])
+RISKY $.status: new values [pending]: a consumer switching over the old ones may not handle them
+SAFE $.channel: new field (required)
+```
+
+- **BREAKING**: a required field removed or no longer required, a type that
+  may now arrive (`null` added, `string` → `integer`).
+- **RISKY**: new enum values, a removed optional field, a new field where the
+  old schema had `additionalProperties: false`.
+- **SAFE**: new fields, narrowed types, values no longer sent.
+- **UNKNOWN**: `$ref`, `allOf`/`oneOf`/`anyOf`/`not` changed — reported, not
+  guessed at.
+
+Compared are `properties`, `required`, `type`, `enum`, `items` and
+`additionalProperties`. Not consumer-driven contract testing: it judges the
+schema change, not what any particular consumer reads.
 
 ## Agent notes
 

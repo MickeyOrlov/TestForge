@@ -127,4 +127,24 @@ class JsonContractValidatorTest {
         assertThat(contracts.validate("{\"eventId\":\"evt-3\",\"payload\":{\"status\":1}}", draft))
                 .isNotEmpty();
     }
+
+    @Test
+    void aNewSchemaVersionIsReviewedForWhatItMeansToConsumers() {
+        SchemaContract v1 = SchemaContract.of("partner-event", """
+                {"type":"object","required":["eventId","status"],
+                 "properties":{"eventId":{"type":"string"},"status":{"type":"string","enum":["accepted","rejected"]}}}""");
+        SchemaContract v2 = SchemaContract.of("partner-event", """
+                {"type":"object","required":["eventId","status"],
+                 "properties":{"eventId":{"type":"string"},"status":{"type":"string","enum":["accepted","rejected","pending"]},
+                   "channel":{"type":"string"}}}""");
+
+        java.util.List<io.testforge.contract.json.ContractChange> changes =
+                io.testforge.contract.json.ContractChanges.compare(v1, v2);
+
+        // nothing breaks a consumer of v1, but the new status value deserves a look
+        io.testforge.contract.json.ContractChanges.assertNoBreaking(changes);
+        assertThat(changes).extracting(Object::toString).containsExactly(
+                "RISKY $.status: new values [pending]: a consumer switching over the old ones may not handle them",
+                "SAFE $.channel: new field");
+    }
 }
