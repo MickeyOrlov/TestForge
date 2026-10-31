@@ -86,6 +86,35 @@ To reproduce a failure: rerun Schemathesis locally with the same `--seed`, and u
 
 ## Results
 
+Every generated case that breaks a check is a finding, so one broken operation
+easily produces dozens. They are grouped by check and operation —
+`ApiFuzzReport.findingGroups()` — and each run writes
+`<output-dir>/report.md`, which is the file to open first:
+
+```text
+## demo
+
+- outcome: FINDINGS
+- scenarios: 3 (2 failed)
+
+### Findings
+
+#### `not_a_server_error` on `GET /items/{id}` (3 cases)
+
+- phases: Coverage, Fuzzing
+- methods sent: GET, TRACE
+- first message: Server error
+- reproduce:
+
+  st --config-file build/api-fuzz/demo/schemathesis.toml run /tmp/demo.yaml -u https://api.staging.example.test --include-method GET ... --seed 4242 ... --include-name 'GET /items/{id}'
+```
+
+The reproduce command is the run's own, with report flags dropped, the URL
+redacted and `--include-name` narrowing it to the operation; add your own
+`--config-file` with credentials as for any run. Only the first line of a
+failure message is kept — tracebacks stay in the NDJSON — and request headers
+and bodies are never written.
+
 Exit code 1 covers both API findings and infrastructure failure. This is why the module classifies outcomes from the NDJSON report stream: a `NonFatalError` event means execution failure, not an API finding.
 
 ## Running It

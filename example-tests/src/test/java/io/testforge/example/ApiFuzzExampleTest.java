@@ -85,6 +85,9 @@ class ApiFuzzExampleTest {
         
         assertThat(report.outcome()).isEqualTo(ApiFuzzOutcome.PASSED);
         assertThat(report.artifacts()).containsKey("demo/report.ndjson");
+        // report.md: findings grouped by check and operation, each with its reproduce command
+        assertThat(report.artifacts()).containsKey("report.md");
+        assertThat(report.findingGroups()).isEmpty();
     }
 
     @Test

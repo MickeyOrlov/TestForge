@@ -110,8 +110,13 @@ public class ApiFuzzRunner {
                     "Failed to probe Schemathesis version: " + e.getMessage());
         }
 
+        List<FuzzMarkdownReport.SpecSummary> summaries = new ArrayList<>();
         for (String specId : specIds) {
             Path specOutputDir = outputDir.resolve(specId);
+            int errorsBefore = aggregateErrors.size();
+            int scenariosBefore = aggregateTotalScenarios;
+            int failedBefore = aggregateFailedScenarios;
+            List<String> commandArgs = null;
             Map<String, String> specArtifacts = new HashMap<>();
             MaterializedSpec materializedSpec;
             try {
@@ -120,6 +125,8 @@ public class ApiFuzzRunner {
                 log.error("Failed to materialize spec '{}': {}", specId, e.getMessage());
                 aggregateErrors.add("Failed to materialize spec '" + specId + "': " + e.getMessage());
                 overallOutcome = maxOutcome(overallOutcome, ApiFuzzOutcome.EXECUTION_ERROR);
+                summaries.add(new FuzzMarkdownReport.SpecSummary(specId, ApiFuzzOutcome.EXECUTION_ERROR, 0, 0,
+                        aggregateErrors.subList(errorsBefore, aggregateErrors.size()), null));
                 continue;
             }
 
@@ -142,13 +149,14 @@ public class ApiFuzzRunner {
             aggregateArtifacts.put(specId + "/schemathesis.toml", generatedConfig);
             specArtifacts.put("schemathesis.toml", generatedConfig.toString());
 
-            List<String> commandArgs;
             try {
                 commandArgs = new SchemathesisCommand(effectiveProperties, policy, specPathOrUrl, generatedConfig).build();
             } catch (Exception e) {
                 log.error("Failed to build Schemathesis command for spec '{}': {}", specId, e.getMessage());
                 aggregateErrors.add("Failed to build Schemathesis command for spec '" + specId + "': " + e.getMessage());
                 overallOutcome = maxOutcome(overallOutcome, ApiFuzzOutcome.CONFIGURATION_ERROR);
+                summaries.add(new FuzzMarkdownReport.SpecSummary(specId, ApiFuzzOutcome.CONFIGURATION_ERROR, 0, 0,
+                        aggregateErrors.subList(errorsBefore, aggregateErrors.size()), null));
                 continue;
             }
 
@@ -192,7 +200,7 @@ public class ApiFuzzRunner {
                         aggregateFailedScenarios += parsedReport.failedScenarios();
 
                         if (parsedReport.findings() != null && !parsedReport.findings().isEmpty()) {
-                            aggregateFindings.addAll(parsedReport.findings());
+                            parsedReport.findings().forEach(finding -> aggregateFindings.add(finding.withSpec(specId)));
                             specOutcome = ApiFuzzOutcome.FINDINGS;
                         } else if (parsedReport.outcome() == ApiFuzzOutcome.EXECUTION_ERROR) {
                             specOutcome = ApiFuzzOutcome.EXECUTION_ERROR;
@@ -215,6 +223,9 @@ public class ApiFuzzRunner {
             }
 
             overallOutcome = maxOutcome(overallOutcome, specOutcome);
+            summaries.add(new FuzzMarkdownReport.SpecSummary(specId, specOutcome,
+                    aggregateTotalScenarios - scenariosBefore, aggregateFailedScenarios - failedBefore,
+                    aggregateErrors.subList(errorsBefore, aggregateErrors.size()), commandArgs));
 
 
             Duration runDuration = Duration.ofMillis(System.currentTimeMillis() - startTimeMs);
@@ -263,6 +274,14 @@ public class ApiFuzzRunner {
                 aggregateArtifacts,
                 totalDuration
         );
+        try {
+            aggregateArtifacts.put(FuzzMarkdownReport.FILE_NAME, FuzzMarkdownReport.write(outputDir, report, summaries));
+            report = new ApiFuzzReport(report.runId(), report.specId(), report.outcome(), report.schemathesisVersion(),
+                    report.seed(), report.phases(), report.totalScenarios(), report.failedScenarios(),
+                    report.findings(), report.errors(), aggregateArtifacts, report.duration());
+        } catch (ApiFuzzException e) {
+            log.warn("{}", e.getMessage());
+        }
         registerArtifacts(report);
         return report;
     }
@@ -284,6 +303,9 @@ public class ApiFuzzRunner {
         }
         if (name.endsWith(".ndjson")) {
             return "application/x-ndjson";
+        }
+        if (name.endsWith(".md")) {
+            return "text/markdown";
         }
         return "text/plain";
     }
@@ -342,7 +364,12 @@ public class ApiFuzzRunner {
                     + (report.errors().isEmpty() ? "" : ": " + String.join("; ", report.errors())));
         }
         if (failOnFindings && report.hasFindings()) {
-            throw new ApiFuzzException("API fuzzing discovered " + report.findings().size() + " findings: " + report.findings());
+            List<ApiFuzzFindingGroup> groups = report.findingGroups();
+            int cases = report.findings().size();
+            throw new ApiFuzzException("API fuzzing findings: " + cases + (cases == 1 ? " failing case in " : " failing cases in ")
+                    + groups.size() + (groups.size() == 1 ? " check: " : " checks: ") + groups
+                    + (report.artifacts().containsKey(FuzzMarkdownReport.FILE_NAME)
+                            ? "; see " + report.artifacts().get(FuzzMarkdownReport.FILE_NAME) : ""));
         }
         return report;
     }
