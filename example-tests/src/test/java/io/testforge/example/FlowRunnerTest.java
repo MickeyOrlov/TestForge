@@ -44,6 +44,9 @@ class FlowRunnerTest {
         assertThat(result.contextSnapshot())
                 .containsEntry("visited.AUTHORIZE", true)
                 .containsEntry("visited.CREATE_RECORD", true);
+        // each transition with how long its step ran: a setup that got slow says which step did
+        assertThat(result.transitions()).extracting(transition -> transition.from() + "->" + transition.to())
+                .containsExactly("START->AUTHORIZE", "AUTHORIZE->CREATE_RECORD", "CREATE_RECORD->READY");
     }
 
     @Test

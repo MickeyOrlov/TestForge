@@ -21,6 +21,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-flow`: timed transitions. `FlowResult.transitions()` lists every
+  step taken with its duration (`FlowTransition`), `duration()` the total; a
+  timed-out flow names its slowest step, a failed step says how long it ran,
+  and the flow-path artifact lists the timed steps.
 - `module-kafka`: `KafkaDiagnosticsExtension` — a failed test publishes
   `module-kafka/<Class>-<method>.md` with the events it published and the
   messages buffered while it ran (only its own scope's when

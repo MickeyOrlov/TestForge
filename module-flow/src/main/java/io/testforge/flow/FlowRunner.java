@@ -2,6 +2,7 @@ package io.testforge.flow;
 
 import io.testforge.artifact.ArtifactSink;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,6 +68,7 @@ public class FlowRunner<S> {
 
         Instant deadline = clock.instant().plus(properties.timeout());
         List<S> path = new ArrayList<>();
+        List<FlowTransition<S>> transitions = new ArrayList<>();
         Map<S, Integer> visits = new HashMap<>();
         S current = start;
 
@@ -84,13 +86,13 @@ public class FlowRunner<S> {
                 }
 
                 if (current.equals(target)) {
-                    result = new FlowResult<>(current, path, context.snapshot());
+                    result = new FlowResult<>(current, path, context.snapshot(), transitions);
                     return result;
                 }
 
                 if (clock.instant().isAfter(deadline)) {
-                    throw new FlowException("Flow timeout after %s. Path: %s"
-                            .formatted(properties.timeout(), format(path)));
+                    throw new FlowException("Flow timeout after %s. Path: %s%s"
+                            .formatted(properties.timeout(), format(path), slowest(transitions)));
                 }
 
                 FlowStep<S> step = steps.get(current);
@@ -100,12 +102,15 @@ public class FlowRunner<S> {
                 }
 
                 S next;
+                Instant started = clock.instant();
                 try {
                     next = step.execute(context);
                 } catch (RuntimeException e) {
-                    throw new FlowException("Flow step failed at state: %s. Path: %s"
-                            .formatted(current, format(path)), e);
+                    throw new FlowException("Flow step failed at state: %s after %s ms. Path: %s"
+                            .formatted(current, Duration.between(started, clock.instant()).toMillis(),
+                                    format(path)), e);
                 }
+                transitions.add(new FlowTransition<>(current, next, Duration.between(started, clock.instant())));
 
                 if (next == null) {
                     throw new FlowException("Flow stopped before target %s. Path: %s"
@@ -120,11 +125,17 @@ public class FlowRunner<S> {
             failure = t;
             throw t;
         } finally {
-            publishArtifact(path, result, failure);
+            publishArtifact(path, transitions, failure);
         }
     }
 
-    private void publishArtifact(List<S> path, FlowResult<S> result, Throwable failure) {
+    /** {@code ; slowest step: AUTHORIZE -> READY (41000 ms)} — where a timed-out flow spent its time. */
+    private String slowest(List<FlowTransition<S>> transitions) {
+        return transitions.stream().max(java.util.Comparator.comparing(FlowTransition::duration))
+                .map(transition -> "; slowest step: " + transition).orElse("");
+    }
+
+    private void publishArtifact(List<S> path, List<FlowTransition<S>> transitions, Throwable failure) {
         try {
             String outcome;
             if (failure == null) {
@@ -136,11 +147,14 @@ public class FlowRunner<S> {
                 }
                 outcome = "FAILED (" + errorMsg + ")";
             }
+            StringBuilder steps = new StringBuilder();
+            transitions.forEach(transition -> steps.append("  ").append(transition).append('\n'));
             String content = """
                     Flow: %s
                     Path: %s
                     Outcome: %s
-                    """.formatted(name, format(path), outcome);
+                    Steps:
+                    %s""".formatted(name, format(path), outcome, steps);
             String artifactName = "flow-path-" + name + ".txt";
             artifactSink.write("module-flow", "flow-path", artifactName, "text/plain", content);
         } catch (Throwable ignored) {
