@@ -76,6 +76,51 @@ class DbWaiterTest {
         assertThat(count).isEqualTo(1L);
     }
 
+    private DbWaiter shortWaiter() {
+        return new DbWaiter(new Waiter(new WaitProperties(Duration.ofMillis(400), Duration.ofMillis(50))), registry);
+    }
+
+    @Test
+    void parametersAreBoundNeverConcatenated() {
+        executeSql(primaryDs, "INSERT INTO items (id, name) VALUES (1, 'o''brien')");
+
+        assertThat(dbWaiter.awaitRowCount("items named o'brien", "SELECT count(*) FROM items WHERE name = ?", 1,
+                "o'brien")).isEqualTo(1L);
+    }
+
+    @Test
+    void awaitValueWaitsForTheStatusChange() {
+        executeSql(primaryDs, "INSERT INTO items (id, name) VALUES (1, 'NEW')");
+        CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS)
+                .execute(() -> executeSql(primaryDs, "UPDATE items SET name = 'PAID' WHERE id = 1"));
+
+        assertThat(dbWaiter.awaitValue("item 1 paid", "SELECT name FROM items WHERE id = ?", "PAID", 1))
+                .isEqualTo("PAID");
+        assertThat(dbWaiter.awaitValue("item 1 id", "SELECT id FROM items WHERE id = ?", 1L, 1)).isEqualTo(1);
+    }
+
+    @Test
+    void aTimeoutNamesTheLastValueSeen() {
+        executeSql(primaryDs, "INSERT INTO items (id, name) VALUES (1, 'NEW')");
+
+        assertThatThrownBy(() -> shortWaiter().awaitValue("item 1 paid", "SELECT name FROM items WHERE id = ?",
+                "PAID", 1))
+                .isInstanceOf(ConditionTimeoutException.class)
+                .hasMessage("Waited for item 1 paid: expected PAID, last saw NEW from SELECT name FROM items WHERE id = ?");
+        assertThatThrownBy(() -> shortWaiter().awaitValue("item 2", "SELECT name FROM items WHERE id = ?", "PAID", 2))
+                .hasMessageContaining("last saw no row");
+        assertThatThrownBy(() -> shortWaiter().awaitRowCount("items", "SELECT count(*) FROM items", 3))
+                .hasMessageContaining("expected a count of at least 3, last saw 1");
+    }
+
+    @Test
+    void aBrokenQueryIsNamedInsteadOfLookingLikeAnEmptyTable() {
+        assertThatThrownBy(() -> shortWaiter().awaitRowCount("items", "SELECT count(*) FROM no_such_table", 1))
+                .isInstanceOf(ConditionTimeoutException.class)
+                .hasMessageContaining("the query failed:")
+                .hasMessageContaining("NO_SUCH_TABLE");
+    }
+
     @Test
     void onNamedDatasourceTargetsCorrectDatabase() {
         executeSql(primaryDs, "INSERT INTO items (id, name) VALUES (1, 'primary-only')");

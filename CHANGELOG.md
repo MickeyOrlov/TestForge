@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: `DbWaiter.awaitValue(description, sql, expected, params...)`
+  waits until the first column equals a value (numbers by value);
+  `awaitRowCount` takes `?` parameters too. Both time out with what the
+  database last answered — the value, "no row", or why the query failed —
+  still as a `ConditionTimeoutException`.
 - `module-db`: setup rows. `db.into("orders").keyedBy("id").insert(row)`
   inserts one row, returns its key (given or generated) and registers its
   `DELETE` with `module-data`'s `Cleanup`, so it is removed after the test

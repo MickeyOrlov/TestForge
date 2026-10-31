@@ -4,13 +4,16 @@ import io.testforge.core.wait.Waiter;
 import io.testforge.db.datasource.DataSourceRegistry;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
+import org.awaitility.core.ConditionTimeoutException;
 
 /**
  * Waits for rows that backend services write asynchronously (after a Kafka
@@ -31,6 +34,17 @@ import javax.sql.DataSource;
  * }</pre>
  */
 public class DbWaiter {
+
+    /** What the poll saw when the query returned no row at all. */
+    private static final Object NO_ROW = new Object();
+
+    /** A row whose first column is SQL NULL; Waiter keeps polling on a plain null. */
+    private static final Object NULL_VALUE = new Object() {
+        @Override
+        public String toString() {
+            return "null";
+        }
+    };
 
     private final Waiter waiter;
     private final DataSourceRegistry registry;
@@ -109,34 +123,110 @@ public class DbWaiter {
      * <pre>{@code
      * long count = dbWaiter.on("audit").awaitRowCount(
      *         "audit_log entry for task " + taskId,
-     *         "SELECT count(*) FROM audit_log WHERE task_id = '" + taskId + "'",
-     *         1);
+     *         "SELECT count(*) FROM audit_log WHERE task_id = ?",
+     *         1, taskId);
      * }</pre>
+     *
+     * Values go in as {@code ?} parameters, never concatenated into the SQL.
+     * On timeout the failure names the last count observed.
      *
      * @param description human-readable description for waiter failure messages
      * @param sql the SQL query to execute (must return a numeric count/value in the first column)
      * @param minCount minimum count required for the wait to succeed
+     * @param parameters values for the {@code ?} placeholders, in order
      * @return the last observed count (which is &gt;= minCount)
      * @throws IllegalStateException if no {@link DataSourceRegistry} is available on this instance
      * @throws IllegalArgumentException if the datasource name (or default datasource) cannot be resolved
      */
-    public long awaitRowCount(String description, String sql, int minCount) {
+    public long awaitRowCount(String description, String sql, int minCount, Object... parameters) {
+        Object last = poll(description, sql, parameters, value -> value instanceof Number number
+                && number.longValue() >= minCount, "a count of at least " + minCount);
+        return ((Number) last).longValue();
+    }
+
+    /**
+     * Polls until the first column of the first row equals {@code expected} —
+     * the asynchronous status change, without a repository:
+     *
+     * <pre>{@code
+     * dbWaiter.awaitValue("order " + id + " paid",
+     *         "SELECT status FROM orders WHERE id = ?", "PAID", id);
+     * }</pre>
+     *
+     * Numbers compare by value ({@code 1} equals {@code 1L} and {@code 1.0}).
+     * On timeout the failure names the last value observed, or that no row
+     * came back.
+     */
+    public Object awaitValue(String description, String sql, Object expected, Object... parameters) {
+        return poll(description, sql, parameters, value -> same(expected, value), String.valueOf(expected));
+    }
+
+    private Object poll(String description, String sql, Object[] parameters, Predicate<Object> until,
+                        String wanted) {
         if (this.registry == null) {
             throw new IllegalStateException("No DataSourceRegistry is available on this DbWaiter instance. Inject the auto-configured DbWaiter bean or construct DbWaiter with a DataSourceRegistry.");
         }
         DataSource ds = this.registry.resolve(this.datasourceName);
-        return waiter.await(description, () -> {
-            try (Connection conn = ds.getConnection();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                if (rs.next()) {
-                    return rs.getLong(1);
+        AtomicReference<Object> last = new AtomicReference<>(NO_ROW);
+        AtomicReference<RuntimeException> error = new AtomicReference<>();
+        try {
+            waiter.await(description, () -> {
+                try {
+                    Object value = firstValue(ds, sql, parameters, description);
+                    last.set(value);
+                    error.set(null);
+                    return value;
+                } catch (RuntimeException e) {
+                    // Waiter ignores exceptions while polling; keep the last one for the timeout message
+                    error.set(e);
+                    throw e;
                 }
-                return 0L;
-            } catch (SQLException e) {
-                throw new RuntimeException("Failed to execute row count query for " + description + ": " + sql, e);
+            }, until::test);
+            return last.get() == NULL_VALUE ? null : last.get();
+        } catch (ConditionTimeoutException e) {
+            Object seen = last.get();
+            String observed = error.get() != null
+                    ? "the query failed: " + rootMessage(error.get())
+                    : "last saw " + (seen == NO_ROW ? "no row" : seen);
+            // same exception type as every other Waiter timeout; only the message says more
+            throw new ConditionTimeoutException("Waited for " + description + ": expected " + wanted + ", "
+                    + observed + " from " + sql, e);
+        }
+    }
+
+    private static Object firstValue(DataSource ds, String sql, Object[] parameters, String description) {
+        try (Connection conn = ds.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < parameters.length; i++) {
+                stmt.setObject(i + 1, parameters[i]);
             }
-        }, count -> count >= minCount);
+            try (ResultSet rs = stmt.executeQuery()) {
+                // a placeholder rather than null: Waiter treats null as "keep polling" but must not throw on it
+                return rs.next() ? valueOrNullMarker(rs.getObject(1)) : NO_ROW;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to execute query for " + description + ": " + sql, e);
+        }
+    }
+
+    private static Object valueOrNullMarker(Object value) {
+        return value == null ? NULL_VALUE : value;
+    }
+
+    private static String rootMessage(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        return root.getMessage();
+    }
+
+    private static boolean same(Object expected, Object actual) {
+        Object value = actual == NULL_VALUE ? null : actual;
+        if (expected instanceof Number a && value instanceof Number b) {
+            return new java.math.BigDecimal(a.toString()).compareTo(new java.math.BigDecimal(b.toString())) == 0;
+        }
+        return Objects.equals(expected, value);
     }
 }
 
