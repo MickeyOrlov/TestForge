@@ -40,7 +40,20 @@ forge:
     poll-timeout: 500ms
     max-messages-per-topic: 1000
     seek-to-beginning-on-start: false
+    unique-group-id: true   # default
 ```
+
+- **A group of its own per run** (`unique-group-id`, default): the
+  collector joins `<spring.kafka.consumer.group-id>-<8 random chars>`. Two CI
+  runs sharing one group would split the partitions and each see only part of
+  the messages. The collector only observes and never needs committed
+  offsets; set it to `false` only for a broker that restricts group names.
+- **Ready before the first test**: startup waits until partitions are
+  assigned and positioned, so with `auto-offset-reset: latest` an event a test
+  sends right away is not lost.
+- **A collector that died says so**: after a Kafka error it stops, and every
+  later `awaitMessage` timeout starts with `The collector stopped after an
+  error and receives nothing: …` instead of looking like an empty topic.
 
 ## Usage
 

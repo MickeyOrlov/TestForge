@@ -93,6 +93,13 @@ public class KafkaProbe {
 
     /** The topic's messages that came closest, fewest failed criteria first, then newest. */
     String closest(KafkaMessageFilter filter) {
+        String collector = buffer.collectorFailure()
+                .map(reason -> "The collector stopped after an error and receives nothing: " + reason + ". ")
+                .orElse("");
+        return collector + closestMessages(filter);
+    }
+
+    private String closestMessages(KafkaMessageFilter filter) {
         List<KafkaMessage> messages = buffer.newestFirst(filter.topic());
         if (messages.isEmpty()) {
             return filter.topic() == null ? "The buffer is empty." : "Topic " + filter.topic()

@@ -23,10 +23,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       headers:                          # sent on every published event
  *         source: testforge
  *       send-timeout: 10s
+ *     unique-group-id: true   # default: every run reads every partition (see below)
  *     diagnostics:
  *       last: 20          # messages per failed test
  *       payloads: false   # default: positions, keys and header names only
  * </pre>
+ */
+/*
+ * unique-group-id: two runs sharing spring.kafka.consumer.group-id split the
+ * topic's partitions between them, and each sees only part of the messages.
+ * The collector only observes, it never needs committed offsets, so by
+ * default it joins a group of its own per run.
  */
 @ConfigurationProperties(prefix = "forge.kafka")
 public record KafkaProbeProperties(
@@ -36,11 +43,15 @@ public record KafkaProbeProperties(
         int maxMessagesPerTopic,
         boolean seekToBeginningOnStart,
         PublishProperties publish,
-        DiagnosticsProperties diagnostics) {
+        DiagnosticsProperties diagnostics,
+        Boolean uniqueGroupId) {
 
     public KafkaProbeProperties {
         if (publish == null) {
             publish = new PublishProperties(null, null, null, null);
+        }
+        if (uniqueGroupId == null) {
+            uniqueGroupId = true;
         }
         if (diagnostics == null) {
             diagnostics = new DiagnosticsProperties(null, null);

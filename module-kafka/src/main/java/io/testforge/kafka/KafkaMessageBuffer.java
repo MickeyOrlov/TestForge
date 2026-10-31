@@ -13,6 +13,7 @@ public class KafkaMessageBuffer {
 
     private final int maxMessagesPerTopic;
     private final AtomicLong sequence = new AtomicLong();
+    private volatile String collectorFailure;
     private final ConcurrentMap<String, ConcurrentSkipListMap<Long, KafkaMessage>> byTopic =
             new ConcurrentHashMap<>();
 
@@ -76,6 +77,15 @@ public class KafkaMessageBuffer {
         }
         messages.sort(Comparator.comparingLong(SequencedMessage::sequence));
         return messages.stream().map(SequencedMessage::message).toList();
+    }
+
+    /** Set by the collector when it stops on an error, so a timeout can say why nothing arrives. */
+    public void collectorFailed(String reason) {
+        this.collectorFailure = reason;
+    }
+
+    public java.util.Optional<String> collectorFailure() {
+        return java.util.Optional.ofNullable(collectorFailure);
     }
 
     public void clear() {
