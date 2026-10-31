@@ -149,7 +149,7 @@ must not replace each other. `example-tests` is never published.
    through `forge.api-explorer.parameters` — the report prints the block to
    paste. Redaction follows `forge.http.logging.redact-*`; extend it before the
    first run uploads artifacts.
-12. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build.
+12. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build. Read the first `report.md`, copy what the team accepts into `forge.api-fuzz.accepted-findings`, then turn `fail-on-findings` on: it fails on new findings only.
 13. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the

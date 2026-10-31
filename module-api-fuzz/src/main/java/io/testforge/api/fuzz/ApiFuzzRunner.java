@@ -272,13 +272,15 @@ public class ApiFuzzRunner {
                 aggregateFindings,
                 aggregateErrors,
                 aggregateArtifacts,
-                totalDuration
+                totalDuration,
+                effectiveProperties.acceptedFindings()
         );
         try {
             aggregateArtifacts.put(FuzzMarkdownReport.FILE_NAME, FuzzMarkdownReport.write(outputDir, report, summaries));
             report = new ApiFuzzReport(report.runId(), report.specId(), report.outcome(), report.schemathesisVersion(),
                     report.seed(), report.phases(), report.totalScenarios(), report.failedScenarios(),
-                    report.findings(), report.errors(), aggregateArtifacts, report.duration());
+                    report.findings(), report.errors(), aggregateArtifacts, report.duration(),
+                    report.acceptedFindings());
         } catch (ApiFuzzException e) {
             log.warn("{}", e.getMessage());
         }
@@ -363,11 +365,13 @@ public class ApiFuzzRunner {
             throw new ApiFuzzException("API fuzzing failed with outcome " + report.outcome()
                     + (report.errors().isEmpty() ? "" : ": " + String.join("; ", report.errors())));
         }
-        if (failOnFindings && report.hasFindings()) {
-            List<ApiFuzzFindingGroup> groups = report.findingGroups();
-            int cases = report.findings().size();
+        List<ApiFuzzFindingGroup> groups = report.newFindingGroups();
+        if (failOnFindings && !groups.isEmpty()) {
+            int cases = groups.stream().mapToInt(ApiFuzzFindingGroup::occurrences).sum();
+            int accepted = report.findingGroups().size() - groups.size();
             throw new ApiFuzzException("API fuzzing findings: " + cases + (cases == 1 ? " failing case in " : " failing cases in ")
-                    + groups.size() + (groups.size() == 1 ? " check: " : " checks: ") + groups
+                    + groups.size() + (groups.size() == 1 ? " new check: " : " new checks: ") + groups
+                    + (accepted == 0 ? "" : " (" + accepted + " accepted not counted)")
                     + (report.artifacts().containsKey(FuzzMarkdownReport.FILE_NAME)
                             ? "; see " + report.artifacts().get(FuzzMarkdownReport.FILE_NAME) : ""));
         }

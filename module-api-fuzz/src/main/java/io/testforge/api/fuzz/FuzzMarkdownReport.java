@@ -62,7 +62,18 @@ final class FuzzMarkdownReport {
                 .append("- scenarios: ").append(report.totalScenarios())
                 .append(" (").append(report.failedScenarios()).append(" failed)\n")
                 .append("- findings: ").append(report.findings().size()).append(" failing cases in ")
-                .append(groups.size()).append(groups.size() == 1 ? " check" : " checks").append('\n');
+                .append(groups.size()).append(groups.size() == 1 ? " check" : " checks");
+        long accepted = groups.stream().filter(ApiFuzzFindingGroup::accepted).count();
+        if (accepted > 0) {
+            out.append(", ").append(accepted).append(" accepted");
+        }
+        out.append('\n');
+        List<String> stale = report.staleAcceptedFindings();
+        if (!stale.isEmpty()) {
+            out.append("\n## Accepted findings no longer seen\n\n")
+                    .append("Fixed or renamed: remove them from `forge.api-fuzz.accepted-findings`.\n\n");
+            stale.forEach(entry -> out.append("- `").append(entry).append("`\n"));
+        }
         for (SpecSummary spec : specs) {
             out.append("\n## ").append(spec.specId()).append("\n\n")
                     .append("- outcome: ").append(spec.outcome()).append('\n')
@@ -79,7 +90,8 @@ final class FuzzMarkdownReport {
             for (ApiFuzzFindingGroup group : own) {
                 out.append("\n#### `").append(group.checkName()).append("` on `").append(group.operationLabel())
                         .append("` (").append(group.occurrences())
-                        .append(group.occurrences() == 1 ? " case" : " cases").append(")\n\n")
+                        .append(group.occurrences() == 1 ? " case" : " cases").append(")")
+                        .append(group.accepted() ? " — accepted" : "").append("\n\n")
                         .append("- phases: ").append(String.join(", ", group.phases())).append('\n')
                         .append("- methods sent: ").append(String.join(", ", group.methods())).append('\n');
                 if (group.firstMessage() != null) {
