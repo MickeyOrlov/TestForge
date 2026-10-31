@@ -189,14 +189,24 @@ public final class DbInvariants {
         java.time.Duration interval = timeout.dividedBy(10).compareTo(java.time.Duration.ofMillis(200)) > 0
                 ? java.time.Duration.ofMillis(200) : timeout.dividedBy(10);
         java.util.concurrent.atomic.AtomicReference<Report> last = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<RuntimeException> broken = new java.util.concurrent.atomic.AtomicReference<>();
+        Report failedToRun = new Report(0, List.of(new Violation("could not run", 0, false, List.of())));
         try {
             return new io.testforge.core.wait.Waiter(new io.testforge.core.wait.WaitProperties(timeout,
                     interval.isZero() ? java.time.Duration.ofMillis(1) : interval))
                     .await("invariants hold", () -> {
-                        Report report = verify();
-                        last.set(report);
-                        return report;
-                    }, Report::holds);
+                        try {
+                            Report report = verify();
+                            last.set(report);
+                            return report;
+                        } catch (IllegalStateException e) {
+                            // a rule that cannot run (a typo, a missing column) will not start working by waiting
+                            broken.set(e);
+                            return failedToRun;
+                        }
+                    }, Report::holds, report -> report == failedToRun);
+        } catch (io.testforge.core.wait.WaitAbortedException e) {
+            throw broken.get();
         } catch (org.awaitility.core.ConditionTimeoutException e) {
             Report report = last.get();
             throw new AssertionError("still broken after " + timeout + ": "

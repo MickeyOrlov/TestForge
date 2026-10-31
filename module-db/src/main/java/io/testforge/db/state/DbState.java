@@ -93,6 +93,7 @@ public final class DbState {
         try (Connection connection = target.getConnection()) {
             DatabaseMetaData meta = connection.getMetaData();
             String schema = connection.getSchema();
+            String quote = meta.getIdentifierQuoteString();
             List<String> names = new ArrayList<>();
             try (ResultSet result = meta.getTables(connection.getCatalog(), schema, "%", new String[] {"TABLE"})) {
                 while (result.next()) {
@@ -105,9 +106,14 @@ public final class DbState {
                     continue;
                 }
                 List<String> key = primaryKey(meta, connection.getCatalog(), schema, name);
-                TableQuery query = new TableQuery(target, name);
+                TableQuery query = TableQuery.discovered(target, name, quote);
                 query.keyedBy(key.isEmpty() ? List.of(columns(meta, connection.getCatalog(), schema, name)) : key);
-                tables.put(name, query.take());
+                try {
+                    tables.put(name, query.take());
+                } catch (IllegalStateException e) {
+                    throw new IllegalStateException(e.getMessage() + ". A table that size is reference data, not "
+                            + "what a test changes: exclude it, watchSchema(\"" + name + "\")", e);
+                }
             }
         } catch (SQLException e) {
             throw new IllegalStateException("Could not list the tables to watch: " + e.getMessage(), e);

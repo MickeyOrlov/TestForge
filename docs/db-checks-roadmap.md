@@ -7,6 +7,8 @@ assert about the database itself — the exact transition of a row, that nothing
 else moved, that the data stays consistent — so a backend that writes the
 right row *and* breaks something next to it fails the test.
 
+All six steps shipped (PRs #108–#113).
+
 | Step | What | Status |
 |---|---|---|
 | 1 | **Exact row expectations** — a row's column moved from → to, a version grew by one, a timestamp moved forward, the rest untouched | shipped |
@@ -14,7 +16,7 @@ right row *and* breaks something next to it fails the test.
 | 3 | **Data invariants** — orphans, duplicate business keys, values outside an allowed set, NULLs where logic forbids them | shipped |
 | 4 | **Cross-table consistency, with waiting** — every new order has its outbox row; totals add up | shipped |
 | 5 | **Only the test's own data** — the rows an action touched carry the test's run tag | shipped |
-| 6 | **Review** — close the gaps a review finds | planned |
+| 6 | **Review** — close the gaps a review finds | shipped |
 
 ## Step 1 — exact row expectations
 
@@ -73,3 +75,16 @@ write concurrently; a row no test owns fails — the action reached real data on
 the shared environment. `onlyThisTestsData` is the strict form for runs where
 nothing else writes the table. `RowChange` now keeps the row's current values,
 so the tag column is checked even when it did not change.
+
+## Step 6 — review
+
+- **Reserved-word tables.** `watchSchema()` built `SELECT * FROM ORDER` from
+  the metadata and failed on any table called `order` or `user`. Discovered
+  tables are quoted exactly as the database reports them
+  (`TableQuery.discovered`), which is also the case they are stored in.
+- **A big reference table.** Over 10 000 rows, `watchSchema()` told the user
+  to raise `maxRows` — which it does not take. It now says to exclude the
+  table, by name.
+- **Rules that cannot run.** `assertHoldsWithin` treated a SQL error (a
+  misspelled column in `holds(...)`) as "not yet" and waited out the whole
+  deadline; it now fails at once with the error.
