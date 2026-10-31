@@ -30,6 +30,11 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-mobile-appium`: the local Appium node's output went to a pipe
+  nobody read; once its buffer filled the node blocked on its next log line,
+  mid-suite. It now goes to `<artifacts-dir>/appium-node.log`. A node that
+  exits before answering fails the start at once with its exit code and the
+  log's last lines, instead of waiting out `startup-timeout` without a reason.
 - `module-web-playwright`: a failure in `@BeforeEach`/`@AfterEach` — a
   sign-in through the injected `Page` — left no screenshot, trace or
   `browser.md`; lifecycle failures are captured too, once per test. The

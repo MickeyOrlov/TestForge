@@ -65,7 +65,9 @@ public class TestForgeAppiumAutoConfiguration {
     public AppiumNodeManager appiumNodeManager(
             AppiumProperties properties,
             ProcessLauncher launcher,
-            AppiumStatusProbe statusProbe) {
-        return new AppiumNodeManager(properties, launcher, statusProbe);
+            AppiumStatusProbe statusProbe,
+            ObjectProvider<ArtifactSink> artifactSink) {
+        return new AppiumNodeManager(properties, launcher, statusProbe,
+                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 }

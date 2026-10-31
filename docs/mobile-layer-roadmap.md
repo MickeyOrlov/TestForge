@@ -10,7 +10,7 @@ not come up.
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Which session, and what the device said** — `session.md` with redacted capabilities, the device log's tail, grouped with the test's other reports | `module-mobile-appium` | shipped |
-| 2 | **A local node that cannot hang or die silently** — its output to a log file, an early exit reported at once with the log's tail | `module-mobile-appium` | planned |
+| 2 | **A local node that cannot hang or die silently** — its output to a log file, an early exit reported at once with the log's tail | `module-mobile-appium` | shipped |
 | 3 | **Review** — close the gaps a review of the module finds | `module-mobile-appium` | planned |
 
 ## Step 1 — which session, and what the device said
@@ -26,3 +26,16 @@ On failure the collector now writes, next to the screenshot and page source:
 
 Every artifact carries the test's `testKey` (`<Class>-<method>`), so the run
 summary groups it with the same test's HTTP, SQL and Kafka reports.
+
+## Step 2 — a local node that cannot hang or die silently
+
+`DefaultProcessLauncher` merged the node's stderr into stdout and never read
+either. A pipe holds a few dozen kilobytes; Appium logs every command, so a
+longer suite filled it and the node blocked on its next write — sessions then
+hung mid-run. The node now writes to `<artifacts-dir>/appium-node.log`
+(`ProcessLauncher.launch(command, log)`; custom launchers keep working through
+the default method), and the log joins the run index when the node stops.
+
+The readiness wait also watches the process: a node that exits (port taken,
+driver missing, wrong Node version) fails the start at once with its exit code
+and the last 20 lines of its log, and a timeout carries the same tail.

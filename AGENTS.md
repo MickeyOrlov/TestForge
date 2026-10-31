@@ -191,7 +191,8 @@ must not replace each other. `example-tests` is never published.
    beans; sessions open lazily when a test requests `AppiumSession` or
    `AppiumDriver`. Use `devices.<id>` + `@MobileDevice("id")` for matrix
    selection, keep local node startup opt-in with `node.auto-start=true`, and
-   upload `build/appium-artifacts` from mobile CI jobs. Screen objects and
+   upload `build/appium-artifacts` from mobile CI jobs — it holds the failure
+   artifacts and the local node's `appium-node.log`. Screen objects and
    provider-specific clients stay in the adapted project.
 20. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
