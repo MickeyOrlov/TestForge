@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-http`: `ResponsePoller` repeats a call until its response matches
+  (`poll.until(() -> api.request().get(...), jsonPath("status", "DONE"))`)
+  through `Waiter` and `forge.wait`, overridable per call. Named
+  `ResponseConditions` (`status`, `jsonPath`, `allOf`, `matching`) make the
+  timeout message say what was awaited, with the attempt count and the last
+  response's status and redacted body.
 - `module-http`: failed-test diagnostics. The scenario's last exchanges
   (`forge.http.diagnostics.last`, default 10) are kept in memory per thread,
   redacted like the log; with `@ExtendWith(HttpDiagnosticsExtension.class)` a

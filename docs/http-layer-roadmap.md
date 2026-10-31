@@ -8,7 +8,7 @@ merged on its own.
 |---|---|---|---|
 | 1. Contract guard | every `ApiClient` response checked against the OpenAPI document during ordinary functional tests (`record` or `fail`) | `module-api-explorer` (`forge.contract-guard`) | shipped |
 | 2. Failure diagnostics | the scenario's last requests and responses, redacted, in the run index when a test fails (`HttpDiagnosticsExtension`) | `module-http` | shipped |
-| 3. Await a response | `poll until the response matches` through `Waiter`, no hand-written loops | `module-http` | planned |
+| 3. Await a response | `poll until the response matches` through `Waiter`, no hand-written loops (`ResponsePoller`, `ResponseConditions`) | `module-http` | shipped |
 | 4. Pagination | iterate every page (page/offset, cursor, `Link`) with one call | `module-http` | planned |
 
 ## Why step 1 lives in module-api-explorer
