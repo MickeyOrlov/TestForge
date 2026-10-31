@@ -18,10 +18,11 @@ public class HttpExchangeJournal {
      *
      * @param status {@code null} when the call failed before a response arrived
      * @param error  the transport failure, or {@code null}
+     * @param auth   who the request acted as, from {@code module-auth}, or {@code null}
      */
     public record Exchange(String method, String uri, Integer status, long millis,
                            Map<String, String> requestHeaders, String requestBody, String responseBody,
-                           String error) {
+                           String error, String auth) {
     }
 
     private final int capacity;

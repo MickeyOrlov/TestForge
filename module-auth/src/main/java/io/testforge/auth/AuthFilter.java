@@ -5,6 +5,7 @@ import io.restassured.filter.OrderedFilter;
 import io.restassured.response.Response;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
+import io.testforge.core.context.RequestAttributes;
 import java.util.Optional;
 
 /**
@@ -42,37 +43,46 @@ public class AuthFilter implements OrderedFilter {
                            FilterableResponseSpecification responseSpec,
                            FilterContext ctx) {
         if (AuthContext.anonymous()) {
+            ctx.setValue(RequestAttributes.AUTH, AuthContext.ANONYMOUS + " (no credential)");
             return ctx.next(requestSpec, responseSpec);
         }
-        Optional<String> role = AuthContext.currentRole().or(() -> Optional.ofNullable(properties.defaultRole())
+        Optional<String> explicit = AuthContext.currentRole();
+        Optional<String> role = explicit.or(() -> Optional.ofNullable(properties.defaultRole())
                 .filter(value -> !value.isBlank()));
-        role.ifPresent(name -> apply(requestSpec, name));
+        role.ifPresent(name -> ctx.setValue(RequestAttributes.AUTH,
+                name + " (" + (explicit.isEmpty() ? "default role, " : "") + apply(requestSpec, name) + ")"));
         return ctx.next(requestSpec, responseSpec);
     }
 
-    private void apply(FilterableRequestSpecification requestSpec, String role) {
+    /** Adds the credential and says how it travels — or that the test's own one was kept. */
+    private String apply(FilterableRequestSpecification requestSpec, String role) {
         CredentialPlacement placement = tokens.placement(role)
                 .orElseGet(() -> CredentialPlacement.header(properties.header(), properties.scheme()));
         switch (placement.kind()) {
             case HEADER -> {
-                if (!requestSpec.getHeaders().hasHeaderWithName(placement.name())) {
-                    requestSpec.header(placement.name(), placement.prefix() + tokens.forRole(role));
+                if (requestSpec.getHeaders().hasHeaderWithName(placement.name())) {
+                    return placement.describe() + " set by the test";
                 }
+                requestSpec.header(placement.name(), placement.prefix() + tokens.forRole(role));
             }
             case QUERY -> {
-                if (!requestSpec.getQueryParams().containsKey(placement.name())) {
-                    requestSpec.queryParam(placement.name(), tokens.forRole(role));
+                if (requestSpec.getQueryParams().containsKey(placement.name())) {
+                    return placement.describe() + " set by the test";
                 }
+                requestSpec.queryParam(placement.name(), tokens.forRole(role));
             }
             case COOKIE -> {
                 String cookie = tokens.forRole(role);
                 int separator = cookie.indexOf('=');
                 String name = cookie.substring(0, separator);
-                if (!requestSpec.getCookies().hasCookieWithName(name)) {
-                    requestSpec.cookie(name, cookie.substring(separator + 1));
+                if (requestSpec.getCookies().hasCookieWithName(name)) {
+                    return "cookie " + name + " set by the test";
                 }
+                requestSpec.cookie(name, cookie.substring(separator + 1));
+                return "cookie " + name;
             }
         }
+        return placement.describe();
     }
 
     @Override

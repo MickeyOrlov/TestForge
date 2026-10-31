@@ -63,6 +63,9 @@ public class HttpDiagnosticsExtension implements BeforeEachCallback, TestExecuti
             out.append("## ").append(index++).append(". ").append(exchange.method()).append(' ').append(exchange.uri())
                     .append(" → ").append(exchange.status() == null ? "no response" : exchange.status())
                     .append(" (").append(exchange.millis()).append(" ms)\n\n");
+            if (exchange.auth() != null) {
+                out.append("As: ").append(exchange.auth()).append("\n\n");
+            }
             if (exchange.error() != null) {
                 out.append("Error: ").append(exchange.error()).append("\n\n");
             }

@@ -151,6 +151,46 @@ class AuthFilterTest {
         assertThat(seenCookie.get()).isEqualTo("SESSION=expired");
     }
 
+    /** Reads what the auth filter left for later filters, the way module-http's recorder does. */
+    private String noteFor(AuthFilter filter, java.util.function.UnaryOperator<io.restassured.specification.RequestSpecification> setup) {
+        AtomicReference<Object> note = new AtomicReference<>();
+        io.restassured.filter.OrderedFilter reader = new io.restassured.filter.OrderedFilter() {
+            @Override
+            public io.restassured.response.Response filter(io.restassured.specification.FilterableRequestSpecification req,
+                    io.restassured.specification.FilterableResponseSpecification res, io.restassured.filter.FilterContext ctx) {
+                note.set(ctx.getValue(io.testforge.core.context.RequestAttributes.AUTH));
+                return ctx.next(req, res);
+            }
+
+            @Override
+            public int getOrder() {
+                return 850;
+            }
+        };
+        setup.apply(given().baseUri("http://127.0.0.1:" + server.getAddress().getPort()).filter(filter).filter(reader))
+                .get("/ping");
+        return note.get() == null ? null : note.get().toString();
+    }
+
+    @Test
+    void theFilterSaysWhoTheRequestActsAsAndHowNeverTheCredential() {
+        AuthFilter tokenFilter = new AuthFilter(tokens, properties("admin", null));
+        AuthFilter placedFilter = new AuthFilter(placed, properties(null, null));
+
+        assertThat(AuthContext.callAs("admin", () -> noteFor(tokenFilter, r -> r)))
+                .isEqualTo("admin (header Authorization)");
+        assertThat(noteFor(tokenFilter, r -> r)).isEqualTo("admin (default role, header Authorization)");
+        assertThat(AuthContext.callAs("admin", () -> noteFor(tokenFilter, r -> r.header("Authorization", "x"))))
+                .isEqualTo("admin (header Authorization set by the test)");
+        assertThat(AuthContext.callAs(AuthContext.ANONYMOUS, () -> noteFor(tokenFilter, r -> r)))
+                .isEqualTo("anonymous (no credential)");
+        assertThat(AuthContext.callAs("integration", () -> noteFor(placedFilter, r -> r)))
+                .isEqualTo("integration (query api_key)");
+        assertThat(AuthContext.callAs("web", () -> noteFor(placedFilter, r -> r)))
+                .isEqualTo("web (cookie SESSION)");
+        assertThat(noteFor(placedFilter, r -> r)).isNull();
+    }
+
     @Test
     void anExplicitHeaderIsNeverReplaced() {
         AuthContext.runAs("admin", () -> send(new AuthFilter(tokens, properties(null, null)), "Bearer expired"));

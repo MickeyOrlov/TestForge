@@ -12,6 +12,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - A token value never reaches a log, an exception message or `toString()`.
   Error messages name the role and endpoint, never the request body.
 - No automatic retry on 401/403: a rejected fresh token is a finding.
+- The `RequestAttributes.AUTH` note says who and how, never the credential.
 - A header, query parameter or cookie the test set explicitly is never replaced.
 - Invalid role configuration fails at startup with every problem listed.
 - Inert unless `forge.auth.enabled=true`; no token is fetched before a role is
