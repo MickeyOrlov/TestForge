@@ -24,6 +24,7 @@ public final class ApiCodegenRunner {
     private final ObjectMapper objectMapper;
     private final ApiDiscoveryProperties discoveryProperties;
     private final ApiCodegenProperties properties;
+    private final GeneratedSourceCompiler compiler;
 
     public ApiCodegenRunner(
             OpenApiSpecParser parser,
@@ -31,11 +32,22 @@ public final class ApiCodegenRunner {
             ObjectMapper objectMapper,
             ApiDiscoveryProperties discoveryProperties,
             ApiCodegenProperties properties) {
+        this(parser, generator, objectMapper, discoveryProperties, properties, new GeneratedSourceCompiler());
+    }
+
+    ApiCodegenRunner(
+            OpenApiSpecParser parser,
+            OpenApiJavaCodeGenerator generator,
+            ObjectMapper objectMapper,
+            ApiDiscoveryProperties discoveryProperties,
+            ApiCodegenProperties properties,
+            GeneratedSourceCompiler compiler) {
         this.parser = parser;
         this.generator = generator;
         this.objectMapper = objectMapper;
         this.discoveryProperties = discoveryProperties;
         this.properties = properties;
+        this.compiler = compiler;
     }
 
     public ApiCodegenReport run() {
@@ -103,7 +115,7 @@ public final class ApiCodegenRunner {
             OpenAPI openApi = parser.parse(source);
             GeneratedApiSources generated = generator.generate(source.id(), openApi, properties.basePackage());
 
-            List<String> files = new ArrayList<>();
+            List<Path> written = new ArrayList<>();
             for (GeneratedSource generatedSource : generated.sources()) {
                 Path file = sourceRoot.resolve(generatedSource.relativePath()).normalize();
                 if (!file.startsWith(sourceRoot)) {
@@ -111,19 +123,35 @@ public final class ApiCodegenRunner {
                             + generatedSource.relativePath());
                 }
                 writeString(file, generatedSource.content());
-                files.add(file.toString());
+                written.add(file);
             }
+            List<String> warnings = new ArrayList<>(generated.warnings());
+            Boolean compiled = null;
+            List<String> compileErrors = List.of();
+            if (properties.compile()) {
+                GeneratedSourceCompiler.Result result =
+                        compiler.compile(sourceRoot, written, specRoot.resolve("classes"));
+                compiled = result.compiled();
+                compileErrors = result.errors();
+                if (result.skipped() != null) {
+                    warnings.add("Compile check skipped: " + result.skipped());
+                }
+            }
+            boolean failed = Boolean.FALSE.equals(compiled);
             return new ApiCodegenSpecReport(
                     source.id(),
                     source.location(),
-                    false,
+                    failed,
                     generated.modelCount(),
                     generated.clientCount(),
                     generated.operationCount(),
                     sourceRoot.toString(),
-                    files,
-                    generated.warnings(),
-                    null);
+                    written.stream().map(Path::toString).toList(),
+                    warnings,
+                    failed ? "the generated sources do not compile (" + compileErrors.size()
+                            + " error" + (compileErrors.size() == 1 ? "" : "s") + " listed in the report)" : null,
+                    compiled,
+                    compileErrors);
         } catch (RuntimeException e) {
             return new ApiCodegenSpecReport(
                     source.id(),
@@ -216,9 +244,15 @@ public final class ApiCodegenRunner {
                     .append("- clients: ").append(spec.clients()).append('\n')
                     .append("- operations: ").append(spec.operations()).append('\n')
                     .append("- sourceRoot: ").append(spec.sourceRoot()).append('\n')
-                    .append("- files: ").append(spec.files().size()).append('\n');
+                    .append("- files: ").append(spec.files().size()).append('\n')
+                    .append("- compiled: ").append(spec.compiled() == null ? "not checked"
+                            : spec.compiled() ? "yes" : "no").append('\n');
             if (spec.error() != null) {
                 out.append("- error: ").append(spec.error()).append('\n');
+            }
+            if (!spec.compileErrors().isEmpty()) {
+                out.append("- compile errors:\n");
+                spec.compileErrors().forEach(error -> out.append("  - ").append(error).append('\n'));
             }
             if (!spec.warnings().isEmpty()) {
                 out.append("- warnings:\n");

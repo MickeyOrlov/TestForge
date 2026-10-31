@@ -68,7 +68,7 @@ surface is still expected to evolve.
 
 | Module | Status note |
 |---|---|
-| `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons. V1 writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. |
+| `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons, compiled right after generation so a document Java cannot take fails the run that wrote it. Writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. Plan: [codegen-layer-roadmap.md](codegen-layer-roadmap.md). |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
 | `module-api-fuzz` | Thin adapter for the Schemathesis CLI engine. Handles configuration, safety policy, and result ingestion. |
 

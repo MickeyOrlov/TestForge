@@ -13,10 +13,13 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - `oneOf`/`anyOf` → `Object` and enums → wire scalar in v1; changing that is a
   design decision, not a fix.
 - Generated code is transport scaffolding; no business assertions in templates.
+- Generated sources must compile: `GeneratedNamesCompileTest` holds the names
+  Java will not take as they are. A new template construct gets a case there.
+- Clients import models one by one, never with a wildcard.
 
 ## Tests
 
-Own: `OpenApiJavaCodeGeneratorTest`, `ApiCodegenRunnerTest`. Example: `ApiCodegenExampleTest`.
+Own: `OpenApiJavaCodeGeneratorTest`, `GeneratedNamesCompileTest`, `ApiCodegenRunnerTest`. Example: `ApiCodegenExampleTest`.
 
 ## Before you finish
 

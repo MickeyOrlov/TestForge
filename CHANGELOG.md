@@ -21,6 +21,14 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-api-codegen`: documents Java could not take as they were now
+  generate compiling code — a schema named `Error` no longer makes the client
+  ambiguous (clients import models by name), models named like a type the
+  generated code uses (`String`, `Response`, `ApiClient` …) get a `Model`
+  suffix, properties named like an `Object` method (`hashCode`, `toString`,
+  `getClass`, `wait` …) get a `Value` suffix with their wire name kept, and
+  parameters named `api` or `requestSpec` no longer collide with the
+  generated method's locals.
 - `module-contract-monitor`: `<case>.message.json` wrote Kafka header values
   as they were — tokens and personal data included — despite the payload
   being redacted; it now lists header names only.
@@ -51,6 +59,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-codegen`: every generated spec is compiled right after it is
+  written (`forge.api-codegen.compile`, default `true`) into
+  `<output-dir>/<spec>/classes`; a spec that does not compile fails and the
+  report lists the errors by file and line. Without a JDK compiler the check
+  is skipped with a warning.
 - `module-contract-monitor`: `ShapeDiff.impact()` judges each drift for
   consumers (`BREAKING` for a vanished path or a newly possible type, `SAFE`
   for new paths and narrowed types), listed in `report.md`;

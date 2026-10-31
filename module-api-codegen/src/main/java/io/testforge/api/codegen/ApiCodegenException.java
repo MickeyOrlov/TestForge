@@ -24,8 +24,16 @@ public class ApiCodegenException extends AssertionError {
                         .append("- ")
                         .append(spec.specId())
                         .append(": ")
-                        .append(spec.error()));
+                        .append(spec.error())
+                        .append(compileErrors(spec)));
         message.append(System.lineSeparator()).append("Report: ").append(report.reportMarkdown());
         return message.toString();
+    }
+
+    private static String compileErrors(ApiCodegenSpecReport spec) {
+        StringBuilder out = new StringBuilder();
+        spec.compileErrors().stream().limit(5).forEach(error -> out.append(System.lineSeparator())
+                .append("    ").append(error));
+        return out.toString();
     }
 }

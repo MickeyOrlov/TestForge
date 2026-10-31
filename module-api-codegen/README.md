@@ -61,6 +61,31 @@ class GenerateApiSourcesTest {
 readable error when a spec cannot be parsed or generation fails. Running it
 again removes stale files only for the generated spec.
 
+## Compile check
+
+Every spec is compiled right after it is written, into
+`<output-dir>/<spec>/classes`, so a document that produces broken Java fails
+the run that generated it — not the build that first uses the sources. The
+report says `compiled: yes/no/not checked` per spec and lists up to 20 errors
+as `File.java:line: message`.
+
+The classpath is the running JVM's: inside a Gradle test task it already holds
+`module-http`, REST Assured and Jackson. Turn the check off with
+`forge.api-codegen.compile=false` (for example when generating outside a test
+JVM); on a JRE without a compiler it is skipped with a warning.
+
+Names Java will not take are changed, never dropped, and the wire name is kept:
+
+| In the document | Generated |
+|---|---|
+| schema `String`, `Response`, `ApiClient`, `Object` … | `StringModel`, `ResponseModel` … |
+| property `hashCode`, `toString`, `getClass`, `wait` … | `hashCodeValue` with `@JsonProperty("hashCode")` |
+| operation id `toString` | `toStringCall(...)` |
+| parameter `api` or `requestSpec` | `api2`, `requestSpec2` |
+
+Clients import each model by name, so a schema named after a `java.lang`
+type (`Error`, `Record`) stays usable as it is.
+
 V1 does not attach its output to a Gradle source set automatically. Generation
 and compilation are intentionally separate steps until a dedicated TestForge
 Gradle plugin exists. A project that wants generated clients on its test
