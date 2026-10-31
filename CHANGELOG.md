@@ -87,6 +87,13 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db-contract`: every change says which of the project's JPA entities
+  it reaches (`DbChangeAssessment.usedBy()`), shown as a "Used by" column in
+  `report.md` and in the gate's failure message. Entities are read lazily from
+  the persistence units' metamodel; replace the `DbSchemaUsage` bean to
+  describe usage another way. Verdicts are unchanged.
+- `module-db`: `SchemaValidator.mapping(entity)` returns an `EntityMapping`
+  (table and mapped columns) resolved without touching a database.
 - `module-db-contract`: likely renames are pointed out — a removed and an
   added table, column, index or foreign key with an identical shape are
   paired under "Possibly renamed" in `report.md` and the gate's failure

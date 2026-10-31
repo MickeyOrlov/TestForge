@@ -11,16 +11,21 @@ import io.testforge.db.contract.diff.DbChangeType;
 import io.testforge.db.contract.model.DbSchemaSnapshot;
 import io.testforge.db.contract.policy.DbChangeAssessment;
 import io.testforge.db.contract.policy.DbCompatibility;
+import io.testforge.db.contract.usage.DbSchemaUsage;
+import io.testforge.db.schema.EntityMapping;
 import io.testforge.reporting.RunArtifactSink;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.util.List;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 
 /**
  * The database contract workflow end to end: capture a baseline, let the schema
@@ -39,6 +44,21 @@ import org.springframework.boot.test.context.SpringBootTest;
         "forge.db-contract.baseline-file=build/db-contract-example/baseline/schema-snapshot.json"
 })
 class DbContractExampleTest {
+
+    /**
+     * Which entities a change reaches. In a project this needs no bean: the
+     * default reads every JPA entity from the persistence units. This example
+     * keeps its demo table out of JPA (Hibernate would create it), so it
+     * declares the mapping instead.
+     */
+    @TestConfiguration
+    static class DemoUsage {
+        @Bean
+        DbSchemaUsage contractDemoUsage() {
+            return DbSchemaUsage.ofMappings(List.of(new EntityMapping(
+                    "ContractDemoOrder", "contract_demo_orders", List.of("id", "status", "amount"))));
+        }
+    }
 
     @Autowired
     DbContractRunner dbContractRunner;
@@ -99,7 +119,9 @@ class DbContractExampleTest {
         assertThatThrownBy(() -> dbContractRunner.assertCompatible())
                 .isInstanceOf(DbContractException.class)
                 .hasMessageContaining("COLUMN_REMOVED")
-                .hasMessageContaining("CONTRACT_DEMO_ORDERS.AMOUNT");
+                .hasMessageContaining("CONTRACT_DEMO_ORDERS.AMOUNT")
+                // the reader learns at once that this project's own entity is in the way
+                .hasMessageContaining("Used by ContractDemoOrder.");
     }
 
     @Test

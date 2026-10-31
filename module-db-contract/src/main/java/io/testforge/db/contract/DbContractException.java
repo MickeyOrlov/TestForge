@@ -31,7 +31,8 @@ public class DbContractException extends RuntimeException {
         String offenders = report.changes().stream()
                 .map(assessment -> "  - [" + assessment.compatibility() + "] "
                         + assessment.change().type() + " " + assessment.change().path()
-                        + ": " + assessment.reason())
+                        + ": " + assessment.reason()
+                        + (assessment.usedBy().isEmpty() ? "" : " Used by " + String.join(", ", assessment.usedBy()) + "."))
                 .collect(Collectors.joining(System.lineSeparator()));
         return "Database contract check failed for schema '" + report.schema() + "': "
                 + report.breakingCount() + " breaking, "

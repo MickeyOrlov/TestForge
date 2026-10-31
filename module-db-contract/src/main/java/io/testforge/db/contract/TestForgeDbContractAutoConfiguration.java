@@ -8,7 +8,11 @@ import io.testforge.db.contract.policy.DefaultDbCompatibilityPolicy;
 import io.testforge.db.contract.snapshot.DbSchemaInspector;
 import io.testforge.db.contract.snapshot.DbSchemaSnapshotStore;
 import io.testforge.db.contract.snapshot.SchemaCrawlerDbSchemaInspector;
+import io.testforge.db.contract.usage.DbSchemaUsage;
+import io.testforge.db.contract.usage.JpaEntityUsage;
 import io.testforge.db.datasource.DataSourceRegistry;
+import io.testforge.db.schema.SchemaValidator;
+import jakarta.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -45,6 +49,18 @@ public class TestForgeDbContractAutoConfiguration {
         return new DefaultDbCompatibilityPolicy();
     }
 
+    /**
+     * Which of the project's JPA entities a change reaches, read lazily from
+     * every persistence unit's metamodel; replace the bean to describe usage
+     * another way.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public DbSchemaUsage dbSchemaUsage(
+            ObjectProvider<EntityManagerFactory> factories, ObjectProvider<SchemaValidator> validator) {
+        return new JpaEntityUsage(() -> factories.orderedStream().toList(), validator::getIfAvailable);
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(DataSource.class)
@@ -55,7 +71,8 @@ public class TestForgeDbContractAutoConfiguration {
             DbCompatibilityPolicy policy,
             DbContractProperties properties,
             ObjectProvider<ObjectMapper> objectMapper,
-            ObjectProvider<ArtifactSink> artifactSink) {
+            ObjectProvider<ArtifactSink> artifactSink,
+            ObjectProvider<DbSchemaUsage> usage) {
         return new DbContractRunner(
                 registry,
                 inspector,
@@ -63,6 +80,7 @@ public class TestForgeDbContractAutoConfiguration {
                 policy,
                 properties,
                 objectMapper.getIfAvailable(ObjectMapper::new),
-                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
+                artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP),
+                usage.getIfAvailable(() -> DbSchemaUsage.NONE));
     }
 }

@@ -118,6 +118,31 @@ metadata includes `location` (the project-relative path), plus `schema`,
 `compatible` and `worstClassified`. Absolute output paths are omitted from
 metadata to avoid exposing the local directory layout.
 
+## Who a change reaches
+
+A verdict says what a change does to *a* consumer. The report also says whether
+one of this project's own entities is in its way: every change carries
+`usedBy`, the entities that map what moved, and `report.md` gets a **Used by**
+column and a count of changes reaching them. The gate message names them too:
+
+```
+  - [BREAKING] COLUMN_REMOVED orders.amount: Every consumer selecting this column now fails. Used by Order.
+```
+
+A column change reaches the entities mapping that column; anything else — a
+table, a new column (a NOT NULL one breaks the entity's inserts), a key or an
+index — reaches the entities mapping the table. Names are matched ignoring
+case.
+
+By default the entities come from every JPA persistence unit's metamodel,
+read the first time a check runs, and resolved through `module-db`'s
+`SchemaValidator.mapping(...)` — so the naming strategy, overrides, embedded
+columns and inheritance are the ones the drift checks already use. Register a
+`DbSchemaUsage` bean to describe usage another way
+(`DbSchemaUsage.ofEntities(validator, classes)` or `ofMappings(...)`). Usage
+is context, never part of the verdict: an entity-free change is judged the
+same, and a usage lookup that fails is logged and ignored.
+
 ## Compatibility rules (v1)
 
 The "consumer" is a test suite or service that reads and writes this schema by
