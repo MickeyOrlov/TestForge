@@ -59,6 +59,19 @@ class TableDiffExampleTest {
     }
 
     @Test
+    void theRowThatChangedIsCheckedColumnByColumn() {
+        TableSnapshot before = ownTasks();
+
+        complete(prefix + "1");
+
+        // not just "one row changed": which row, from what to what, and nothing else in it
+        before.diff().expect()
+                .row(prefix + "1").changed("status", "created", "completed").onlyThese()
+                .and()
+                .row(prefix + "2").unchanged("status");
+    }
+
+    @Test
     void aBackendThatTouchesTheNeighbourIsCaught() {
         TableSnapshot before = ownTasks();
 

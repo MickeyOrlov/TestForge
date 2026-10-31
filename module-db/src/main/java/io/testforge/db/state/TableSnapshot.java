@@ -30,6 +30,8 @@ public final class TableSnapshot {
         List<Map<String, Object>> added = new ArrayList<>();
         List<Map<String, Object>> removed = new ArrayList<>();
         List<TableDiff.RowChange> changed = new ArrayList<>();
+        // rows where only ignored columns moved: not changes, but row(...) can still look at them
+        List<TableDiff.RowChange> touched = new ArrayList<>();
 
         now.forEach((key, row) -> {
             Map<String, Object> before = rows.get(key);
@@ -38,13 +40,18 @@ public final class TableSnapshot {
                 return;
             }
             Map<String, TableDiff.ValueChange> columns = new LinkedHashMap<>();
+            Map<String, TableDiff.ValueChange> ignored = new LinkedHashMap<>();
             row.forEach((column, value) -> {
-                if (!query.ignored().contains(column) && !Objects.equals(before.get(column), value)) {
-                    columns.put(column, new TableDiff.ValueChange(before.get(column), value));
+                if (!Objects.equals(before.get(column), value)) {
+                    // an ignored column does not make a row "changed", but its move is kept for row(...) checks
+                    (query.ignored().contains(column) ? ignored : columns)
+                            .put(column, new TableDiff.ValueChange(before.get(column), value));
                 }
             });
             if (!columns.isEmpty()) {
-                changed.add(new TableDiff.RowChange(key(key), columns));
+                changed.add(new TableDiff.RowChange(key(key), columns, ignored));
+            } else if (!ignored.isEmpty()) {
+                touched.add(new TableDiff.RowChange(key(key), Map.of(), ignored));
             }
         });
         rows.forEach((key, row) -> {
@@ -52,7 +59,7 @@ public final class TableSnapshot {
                 removed.add(row);
             }
         });
-        return new TableDiff(query.describe(), query.key(), added, removed, changed);
+        return new TableDiff(query.describe(), query.key(), added, removed, changed, touched);
     }
 
     private Map<String, Object> key(List<Object> values) {
