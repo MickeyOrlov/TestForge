@@ -62,6 +62,23 @@ class AppiumExtensionBehaviorIT {
         verify(lastDriver).quit();
     }
 
+    @Test
+    @Order(3)
+    void aFailureLeavesASessionSummaryEvenWhenTheDeviceIsGone(
+            @MobileDevice("android-local") AppiumSession session) throws Exception {
+        // the fake driver answers nothing: no screenshot, no page source...
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> session.captureFailureArtifacts(
+                        "AppiumExtensionBehaviorIT aFailure", "AppiumExtensionBehaviorIT-aFailure"))
+                .isInstanceOf(IllegalStateException.class);
+
+        // ...but session.md needs nothing from the device: which device, hub and capabilities
+        Path summary = Path.of("build/appium-artifacts/behavior",
+                "AppiumExtensionBehaviorIT_aFailure_android-local", "session.md");
+        assertThat(java.nio.file.Files.readString(summary))
+                .contains("- device: android-local")
+                .contains("- appium:app: /apps/demo.apk");
+    }
+
     @TestConfiguration
     static class FakeAppiumConfig {
 

@@ -55,7 +55,7 @@ public class AppiumExtension implements ParameterResolver, TestExecutionExceptio
         Sessions sessions = sessions(extensionContext);
         for (AppiumSession session : sessions.all()) {
             try {
-                session.captureFailureArtifacts(testName(extensionContext));
+                session.captureFailureArtifacts(testName(extensionContext), testKey(extensionContext));
             } catch (RuntimeException e) {
                 throwable.addSuppressed(e);
             }
@@ -99,6 +99,12 @@ public class AppiumExtension implements ParameterResolver, TestExecutionExceptio
                 .map(type -> type.getAnnotation(MobileDevice.class))
                 .map(MobileDevice::value)
                 .orElse("");
+    }
+
+    private String testKey(ExtensionContext context) {
+        return context.getTestMethod()
+                .map(method -> method.getDeclaringClass().getSimpleName() + "-" + method.getName())
+                .orElse(null);
     }
 
     private String testName(ExtensionContext context) {
