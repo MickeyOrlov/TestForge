@@ -25,6 +25,8 @@ dependencies {
     testImplementation libs.rest.assured
 
     testRuntimeOnly "com.h2database:h2"
+    // runs a fixture that leaves data behind on purpose (LeftoverReportExampleTest)
+    testImplementation "org.junit.platform:junit-platform-testkit"
     // Gradle 9 no longer injects the launcher onto the test runtime classpath
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
@@ -52,6 +54,8 @@ test {
     useJUnitPlatform {
         excludeTags "containers", "browser", "live-api"
     }
+    // fixtures run only through EngineTestKit (they fail on purpose)
+    exclude "**/*TestkitFixture*"
 }
 
 tasks.register("containersTest", Test) {

@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-data`: leftovers in the run index. Every cleanup action that could
+  not be undone is recorded (test, description, first line of the error, the
+  isolation tag the data carries, whether the test failed too) and published
+  when the context stops as `module-data/leftovers.json` with
+  `healthy: false`, so `summary.md` lists it under *Needs attention*. A clean
+  run writes nothing.
 - `module-data`: data isolation for shared environments. `DataIsolation`
   carries a run tag (`tf-k3x9q`, or `forge.data.isolation.run-tag` such as a
   CI run id) and, with `DataIsolationExtension`, a per-test part

@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-data`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, `Factory`, `DataIsolation`, and the `@Prepared` pool (`PreparedDataProvider`, `PreparedDataPool`, `PoolLifecycle`: config preload, background refill, stats), and test-data cleanup (`Cleanup`, `CleanupExtension`).
+**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, `Factory`, `DataIsolation`, and the `@Prepared` pool (`PreparedDataProvider`, `PreparedDataPool`, `PoolLifecycle`: config preload, background refill, stats), and test-data cleanup (`Cleanup`, `CleanupExtension`, `Leftovers`, `LeftoverReporter`).
 
 **May depend on:** `core` only.
 
@@ -22,6 +22,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Isolation tags match whole (`t1` never owns `t17`); the run tag is per JVM,
   the test tag per thread and closed after the test.
 - `Factory.create` registers an undo only after persisting succeeded.
+- Every undo that failed is recorded in `Leftovers` and published exactly
+  once (`leftovers.json`, `healthy: false`); a clean run writes nothing and a
+  reporting problem never fails the context stop.
 - Cleanup never replaces a test's failure: attach as suppressed; only a
   passing test fails on leftovers. Registrations stay per thread.
 
@@ -29,7 +32,7 @@ Plan: [docs/data-layer-roadmap.md](../docs/data-layer-roadmap.md).
 
 ## Tests
 
-Own: `RunUniqueValuesTest`, `FactoryTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once, tag sets, refill), `PoolLifecycleTest` (config preload, background refill, stats artifact), `CleanupExtensionTest` (runs `CleanupTestkitFixture` through EngineTestKit; the fixture fails on purpose and is excluded from the normal test task), `DataIsolationExtensionTest` (runs `DataIsolationTestkitFixture` the same way). Examples: `DataHelpersTest`, `FactoryExampleTest`, `DataIsolationExampleTest`, `PreparedDataTest`, `PreparedPoolConfigExampleTest`, `CleanupExampleTest`, `ScopedRequestTemplateTest`.
+Own: `RunUniqueValuesTest`, `FactoryTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once, tag sets, refill), `PoolLifecycleTest` (config preload, background refill, stats artifact), `CleanupExtensionTest` (runs `CleanupTestkitFixture` through EngineTestKit; the fixture fails on purpose and is excluded from the normal test task), `DataIsolationExtensionTest` (runs `DataIsolationTestkitFixture` the same way), `LeftoverReporterTest`. Examples: `DataHelpersTest`, `FactoryExampleTest`, `DataIsolationExampleTest`, `LeftoverReportExampleTest`, `PreparedDataTest`, `PreparedPoolConfigExampleTest`, `CleanupExampleTest`, `ScopedRequestTemplateTest`.
 
 ## Before you finish
 

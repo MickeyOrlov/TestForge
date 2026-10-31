@@ -17,6 +17,7 @@ class CleanupExtensionTest {
     @BeforeEach
     void reset() {
         CleanupTestkitFixture.RAN.clear();
+        Leftovers.drain();
     }
 
     private static TestExecutionResult run(String method) {
@@ -53,6 +54,12 @@ class CleanupExtensionTest {
                 .hasMessageContaining("left data behind")
                 .hasMessageContaining("locked order: java.lang.IllegalStateException: 409 order is locked");
         assertThat(CleanupTestkitFixture.RAN).containsSubsequence("last", "first");
+        assertThat(Leftovers.recorded()).singleElement().satisfies(leftover -> {
+            assertThat(leftover.test()).isEqualTo("CleanupTestkitFixture > passesButCannotCleanUp()");
+            assertThat(leftover.description()).isEqualTo("locked order");
+            assertThat(leftover.error()).isEqualTo("java.lang.IllegalStateException: 409 order is locked");
+            assertThat(leftover.testFailed()).isFalse();
+        });
     }
 
     @Test
@@ -63,6 +70,15 @@ class CleanupExtensionTest {
         assertThat(failure.getSuppressed()).singleElement().satisfies(suppressed ->
                 assertThat(suppressed).hasMessageContaining("cleanup failed: locked order")
                         .hasRootCauseMessage("409 order is locked"));
+        assertThat(Leftovers.recorded()).singleElement()
+                .satisfies(leftover -> assertThat(leftover.testFailed()).isTrue());
+    }
+
+    @Test
+    void aCleanTestRecordsNoLeftovers() {
+        run("createsParentThenChild");
+
+        assertThat(Leftovers.recorded()).isEmpty();
     }
 
     @Test
