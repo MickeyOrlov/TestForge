@@ -107,4 +107,39 @@ class MockScopeUnusedStubsTest {
         assertThat(thrown.getSuppressed()).singleElement()
                 .satisfies(note -> assertThat(note).hasMessageContaining("never called"));
     }
+
+    @Test
+    void aBlankScopeIdIsRejectedBecauseItWouldMatchUnscopedTraffic() {
+        assertThatThrownBy(() -> scope(" ", false)).hasMessageContaining("non-blank id");
+        assertThatThrownBy(() -> scope(null, false)).hasMessageContaining("non-blank id");
+    }
+
+    @Test
+    void aSecondCloseDoesNothing() {
+        java.util.List<String> written = new java.util.concurrent.CopyOnWriteArrayList<>();
+        ArtifactSink sink = new ArtifactSink() {
+            @Override
+            public java.nio.file.Path directoryFor(String source) {
+                return java.nio.file.Path.of("unused");
+            }
+
+            @Override
+            public void register(io.testforge.artifact.TestArtifact artifact) {
+            }
+
+            @Override
+            public io.testforge.artifact.TestArtifact write(String source, String category, String name,
+                                                            String mediaType, String content) {
+                written.add(name + "\n" + content);
+                return ArtifactSink.NO_OP.write(source, category, name, mediaType, content);
+            }
+        };
+        MockScope scope = new MockScope(wireMock, ScopeMarker.jsonPath("$.testScope"), "s-6", sink, true);
+        scope.stub(post(urlPathEqualTo("/payments")).willReturn(okJson("{}")));
+
+        assertThatThrownBy(scope::close).isInstanceOf(AssertionError.class);
+        scope.close();
+
+        assertThat(written).singleElement().satisfies(content -> assertThat(content).contains("/payments"));
+    }
 }

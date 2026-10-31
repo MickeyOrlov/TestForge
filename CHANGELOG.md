@@ -6,6 +6,11 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Fixed
+- `module-mock`: a blank scope id is rejected (it would have matched requests
+  that carry no scope), and a second `close()` of a scope does nothing
+  instead of publishing an empty artifact over the real one.
+
 ### Added
 - `module-api-explorer`: stub contract (`forge.stub-contract`).
   `StubContractChecker.assertHonoured(wireMock)` or `assertHonoured(stub)`

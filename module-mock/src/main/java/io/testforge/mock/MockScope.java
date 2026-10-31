@@ -52,6 +52,7 @@ public class MockScope implements AutoCloseable {
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
     private final AtomicInteger sequences = new AtomicInteger();
     private final boolean failOnUnusedStubs;
+    private final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId) {
         this(wireMock, scopeJsonPath, scopeId, ArtifactSink.NO_OP);
@@ -67,6 +68,10 @@ public class MockScope implements AutoCloseable {
 
     MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink,
               boolean failOnUnusedStubs) {
+        if (scopeId == null || scopeId.isBlank()) {
+            // a blank id would match every request that carries no scope at all
+            throw new IllegalArgumentException("A mock scope needs a non-blank id");
+        }
         this.wireMock = wireMock;
         this.marker = marker;
         this.scopeId = scopeId;
@@ -204,6 +209,10 @@ public class MockScope implements AutoCloseable {
      */
     @Override
     public void close() {
+        if (closed.getAndSet(true)) {
+            // a second close (an after-hook behind try-with-resources) must not publish an empty artifact over the real one
+            return;
+        }
         List<String> unused = failOnUnusedStubs ? unusedStubs() : List.of();
         try {
             publishDiagnostics();
