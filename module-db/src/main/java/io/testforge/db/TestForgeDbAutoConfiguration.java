@@ -3,6 +3,7 @@ package io.testforge.db;
 import io.testforge.core.TestForgeCoreAutoConfiguration;
 import io.testforge.core.wait.Waiter;
 import io.testforge.db.datasource.DataSourceRegistry;
+import io.testforge.db.diagnostics.SqlJournal;
 import io.testforge.db.logging.SqlLoggingDataSourcePostProcessor;
 import io.testforge.db.repository.RepositoryPollingAspect;
 import io.testforge.db.repository.RepositoryPollingProperties;
@@ -17,10 +18,12 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 @AutoConfiguration(
         after = TestForgeCoreAutoConfiguration.class,
@@ -81,9 +84,20 @@ public class TestForgeDbAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "forge.db", name = "log-sql", havingValue = "true")
-    public static SqlLoggingDataSourcePostProcessor sqlLoggingDataSourcePostProcessor() {
-        return new SqlLoggingDataSourcePostProcessor();
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.db.diagnostics", name = "enabled", havingValue = "true")
+    public SqlJournal sqlJournal(DbProperties properties) {
+        return new SqlJournal(properties.diagnostics().last());
+    }
+
+    /** One proxy for both: logging ({@code log-sql}) and recording for diagnostics. */
+    @Bean
+    @ConditionalOnExpression("${forge.db.log-sql:false} or ${forge.db.diagnostics.enabled:false}")
+    public static SqlLoggingDataSourcePostProcessor sqlLoggingDataSourcePostProcessor(
+            Environment environment, ObjectProvider<SqlJournal> journal) {
+        boolean log = environment.getProperty("forge.db.log-sql", Boolean.class, false);
+        boolean record = environment.getProperty("forge.db.diagnostics.enabled", Boolean.class, false);
+        return new SqlLoggingDataSourcePostProcessor(log, record ? journal::getIfAvailable : null);
     }
 
     @Bean

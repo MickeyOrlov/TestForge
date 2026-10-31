@@ -1,7 +1,10 @@
 package io.testforge.example;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.testforge.db.diagnostics.DbDiagnosticsExtension;
+import io.testforge.db.diagnostics.SqlJournal;
 import io.testforge.db.state.DbState;
 import io.testforge.db.state.TableSnapshot;
 import io.testforge.example.db.TaskRecord;
@@ -9,6 +12,7 @@ import io.testforge.example.db.TaskRecordRepository;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -17,7 +21,9 @@ import org.springframework.boot.test.context.SpringBootTest;
  * rows before, a diff after, per column — no entity equals, no repository
  * needed. The repository here stands in for the backend under test.
  */
-@SpringBootTest
+@SpringBootTest(properties = "forge.db.diagnostics.enabled=true")
+// a failed test here publishes the SQL it ran, with parameters, to the run index
+@ExtendWith(DbDiagnosticsExtension.class)
 class TableDiffExampleTest {
 
     @Autowired
@@ -25,6 +31,9 @@ class TableDiffExampleTest {
 
     @Autowired
     TaskRecordRepository repository;
+
+    @Autowired
+    SqlJournal sql;
 
     private String prefix;
 
@@ -61,6 +70,16 @@ class TableDiffExampleTest {
                 .isInstanceOf(AssertionError.class)
                 .hasMessageContaining("expected 1 changed rows, got 2")
                 .hasMessageContaining("~ task_id=" + prefix + "2 status: created → completed");
+    }
+
+    @Test
+    void theSqlBehindTheTestIsAtHandWhenItFails() {
+        ownTasks();
+
+        assertThat(sql.recent()).last().satisfies(statement -> {
+            assertThat(statement.sql()).isEqualTo("SELECT * FROM task_record WHERE task_id LIKE ?");
+            assertThat(statement.parameters()).containsExactly(java.util.List.of(prefix + "%"));
+        });
     }
 
     private void save(String taskId, String status) {
