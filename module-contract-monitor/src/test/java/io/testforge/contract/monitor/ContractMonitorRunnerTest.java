@@ -131,6 +131,34 @@ class ContractMonitorRunnerTest {
         assertThat(second.healthy()).isTrue();
     }
 
+    @Test
+    void withBreakingDriftOnlyANewFieldPassesAndARemovedOneFails() throws Exception {
+        KafkaMessageBuffer buffer = new KafkaMessageBuffer(10);
+        buffer.append(message("request-1", validPayload()));
+        Files.createDirectories(temp.resolve("baseline"));
+        ContractMonitorProperties breakingOnly = new ContractMonitorProperties(true, temp.resolve("current").toString(),
+                temp.resolve("baseline").toString(), true, true, true, null, true);
+
+        objectMapper.writeValue(temp.resolve("baseline/partner-status.shape.json").toFile(),
+                Map.of("$", "OBJECT", "$.eventId", "STRING"));
+        assertThat(runner(buffer, breakingOnly).run().healthy()).as("only new fields").isTrue();
+
+        objectMapper.writeValue(temp.resolve("baseline/partner-status.shape.json").toFile(),
+                Map.of("$", "OBJECT", "$.eventId", "STRING", "$.payload.legacy", "STRING"));
+        ContractMonitorReport removed = runner(buffer, breakingOnly).run();
+        assertThat(removed.healthy()).isFalse();
+        assertThat(Files.readString(Path.of(removed.reportMarkdown())))
+                .contains("BREAKING $.payload.legacy: no sampled message has it any more");
+    }
+
+    private ContractMonitorRunner runner(KafkaMessageBuffer buffer, ContractMonitorProperties properties) {
+        return new ContractMonitorRunner(List.of(monitorCase()),
+                new KafkaProbe(buffer, new Waiter(new WaitProperties(Duration.ofMillis(10), Duration.ofMillis(1))),
+                        objectMapper),
+                new JsonContractValidator(ContractMappers.strict(), new ContractProperties(false, 100)),
+                new PayloadShapeNormalizer(), objectMapper, properties, sink);
+    }
+
     private ContractMonitorRunner runner(KafkaMessageBuffer buffer) {
         return new ContractMonitorRunner(
                 List.of(monitorCase()),

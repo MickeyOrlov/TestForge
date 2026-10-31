@@ -45,6 +45,39 @@ public record ShapeDiff(
         return added.isEmpty() && removed.isEmpty() && changed.isEmpty();
     }
 
+    /**
+     * Each difference judged for a consumer of the baseline: a path no sampled
+     * message has any more, or a type it may now arrive as, breaks it; a new
+     * path or a narrowed type does not. Worst first.
+     */
+    public List<io.testforge.contract.json.ContractChange> impact() {
+        List<io.testforge.contract.json.ContractChange> changes = new java.util.ArrayList<>();
+        removed.forEach((path, type) -> changes.add(new io.testforge.contract.json.ContractChange(path,
+                io.testforge.contract.json.ContractChange.Impact.BREAKING, "no sampled message has it any more")));
+        added.forEach((path, type) -> changes.add(new io.testforge.contract.json.ContractChange(path,
+                io.testforge.contract.json.ContractChange.Impact.SAFE, "new " + type)));
+        for (TypeChange change : changed) {
+            java.util.Set<String> was = java.util.Set.of(change.baselineType().split("\\|"));
+            java.util.Set<String> now = new java.util.TreeSet<>(java.util.List.of(change.currentType().split("\\|")));
+            now.removeAll(was);
+            changes.add(now.isEmpty()
+                    ? new io.testforge.contract.json.ContractChange(change.path(),
+                            io.testforge.contract.json.ContractChange.Impact.SAFE,
+                            "narrowed " + change.baselineType() + " → " + change.currentType())
+                    : new io.testforge.contract.json.ContractChange(change.path(),
+                            io.testforge.contract.json.ContractChange.Impact.BREAKING,
+                            "may now arrive as " + now + " (was " + change.baselineType() + ")"));
+        }
+        changes.sort(java.util.Comparator.comparing(io.testforge.contract.json.ContractChange::impact)
+                .thenComparing(io.testforge.contract.json.ContractChange::path));
+        return List.copyOf(changes);
+    }
+
+    public boolean breaking() {
+        return impact().stream().anyMatch(change ->
+                change.impact() == io.testforge.contract.json.ContractChange.Impact.BREAKING);
+    }
+
     public record TypeChange(String path, String baselineType, String currentType) {
     }
 }
