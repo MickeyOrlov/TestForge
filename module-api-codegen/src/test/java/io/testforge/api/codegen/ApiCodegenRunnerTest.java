@@ -179,6 +179,85 @@ class ApiCodegenRunnerTest {
         assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("compiled: yes");
     }
 
+    @Test
+    void regenerationSaysWhatChangedForTheTestsThatUseTheSources() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path output = temp.resolve("generated");
+        ApiCodegenRunner runner = runner(output, Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString())));
+
+        ApiCodegenSpecReport first = runner.assertGenerated().specs().getFirst();
+        assertThat(first.comparedWith()).isNull();
+        assertThat(output.resolve("demo/surface.json")).exists();
+
+        Files.writeString(spec, simpleSpec()
+                .replace("operationId: listTasks", "operationId: findTasks")
+                .replace("      properties:\n        items:",
+                        "      properties:\n        total:\n          type: integer\n        items:"));
+        ApiCodegenReport second = runner.assertGenerated();
+
+        ApiCodegenSpecReport changed = second.specs().getFirst();
+        assertThat(changed.comparedWith()).isEqualTo(output.resolve("demo/surface.json").toString());
+        assertThat(changed.changes()).extracting(change -> change.impact() + " " + change.location())
+                .containsExactly(
+                        "BREAKING TasksApiClient.listTasks",
+                        "SAFE TaskList.total",
+                        "SAFE TasksApiClient.findTasks");
+        assertThat(changed.breakingChanges()).singleElement()
+                .satisfies(change -> assertThat(change.detail()).contains("no longer compile"));
+        assertThat(Files.readString(Path.of(second.reportMarkdown())))
+                .contains("### What changed for tests")
+                .contains("- BREAKING `TasksApiClient.listTasks`: method removed");
+
+        ApiCodegenReport unchanged = runner.assertGenerated();
+        assertThat(unchanged.specs().getFirst().changes()).isEmpty();
+        assertThat(Files.readString(Path.of(unchanged.reportMarkdown())))
+                .contains("Nothing: tests compiled against the baseline compile against this generation.");
+    }
+
+    @Test
+    void aBaselineDirectoryAndTheBreakingGateFailASpecThatBreaksTests() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path baselines = temp.resolve("baselines");
+        runner(baselines, Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString()))).assertGenerated();
+
+        Files.writeString(spec, simpleSpec().replace("operationId: listTasks", "operationId: findTasks"));
+        Path output = temp.resolve("generated");
+        ApiCodegenRunner gated = new ApiCodegenRunner(
+                new OpenApiSpecParser(),
+                new OpenApiJavaCodeGenerator(),
+                new ObjectMapper(),
+                new ApiDiscoveryProperties(false, null, null, null, null,
+                        Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString()))),
+                new ApiCodegenProperties(true, output.toString(), "io.testforge.generated", true,
+                        baselines.toString(), true));
+
+        assertThatThrownBy(gated::assertGenerated)
+                .isInstanceOf(ApiCodegenException.class)
+                .hasMessageContaining("1 change breaks tests compiled against "
+                        + baselines.resolve("demo/surface.json").toAbsolutePath().normalize())
+                .hasMessageContaining("fail-on-breaking-changes");
+        assertThat(baselines.resolve("demo/surface.json")).content().contains("listTasks");
+    }
+
+    @Test
+    void aFailedGenerationKeepsTheBaselineForTheNextOne() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path output = temp.resolve("generated");
+        ApiCodegenRunner runner = runner(output, Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString())));
+        runner.assertGenerated();
+
+        Files.writeString(spec, "openapi: [");
+        assertThat(runner.run().healthy()).isFalse();
+        assertThat(output.resolve("demo/surface.json")).exists();
+
+        Files.writeString(spec, simpleSpec().replace("operationId: listTasks", "operationId: findTasks"));
+        assertThat(runner.assertGenerated().specs().getFirst().breakingChanges())
+                .extracting(change -> change.location()).containsExactly("TasksApiClient.listTasks");
+    }
+
     private ApiCodegenRunner runner(Path output, Map<String, ApiDiscoveryProperties.Spec> specs) {
         return new ApiCodegenRunner(
                 new OpenApiSpecParser(),

@@ -2,6 +2,7 @@ package io.testforge.api.codegen;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.testforge.api.discovery.ApiChange;
 import io.testforge.api.discovery.ApiDiscoveryProperties;
 import io.testforge.api.discovery.ApiSpecSource;
 import io.testforge.api.discovery.OpenApiSpecParser;
@@ -18,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class ApiCodegenRunner {
+
+    static final String SURFACE_FILE = "surface.json";
 
     private final OpenApiSpecParser parser;
     private final OpenApiJavaCodeGenerator generator;
@@ -110,6 +113,14 @@ public final class ApiCodegenRunner {
     private ApiCodegenSpecReport generateSpec(ApiSpecSource source, Path outputDir, String outputName) {
         Path specRoot = outputDir.resolve(outputName);
         Path sourceRoot = specRoot.resolve("src/main/java");
+        Path ownSurface = specRoot.resolve(SURFACE_FILE);
+        Path baseline = properties.surfaceBaselineDir() == null
+                ? ownSurface
+                : Path.of(properties.surfaceBaselineDir()).resolve(outputName).resolve(SURFACE_FILE)
+                        .toAbsolutePath().normalize();
+        List<String> warnings = new ArrayList<>();
+        // read before the directory is replaced: by default the baseline is the previous run's own output
+        GeneratedSurface previous = readSurface(baseline, warnings);
         try {
             replaceDirectory(specRoot);
             OpenAPI openApi = parser.parse(source);
@@ -125,7 +136,9 @@ public final class ApiCodegenRunner {
                 writeString(file, generatedSource.content());
                 written.add(file);
             }
-            List<String> warnings = new ArrayList<>(generated.warnings());
+            warnings.addAll(generated.warnings());
+            writeSurface(ownSurface, generated.surface());
+            List<ApiChange> changes = previous == null ? List.of() : generated.surface().changesSince(previous);
             Boolean compiled = null;
             List<String> compileErrors = List.of();
             if (properties.compile()) {
@@ -137,7 +150,18 @@ public final class ApiCodegenRunner {
                     warnings.add("Compile check skipped: " + result.skipped());
                 }
             }
-            boolean failed = Boolean.FALSE.equals(compiled);
+            boolean doesNotCompile = Boolean.FALSE.equals(compiled);
+            long breaking = changes.stream().filter(change -> change.impact() == ApiChange.Impact.BREAKING).count();
+            boolean breaksTests = properties.failOnBreakingChanges() && breaking > 0;
+            boolean failed = doesNotCompile || breaksTests;
+            String error = null;
+            if (doesNotCompile) {
+                error = "the generated sources do not compile (" + compileErrors.size()
+                        + " error" + (compileErrors.size() == 1 ? "" : "s") + " listed in the report)";
+            } else if (breaksTests) {
+                error = breaking + (breaking == 1 ? " change breaks" : " changes break") + " tests compiled against "
+                        + baseline + " (forge.api-codegen.fail-on-breaking-changes)";
+            }
             return new ApiCodegenSpecReport(
                     source.id(),
                     source.location(),
@@ -148,11 +172,16 @@ public final class ApiCodegenRunner {
                     sourceRoot.toString(),
                     written.stream().map(Path::toString).toList(),
                     warnings,
-                    failed ? "the generated sources do not compile (" + compileErrors.size()
-                            + " error" + (compileErrors.size() == 1 ? "" : "s") + " listed in the report)" : null,
+                    error,
                     compiled,
-                    compileErrors);
+                    compileErrors,
+                    previous == null ? null : baseline.toString(),
+                    changes);
         } catch (RuntimeException e) {
+            if (previous != null && baseline.equals(ownSurface)) {
+                // a failed run must not lose the baseline the next successful one compares with
+                writeSurface(ownSurface, previous);
+            }
             return new ApiCodegenSpecReport(
                     source.id(),
                     source.location(),
@@ -193,6 +222,27 @@ public final class ApiCodegenRunner {
                 List.of(),
                 List.of(),
                 "OpenAPI spec id collision: " + String.join("; ", collisions));
+    }
+
+    private GeneratedSurface readSurface(Path file, List<String> warnings) {
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(file.toFile(), GeneratedSurface.class);
+        } catch (IOException e) {
+            warnings.add("Ignored an unreadable surface baseline " + file + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void writeSurface(Path file, GeneratedSurface surface) {
+        try {
+            Files.createDirectories(file.getParent());
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), surface);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write " + file, e);
+        }
     }
 
     private void replaceDirectory(Path directory) {
@@ -253,6 +303,19 @@ public final class ApiCodegenRunner {
             if (!spec.compileErrors().isEmpty()) {
                 out.append("- compile errors:\n");
                 spec.compileErrors().forEach(error -> out.append("  - ").append(error).append('\n'));
+            }
+            if (!spec.failed() || spec.compiled() != null) {
+                out.append("- compared with: ")
+                        .append(spec.comparedWith() == null ? "nothing (first generation)" : spec.comparedWith())
+                        .append('\n');
+            }
+            if (spec.comparedWith() != null) {
+                out.append("\n### What changed for tests\n\n");
+                if (spec.changes().isEmpty()) {
+                    out.append("Nothing: tests compiled against the baseline compile against this generation.\n");
+                }
+                spec.changes().forEach(change -> out.append("- ").append(change.impact()).append(" `")
+                        .append(change.location()).append("`: ").append(change.detail()).append('\n'));
             }
             if (!spec.warnings().isEmpty()) {
                 out.append("- warnings:\n");

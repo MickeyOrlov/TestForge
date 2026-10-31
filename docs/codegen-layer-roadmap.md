@@ -10,7 +10,7 @@ wrote them.
 |---|---|---|---|
 | 1 | **Compile check** — every generated spec compiled right after it is written; errors by file and line in the report; names Java will not take renamed | `module-api-codegen` | shipped |
 | 2 | **Documented clients** — the document's summaries, descriptions and expected statuses as Javadoc, with comment-breaking text neutralised | `module-api-codegen` | shipped |
-| 3 | **What regeneration changed** — the generated surface compared with the previous run; a removed method or a changed signature called out as breaking for the tests that use it | `module-api-codegen` | planned |
+| 3 | **What regeneration changed** — the generated surface compared with the previous run; a removed method or a changed signature called out as breaking for the tests that use it | `module-api-codegen` | shipped |
 | 4 | **Review** — close the gaps a review of the module finds | `module-api-codegen` | planned |
 
 ## Step 1 — compile check
@@ -46,3 +46,23 @@ description containing `*/` closes the comment and the rest compiles as code
 initialiser. `*/`, `/*`, backslashes (the compiler decodes `\u002a/` inside
 comments), `@`, braces and HTML are escaped; the hostile document compiles to
 classes with only their generated members.
+
+## Step 3 — what regeneration changed
+
+A new document version regenerates sources the project's tests compile
+against, and the first sign of a removed operation used to be a compile error
+somewhere in the test tree. Each generation now writes `surface.json` — client
+methods with parameters, records with components, types only — and compares
+itself with the baseline, judged for those tests:
+
+| Change | Impact |
+|---|---|
+| type, method or component removed; signature or component type changed | `BREAKING` |
+| component added to a record tests build (a request body or inside one) | `BREAKING` |
+| parameters renamed or reordered, same types | `RISKY` — compiles, may pass values to the wrong parameter |
+| type or method added; component added to a response-only record | `SAFE` |
+
+The baseline is the previous run's output by default and
+`forge.api-codegen.surface-baseline-dir` in CI;
+`fail-on-breaking-changes` (default `false`) makes it a gate. A failed
+generation restores the old `surface.json` so the comparison survives it.

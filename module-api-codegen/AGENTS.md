@@ -19,10 +19,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Document text (descriptions, summaries) reaches generated code only through
   `JavaNames.javadocText` or `JavaNames.stringLiteral` — never raw.
   `GeneratedJavadocTest` holds the hostile cases.
+- `surface.json` holds names and types only, never document text or examples.
+  A baseline is promoted by an explicit copy, never written by the check.
 
 ## Tests
 
-Own: `OpenApiJavaCodeGeneratorTest`, `GeneratedNamesCompileTest`, `GeneratedJavadocTest`, `ApiCodegenRunnerTest`. Example: `ApiCodegenExampleTest`.
+Own: `OpenApiJavaCodeGeneratorTest`, `GeneratedNamesCompileTest`, `GeneratedJavadocTest`, `GeneratedSurfaceTest`, `ApiCodegenRunnerTest`. Example: `ApiCodegenExampleTest`.
 
 ## Before you finish
 

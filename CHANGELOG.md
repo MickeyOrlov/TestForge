@@ -59,6 +59,13 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-codegen`: each generation writes `<spec>/surface.json` (client
+  methods and record components, types only) and reports what changed for the
+  tests that use the sources — a removed method or changed signature as
+  `BREAKING`, renamed or reordered parameters of the same types as `RISKY`, a
+  new component of a record tests build as `BREAKING`. The baseline is the
+  previous run or `forge.api-codegen.surface-baseline-dir`;
+  `forge.api-codegen.fail-on-breaking-changes` turns it into a gate.
 - `module-api-codegen`: generated clients and records carry the document's
   words as Javadoc — tag, summary and description, the call with the statuses
   it responds with (model named where one exists), parameter and property

@@ -135,7 +135,9 @@ must not replace each other. `example-tests` is never published.
    are requested. Keep the default output under `build/generated/testforge`;
    never point generation at a hand-maintained source directory. Generated
    records and clients are transport scaffolding, not business tests. V1 does
-   not attach its output to a Gradle source set automatically.
+   not attach its output to a Gradle source set automatically. In CI, point
+   `forge.api-codegen.surface-baseline-dir` at the last accepted
+   `<spec>/surface.json` so the report says which tests a new document breaks.
 11. **module-api-explorer**: reuse the same `forge.api-discovery.specs`
    registry and set `forge.http.base-url` for the environment. Leave
    `forge.api-explorer.methods` at its default — GET/HEAD/OPTIONS need no
