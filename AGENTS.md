@@ -290,7 +290,8 @@ reviewing a module. Adapting a fresh clone follows
   (`com.networknt:json-schema-validator`) behind the same `MessageContract`
   API — do not grow the homemade DSL.
 - `module-api-codegen` maps `oneOf`/`anyOf` to `Object` and enum schemas to
-  their wire scalar type in v1. Generated sources are a build artifact and are
-  not compiled in the same test phase that creates them.
+  their wire scalar type in v1. Generated sources are a build artifact: the
+  runner compiles them into `<spec>/classes` to prove they build
+  (`forge.api-codegen.compile`), but does not put them on any source set.
 - `module-api-fuzz`: `--include-method` alone does not stop the coverage phase from emitting unspecified methods. TestForge also generates a config file to enforce the safety policy.
 - Artifact reporting (`forge.reporting.artifacts.enabled`) and resource usage monitoring (`forge.reporting.resource-monitor.enabled`) are disabled by default (`false`); set `forge.reporting.artifacts.enabled=true` in CI profiles to generate run manifests and summaries. When `module-reporting` is absent or disabled, `ArtifactSink.NO_OP` is active, so producer calls succeed silently without collecting artifacts into a run directory.

@@ -108,6 +108,77 @@ class ApiCodegenRunnerTest {
                 .exists();
     }
 
+    @Test
+    void generatedSourcesThatDoNotCompileFailTheSpecWithTheErrors() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path output = temp.resolve("generated");
+        // an empty classpath: the generated client cannot see ApiClient or REST Assured
+        ApiCodegenRunner runner = new ApiCodegenRunner(
+                new OpenApiSpecParser(),
+                new OpenApiJavaCodeGenerator(),
+                new ObjectMapper(),
+                new ApiDiscoveryProperties(false, null, null, null, null,
+                        Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString()))),
+                new ApiCodegenProperties(true, output.toString(), "io.testforge.generated"),
+                new GeneratedSourceCompiler(""));
+
+        ApiCodegenReport report = runner.run();
+
+        assertThat(report.healthy()).isFalse();
+        assertThat(report.specs()).singleElement().satisfies(generated -> {
+            assertThat(generated.compiled()).isFalse();
+            assertThat(generated.error()).contains("do not compile");
+            assertThat(generated.compileErrors())
+                    .anySatisfy(error -> assertThat(error)
+                            .startsWith("io/testforge/generated/demo/client/TasksApiClient.java:")
+                            .contains("io.restassured"));
+        });
+        assertThat(Files.readString(Path.of(report.reportMarkdown())))
+                .contains("compiled: no")
+                .contains("compile errors:");
+        assertThatThrownBy(runner::assertGenerated)
+                .isInstanceOf(ApiCodegenException.class)
+                .hasMessageContaining("TasksApiClient.java:");
+    }
+
+    @Test
+    void theCompileCheckCanBeTurnedOff() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path output = temp.resolve("generated");
+        ApiCodegenRunner runner = new ApiCodegenRunner(
+                new OpenApiSpecParser(),
+                new OpenApiJavaCodeGenerator(),
+                new ObjectMapper(),
+                new ApiDiscoveryProperties(false, null, null, null, null,
+                        Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString()))),
+                new ApiCodegenProperties(true, output.toString(), "io.testforge.generated", false),
+                new GeneratedSourceCompiler(""));
+
+        ApiCodegenReport report = runner.assertGenerated();
+
+        assertThat(report.specs()).singleElement().satisfies(generated -> {
+            assertThat(generated.compiled()).isNull();
+            assertThat(generated.compileErrors()).isEmpty();
+        });
+        assertThat(output.resolve("demo/classes")).doesNotExist();
+    }
+
+    @Test
+    void aCompiledSpecSaysSoAndKeepsItsClassesInsideItsOwnDirectory() throws IOException {
+        Path spec = temp.resolve("openapi.yaml");
+        Files.writeString(spec, simpleSpec());
+        Path output = temp.resolve("generated");
+
+        ApiCodegenReport report = runner(output, Map.of("demo", new ApiDiscoveryProperties.Spec(spec.toString())))
+                .assertGenerated();
+
+        assertThat(report.specs().getFirst().compiled()).isTrue();
+        assertThat(output.resolve("demo/classes/io/testforge/generated/demo/client/TasksApiClient.class")).exists();
+        assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("compiled: yes");
+    }
+
     private ApiCodegenRunner runner(Path output, Map<String, ApiDiscoveryProperties.Spec> specs) {
         return new ApiCodegenRunner(
                 new OpenApiSpecParser(),

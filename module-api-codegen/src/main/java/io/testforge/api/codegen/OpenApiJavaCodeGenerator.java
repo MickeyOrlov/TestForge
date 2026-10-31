@@ -99,11 +99,11 @@ public final class OpenApiJavaCodeGenerator {
             ModelRegistry models) {
         StringBuilder methods = new StringBuilder();
         Set<String> methodNames = new LinkedHashSet<>();
-        boolean importsModels = false;
+        Set<String> usedModels = new TreeSet<>();
 
         for (OperationDefinition operation : operations) {
             ClientMethod method = clientMethod(operation, models, methodNames);
-            importsModels |= method.usesModel();
+            method.parameters().forEach(parameter -> usedModels.addAll(parameter.type().models()));
             methods.append(renderMethod(method));
         }
 
@@ -112,9 +112,10 @@ public final class OpenApiJavaCodeGenerator {
                 .append("import io.restassured.response.Response;\n")
                 .append("import io.restassured.specification.RequestSpecification;\n")
                 .append("import io.testforge.http.ApiClient;\n");
-        if (importsModels) {
-            source.append("import ").append(models.modelPackage).append(".*;\n");
-        }
+        // one import per model, never a wildcard: a single-type import wins over
+        // java.lang, so a schema named Error or Record cannot become ambiguous
+        usedModels.forEach(model -> source.append("import ").append(models.modelPackage).append('.')
+                .append(model).append(";\n"));
         source.append("\n")
                 .append("/** Generated from OpenAPI. Regenerate instead of editing this file. */\n")
                 .append("public final class ").append(clientName).append(" {\n\n")
@@ -137,10 +138,11 @@ public final class OpenApiJavaCodeGenerator {
         if (requestedName == null || requestedName.isBlank()) {
             requestedName = definition.method().name().toLowerCase(Locale.ROOT) + " " + definition.path();
         }
-        String methodName = unique(JavaNames.member(requestedName), usedMethodNames);
+        String methodName = unique(JavaNames.method(requestedName), usedMethodNames);
 
         List<MethodParameter> parameters = new ArrayList<>();
-        Set<String> parameterNames = new LinkedHashSet<>();
+        // the generated method's own names: a parameter called api or requestSpec gets a suffix
+        Set<String> parameterNames = new LinkedHashSet<>(List.of("api", "requestSpec"));
         for (Parameter parameter : mergedParameters(definition)) {
             if (parameter == null || parameter.getName() == null || parameter.getIn() == null) {
                 models.warn("Skipped unresolved parameter in " + operationKey(definition));
@@ -394,10 +396,6 @@ public final class OpenApiJavaCodeGenerator {
             boolean acceptsJson,
             boolean deprecated,
             List<MethodParameter> parameters) {
-
-        boolean usesModel() {
-            return parameters.stream().anyMatch(parameter -> parameter.type().model());
-        }
     }
 
     private record MethodParameter(
@@ -408,7 +406,16 @@ public final class OpenApiJavaCodeGenerator {
             JavaType type) {
     }
 
-    private record JavaType(String declaration, boolean model) {
+    /** A Java type and the generated models it mentions, so a client imports exactly those. */
+    private record JavaType(String declaration, Set<String> models) {
+
+        private static JavaType plain(String declaration) {
+            return new JavaType(declaration, Set.of());
+        }
+
+        private static JavaType model(String name) {
+            return new JavaType(name, Set.of(name));
+        }
     }
 
     private final class ModelRegistry {
@@ -524,7 +531,7 @@ public final class OpenApiJavaCodeGenerator {
             properties(schema).entrySet().stream()
                     .sorted(Map.Entry.comparingByKey())
                     .forEach(entry -> {
-                        String javaName = unique(JavaNames.member(entry.getKey()), usedFieldNames);
+                        String javaName = unique(JavaNames.component(entry.getKey()), usedFieldNames);
                         fields.add(new ModelProperty(
                                 entry.getKey(),
                                 javaName,
@@ -566,7 +573,7 @@ public final class OpenApiJavaCodeGenerator {
 
         private JavaType typeFor(Schema<?> schema, String suggestion, boolean required, boolean generic) {
             if (schema == null) {
-                return new JavaType("Object", false);
+                return JavaType.plain("Object");
             }
             String referenceName = referenceName(schema);
             if (referenceName != null) {
@@ -575,53 +582,53 @@ public final class OpenApiJavaCodeGenerator {
                     return typeFor(referenced, suggestion, required, generic);
                 }
                 String modelName = register(JavaNames.type(referenceName), referenced == null ? schema : referenced);
-                return new JavaType(modelName, true);
+                return JavaType.model(modelName);
             }
             String knownName = namesByIdentity.get(schema);
             if (knownName != null) {
-                return new JavaType(knownName, true);
+                return JavaType.model(knownName);
             }
             if (schema.getOneOf() != null && !schema.getOneOf().isEmpty()
                     || schema.getAnyOf() != null && !schema.getAnyOf().isEmpty()) {
                 warn("Mapped oneOf/anyOf schema " + suggestion + " to Object");
-                return new JavaType("Object", false);
+                return JavaType.plain("Object");
             }
             if (arrayItems(schema) != null || schema instanceof ArraySchema || "array".equals(schema.getType())) {
                 JavaType itemType = typeFor(arrayItems(schema), suggestion + "Item", false, true);
-                return new JavaType("java.util.List<" + boxed(itemType.declaration()) + ">", itemType.model());
+                return new JavaType("java.util.List<" + boxed(itemType.declaration()) + ">", itemType.models());
             }
             if (isObject(schema)) {
                 if (!properties(schema).isEmpty()) {
-                    return new JavaType(register(suggestion, schema), true);
+                    return JavaType.model(register(suggestion, schema));
                 }
                 if (schema.getAdditionalProperties() instanceof Schema<?> valueSchema) {
                     JavaType valueType = typeFor(valueSchema, suggestion + "Value", false, true);
                     return new JavaType(
                             "java.util.Map<String, " + boxed(valueType.declaration()) + ">",
-                            valueType.model());
+                            valueType.models());
                 }
-                return new JavaType("java.util.Map<String, Object>", false);
+                return JavaType.plain("java.util.Map<String, Object>");
             }
 
             boolean primitive = required && !Boolean.TRUE.equals(schema.getNullable()) && !generic;
             return switch (schema.getType() == null ? "" : schema.getType()) {
-                case "integer" -> new JavaType(integerType(schema.getFormat(), primitive), false);
-                case "number" -> new JavaType(numberType(schema.getFormat(), primitive), false);
-                case "boolean" -> new JavaType(primitive ? "boolean" : "Boolean", false);
-                case "string" -> new JavaType(stringType(schema.getFormat()), false);
-                default -> new JavaType("Object", false);
+                case "integer" -> JavaType.plain(integerType(schema.getFormat(), primitive));
+                case "number" -> JavaType.plain(numberType(schema.getFormat(), primitive));
+                case "boolean" -> JavaType.plain(primitive ? "boolean" : "Boolean");
+                case "string" -> JavaType.plain(stringType(schema.getFormat()));
+                default -> JavaType.plain("Object");
             };
         }
 
         private String register(String requestedName, Schema<?> schema) {
             if (schema == null) {
-                return JavaNames.type(requestedName);
+                return JavaNames.model(requestedName);
             }
             String existing = namesByIdentity.get(schema);
             if (existing != null) {
                 return existing;
             }
-            String base = JavaNames.type(requestedName);
+            String base = JavaNames.model(requestedName);
             String name = base;
             int suffix = 2;
             while (models.containsKey(name) && models.get(name) != schema) {

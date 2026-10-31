@@ -14,7 +14,37 @@ final class JavaNames {
             "synchronized", "this", "throw", "throws", "transient", "try", "var", "void",
             "volatile", "while", "yield", "true", "false", "null");
 
+    /** {@code Object}'s methods: a record accessor or client method by these names does not compile. */
+    private static final Set<String> OBJECT_METHODS = Set.of(
+            "clone", "equals", "finalize", "getClass", "hashCode", "notify", "notifyAll", "toString", "wait");
+
+    /**
+     * Simple names the generated code itself uses: a model by one of these
+     * names would shadow or collide with it.
+     */
+    private static final Set<String> RESERVED_TYPES = Set.of(
+            "ApiClient", "RequestSpecification", "Response", "JsonProperty",
+            "Object", "String", "Integer", "Long", "Float", "Double", "Boolean");
+
     private JavaNames() {
+    }
+
+    /** A model type name that does not collide with a type the generated code refers to by simple name. */
+    static String model(String value) {
+        String result = type(value);
+        return RESERVED_TYPES.contains(result) ? result + "Model" : result;
+    }
+
+    /** A record component name; one clashing with an {@code Object} method gets a suffix. */
+    static String component(String value) {
+        String result = member(value);
+        return OBJECT_METHODS.contains(result) ? result + "Value" : result;
+    }
+
+    /** A client method name; one clashing with an {@code Object} method gets a suffix. */
+    static String method(String value) {
+        String result = member(value);
+        return OBJECT_METHODS.contains(result) ? result + "Call" : result;
     }
 
     static String type(String value) {

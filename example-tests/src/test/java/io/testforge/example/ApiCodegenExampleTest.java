@@ -41,6 +41,8 @@ class ApiCodegenExampleTest {
             assertThat(spec.clients()).isEqualTo(1);
             assertThat(spec.operations()).isEqualTo(2);
             assertThat(spec.files()).allSatisfy(file -> assertThat(Path.of(file)).exists());
+            // compiled right after generation: a document Java cannot take fails here
+            assertThat(spec.compiled()).isTrue();
         });
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("API Code Generation Report")
