@@ -123,6 +123,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: row expectations on a table diff —
+  `expect().row(42).changed("status", "NEW", "PAID").increasedBy("version", 1)
+  .movedForward("updated_at").unchanged("created_at").onlyThese()`, plus
+  `addedRow(...).has(...)` and `removedRow(...)`. Values compare by meaning
+  across JDBC types; moves in `ignoring(...)` columns are kept for these
+  checks without making a row count as changed.
 - `core`: `ScenarioContext.remove(key)` drops one value; `put(key, null)`
   pointed at "remove semantics" that did not exist. `JsonPath.read` refuses a
   null path with a hint instead of a bare `NullPointerException`.

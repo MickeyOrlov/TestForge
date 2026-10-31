@@ -142,6 +142,38 @@ columns changed that should not have: [total] in orders where customer_id = ? (k
   the test's own SQL with `?` parameters.
 - `db.on("auditDataSource")` for a named datasource.
 
+### Exactly what changed in a row
+
+`changed(1, "status")` says one row changed in one column. A row expectation
+says which row, from what to what, and that nothing else in it moved:
+
+```java
+before.diff().expect().changed(1)
+        .row(42)                                   // key values in keyedBy order
+            .changed("status", "NEW", "PAID")
+            .increasedBy("version", 1)
+            .movedForward("updated_at")            // works on ignoring(...) columns too
+            .unchanged("created_at", "customer_id")
+            .onlyThese()                           // any other column of row 42 that moved fails
+        .and()
+        .row(41).unchanged("status")               // the neighbour stayed as it was
+        .and()
+        .addedRow(43).has("status", "NEW").has("total", 3)
+        .and()
+        .removedRow(40);
+```
+
+Values compare by meaning — `42` matches an `INTEGER`, `BIGINT` or `NUMERIC`,
+`10` matches `10.00`, an enum matches its name, a `LocalDateTime` matches a
+`TIMESTAMP`. A column listed in `ignoring(...)` never makes a row count as
+changed, but its move is kept, so `movedForward("updated_at")` still checks
+it. Every failure names the row and the column and carries the whole diff:
+
+```
+row id=42: status expected NEW → SHIPPED, was NEW → PAID in orders where customer_id = ? (keyed by id)
+  ~ id=42 status: NEW → PAID; version: 3 → 4
+```
+
 ## Rows for setup, removed after the test
 
 For a state the product's API cannot produce, or cannot produce fast:
