@@ -342,6 +342,20 @@ as bounded with `WHERE`, `LIMIT`, `FETCH FIRST` or `TOP` anywhere in it, so a
 whole-table subquery under a filtered outer query is not flagged — the checks
 read SQL text, not query plans.
 
+And how long, and whether anything failed underneath:
+
+```java
+sql.expect()
+        .noneSlowerThan(Duration.ofMillis(500))     // each statement
+        .totalUnder(Duration.ofSeconds(1))          // the action's time in the database
+        .noErrors();                                // a duplicate key the code caught and hid
+```
+
+`sql.slowest(3)`, `sql.totalMillis()` and `sql.failed()` give the same data to
+a test that wants to log it. Times are the driver's, per statement; on a shared
+database they measure the environment as much as the code, so keep the limits
+for gross regressions — a missing index, a report that went quadratic.
+
 Statements are grouped by shape — literals and `IN (...)` lists folded — and a
 batch counts each row. The window sees every thread, so an application serving
 the request on its own threads in the test's JVM counts; `duringThisThread`

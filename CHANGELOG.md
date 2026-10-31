@@ -128,6 +128,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: `CapturedQueries` measures time and failures —
+  `slowest(n)`, `totalMillis()`, `failed()`, and `expect().noneSlowerThan(limit)`,
+  `totalUnder(budget)`, `noErrors()` (a statement that failed inside an action
+  that succeeded, such as a duplicate key the code swallowed).
 - `module-db`: atomicity checks on `DbSnapshot` and `TableSnapshot` —
   `expectRolledBack(action)` (the action must fail and leave every watched row
   as it was, or the failure lists what it left), `assertUnchanged()` for a

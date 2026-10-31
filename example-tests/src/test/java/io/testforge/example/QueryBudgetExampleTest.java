@@ -79,4 +79,25 @@ class QueryBudgetExampleTest {
         assertThatThrownBy(() -> sql.expect().noUnfilteredReads())
                 .hasMessageContaining("reads of a whole table (no WHERE or LIMIT)");
     }
+
+    @Test
+    void aFailureTheApplicationSwallowedIsStillSeen() {
+        jdbc.execute("CREATE TABLE IF NOT EXISTS qb_customers (email VARCHAR(96) PRIMARY KEY)");
+        String email = UUID.randomUUID() + "@example.test";
+        jdbc.update("INSERT INTO qb_customers VALUES (?)", email);
+
+        CapturedQueries sql = queries.during(() -> {
+            // "register" catches the duplicate key and answers 200 as if nothing happened
+            try {
+                jdbc.update("INSERT INTO qb_customers VALUES (?)", email);
+            } catch (org.springframework.dao.DuplicateKeyException ignored) {
+                // swallowed by the code under test
+            }
+        });
+
+        sql.expect().noneSlowerThan(java.time.Duration.ofSeconds(5));
+        assertThatThrownBy(() -> sql.expect().noErrors())
+                .hasMessageContaining("statements failed inside the action")
+                .hasMessageContaining("INSERT INTO qb_customers VALUES (?)");
+    }
 }

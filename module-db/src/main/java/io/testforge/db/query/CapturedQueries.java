@@ -130,6 +130,24 @@ public final class CapturedQueries {
         return statements.stream().filter(s -> s.kind() == kind).mapToInt(Statement::batch).sum();
     }
 
+    /** Time spent in the database across every statement, as the driver measured it. */
+    public long totalMillis() {
+        return statements.stream().mapToLong(Statement::millis).sum();
+    }
+
+    /** The {@code n} slowest statements, slowest first. */
+    public List<Statement> slowest(int n) {
+        return statements.stream()
+                .sorted(java.util.Comparator.comparingLong(Statement::millis).reversed())
+                .limit(n)
+                .toList();
+    }
+
+    /** Statements that failed — inside an action that may itself have succeeded. */
+    public List<Statement> failed() {
+        return statements.stream().filter(s -> s.error() != null).toList();
+    }
+
     /** How often each statement shape ran, most frequent first. */
     public Map<String, Integer> shapes() {
         Map<String, Integer> counts = new LinkedHashMap<>();
@@ -163,6 +181,7 @@ public final class CapturedQueries {
                     .append(kind).append(' ').append(n));
             out.append(')');
         }
+        out.append(", ").append(totalMillis()).append(" ms in the database");
         shapes().forEach((shape, n) -> out.append("\n  ").append(n).append(" × ").append(shape));
         return out.toString();
     }
@@ -234,6 +253,34 @@ public final class CapturedQueries {
             return offending(statement -> statement.unfilteredRead()
                             && !allowed.containsAll(statement.tables().stream().map(CapturedQueries::bareName).toList()),
                     "reads of a whole table (no WHERE or LIMIT): ");
+        }
+
+        /** No single statement took longer than {@code limit}; the failure lists each that did, slowest first. */
+        public Expectation noneSlowerThan(java.time.Duration limit) {
+            List<String> slow = queries.statements.stream()
+                    .filter(s -> s.millis() > limit.toMillis())
+                    .sorted(java.util.Comparator.comparingLong(Statement::millis).reversed())
+                    .map(s -> s.millis() + " ms  " + s.shape() + "  [" + s.thread() + "]")
+                    .toList();
+            return check(slow.isEmpty(), "statements slower than " + limit.toMillis() + " ms:\n  "
+                    + String.join("\n  ", slow));
+        }
+
+        /** The action spent less than {@code budget} in the database, all statements together. */
+        public Expectation totalUnder(java.time.Duration budget) {
+            List<String> top = queries.slowest(3).stream().map(s -> s.millis() + " ms  " + s.shape()).toList();
+            return check(queries.totalMillis() < budget.toMillis(), "expected under " + budget.toMillis()
+                    + " ms in the database, spent " + queries.totalMillis() + " ms; slowest:\n  "
+                    + String.join("\n  ", top));
+        }
+
+        /**
+         * No statement failed — even when the action succeeded: a constraint
+         * violation the application caught and retried, a deadlock it swallowed.
+         */
+        public Expectation noErrors() {
+            List<String> failed = queries.failed().stream().map(s -> s.error() + "  " + s.shape()).toList();
+            return check(failed.isEmpty(), "statements failed inside the action:\n  " + String.join("\n  ", failed));
         }
 
         private Expectation offending(java.util.function.Predicate<Statement> test, String message) {
