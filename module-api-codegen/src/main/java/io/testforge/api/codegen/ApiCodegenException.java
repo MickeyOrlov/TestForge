@@ -34,6 +34,8 @@ public class ApiCodegenException extends AssertionError {
         StringBuilder out = new StringBuilder();
         spec.compileErrors().stream().limit(5).forEach(error -> out.append(System.lineSeparator())
                 .append("    ").append(error));
+        spec.breakingChanges().stream().limit(5).forEach(change -> out.append(System.lineSeparator())
+                .append("    ").append(change));
         return out.toString();
     }
 }

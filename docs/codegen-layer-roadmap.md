@@ -6,12 +6,14 @@ with a schema named `Error` or a property named `hashCode` produced sources
 that broke the first build to put them on a classpath, far from the run that
 wrote them.
 
+All four steps shipped (PRs #86–#89).
+
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Compile check** — every generated spec compiled right after it is written; errors by file and line in the report; names Java will not take renamed | `module-api-codegen` | shipped |
 | 2 | **Documented clients** — the document's summaries, descriptions and expected statuses as Javadoc, with comment-breaking text neutralised | `module-api-codegen` | shipped |
 | 3 | **What regeneration changed** — the generated surface compared with the previous run; a removed method or a changed signature called out as breaking for the tests that use it | `module-api-codegen` | shipped |
-| 4 | **Review** — close the gaps a review of the module finds | `module-api-codegen` | planned |
+| 4 | **Review** — close the gaps a review of the module finds | `module-api-codegen` | shipped |
 
 ## Step 1 — compile check
 
@@ -66,3 +68,26 @@ The baseline is the previous run's output by default and
 `forge.api-codegen.surface-baseline-dir` in CI;
 `fail-on-breaking-changes` (default `false`) makes it a gate. A failed
 generation restores the old `surface.json` so the comparison survives it.
+
+## Step 4 — review
+
+Probing the generator with awkward documents found:
+
+- a `$ref` to an undefined schema crashed generation with a
+  `ConcurrentModificationException` — models were registered while they were
+  being written — and the report said `error: null`. Unresolved references
+  now map to `Object` with a warning, clients are rendered before models so
+  nothing is named after the models are written, and a failure without a
+  message is reported by its type;
+- the compile check trusted `java.class.path`; from a Spring Boot fat jar that
+  names one archive javac cannot look into, and every spec would have failed.
+  The classpath now adds where the imported classes were loaded from, and a
+  non-file location skips the check with the reason;
+- names were built from parts, so keywords and status codes leaked suffixes:
+  `DefaultTypeApiClient`, `ListTasksN200Response`. Names are now built whole:
+  `DefaultApiClient`, `ListTasks200Response`.
+
+Running the library smoke test for the renamed client also showed the
+Javadoc task failing on `module-db` — `DbWaiter` still linked the pre-#58
+`awaitRowCount` signature. The default build skips Javadoc, so only
+`publishTestForgeLibraries` caught it.
