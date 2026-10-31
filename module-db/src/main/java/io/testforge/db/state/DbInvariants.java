@@ -102,6 +102,56 @@ public final class DbInvariants {
         return this;
     }
 
+    /**
+     * Every non-NULL {@code column} has a matching {@code matchingColumn} —
+     * {@code everyRowHas("orders.id", "outbox.aggregate_id")}: each new order
+     * has its outbox event. The same check as {@link #noOrphans}, read the
+     * other way round.
+     */
+    public DbInvariants everyRowHas(String column, String matchingColumn) {
+        String[] from = qualified(column);
+        String[] to = qualified(matchingColumn);
+        rules.add(new Rule("every " + column + " has a " + matchingColumn, from[0],
+                "SELECT c.* FROM " + from[0] + " c WHERE c." + from[1] + " IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "
+                        + to[0] + " p WHERE p." + to[1] + " = c." + from[1] + ")", new Object[0], "c"));
+        return this;
+    }
+
+    /**
+     * A stored total equals the sum of its parts —
+     * {@code totalMatches("orders.total", "orders.id", "order_items.amount", "order_items.order_id")}.
+     * A parent without parts must total zero.
+     */
+    public DbInvariants totalMatches(String total, String key, String part, String partKey) {
+        return aggregate("total matches: " + total + " = sum of " + part, total, key,
+                "COALESCE(SUM(i." + qualified(part)[1] + "), 0)", partKey, "parts_sum");
+    }
+
+    /**
+     * A stored count equals the number of child rows —
+     * {@code countMatches("orders.item_count", "orders.id", "order_items.order_id")}.
+     */
+    public DbInvariants countMatches(String count, String key, String childKey) {
+        return aggregate("count matches: " + count + " = rows of " + qualified(childKey)[0], count, key,
+                "COUNT(*)", childKey, "child_rows");
+    }
+
+    private DbInvariants aggregate(String description, String stored, String key, String expression, String childKey,
+                                   String label) {
+        String[] parent = qualified(stored);
+        String[] parentKey = qualified(key);
+        String[] child = qualified(childKey);
+        if (!parent[0].equalsIgnoreCase(parentKey[0])) {
+            throw new IllegalArgumentException(stored + " and " + key + " must be columns of one table");
+        }
+        String computed = "(SELECT " + expression + " FROM " + child[0] + " i WHERE i." + child[1] + " = c."
+                + parentKey[1] + ")";
+        rules.add(new Rule(description, parent[0],
+                "SELECT c." + parentKey[1] + ", c." + parent[1] + ", " + computed + " AS " + label + " FROM " + parent[0]
+                        + " c WHERE COALESCE(c." + parent[1] + ", 0) <> " + computed, new Object[0], "c"));
+        return this;
+    }
+
     /** {@code condition} is true for every row — {@code holds("orders", "total >= 0")}. */
     public DbInvariants holds(String table, String condition, Object... parameters) {
         rules.add(new Rule("holds: " + table + " where " + condition, table,
@@ -127,6 +177,31 @@ public final class DbInvariants {
             throw new IllegalStateException("Could not verify the invariants: " + e.getMessage(), e);
         }
         return new Report(rules.size(), violations);
+    }
+
+    /**
+     * Runs the rules until they all hold or {@code timeout} passes — for data a
+     * system completes asynchronously: the outbox relay, the projection, the
+     * recalculated total. Fails with the last report, so the rules still
+     * broken at the deadline are the ones listed.
+     */
+    public Report assertHoldsWithin(java.time.Duration timeout) {
+        java.time.Duration interval = timeout.dividedBy(10).compareTo(java.time.Duration.ofMillis(200)) > 0
+                ? java.time.Duration.ofMillis(200) : timeout.dividedBy(10);
+        java.util.concurrent.atomic.AtomicReference<Report> last = new java.util.concurrent.atomic.AtomicReference<>();
+        try {
+            return new io.testforge.core.wait.Waiter(new io.testforge.core.wait.WaitProperties(timeout,
+                    interval.isZero() ? java.time.Duration.ofMillis(1) : interval))
+                    .await("invariants hold", () -> {
+                        Report report = verify();
+                        last.set(report);
+                        return report;
+                    }, Report::holds);
+        } catch (org.awaitility.core.ConditionTimeoutException e) {
+            Report report = last.get();
+            throw new AssertionError("still broken after " + timeout + ": "
+                    + (report == null ? e.getMessage() : report.toString()));
+        }
     }
 
     /** Runs every rule and fails with all that were broken. */

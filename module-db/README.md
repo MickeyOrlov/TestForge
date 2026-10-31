@@ -238,6 +238,20 @@ distinct values) broke it and up to five of them:
       {external_id=ext-1, duplicates=2}
 ```
 
+Across tables, and for data the system completes asynchronously:
+
+```java
+db.invariants()
+        .within("orders", "customer_id = ?", customer)
+        .everyRowHas("orders.id", "outbox.aggregate_id")              // each order has its event
+        .totalMatches("orders.total", "orders.id", "order_items.amount", "order_items.order_id")
+        .countMatches("orders.item_count", "orders.id", "order_items.order_id")
+        .assertHoldsWithin(Duration.ofSeconds(10));                   // polls until the relay caught up
+```
+
+`totalMatches` treats a parent without parts as a sum of zero. On the deadline
+`assertHoldsWithin` fails with the rules still broken, listed as above.
+
 `within(table, condition, params...)` narrows every rule reading that table —
 the child side of an orphan check included. `verify()` returns the report
 without throwing. Run the same rules after a scenario, or over the whole

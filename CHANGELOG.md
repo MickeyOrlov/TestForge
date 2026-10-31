@@ -123,6 +123,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-db`: cross-table invariants — `everyRowHas("orders.id",
+  "outbox.aggregate_id")`, `totalMatches(...)` (a stored total equals the sum
+  of its parts) and `countMatches(...)` — and `assertHoldsWithin(timeout)`,
+  which polls until every rule holds and fails with those still broken.
 - `module-db`: data invariants — `DbState.invariants()` with `noOrphans`,
   `unique`, `allowedValues`, `notNull` and `holds(table, condition)`, scoped
   per table with `within(...)`; `assertHolds()` lists every broken rule with
