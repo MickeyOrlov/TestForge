@@ -16,6 +16,9 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-state`: every recipe's flow ran under the one name `flow`, so
+  flow coverage and path artifacts mixed all recipes together; it now runs
+  under `StateRecipe.name()` (`state:<Type>` by default).
 - `module-flow`: `FlowContext.put(key, null)` made a flow that reached its
   target fail with a `NullPointerException` while building the result; a
   null now removes the key, matching how `get` already treated it.
@@ -28,6 +31,8 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-state`: `StatePreparation.duration()` — what a prepared state cost;
+  the steps are in `flowResult().transitions()`.
 - `module-flow`: transition coverage. Runners record declared transitions
   taken into the shared `FlowCoverage` per flow name; `flow-coverage.md` in
   the run index lists those no test took (report-only, `uncovered` count in

@@ -17,4 +17,9 @@ public record StatePreparation<T, S>(
         flowResult = Objects.requireNonNull(flowResult, "flowResult");
         request = Objects.requireNonNull(request, "request");
     }
+
+    /** How long the recipe's flow took: the cost of this state, step by step in {@code flowResult().transitions()}. */
+    public java.time.Duration duration() {
+        return flowResult.duration();
+    }
 }
