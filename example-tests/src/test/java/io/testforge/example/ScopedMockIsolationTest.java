@@ -101,6 +101,20 @@ class ScopedMockIsolationTest {
         }
     }
 
+    @Test
+    void aStubTheScenarioNeverCalledIsNamed() {
+        try (MockScope scope = mocks.scope("scenario-assumed")) {
+            scope.stub(post(urlPathEqualTo("/downstream/status")).willReturn(okJson("{\"result\":\"special\"}")));
+            scope.stub(post(urlPathEqualTo("/downstream/refund")).willReturn(okJson("{\"result\":\"refunded\"}")));
+
+            callDownstreamStatus("scenario-assumed");
+
+            // the scenario never reached the refund it was written for; with
+            // forge.mock.fail-on-unused-stubs=true closing the scope fails here
+            assertThat(scope.unusedStubs()).containsExactly("POST /downstream/refund → 200");
+        }
+    }
+
     private int statusOf(String scopeId) {
         return RestAssured.given()
                 .baseUri("http://localhost:" + server.port())

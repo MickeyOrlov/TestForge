@@ -85,6 +85,25 @@ try (MockScope scope = mocks.scope()) {
 Another scenario's traffic never counts, so these assertions stay correct when
 tests run in parallel against one shared mock.
 
+### Stubs the scenario never called
+
+A test that stubs `/refunds` and passes without ever calling it was green for
+the wrong reason: the system took another path and the defaults answered.
+`scope.unusedStubs()` names them (`POST /refunds → 409`; a sequence step not
+reached shows as `sequence step-3`, i.e. the system stopped retrying early),
+and the scope's diagnostic artifact lists them under `unusedStubs`.
+
+```yaml
+forge:
+  mock:
+    fail-on-unused-stubs: true   # default false
+```
+
+With it on, closing a scope with an unused stub fails — after its stubs are
+removed. When the test body already failed, the note is attached to that
+failure as suppressed instead of replacing it. Stubs registered for "just in
+case" paths belong in the defaults, not in a strict scope.
+
 ### A downstream that fails, then recovers
 
 To test the system's retries, answer the same request differently each time:
@@ -178,5 +197,7 @@ explicitly rather than serializing the whole suite.
   defaults are priority 10+, scoped stubs priority 1 WITH the scope matcher.
 - `forge.mock.scope-json-path` is THE adaptation point — find the field the
   system under test echoes into downstream calls before anything else.
+- `fail-on-unused-stubs` is opt-in; `unusedStubs()` reads the server journal
+  and says nothing (empty) when the journal is disabled.
 - `scope()` (no args) publishes the generated id to `ScenarioContext` under
   `ScopedMockClient.TEST_SCOPE`; pair with `ScenarioContextExtension`.

@@ -162,19 +162,19 @@ class ScopeMarkerTest {
 
     @Test
     void propertiesPickTheConfiguredMarker() {
-        assertThat(new MockProperties("u", null, null, null, null).scopeMarker())
+        assertThat(new MockProperties("u", null, null, null, null, null).scopeMarker())
                 .isEqualTo(ScopeMarker.jsonPath("$.testScope"));
-        assertThat(new MockProperties("u", "$.x", "X-Scope", null, null).scopeMarker())
+        assertThat(new MockProperties("u", "$.x", "X-Scope", null, null, null).scopeMarker())
                 .as("an explicit header replaces the body path")
                 .isEqualTo(ScopeMarker.header("X-Scope"));
-        assertThat(new MockProperties("u", null, null, "scope", " ").scopeMarker())
+        assertThat(new MockProperties("u", null, null, "scope", " ", null).scopeMarker())
                 .isEqualTo(ScopeMarker.queryParam("scope"));
-        assertThat(new MockProperties("u", null, null, null, "sc").scopeMarker()).isEqualTo(ScopeMarker.cookie("sc"));
+        assertThat(new MockProperties("u", null, null, null, "sc", null).scopeMarker()).isEqualTo(ScopeMarker.cookie("sc"));
     }
 
     @Test
     void configuringTwoMarkersIsRejected() {
-        assertThatThrownBy(() -> new MockProperties("u", null, "X-Scope", "scope", null))
+        assertThatThrownBy(() -> new MockProperties("u", null, "X-Scope", "scope", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("at most one");
     }

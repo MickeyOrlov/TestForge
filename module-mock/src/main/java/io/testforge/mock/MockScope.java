@@ -3,6 +3,7 @@ package io.testforge.mock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.tomakehurst.wiremock.admin.model.ServeEventQuery;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 /**
  * A scenario-scoped view of a shared WireMock instance.
@@ -49,6 +51,7 @@ public class MockScope implements AutoCloseable {
     private final ArtifactSink artifactSink;
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
     private final AtomicInteger sequences = new AtomicInteger();
+    private final boolean failOnUnusedStubs;
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId) {
         this(wireMock, scopeJsonPath, scopeId, ArtifactSink.NO_OP);
@@ -59,10 +62,16 @@ public class MockScope implements AutoCloseable {
     }
 
     MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink) {
+        this(wireMock, marker, scopeId, artifactSink, false);
+    }
+
+    MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink,
+              boolean failOnUnusedStubs) {
         this.wireMock = wireMock;
         this.marker = marker;
         this.scopeId = scopeId;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
+        this.failOnUnusedStubs = failOnUnusedStubs;
     }
 
     public String scopeId() {
@@ -152,8 +161,50 @@ public class MockScope implements AutoCloseable {
         return marker;
     }
 
+    /**
+     * Stubs of this scope that no request has hit yet, e.g.
+     * {@code POST /payments → 503}. A stub the scenario never called means it
+     * took another path — and passed on the defaults, which is the dangerous
+     * kind of green. A sequence step not reached says the system stopped
+     * retrying early. Empty when the server keeps no request journal.
+     */
+    public List<String> unusedStubs() {
+        List<String> unused = new java.util.ArrayList<>();
+        try {
+            for (StubMapping stub : stubs) {
+                if (wireMock.getServeEvents(ServeEventQuery.forStubMapping(stub.getId())).isEmpty()) {
+                    unused.add(describe(stub));
+                }
+            }
+        } catch (RuntimeException e) {
+            // journal disabled or unreachable: nothing can be said, so nothing is claimed
+            return List.of();
+        }
+        return unused;
+    }
+
+    private static String describe(StubMapping stub) {
+        RequestPattern request = stub.getRequest();
+        String method = request == null || request.getMethod() == null ? "ANY" : request.getMethod().getName();
+        String url = request == null ? "?" : Stream.of(request.getUrl(), request.getUrlPath(), request.getUrlPattern(),
+                        request.getUrlPathPattern())
+                .filter(java.util.Objects::nonNull).findFirst().orElse("(any url)");
+        String step = stub.getScenarioName() == null ? ""
+                : ", sequence " + (Scenario.STARTED.equals(stub.getRequiredScenarioState())
+                        ? "step-1" : stub.getRequiredScenarioState());
+        int status = stub.getResponse() == null ? 0 : stub.getResponse().getStatus();
+        return method + " " + url + step + " → " + status;
+    }
+
+    /**
+     * Publishes diagnostics and removes this scope's stubs. With
+     * {@code forge.mock.fail-on-unused-stubs}, then fails if any stub was never
+     * called — after the stubs are gone, so the shared server stays clean, and
+     * as a suppressed exception when the test body already failed.
+     */
     @Override
     public void close() {
+        List<String> unused = failOnUnusedStubs ? unusedStubs() : List.of();
         try {
             publishDiagnostics();
         } catch (Throwable t) {
@@ -161,6 +212,10 @@ public class MockScope implements AutoCloseable {
         } finally {
             stubs.forEach(wireMock::removeStubMapping);
             stubs.clear();
+        }
+        if (!unused.isEmpty()) {
+            throw new AssertionError("Scope " + scopeId + ": stubs the scenario never called — it took another "
+                    + "path than the test assumed: " + unused);
         }
     }
 
@@ -216,6 +271,8 @@ public class MockScope implements AutoCloseable {
             }
         }
         root.put("stubCount", stubs.size());
+        ArrayNode unusedArray = root.putArray("unusedStubs");
+        unusedStubs().forEach(unusedArray::add);
 
         publishScopedUnmatchedRequests(root);
 
