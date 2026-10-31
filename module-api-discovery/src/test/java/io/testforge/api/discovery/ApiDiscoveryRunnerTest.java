@@ -122,6 +122,38 @@ class ApiDiscoveryRunnerTest {
         assertThat(report.specs().getFirst().error()).contains("Failed to parse OpenAPI spec");
     }
 
+    @Test
+    void withFailOnBreakingOnlyANewEndpointPassesAndARemovedOneFails() throws IOException {
+        Path spec = writeSpec(paymentSpec());
+        Files.createDirectories(temp.resolve("baseline/billing"));
+        ApiDiscoveryProperties breakingOnly = new ApiDiscoveryProperties(true, temp.resolve("current").toString(),
+                temp.resolve("baseline").toString(), true, true,
+                Map.of("billing", new ApiDiscoveryProperties.Spec(spec.toString())), true);
+
+        objectMapper.writeValue(temp.resolve("baseline/billing/catalog.json").toFile(),
+                new EndpointCatalog("billing", List.of()));
+        ApiDiscoveryReport additive = runner(breakingOnly).run();
+        assertThat(additive.healthy()).isTrue();
+        assertThat(additive.specs().getFirst().changes()).extracting(ApiChange::impact)
+                .containsOnly(ApiChange.Impact.SAFE);
+
+        objectMapper.writeValue(temp.resolve("baseline/billing/catalog.json").toFile(),
+                new EndpointCatalog("billing", List.of(new ApiEndpoint("GET /legacy", "GET", "/legacy", "legacy",
+                        List.of(), List.of(), Map.of("200", List.of("application/json")), false))));
+        ApiDiscoveryReport removal = runner(breakingOnly).run();
+        assertThat(removal.healthy()).isFalse();
+        assertThat(removal.specs().getFirst().breakingChanges()).extracting(ApiChange::toString)
+                .containsExactly("BREAKING GET /legacy: operation removed");
+        assertThat(Files.readString(Path.of(removal.reportMarkdown())))
+                .contains("### What changed for clients")
+                .contains("- BREAKING GET /legacy: operation removed");
+    }
+
+    private ApiDiscoveryRunner runner(ApiDiscoveryProperties properties) {
+        return new ApiDiscoveryRunner(new OpenApiSpecParser(), new EndpointCatalogBuilder(),
+                new OpenApiShapeNormalizer(), objectMapper, properties, sink);
+    }
+
     private ApiDiscoveryRunner runner(Path spec) {
         return new ApiDiscoveryRunner(
                 new OpenApiSpecParser(),

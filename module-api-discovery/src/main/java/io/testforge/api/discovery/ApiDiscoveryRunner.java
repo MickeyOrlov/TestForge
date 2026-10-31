@@ -106,8 +106,13 @@ public class ApiDiscoveryRunner {
             CatalogDiff catalogDiff = diffCatalog(safeSpecId, catalog);
             List<ApiShapeReport> shapeReports = writeAndDiffShapes(safeSpecId, specDir, shapes);
 
-            boolean failed = (!catalogDiff.empty() && properties.failOnCatalogDiff())
-                    || shapeReports.stream().anyMatch(ApiShapeReport::failed);
+            List<ApiChange> changes = new java.util.ArrayList<>(ApiChangeClassifier.catalog(catalogDiff));
+            shapeReports.forEach(report -> changes.addAll(ApiChangeClassifier.shape(report)));
+            changes.sort(java.util.Comparator.comparing(ApiChange::impact).thenComparing(ApiChange::location));
+            boolean failed = properties.failOnBreakingOnly()
+                    ? changes.stream().anyMatch(change -> change.impact() == ApiChange.Impact.BREAKING)
+                    : (!catalogDiff.empty() && properties.failOnCatalogDiff())
+                            || shapeReports.stream().anyMatch(ApiShapeReport::failed);
             return new ApiSpecReport(
                     source.id(),
                     source.location(),
@@ -116,7 +121,8 @@ public class ApiDiscoveryRunner {
                     catalogDiff,
                     shapeReports,
                     catalogArtifact.toString(),
-                    null);
+                    null,
+                    changes);
         } catch (RuntimeException e) {
             return new ApiSpecReport(
                     source.id(),
@@ -150,7 +156,7 @@ public class ApiDiscoveryRunner {
             Path shapeArtifact = shapesDir.resolve(shape.name());
             writeJson(shapeArtifact, shape);
             ApiShapeDiff diff = diffShape(safeSpecId, shape);
-            boolean failed = !diff.empty() && properties.failOnShapeDiff();
+            boolean failed = !diff.empty() && properties.failOnShapeDiff() && !properties.failOnBreakingOnly();
             reports.add(new ApiShapeReport(
                     shape.name(),
                     failed,
@@ -203,6 +209,10 @@ public class ApiDiscoveryRunner {
             }
             appendCatalogDiff(out, spec.catalogDiff());
             appendShapeDiffs(out, spec.shapes());
+            if (!spec.changes().isEmpty()) {
+                out.append("\n### What changed for clients\n\n");
+                spec.changes().forEach(change -> out.append("- ").append(change).append('\n'));
+            }
             out.append('\n');
         }
         return out.toString();

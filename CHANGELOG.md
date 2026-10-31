@@ -43,6 +43,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-api-discovery`: every catalog and shape difference is classified
+  for clients (`BREAKING`, `RISKY`, `UNKNOWN`, `SAFE`; requests and responses
+  judged in opposite directions) in `ApiSpecReport.changes()` and
+  `report.md`. `forge.api-discovery.fail-on-breaking-only=true` fails only on
+  breaking changes.
 - `module-reporting`: `summary.md` gains *Failed tests* — each failed
   test's HTTP, SQL, Kafka and UI diagnostics listed under `<Class>-<method>`
   (a `failed-test-*` report's name or a producer's `testKey` metadata, which
