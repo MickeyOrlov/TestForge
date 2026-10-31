@@ -27,10 +27,22 @@ public class StateRecipeExecutor {
         Objects.requireNonNull(recipe, "recipe");
         StateRequest request = new StateRequest(tags, properties.targetTagPrefix());
         requireSupported(recipe, request);
-        FlowContext context = Objects.requireNonNull(recipe.context(request), "recipe context");
-        S initialState = Objects.requireNonNull(recipe.initialState(request), "initial state");
-        S targetState = Objects.requireNonNull(recipe.targetState(request), "target state");
-        Collection<? extends FlowStep<S>> steps = Objects.requireNonNull(recipe.steps(request, context), "flow steps");
+        FlowContext context;
+        S initialState;
+        S targetState;
+        Collection<? extends FlowStep<S>> steps;
+        try {
+            context = Objects.requireNonNull(recipe.context(request), "recipe context");
+            initialState = Objects.requireNonNull(recipe.initialState(request), "initial state");
+            targetState = Objects.requireNonNull(recipe.targetState(request), "target state");
+            steps = Objects.requireNonNull(recipe.steps(request, context), "flow steps");
+        } catch (StateRecipeException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            // a tag the recipe cannot map used to surface as a bare IllegalArgumentException
+            throw new StateRecipeException("State recipe %s could not be set up for tags %s: %s"
+                    .formatted(recipe.name(), request.tags(), e.getMessage()), e);
+        }
 
         // named after the recipe: one "flow" bucket for every recipe made coverage and artifacts meaningless
         FlowRunner<S> runner = flowRunnerFactory.create(recipe.name(), steps);
@@ -44,7 +56,11 @@ public class StateRecipeExecutor {
                     e);
         }
 
-        T object = Objects.requireNonNull(recipe.materialize(result, request), "materialized object");
+        T object = recipe.materialize(result, request);
+        if (object == null) {
+            throw new StateRecipeException("State recipe %s reached %s for tags %s but materialized nothing"
+                    .formatted(recipe.name(), result.reachedState(), request.tags()));
+        }
         return new StatePreparation<>(object, initialState, targetState, result, request);
     }
 

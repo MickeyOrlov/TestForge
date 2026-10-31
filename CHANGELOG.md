@@ -16,6 +16,10 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-state`: a tag a recipe could not map surfaced as a bare
+  exception, and a recipe that materialized nothing as a
+  `NullPointerException`; both are now `StateRecipeException`s naming the
+  recipe and the tags.
 - `module-state`: every recipe's flow ran under the one name `flow`, so
   flow coverage and path artifacts mixed all recipes together; it now runs
   under `StateRecipe.name()` (`state:<Type>` by default).

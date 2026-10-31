@@ -57,7 +57,7 @@ depend on opt-in runtime integrations.
 | `module-db-contract` | Schema snapshot, bounded diff, and compatibility classification (`BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN`) with a CI gate. Reading is delegated to SchemaCrawler; the model, diff, policy and report belong to TestForge. |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-auth` | Credentials per role (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login), cached with early refresh, `@AsUser` and reserved `anonymous` role, role shown in failure diagnostics, access matrix (operation × role) through `module-api-explorer`. |
-| `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`. |
+| `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`; flows named per recipe, declared targets, all recipes verified without running. Plan: [state-layer-roadmap.md](state-layer-roadmap.md). |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
 | `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts. Real devices are opt-in. |
 
@@ -119,6 +119,9 @@ surface is still expected to evolve.
 - Flow layer: timed transitions, declared transitions verified and drawn
   before running, transition coverage across the suite
   ([plan](flow-layer-roadmap.md)).
+- State layer: recipes under their own flow name, declared targets with a
+  clear error for a typo, every recipe verified up front
+  ([plan](state-layer-roadmap.md)).
 - Kafka layer: test event publishing, exactly-one and none-within-a-window
   assertions, a failed test's traffic in the run index, a collector that
   cannot silently miss messages ([plan](kafka-layer-roadmap.md)).
