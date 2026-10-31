@@ -34,7 +34,11 @@ public class PlaywrightProvider {
 
     /** Fresh, isolated context with the configured default timeout applied. */
     public BrowserContext newContext() {
-        BrowserContext context = browser.newContext();
+        Browser.NewContextOptions options = new Browser.NewContextOptions();
+        if (properties.baseUrl() != null) {
+            options.setBaseURL(properties.baseUrl());
+        }
+        BrowserContext context = browser.newContext(options);
         context.setDefaultTimeout(properties.defaultTimeout());
         return context;
     }
