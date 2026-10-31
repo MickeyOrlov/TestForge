@@ -21,7 +21,12 @@ local node startup and failure artifacts.
   lines of `logcat` or `syslog`). Each carries the test's `testKey`, so the run
   summary groups it with the test's HTTP, SQL and Kafka reports.
 - **`AppiumNodeManager`** — optional local `appium` process lifecycle; disabled
-  unless `node.auto-start=true`.
+  unless `node.auto-start=true`. The node's output goes to
+  `<artifacts-dir>/appium-node.log` (registered in the run index when it
+  stops). A node that exits before it answers fails the start at once with its
+  exit code and the last 20 lines of that log — "address already in use", a
+  missing driver — instead of waiting out `startup-timeout`; a timeout shows
+  the same tail.
 
 `forge.mobile.appium.enabled=true` only creates beans. A real session starts
 only when a test requests `AppiumSession`/`AppiumDriver` or calls the factory.
