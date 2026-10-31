@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-contract-monitor`: each case validates up to
+  `forge.contract-monitor.sample-size` (default 20) newest matching messages
+  instead of only the newest; violations carry their share of the sample and
+  the shape snapshot is the union of the sample's shapes, so an optional field
+  one message omits no longer reads as removed.
 - `module-flow`: a successful run no longer writes `flow-path-<name>.txt`
   unless `forge.flow.publish-successful-paths=true` — a suite runs flows
   hundreds of times and the run index flooded; failed runs still always

@@ -7,6 +7,8 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **May depend on:** `module-kafka`, `module-contract`.
 
+Plan: [docs/monitor-layer-roadmap.md](../docs/monitor-layer-roadmap.md).
+
 ## Invariants (do not break)
 
 - Shape snapshots contain types only, never payload values.

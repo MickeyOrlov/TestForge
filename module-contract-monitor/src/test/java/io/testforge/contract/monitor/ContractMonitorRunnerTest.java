@@ -96,6 +96,41 @@ class ContractMonitorRunnerTest {
                 .containsEntry("$.payload.legacy", "STRING");
     }
 
+    @Test
+    void aViolationInSomeOfTheSampledMessagesIsReportedOnceWithItsShare() {
+        KafkaMessageBuffer buffer = new KafkaMessageBuffer(10);
+        buffer.append(message("request-1", validPayload()));
+        buffer.append(message("request-1", """
+                {"eventId": 7, "payload": {"status": "accepted", "items": [{"sku": "A"}]}}"""));
+        buffer.append(message("request-1", validPayload()));
+
+        ContractMonitorCaseReport report = runner(buffer).run().cases().getFirst();
+
+        assertThat(report.messagesSampled()).isEqualTo(3);
+        assertThat(report.contractViolations()).singleElement().satisfies(violation -> {
+            assertThat(violation.path()).isEqualTo("$.eventId");
+            assertThat(violation.message()).contains("in 1 of 3 sampled messages");
+        });
+    }
+
+    @Test
+    void anOptionalFieldOneMessageOmitsIsNotAShapeDrift() throws Exception {
+        KafkaMessageBuffer buffer = new KafkaMessageBuffer(10);
+        buffer.append(message("request-1", """
+                {"eventId": "e-1", "payload": {"status": "accepted", "reason": "late", "items": [{"sku": "A"}]}}"""));
+        buffer.append(message("request-1", validPayload()));
+        Files.createDirectories(temp.resolve("baseline"));
+        ContractMonitorReport first = runner(buffer).run();
+        Files.copy(Path.of(first.cases().getFirst().shapeArtifact()),
+                temp.resolve("baseline/partner-status.shape.json"));
+
+        // the newest message has no "reason": with a single message this read as a removed field
+        ContractMonitorReport second = runner(buffer).run();
+
+        assertThat(second.cases().getFirst().shapeDiff().empty()).isTrue();
+        assertThat(second.healthy()).isTrue();
+    }
+
     private ContractMonitorRunner runner(KafkaMessageBuffer buffer) {
         return new ContractMonitorRunner(
                 List.of(monitorCase()),
