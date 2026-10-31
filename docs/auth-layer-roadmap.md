@@ -4,12 +4,17 @@
 half: checking that roles get *only* what they should, more ways in than
 OAuth2 and JWT, and seeing which role a failed request ran as.
 
+All four steps shipped (PRs #51–#54). Step 4's review found one real gap: a
+static token from a CI secret that had expired surfaced as a wall of 401s.
+A static JWT's `exp` is now honoured and an expired one fails with the reason.
+Remaining known limits live in the module README.
+
 | Step | What | Where | Status |
 |---|---|---|---|
 | 1 | **Access matrix** — every operation × every role → declared rule; violations fail the job, undeclared cells get a proposal | `module-api-explorer` (it already plans requests from the document), reserved `anonymous` role in `module-auth` | shipped |
 | 2 | **More ways in** — API key (header or query) and session-cookie login through a login request, cached like tokens | `module-auth` | shipped |
 | 3 | **Role in diagnostics** — which role and credential kind each request used, in failed-test HTTP diagnostics; secrets redacted | `module-auth`, `module-http` | shipped |
-| 4 | **Beta** — close the gaps a review of the module finds, then move it from Experimental to Beta in the roadmap | `module-auth`, `docs/ROADMAP.md` | planned |
+| 4 | **Beta** — close the gaps a review of the module finds, then move it from Experimental to Beta in the roadmap | `module-auth`, `docs/ROADMAP.md` | shipped |
 
 Why the matrix lives in the explorer: it needs the document, parameter values
 and the method safety policy the explorer already owns. `module-auth` stays

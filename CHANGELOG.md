@@ -6,7 +6,13 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Changed
+- `module-auth` is Beta (was Experimental).
+
 ### Added
+- `module-auth`: a static token that is a JWT carries its `exp`; once it has
+  passed, the role fails with "Static token for role 'x' expired at …" instead
+  of every request coming back 401.
 - Failure diagnostics say which role each HTTP exchange ran as:
   `module-auth`'s filter leaves a note (`admin (header Authorization)`,
   `anonymous (no credential)`, `… set by the test`) under
