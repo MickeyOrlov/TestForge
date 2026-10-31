@@ -3,12 +3,18 @@ package io.testforge.api.codegen;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.function.Function;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -25,19 +31,36 @@ final class GeneratedSourceCompiler {
 
     static final int MAX_ERRORS = 20;
 
+    /** What generated sources import; each must be found on a file classpath for the check to mean anything. */
+    static final List<String> REQUIRED_CLASSES = List.of(
+            "io.testforge.http.ApiClient",
+            "io.restassured.response.Response",
+            "io.restassured.specification.RequestSpecification",
+            "com.fasterxml.jackson.annotation.JsonProperty");
+
     private final String classpath;
 
+    /** Compiles against exactly {@code classpath}. */
     GeneratedSourceCompiler(String classpath) {
         this.classpath = classpath;
     }
 
+    /** Compiles against the JVM's classpath plus wherever the classes generated code imports were loaded from. */
     GeneratedSourceCompiler() {
-        this(System.getProperty("java.class.path", ""));
+        this(null);
     }
 
     Result compile(Path sourceRoot, List<Path> files, Path classesDir) {
         if (files.isEmpty()) {
             return new Result(true, List.of(), null);
+        }
+        String classpath = this.classpath;
+        if (classpath == null) {
+            Classpath resolved = resolve(System.getProperty("java.class.path", ""), GeneratedSourceCompiler::locate);
+            if (resolved.skipped() != null) {
+                return new Result(null, List.of(), resolved.skipped());
+            }
+            classpath = resolved.value();
         }
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
@@ -65,6 +88,52 @@ final class GeneratedSourceCompiler {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to compile generated sources in " + sourceRoot, e);
         }
+    }
+
+    /**
+     * {@code java.class.path} alone is not trusted: in a Spring Boot fat jar it
+     * names one archive whose nested jars javac cannot read, and every spec
+     * would "fail to compile". The classes generated code imports are located
+     * where they were actually loaded from; one that is not a plain file or
+     * directory skips the check with the reason instead of failing it.
+     */
+    static Classpath resolve(String javaClassPath, Function<String, URL> locate) {
+        Set<String> entries = new LinkedHashSet<>();
+        for (String entry : javaClassPath.split(File.pathSeparator)) {
+            if (!entry.isBlank()) {
+                entries.add(entry);
+            }
+        }
+        for (String required : REQUIRED_CLASSES) {
+            URL location = locate.apply(required);
+            if (location == null) {
+                return new Classpath(null, required + " is not on the classpath");
+            }
+            if (!"file".equals(location.getProtocol())) {
+                return new Classpath(null, required + " was loaded from " + location
+                        + ", which the compiler cannot read (a Spring Boot fat jar, for example); generate "
+                        + "from a test task, or set forge.api-codegen.compile=false");
+            }
+            try {
+                entries.add(Path.of(location.toURI()).toString());
+            } catch (URISyntaxException | IllegalArgumentException e) {
+                return new Classpath(null, required + " has an unreadable location " + location);
+            }
+        }
+        return new Classpath(String.join(File.pathSeparator, entries), null);
+    }
+
+    private static URL locate(String className) {
+        try {
+            Class<?> type = Class.forName(className, false, GeneratedSourceCompiler.class.getClassLoader());
+            CodeSource source = type.getProtectionDomain().getCodeSource();
+            return source == null ? null : source.getLocation();
+        } catch (ClassNotFoundException | LinkageError e) {
+            return null;
+        }
+    }
+
+    record Classpath(String value, String skipped) {
     }
 
     private static List<String> errors(Path sourceRoot, DiagnosticCollector<JavaFileObject> diagnostics) {

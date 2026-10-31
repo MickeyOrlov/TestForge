@@ -40,7 +40,7 @@ class PublishedApiCodegenSmokeTest {
         Path sourceRoot = Path.of(report.specs().getFirst().sourceRoot());
         assertThat(sourceRoot.resolve("io/testforge/smoke/generated/demo/model/Task.java")).exists();
         assertThat(Files.readString(sourceRoot.resolve(
-                "io/testforge/smoke/generated/demo/client/DefaultTypeApiClient.java")))
+                "io/testforge/smoke/generated/demo/client/DefaultApiClient.java")))
                 .contains("Response listTasks()")
                 .contains("Response createTask(CreateTaskRequest request)");
     }

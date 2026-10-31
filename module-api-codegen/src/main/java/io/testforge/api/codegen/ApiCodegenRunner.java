@@ -192,7 +192,7 @@ public final class ApiCodegenRunner {
                     sourceRoot.toString(),
                     List.of(),
                     List.of(),
-                    e.getMessage());
+                    e.getMessage() == null ? e.toString() : e.getMessage());
         }
     }
 

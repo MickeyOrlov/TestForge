@@ -6,8 +6,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 /**
  * @param compile compile every generated spec right after writing it and fail
  *        the spec on a compile error (default {@code true}); the classpath is
- *        the running JVM's, which inside a test task already holds
- *        {@code module-http}, REST Assured and Jackson
+ *        the running JVM's plus wherever {@code module-http}, REST Assured
+ *        and Jackson were loaded from
  * @param surfaceBaselineDir where to find the {@code <spec>/surface.json} to
  *        compare a generation with — a CI artifact or a checked-in copy; unset,
  *        the previous run's own output is the baseline

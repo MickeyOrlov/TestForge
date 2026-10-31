@@ -37,11 +37,12 @@ public final class OpenApiJavaCodeGenerator {
         operations.forEach(models::registerOperationSchemas);
         models.discoverNestedModels();
 
-        List<GeneratedSource> sources = new ArrayList<>(models.render());
+        // clients first: a type they name is registered before the models are written
         Map<String, Map<String, String>> clientMembers = new TreeMap<>();
         Set<String> requestModels = new TreeSet<>();
         List<GeneratedSource> clients = renderClients(operations, models, specPackage + ".client",
                 tagDescriptions(openApi), clientMembers, requestModels);
+        List<GeneratedSource> sources = new ArrayList<>(models.render());
         sources.addAll(clients);
         sources.sort(Comparator.comparing(GeneratedSource::relativePath));
 
@@ -119,7 +120,8 @@ public final class OpenApiJavaCodeGenerator {
         Set<String> usedClientNames = new LinkedHashSet<>();
         List<GeneratedSource> clients = new ArrayList<>();
         for (Map.Entry<String, List<OperationDefinition>> entry : byTag.entrySet()) {
-            String clientName = unique(JavaNames.type(entry.getKey()) + "ApiClient", usedClientNames);
+            // named as a whole, so a tag that is a keyword gives DefaultApiClient, not DefaultTypeApiClient
+            String clientName = unique(JavaNames.type(entry.getKey() + " api client"), usedClientNames);
             Map<String, String> members = new LinkedHashMap<>();
             clients.add(renderClient(clientPackage, clientName, entry.getValue(), models,
                     tagDescriptions.get(entry.getKey()), members, requestModels));
@@ -631,7 +633,7 @@ public final class OpenApiJavaCodeGenerator {
                                 : selected.getValue().getSchema();
                         registerInlineSchema(
                                 schema,
-                                operationType + JavaNames.type(response.getKey()) + "Response");
+                                JavaNames.type(operationType + " " + response.getKey() + " response"));
                     });
         }
 
@@ -671,7 +673,16 @@ public final class OpenApiJavaCodeGenerator {
 
         private List<GeneratedSource> render() {
             List<GeneratedSource> sources = new ArrayList<>();
-            models.forEach((name, schema) -> sources.add(renderModel(name, schema)));
+            Set<String> rendered = new TreeSet<>();
+            // rendering a model can name one not seen before; render until nothing new appears
+            List<String> todo = new ArrayList<>(models.keySet());
+            while (!todo.isEmpty()) {
+                for (String name : todo) {
+                    sources.add(renderModel(name, models.get(name)));
+                    rendered.add(name);
+                }
+                todo = models.keySet().stream().filter(name -> !rendered.contains(name)).toList();
+            }
             return List.copyOf(sources);
         }
 
@@ -743,10 +754,14 @@ public final class OpenApiJavaCodeGenerator {
             String referenceName = referenceName(schema);
             if (referenceName != null) {
                 Schema<?> referenced = component(referenceName);
-                if (referenced != null && !isObject(referenced)) {
+                if (referenced == null) {
+                    warn("Mapped unresolved $ref " + schema.get$ref() + " to Object");
+                    return JavaType.plain("Object");
+                }
+                if (!isObject(referenced)) {
                     return typeFor(referenced, suggestion, required, generic);
                 }
-                String modelName = register(JavaNames.type(referenceName), referenced == null ? schema : referenced);
+                String modelName = register(JavaNames.type(referenceName), referenced);
                 return JavaType.model(modelName);
             }
             String knownName = namesByIdentity.get(schema);

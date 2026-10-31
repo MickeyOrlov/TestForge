@@ -24,13 +24,14 @@ import org.awaitility.core.ConditionTimeoutException;
  * are datasource-agnostic because they poll a caller-supplied {@link Supplier}.
  *
  * <p>For JDBC-backed waiting against a specific database, use {@link #on(String)}
- * and {@link #awaitRowCount(String, String, int)}:
+ * and {@link #awaitRowCount(String, String, int, Object...)}:
  *
  * <pre>{@code
  * long count = dbWaiter.on("audit").awaitRowCount(
  *         "audit_log entry for task " + taskId,
- *         "SELECT count(*) FROM audit_log WHERE task_id = '" + taskId + "'",
- *         1);
+ *         "SELECT count(*) FROM audit_log WHERE task_id = ?",
+ *         1,
+ *         taskId);
  * }</pre>
  */
 public class DbWaiter {
@@ -53,7 +54,7 @@ public class DbWaiter {
     /**
      * Legacy constructor for a datasource-agnostic {@code DbWaiter}.
      *
-     * <p>Calling {@link #on(String)} or {@link #awaitRowCount(String, String, int)}
+     * <p>Calling {@link #on(String)} or {@link #awaitRowCount(String, String, int, Object...)}
      * on an instance created with this constructor will throw {@link IllegalStateException}
      * because no {@link DataSourceRegistry} is available.
      *

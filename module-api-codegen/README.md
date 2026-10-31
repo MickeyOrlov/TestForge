@@ -125,8 +125,10 @@ the run that generated it — not the build that first uses the sources. The
 report says `compiled: yes/no/not checked` per spec and lists up to 20 errors
 as `File.java:line: message`.
 
-The classpath is the running JVM's: inside a Gradle test task it already holds
-`module-http`, REST Assured and Jackson. Turn the check off with
+The classpath is the running JVM's plus wherever `ApiClient`, REST Assured and
+Jackson were loaded from, so a test task needs nothing extra. Loaded from
+inside a Spring Boot fat jar, they cannot be read by the compiler, and the
+check is skipped with that reason rather than failing every spec. Turn the check off with
 `forge.api-codegen.compile=false` (for example when generating outside a test
 JVM); on a JRE without a compiler it is skipped with a warning.
 
@@ -155,9 +157,12 @@ classpath can add the chosen spec source root explicitly after generation.
 - primitive required fields and boxed optional fields;
 - `date`, `date-time`, `uuid`, numeric, and binary formats;
 - path, query, header, cookie, and request-body parameters;
-- clients grouped by tag with stable names and deterministic output.
+- clients grouped by tag with stable names and deterministic output
+  (`TasksApiClient`; untagged operations go to `DefaultApiClient`); inline
+  response models are named `<operation><status>Response`.
 
-`oneOf` and `anyOf` currently become `Object` and produce a report warning.
+`oneOf` and `anyOf` currently become `Object` and produce a report warning, as
+does a `$ref` to a schema the document does not define.
 Enums remain their wire scalar type. These fallbacks are explicit so v1 does
 not generate a false type contract.
 

@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-api-codegen`: generated names are built whole — the client for
+  untagged operations is `DefaultApiClient` (was `DefaultTypeApiClient`), a
+  `class` tag gives `ClassApiClient`, and inline response models read
+  `ListTasks200Response` / `ListTasksDefaultResponse` (were
+  `ListTasksN200Response` / `ListTasksDefaultTypeResponse`). The failure
+  message of `assertGenerated()` lists the first breaking changes.
 - `module-contract-monitor`: each case validates up to
   `forge.contract-monitor.sample-size` (default 20) newest matching messages
   instead of only the newest; violations carry their share of the sample and
@@ -21,6 +27,18 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-db`: `DbWaiter`'s Javadoc still linked the old
+  `awaitRowCount(String, String, int)` and broke the Javadoc task that
+  `publishTestForgeLibraries` runs (the default build does not); its example
+  concatenated a value into SQL and now binds it.
+- `module-api-codegen`: a `$ref` to a schema the document does not define
+  crashed generation with a `ConcurrentModificationException` (reported as
+  the error `null`); it now maps to `Object` with a warning. A failure
+  without a message is reported by its exception type.
+- `module-api-codegen`: the compile check no longer trusts `java.class.path`
+  alone — it adds the locations ApiClient, REST Assured and Jackson were
+  loaded from, and skips with the reason (instead of failing every spec)
+  when they sit in a Spring Boot fat jar.
 - `module-api-codegen`: documents Java could not take as they were now
   generate compiling code — a schema named `Error` no longer makes the client
   ambiguous (clients import models by name), models named like a type the
