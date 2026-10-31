@@ -119,6 +119,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `core`: `Waiter.await(description, supplier, until, failWhen)` stops at
+  once with `WaitAbortedException` (an `AssertionError`) when the value
+  reaches a state it will not leave — a `Failed` job is not waited on for the
+  full timeout. `withTimeout(...)` / `withPollInterval(...)` give one wait its
+  own deadline or cadence; polls are never spaced wider than half the deadline
+  (Awaitility refused an interval as long as the timeout).
 - `core`: a `Waiter` timeout throws `WaitTimeoutException` (still a
   `ConditionTimeoutException`) naming the last value the condition saw, the
   last error a poll threw and the number of polls — instead of only "did not

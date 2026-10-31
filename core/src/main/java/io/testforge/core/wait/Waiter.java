@@ -50,6 +50,66 @@ public class Waiter {
         return observed.value.get();
     }
 
+    /**
+     * As {@link #await(String, Supplier, Predicate)}, but stops at once when a
+     * polled value satisfies {@code failWhen} — a terminal state the value will
+     * not leave, such as a job that went {@code Failed} while the test waits for
+     * {@code Completed}. Waiting out the deadline there only delays the same
+     * failure; this throws {@link WaitAbortedException} with the value instead.
+     *
+     * <pre>{@code
+     * waiter.await("job completes", () -> jobs.get(id),
+     *         job -> job.status() == COMPLETED,
+     *         job -> job.status() == FAILED || job.status() == CANCELLED);
+     * }</pre>
+     */
+    public <T> T await(String description, Supplier<T> supplier, Predicate<T> until, Predicate<T> failWhen) {
+        Observed<T> observed = new Observed<>();
+        AtomicReference<T> terminal = new AtomicReference<>();
+        poll(description, observed, () -> {
+            T value = supplier.get();
+            observed.value(value);
+            if (value != null && failWhen.test(value)) {
+                terminal.set(value);
+                return true;
+            }
+            return value != null && until.test(value);
+        });
+        if (terminal.get() != null) {
+            throw new WaitAbortedException("Stopped waiting for " + description + " after "
+                    + observed.polls.get() + (observed.polls.get() == 1 ? " poll" : " polls")
+                    + ": " + shorten(String.valueOf(terminal.get())) + " is a state it will not leave",
+                    terminal.get(), observed.polls.get());
+        }
+        return observed.value.get();
+    }
+
+    /**
+     * A waiter with another deadline for the waits that need one — a report
+     * that takes minutes to generate, an event that must arrive within two
+     * seconds — keeping this waiter's poll interval (polls are never spaced
+     * wider than half the deadline).
+     */
+    public Waiter withTimeout(java.time.Duration timeout) {
+        if (timeout == null || timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("A wait timeout must be positive, got " + timeout);
+        }
+        return new Waiter(new WaitProperties(timeout, properties.pollInterval()));
+    }
+
+    /** A waiter that polls at another interval, keeping this waiter's deadline. */
+    public Waiter withPollInterval(java.time.Duration pollInterval) {
+        if (pollInterval == null || pollInterval.isNegative() || pollInterval.isZero()) {
+            throw new IllegalArgumentException("A poll interval must be positive, got " + pollInterval);
+        }
+        return new Waiter(new WaitProperties(properties.timeout(), pollInterval));
+    }
+
+    /** The deadline and poll interval this waiter uses. */
+    public WaitProperties properties() {
+        return properties;
+    }
+
     public void awaitTrue(String description, Callable<Boolean> condition) {
         Observed<Boolean> observed = new Observed<>();
         poll(description, observed, () -> {
@@ -63,7 +123,7 @@ public class Waiter {
         try {
             Awaitility.await(description)
                     .atMost(properties.timeout())
-                    .pollInterval(properties.pollInterval())
+                    .pollInterval(effectivePollInterval())
                     .pollInSameThread()
                     .until(() -> {
                         observed.polls.incrementAndGet();
@@ -79,6 +139,17 @@ public class Waiter {
             throw new WaitTimeoutException(message(description, observed), observed.value.get(),
                     observed.error.get(), observed.polls.get(), timeout);
         }
+    }
+
+    /**
+     * The configured interval, never more than half the deadline: Awaitility
+     * refuses an interval as long as the timeout, and a single poll per wait
+     * would be no wait at all.
+     */
+    private java.time.Duration effectivePollInterval() {
+        java.time.Duration half = properties.timeout().dividedBy(2);
+        java.time.Duration interval = properties.pollInterval().compareTo(half) > 0 ? half : properties.pollInterval();
+        return interval.isZero() ? java.time.Duration.ofMillis(1) : interval;
     }
 
     private String message(String description, Observed<?> observed) {

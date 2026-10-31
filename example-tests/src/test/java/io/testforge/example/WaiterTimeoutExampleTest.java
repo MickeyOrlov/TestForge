@@ -39,4 +39,15 @@ class WaiterTimeoutExampleTest {
                 .isInstanceOf(WaitTimeoutException.class)
                 .hasMessageContaining("last error: IllegalStateException: GET /orders/o-1 -> 503");
     }
+
+    @Test
+    void aStateTheJobWillNotLeaveStopsTheWaitAtOnce() {
+        // 30 s of patience, but a Failed job will never complete: the test fails now, with the job
+        assertThatThrownBy(() -> waiter.withTimeout(java.time.Duration.ofSeconds(30)).await("job j-9 completes",
+                () -> new Job("j-9", "Failed"),
+                job -> "Completed".equals(job.status()),
+                job -> "Failed".equals(job.status()) || "Cancelled".equals(job.status())))
+                .isInstanceOf(io.testforge.core.wait.WaitAbortedException.class)
+                .hasMessageContaining("Job[id=j-9, status=Failed] is a state it will not leave");
+    }
 }
