@@ -30,6 +30,10 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `core`: the `Waiter` timeout messages above first stopped retrying a
+  condition that threw an `AssertionError` (Awaitility's `ignoreExceptions()`
+  had retried it), so an `assertThat` inside a wait failed on its first poll.
+  Assertion errors are "not ready yet" again, and the last one is reported.
 - `module-mobile-appium`: a session that could not start surfaced Selenium's
   message, which quotes every capability — a device cloud's `accessKey`
   included — and the hub URL with its user info; it is now reported with the
@@ -119,6 +123,9 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `core`: `ScenarioContext.remove(key)` drops one value; `put(key, null)`
+  pointed at "remove semantics" that did not exist. `JsonPath.read` refuses a
+  null path with a hint instead of a bare `NullPointerException`.
 - `core`: `Waiter.await(description, supplier, until, failWhen)` stops at
   once with `WaitAbortedException` (an `AssertionError`) when the value
   reaches a state it will not leave — a `Failed` job is not waited on for the

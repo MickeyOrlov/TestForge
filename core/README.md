@@ -47,6 +47,7 @@ ContextKey<String> REQUEST_ID = ContextKey.of("REQUEST_ID", String.class);
 ScenarioContext.put(REQUEST_ID, response.requestId());
 // ... later, possibly in another step ...
 String requestId = ScenarioContext.get(REQUEST_ID); // throws with a readable message if absent
+ScenarioContext.remove(REQUEST_ID);                  // drops one value, keeps the rest
 
 waiter.await("job becomes Completed",
         () -> jobClient.job(id),

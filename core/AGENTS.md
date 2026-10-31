@@ -19,10 +19,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   fixed time.
 - A `Waiter` timeout is a `WaitTimeoutException` extending Awaitility's
   `ConditionTimeoutException`; modules catch the latter, keep the hierarchy.
+- Exceptions *and* assertion errors inside a wait condition mean "not ready
+  yet" (as Awaitility's `ignoreExceptions()` did); `WaiterTest` pins it.
 
 ## Tests
 
-Own: `ArtifactSinkTest`, `TestArtifactTest`, `WaiterTest`. Example: `WaiterTimeoutExampleTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
+Own: `ArtifactSinkTest`, `TestArtifactTest`, `WaiterTest`, `ScenarioContextTest`, `JsonPathTest`. Example: `WaiterTimeoutExampleTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
 
 ## Before you finish
 

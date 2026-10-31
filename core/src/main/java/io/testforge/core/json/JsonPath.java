@@ -18,6 +18,9 @@ public final class JsonPath {
     }
 
     public static JsonNode read(JsonNode root, String path) {
+        if (path == null) {
+            throw new IllegalArgumentException("A JSON path must not be null; use \"$\" for the whole document");
+        }
         if (root == null) {
             return MissingNode.getInstance();
         }
