@@ -116,6 +116,10 @@ public class FlowRunner<S> {
                     throw new FlowException("Flow stopped before target %s. Path: %s"
                             .formatted(target, format(path)));
                 }
+                if (!step.declaredNext().isEmpty() && !step.declaredNext().contains(next)) {
+                    throw new FlowException("Step at %s returned %s, which it does not declare (declares %s). Path: %s"
+                            .formatted(current, next, sorted(step.declaredNext()), format(path)));
+                }
                 current = next;
             }
 
@@ -127,6 +131,68 @@ public class FlowRunner<S> {
         } finally {
             publishArtifact(path, transitions, failure);
         }
+    }
+
+    /**
+     * The flow as a Mermaid state diagram, from the declared transitions —
+     * for a README, a review, or the run index. A step that declares nothing
+     * shows as a transition to {@code ?}.
+     */
+    public String describe() {
+        StringBuilder out = new StringBuilder("stateDiagram-v2\n");
+        steps.values().stream().sorted(java.util.Comparator.comparing(step -> String.valueOf(step.state())))
+                .forEach(step -> {
+                    if (step.declaredNext().isEmpty()) {
+                        out.append("    ").append(step.state()).append(" --> ").append("unknown: ?\n");
+                    } else {
+                        sorted(step.declaredNext()).forEach(next ->
+                                out.append("    ").append(step.state()).append(" --> ").append(next).append('\n'));
+                    }
+                });
+        return out.toString();
+    }
+
+    /**
+     * What is wrong with the flow before any step runs, judged from the
+     * declared transitions: a state some step can go to that has no step of
+     * its own (a dead end), and a target no declared path reaches. Steps that
+     * declare nothing are taken on trust. Empty when the flow is sound.
+     */
+    public List<String> verify(S start, S target) {
+        List<String> problems = new ArrayList<>();
+        java.util.Set<S> reachable = new java.util.LinkedHashSet<>();
+        java.util.Deque<S> pending = new java.util.ArrayDeque<>(List.of(start));
+        boolean undeclared = false;
+        while (!pending.isEmpty()) {
+            S state = pending.poll();
+            if (!reachable.add(state) || state.equals(target)) {
+                continue;
+            }
+            FlowStep<S> step = steps.get(state);
+            if (step == null) {
+                problems.add("dead end: " + state + " is reachable from " + start + " but has no step");
+            } else if (step.declaredNext().isEmpty()) {
+                undeclared = true;
+            } else {
+                pending.addAll(step.declaredNext());
+            }
+        }
+        if (!undeclared && !reachable.contains(target)) {
+            problems.add("no declared path from " + start + " reaches " + target);
+        }
+        return problems;
+    }
+
+    /** Fails with every problem {@link #verify} finds. */
+    public void assertValid(S start, S target) {
+        List<String> problems = verify(start, target);
+        if (!problems.isEmpty()) {
+            throw new FlowException("Flow " + name + " cannot work: " + String.join("; ", problems));
+        }
+    }
+
+    private static <S> List<S> sorted(java.util.Set<S> states) {
+        return states.stream().sorted(java.util.Comparator.comparing(String::valueOf)).toList();
     }
 
     /** {@code ; slowest step: AUTHORIZE -> READY (41000 ms)} — where a timed-out flow spent its time. */

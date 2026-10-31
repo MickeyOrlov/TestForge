@@ -78,6 +78,11 @@ public class FlowRunnerFactory {
                     Supplier<S> proceed = () -> inner.execute(context);
                     return decorator.around(step, context, proceed);
                 }
+
+                @Override
+                public java.util.Set<S> declaredNext() {
+                    return step.declaredNext();
+                }
             };
         }
         return result;

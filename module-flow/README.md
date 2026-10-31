@@ -54,6 +54,25 @@ that timed out names its slowest step (`slowest step: AUTHORIZE -> READY
 (41000 ms)`), a failed step says how long it ran before failing, and the
 `flow-path-<name>.txt` artifact lists the timed steps.
 
+### Declared transitions: verify and draw a flow before it runs
+
+```java
+FlowStep.of(SUBMITTED,
+        ctx -> ctx.get("amount", Integer.class) > 1000 ? MANAGER_REVIEW : OPERATOR_REVIEW,
+        MANAGER_REVIEW, OPERATOR_REVIEW)   // where this step may go
+```
+
+- A step that returns a state it does not declare fails at once:
+  `Step at SUBMITTED returned APPROVED, which it does not declare`.
+- `runner.verify(start, target)` / `assertValid(...)` find, without calling
+  the system, a state some step can reach that has no step (a dead end) and
+  a target no declared path reaches.
+- `runner.describe()` renders a Mermaid `stateDiagram-v2` from the
+  declarations — for a README or a review.
+- Declaring is optional (`FlowStep.declaredNext()` defaults to empty): steps
+  that declare nothing are not checked and draw as `--> ?`. The method is
+  `declaredNext`, so a `record Step(S state, S next)` keeps compiling.
+
 Branching example: put `role` or `amount` into `FlowContext` in a setup hook,
 then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`
 — see `FlowRunnerTest.roleBasedApprovalPath` in example-tests.
