@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 
 @AutoConfiguration(
         after = TestForgeCoreAutoConfiguration.class,
@@ -30,6 +31,16 @@ public class TestForgeKafkaAutoConfiguration {
             Waiter waiter,
             ObjectMapper objectMapper) {
         return new KafkaProbe(buffer, waiter, objectMapper);
+    }
+
+    /** Present wherever Spring Boot made a KafkaTemplate; sends nothing until a test publishes. */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(KafkaTemplate.class)
+    @SuppressWarnings("unchecked")
+    public KafkaPublisher kafkaPublisher(KafkaTemplate<?, ?> template, ObjectMapper objectMapper,
+                                         KafkaProbeProperties properties) {
+        return new KafkaPublisher((KafkaTemplate<String, String>) template, objectMapper, properties.publish());
     }
 
     @Bean

@@ -2,11 +2,14 @@ package io.testforge.example;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.testforge.core.context.ScenarioContext;
+import io.testforge.core.context.ScenarioKeys;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
 import io.testforge.kafka.KafkaMessageFilter;
 import io.testforge.kafka.KafkaPollingCollector;
 import io.testforge.kafka.KafkaProbe;
+import io.testforge.kafka.KafkaPublisher;
 import java.util.UUID;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -31,7 +34,9 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
         "forge.kafka.seek-to-beginning-on-start=true",
         "forge.kafka.poll-timeout=300ms",
         "forge.wait.timeout=30s",
-        "spring.kafka.consumer.group-id=testforge-collector-it"
+        "spring.kafka.consumer.group-id=testforge-collector-it",
+        "forge.kafka.publish.scope-header=X-Test-Scope",
+        "forge.kafka.publish.headers.source=testforge"
 })
 @EmbeddedKafka(
         partitions = 1,
@@ -52,6 +57,9 @@ class KafkaCollectorIntegrationTest {
 
     @Autowired
     EmbeddedKafkaBroker broker;
+
+    @Autowired
+    KafkaPublisher publisher;
 
     @BeforeEach
     void clearBuffer() {
@@ -87,6 +95,23 @@ class KafkaCollectorIntegrationTest {
                 KafkaMessageFilter.builder().topic(TOPIC).key(key).build());
 
         assertThat(reread.value()).contains("historic");
+    }
+
+    @Test
+    void aPublishedTestEventCarriesTheScenarioScopeThroughTheBroker() {
+        String key = "key-" + UUID.randomUUID();
+        ScenarioContext.put(ScenarioKeys.TEST_SCOPE, "scope-" + key);
+        try {
+            KafkaMessage sent = publisher.publish(TOPIC, key, java.util.Map.of("status", "requested"));
+
+            KafkaMessage received = kafka.awaitMessage(KafkaMessageFilter.builder().topic(TOPIC).key(key)
+                    .headerEquals("X-Test-Scope", "scope-" + key).headerEquals("source", "testforge")
+                    .jsonPathEquals("$.status", "requested").build());
+
+            assertThat(received.offset()).isEqualTo(sent.offset());
+        } finally {
+            ScenarioContext.clear();
+        }
     }
 
     private void produce(String key, String value) {

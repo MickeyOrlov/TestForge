@@ -17,6 +17,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       - partner.events
  *     poll-timeout: 500ms
  *     max-messages-per-topic: 500
+ *     publish:
+ *       scope-header: X-Test-Scope        # scenario scope id on every published event
+ *       correlation-header: X-Request-Id  # scenario correlation id
+ *       headers:                          # sent on every published event
+ *         source: testforge
+ *       send-timeout: 10s
  * </pre>
  */
 @ConfigurationProperties(prefix = "forge.kafka")
@@ -25,9 +31,13 @@ public record KafkaProbeProperties(
         List<String> topics,
         Duration pollTimeout,
         int maxMessagesPerTopic,
-        boolean seekToBeginningOnStart) {
+        boolean seekToBeginningOnStart,
+        PublishProperties publish) {
 
     public KafkaProbeProperties {
+        if (publish == null) {
+            publish = new PublishProperties(null, null, null, null);
+        }
         if (topics == null) {
             topics = List.of();
         }
@@ -39,6 +49,18 @@ public record KafkaProbeProperties(
         }
         if (maxMessagesPerTopic <= 0) {
             maxMessagesPerTopic = 1_000;
+        }
+    }
+
+    /** What {@link KafkaPublisher} adds to every event a test publishes. */
+    public record PublishProperties(String scopeHeader, String correlationHeader,
+                                    java.util.Map<String, String> headers, Duration sendTimeout) {
+
+        public PublishProperties {
+            headers = java.util.Map.copyOf(headers == null ? java.util.Map.of() : headers);
+            if (sendTimeout == null || sendTimeout.isZero() || sendTimeout.isNegative()) {
+                sendTimeout = Duration.ofSeconds(10);
+            }
         }
     }
 }
