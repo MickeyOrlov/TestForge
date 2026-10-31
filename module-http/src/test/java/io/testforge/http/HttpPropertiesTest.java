@@ -13,7 +13,7 @@ class HttpPropertiesTest {
 
     private static HttpProperties properties(String baseUrl, Map<String, String> headers,
                                              Map<String, HttpProperties.ServiceProperties> services) {
-        return new HttpProperties(baseUrl, headers, services, null, null, null, null, null, null);
+        return new HttpProperties(baseUrl, headers, services, null, null, null, null, null, null, null);
     }
 
     @Test

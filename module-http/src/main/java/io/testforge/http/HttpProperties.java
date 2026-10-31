@@ -31,6 +31,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       bodies: true
  *     retry:
  *       enabled: false
+ *     diagnostics:
+ *       enabled: true      # keep the scenario's last exchanges for failed-test reports
+ *       last: 10
  * </pre>
  *
  * <p>Header maps need the bracket syntax shown above: Spring's relaxed binding
@@ -46,7 +49,8 @@ public record HttpProperties(
         ScopeProperties scope,
         CorrelationProperties correlation,
         LoggingProperties logging,
-        RetryProperties retry) {
+        RetryProperties retry,
+        DiagnosticsProperties diagnostics) {
 
     public HttpProperties {
         headers = Map.copyOf(headers == null ? Map.of() : headers);
@@ -68,6 +72,26 @@ public record HttpProperties(
         }
         if (retry == null) {
             retry = new RetryProperties(null, null, null, null, null);
+        }
+        if (diagnostics == null) {
+            diagnostics = new DiagnosticsProperties(null, null);
+        }
+    }
+
+    /**
+     * How many of the scenario's exchanges a failed test can show. Only kept in
+     * memory per thread; written out by {@code HttpDiagnosticsExtension} when a
+     * test fails, and only into the run index.
+     */
+    public record DiagnosticsProperties(Boolean enabled, Integer last) {
+
+        public DiagnosticsProperties {
+            if (enabled == null) {
+                enabled = true;
+            }
+            if (last == null || last <= 0) {
+                last = 10;
+            }
         }
     }
 

@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-http`: failed-test diagnostics. The scenario's last exchanges
+  (`forge.http.diagnostics.last`, default 10) are kept in memory per thread,
+  redacted like the log; with `@ExtendWith(HttpDiagnosticsExtension.class)` a
+  failed test publishes them to the run index as `module-http/<Class>-<method>.md`.
+  The original failure is always rethrown; passing tests write nothing.
 - Contract guard (`module-api-explorer`, `forge.contract-guard.enabled`):
   every response `ApiClient` receives in ordinary functional tests is checked
   against the OpenAPI document with the explorer's checks. `record` mode
