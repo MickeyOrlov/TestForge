@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: SQL in failure diagnostics. With
+  `forge.db.diagnostics.enabled=true` and `@ExtendWith(DbDiagnosticsExtension.class)`,
+  a failed test publishes `module-db/<Class>-<method>.md` — its last
+  statements with datasource, duration, bound parameters (per batch entry)
+  and errors. `SqlJournal` keeps them per thread (`last`, default 20).
 - `module-db`: `DbState` table snapshots. `db.table("orders").keyedBy("id")
   .where("customer_id = ?", id).take()` before an action, `.diff()` after:
   added, removed and changed rows per column, read with plain JDBC.

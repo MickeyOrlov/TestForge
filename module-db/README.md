@@ -31,6 +31,9 @@ forge:
     default-datasource: primaryDataSource  # optional; bean name
     repository-polling:
       enabled: true # default: false
+    diagnostics:
+      enabled: true # default: false; SQL of failed tests in the run index
+      last: 20      # statements kept per test thread
 ```
 
 ## Usage
@@ -121,6 +124,27 @@ columns changed that should not have: [total] in orders where customer_id = ? (k
 - Table and column names must be plain identifiers; the `where` clause is
   the test's own SQL with `?` parameters.
 - `db.on("auditDataSource")` for a named datasource.
+
+## When a test fails: the SQL it ran
+
+```java
+@SpringBootTest(properties = "forge.db.diagnostics.enabled=true")
+@ExtendWith(DbDiagnosticsExtension.class)
+class OrdersTest { ... }
+```
+
+A failed test publishes `module-db/<Class>-<method>.md` to the run index: the
+last statements of its thread, oldest first, with the datasource, duration,
+bound parameters (one line per batch entry) and the error of a statement that
+failed. The original failure is rethrown unchanged; passing tests write
+nothing. `SqlJournal.recent()` gives the same list to a test directly.
+
+- Off by default, unlike HTTP diagnostics: recording means wrapping the
+  DataSource bean in a proxy, the same one `log-sql` uses (one proxy serves
+  both). Code that casts the bean to a pool type breaks under it.
+- Parameter values are shown as bound (shortened to 200 characters): they are
+  test data. Keep real secrets out of SQL parameters, or leave diagnostics off
+  where they are.
 
 ## Named datasources
 
