@@ -6,7 +6,8 @@ answered, but what the services actually persisted.
 ## What's inside
 
 - **`DbWaiter`** — polls a repository call until the row written by an
-  asynchronous backend process appears. The antidote to `Thread.sleep`.
+  asynchronous backend process appears, or SQL until a value or count is
+  reached (`awaitValue`, `awaitRowCount`). The antidote to `Thread.sleep`.
   Use `on(name)` to target a named datasource.
 - **`RepositoryPollingAspect`** — optional naming-convention wrapper:
   `waitBy...` default repository methods poll the matching `findBy...` query.
@@ -46,6 +47,21 @@ TaskRecord row = dbWaiter.awaitRow(
 
 assertThat(schemaValidator.missingColumns(TaskRecord.class)).isEmpty();
 ```
+
+Waiting for a value in SQL, without a repository — values always as `?`
+parameters:
+
+```java
+dbWaiter.awaitValue("order " + id + " paid",
+        "SELECT status FROM orders WHERE id = ?", "PAID", id);
+dbWaiter.awaitRowCount("audit entries for " + id,
+        "SELECT count(*) FROM audit_log WHERE order_id = ?", 2, id);
+```
+
+On timeout the failure says what the database last answered — `expected
+PAID, last saw PENDING`, `last saw no row`, or `the query failed: Table
+"AUDIT_LOG" not found` — instead of only that time ran out. Numbers compare
+by value (`1` equals `1L`).
 
 ### Schema drift detection
 
@@ -201,8 +217,8 @@ Usage:
 ```java
 dbWaiter.on("auditDataSource").awaitRowCount(
         "audit entry for " + taskId,
-        "SELECT count(*) FROM audit_log WHERE task_id = '" + taskId + "'",
-        1);
+        "SELECT count(*) FROM audit_log WHERE task_id = ?",
+        1, taskId);
 
 assertThat(schemaValidator.forDataSource("auditDataSource")
         .missingColumns(AuditEntry.class)).isEmpty();

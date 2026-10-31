@@ -38,7 +38,7 @@ template building blocks.
 | `core` | `ScenarioContext`, `ScenarioContextExtension`, `Waiter`, `StateSnapshot`/`StateDiff`. |
 | `module-contract` | JSON payload validation through `MessageContract` and `SchemaContract`. |
 | `module-data` | Unique values, template rendering, generators, `Factory`, `@Prepared` pool SPI, `Cleanup`. Plan: [data-layer-roadmap.md](data-layer-roadmap.md). |
-| `module-db` | `DbWaiter`, repository polling, SQL logging, schema drift checks (missing columns, column type families, nullability) with documented limits. |
+| `module-db` | `DbWaiter` (repository or SQL value/count, parameters bound), repository polling, SQL logging, schema drift checks with documented limits, `DbState` table diffs and setup rows, SQL in failure diagnostics. Plan: [db-layer-roadmap.md](db-layer-roadmap.md). |
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
 | `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers. |
@@ -113,6 +113,9 @@ surface is still expected to evolve.
   diagnostics, `ResponsePoller`, `Pagination` ([plan](http-layer-roadmap.md)).
 - Test data layer: `Cleanup`, `Factory`, data isolation tags, leftovers in the
   run index ([plan](data-layer-roadmap.md)).
+- Database layer: table snapshots and per-column diffs, SQL of failed tests in
+  the run index, setup rows removed after the test, `DbWaiter.awaitValue`
+  ([plan](db-layer-roadmap.md)).
 - The run index's `summary.md` points at every report, including the ones a
   module keeps in its own output directory, and lists failing verdicts first.
 - Every diagnostic-producing module publishes into the unified run index:
