@@ -1,6 +1,7 @@
 package io.testforge.data;
 
 import io.testforge.artifact.ArtifactSink;
+import io.testforge.data.cleanup.LeftoverReporter;
 import io.testforge.data.isolation.DataIsolation;
 import io.testforge.data.prepared.PoolEventListener;
 import io.testforge.data.prepared.PoolLifecycle;
@@ -32,6 +33,12 @@ public class TestForgeDataAutoConfiguration {
             DataProperties properties,
             ObjectProvider<ArtifactSink> artifactSink) {
         return new PoolLifecycle(pool, properties.pool(), artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public LeftoverReporter leftoverReporter(ObjectProvider<ArtifactSink> artifactSink) {
+        return new LeftoverReporter(artifactSink.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 
     /** Applies {@code forge.data.isolation} to {@link DataIsolation} when the context starts. */

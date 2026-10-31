@@ -210,6 +210,33 @@ class OrdersTest {
   suppressed). When the test passed, data left behind fails it with every
   action that could not be undone.
 
+### Leftovers in the run index
+
+Every action that could not be undone — whether the test passed or failed —
+is recorded, and when the context stops it is published to the run index as
+`module-data/leftovers.json` with `healthy: false`, so `summary.md` lists it
+under *Needs attention*:
+
+```json
+{
+  "runTag" : "tf-k3x9q",
+  "count" : 1,
+  "leftovers" : [ {
+    "test" : "OrdersTest > cancelsAnOrder()",
+    "description" : "order tf-k3x9q-t4-order-1",
+    "error" : "java.lang.IllegalStateException: 409 order is locked",
+    "scopeTag" : "tf-k3x9q-t4",
+    "testFailed" : false,
+    "at" : "2026-10-31T12:00:00Z"
+  } ]
+}
+```
+
+A clean run writes nothing. Needs `module-reporting` with
+`forge.reporting.artifacts.enabled=true`; without it the leftovers are only in
+the test failures and the log. The `scopeTag` is what a sweeper job searches
+the environment for.
+
 ## Agent notes
 
 - `PreparedDataProvider<T>` is THE adaptation point — its `prepare(tags)`

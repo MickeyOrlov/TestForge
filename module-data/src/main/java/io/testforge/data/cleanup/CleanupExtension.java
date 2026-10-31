@@ -1,5 +1,6 @@
 package io.testforge.data.cleanup;
 
+import io.testforge.data.isolation.DataIsolation;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.extension.AfterAllCallback;
@@ -21,7 +22,8 @@ import org.slf4j.LoggerFactory;
  *
  * A cleanup problem never hides the test's own failure: it is attached to it
  * as suppressed. When the test passed, leftover data is a finding, so the test
- * fails with every action that could not be undone.
+ * fails with every action that could not be undone. Either way each action that
+ * could not be undone is recorded in {@link Leftovers} for the run index.
  */
 public class CleanupExtension implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback,
         AfterEachCallback {
@@ -52,6 +54,11 @@ public class CleanupExtension implements BeforeAllCallback, AfterAllCallback, Be
         if (failures.isEmpty()) {
             return;
         }
+        boolean testFailed = context.getExecutionException().isPresent();
+        String test = context.getTestMethod().isPresent()
+                ? context.getRequiredTestClass().getSimpleName() + " > " + context.getDisplayName()
+                : context.getDisplayName();
+        failures.forEach(failure -> Leftovers.record(test, failure, DataIsolation.scopeTag(), testFailed));
         String summary = "Cleanup after " + context.getDisplayName() + " left data behind:\n" + failures.stream()
                 .map(failure -> "  - " + failure.description() + ": " + failure.cause())
                 .collect(Collectors.joining("\n"));
