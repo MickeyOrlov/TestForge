@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-http`: `Pagination` walks every page of a list endpoint with one
+  call — `byPageNumber`, `byOffset`, `byCursor`, `byLinkHeader` (RFC 8288
+  `rel="next"`) — mapping items with REST Assured's JSON path. It fails
+  instead of misbehaving on a non-2xx page, on the same page served twice
+  (a server ignoring the paging parameter) and after `maxPages` (default 100).
 - `module-http`: `ResponsePoller` repeats a call until its response matches
   (`poll.until(() -> api.request().get(...), jsonPath("status", "DONE"))`)
   through `Waiter` and `forge.wait`, overridable per call. Named
