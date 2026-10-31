@@ -58,7 +58,7 @@ depend on opt-in runtime integrations.
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-auth` | Credentials per role (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login), cached with early refresh, `@AsUser` and reserved `anonymous` role, role shown in failure diagnostics, access matrix (operation × role) through `module-api-explorer`. |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`; flows named per recipe, declared targets, all recipes verified without running. Plan: [state-layer-roadmap.md](state-layer-roadmap.md). |
-| `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build. |
+| `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build; a failing test also leaves `browser.md` (failed requests, console and page errors). Plan: [playwright-layer-roadmap.md](playwright-layer-roadmap.md). |
 | `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts. Real devices are opt-in. |
 
 ### Experimental

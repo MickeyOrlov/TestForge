@@ -83,15 +83,17 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
         private final PlaywrightProperties properties;
         private final ArtifactSink artifactSink;
         private final boolean tracingStarted;
+        private final BrowserJournal journal;
         private boolean traceStopped;
 
         private Fixture(BrowserContext context, Page page, PlaywrightProperties properties,
-                        ArtifactSink artifactSink, boolean tracingStarted) {
+                        ArtifactSink artifactSink, boolean tracingStarted, BrowserJournal journal) {
             this.context = context;
             this.page = page;
             this.properties = properties;
             this.artifactSink = artifactSink;
             this.tracingStarted = tracingStarted;
+            this.journal = journal;
         }
 
         static Fixture open(BrowserContext context, PlaywrightProperties properties, ArtifactSink artifactSink) {
@@ -103,7 +105,17 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                         .setSources(true));
                 tracingStarted = true;
             }
-            return new Fixture(context, context.newPage(), properties, artifactSink, tracingStarted);
+            BrowserJournal journal = new BrowserJournal();
+            // listen on the context, so pages a test opens itself (popups, new tabs) are heard too
+            context.onConsoleMessage(message -> journal.console(message.type(), message.text()));
+            context.onResponse(response -> journal.response(
+                    response.request().method(), response.url(), response.status()));
+            context.onRequestFailed(request -> journal.requestFailed(
+                    request.method(), request.url(), request.failure()));
+            Page page = context.newPage();
+            page.onPageError(journal::pageError);
+            context.onPage(opened -> opened.onPageError(journal::pageError));
+            return new Fixture(context, page, properties, artifactSink, tracingStarted, journal);
         }
 
         Page page() {
@@ -118,6 +130,9 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
             Path directory = artifactDirectory(extensionContext);
             try {
                 Files.createDirectories(directory);
+                // text first: it needs nothing from the page, so it survives a page that crashed
+                Files.writeString(directory.resolve("browser.md"),
+                        journal.markdown(String.valueOf(directory.getFileName()), currentUrl(), currentTitle()));
                 page.screenshot(new Page.ScreenshotOptions()
                         .setPath(directory.resolve("screenshot.png"))
                         .setFullPage(true));
@@ -127,6 +142,7 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                         "Failed to capture Playwright failure artifacts in " + directory, e);
             } finally {
                 // index whatever made it to disk, including a screenshot taken before a trace failure
+                register(directory, "browser.md", "text/markdown", extensionContext);
                 register(directory, "screenshot.png", "image/png", extensionContext);
                 register(directory, "trace.zip", "application/zip", extensionContext);
             }
@@ -139,6 +155,22 @@ public class PlaywrightPageExtension implements ParameterResolver, TestExecution
                         // testKey matches the <Class>-<method> name of the HTTP, SQL and Kafka reports of the test
                         Map.of("test", extensionContext.getDisplayName(),
                                 "testKey", String.valueOf(directory.getFileName())));
+            }
+        }
+
+        private String currentUrl() {
+            try {
+                return page.url();
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+
+        private String currentTitle() {
+            try {
+                return page.title();
+            } catch (RuntimeException e) {
+                return null;
             }
         }
 

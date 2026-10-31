@@ -101,6 +101,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-web-playwright`: a failing UI test also leaves `browser.md` —
+  requests that failed or answered 4xx/5xx, uncaught page errors, console
+  errors and warnings, from every page of the test's context — written before
+  the screenshot and registered under the test's `testKey`. URLs are
+  redacted; headers and bodies are never recorded.
 - `module-web`: `forge.prewarm.mode=http` warms with plain GET requests that
   follow redirects — no browser download; client bundles stay cold, so
   `browser` remains the default. `PrewarmExampleTest` exercises prewarm end
