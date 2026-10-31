@@ -11,5 +11,11 @@ dependencies {
 
 dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.junit.platform:junit-platform-testkit"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// fixtures run only through EngineTestKit (some fail on purpose)
+tasks.named("test") {
+    exclude "**/*TestkitFixture*"
 }

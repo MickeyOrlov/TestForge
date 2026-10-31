@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-data`: test-data cleanup. `Cleanup.register("order " + id, () -> ...)`
+  records how to undo what a test created; `CleanupExtension` runs it after
+  the test — newest first, every action even if one fails, also when the test
+  failed — and `@BeforeAll` registrations after the class. Per thread. A
+  cleanup problem is attached to the test's failure as suppressed; a passing
+  test that leaves data behind fails with every action that could not be undone.
 - `module-http`: `Pagination` walks every page of a list endpoint with one
   call — `byPageNumber`, `byOffset`, `byCursor`, `byLinkHeader` (RFC 8288
   `rel="next"`) — mapping items with REST Assured's JSON path. It fails

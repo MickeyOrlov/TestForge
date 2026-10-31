@@ -94,6 +94,33 @@ forge:
   in the run index as `module-data/pool-stats.json`, so a CI run shows which
   variants were under-stocked.
 
+## Cleaning up what a test created
+
+Tests on a shared environment undo what they create. Register the undo the
+moment the object exists; it runs after the test, even when the test failed
+halfway:
+
+```java
+@ExtendWith(CleanupExtension.class)
+class OrdersTest {
+
+    @Test
+    void cancelsAnOrder() {
+        String id = api.request().body(order).post("/orders").path("id");
+        Cleanup.register("order " + id, () -> api.request().delete("/orders/{id}", id));
+        ...
+    }
+}
+```
+
+- Actions run newest first — children before their parents — and every one
+  runs even if an earlier one fails.
+- What `@BeforeAll` registers runs after the whole class.
+- Per thread: parallel tests never clean up each other's data.
+- A cleanup problem never hides the test's own failure (it is attached as
+  suppressed). When the test passed, data left behind fails it with every
+  action that could not be undone.
+
 ## Agent notes
 
 - `PreparedDataProvider<T>` is THE adaptation point — its `prepare(tags)`
