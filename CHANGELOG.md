@@ -7,6 +7,14 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-data`: `Factory` builds test objects and payloads with readable,
+  unique defaults — `Factory.forRecord(Customer.class)`, `Factory.map("order")`
+  or `Factory.of(name, assembler)` — overridden per field (`with`, `without`),
+  with named traits (`as("vip")`) and derived fields that follow overrides.
+  Immutable, so a `static final` declaration is safe in parallel tests;
+  `f.label()` and `f.unique(type, generator)` keep values distinct. Unknown
+  fields or traits, missing record components, wrong component types and
+  cycles fail with a readable message. Plan: `docs/data-layer-roadmap.md`.
 - `module-data`: test-data cleanup. `Cleanup.register("order " + id, () -> ...)`
   records how to undo what a test created; `CleanupExtension` runs it after
   the test — newest first, every action even if one fails, also when the test

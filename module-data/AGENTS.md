@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-data`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, and the `@Prepared` pool (`PreparedDataProvider`, `PreparedDataPool`, `PoolLifecycle`: config preload, background refill, stats), and test-data cleanup (`Cleanup`, `CleanupExtension`).
+**Scope:** `RunUniqueValues`, `TemplateRenderer`, `Generators`, `Factory`, and the `@Prepared` pool (`PreparedDataProvider`, `PreparedDataPool`, `PoolLifecycle`: config preload, background refill, stats), and test-data cleanup (`Cleanup`, `CleanupExtension`).
 
 **May depend on:** `core` only.
 
@@ -16,12 +16,17 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   safe.
 - Template rendering fails loudly on missing variables and cycles.
 
+- Factories are immutable: every `with`/`without`/`as` returns a copy that
+  shares the sequence and the uniqueness registry. Unknown fields and traits,
+  missing record components and wrong component types fail loudly.
 - Cleanup never replaces a test's failure: attach as suppressed; only a
   passing test fails on leftovers. Registrations stay per thread.
 
+Plan: [docs/data-layer-roadmap.md](../docs/data-layer-roadmap.md).
+
 ## Tests
 
-Own: `RunUniqueValuesTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once, tag sets, refill), `PoolLifecycleTest` (config preload, background refill, stats artifact), `CleanupExtensionTest` (runs `CleanupTestkitFixture` through EngineTestKit; the fixture fails on purpose and is excluded from the normal test task). Examples: `DataHelpersTest`, `PreparedDataTest`, `PreparedPoolConfigExampleTest`, `CleanupExampleTest`, `ScopedRequestTemplateTest`.
+Own: `RunUniqueValuesTest`, `FactoryTest`, `GeneratorsTest`, `TemplateRendererTest`, `PreparedDataPoolTest` (incl. parallel exactly-once, tag sets, refill), `PoolLifecycleTest` (config preload, background refill, stats artifact), `CleanupExtensionTest` (runs `CleanupTestkitFixture` through EngineTestKit; the fixture fails on purpose and is excluded from the normal test task). Examples: `DataHelpersTest`, `FactoryExampleTest`, `PreparedDataTest`, `PreparedPoolConfigExampleTest`, `CleanupExampleTest`, `ScopedRequestTemplateTest`.
 
 ## Before you finish
 

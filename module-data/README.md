@@ -10,13 +10,16 @@ Small helpers for data-heavy tests.
   missing-variable diagnostics.
 - **`Generators`** — mask presets (`guid`, `phone(prefix, digits)`, `numeric`,
   `alphanumeric`) meant to be passed to `RunUniqueValues.generate(...)`.
+- **`Factory`** — test objects and payloads with readable, unique defaults,
+  overridable per field, with named traits (see below).
 - **`@Prepared` / `PreparedDataPool` / `PreparedDataProvider`** — fixture-style
   injection of prepared domain objects (see below).
+- **`Cleanup` / `CleanupExtension`** — undo what a test created (see below).
 
 The module does not ship **domain** Object Mothers (order payloads, user
-profiles, product cards). Add those in the adapted project as small static
-factories or builders; use `RunUniqueValues` + `Generators` for uniqueness and
-masks, `TemplateRenderer` for payloads that reference scenario variables.
+profiles, product cards). Declare those in the adapted project with `Factory`;
+`TemplateRenderer` stays the tool for text payloads that reference scenario
+variables. The plan for the module is [docs/data-layer-roadmap.md](../docs/data-layer-roadmap.md).
 
 ## Configuration
 
@@ -33,6 +36,42 @@ String phone = uniqueValues.generate("phone", Generators.phone("+8499", 7), 20);
 String id = uniqueValues.generate("requestId", Generators.guid(), 10);
 String body = templateRenderer.render("{\"id\":\"%{requestId}%\"}", variables);
 ```
+
+## Factories: readable defaults, override what the test is about
+
+Declare once what a valid object looks like; a test overrides only the field
+its scenario is about:
+
+```java
+static final Factory<Customer> CUSTOMERS = Factory.forRecord(Customer.class)
+        .field("name", f -> f.label())                         // customer-1, customer-2, ...
+        .field("email", f -> f.get("name") + "@example.test")   // follows an overridden name
+        .field("phone", f -> f.unique("phone", Generators.phone("+1555", 7)))
+        .field("tier", "standard")
+        .trait("vip", c -> c.with("tier", "vip"));
+
+Customer anna = CUSTOMERS.as("vip").with("name", "anna").build();
+List<Customer> batch = CUSTOMERS.build(5);
+
+static final Factory<Map<String, Object>> ORDERS = Factory.map("order")
+        .field("item", "book")
+        .field("quantity", 1);
+Map<String, Object> invalid = ORDERS.without("quantity").build();  // the key is gone
+```
+
+- `forRecord(type)` builds a record through its canonical constructor; every
+  component needs a default or an override, and a value of the wrong type
+  names the component. `map(name)` builds a payload map in declaration order.
+  `of(name, assembler)` covers anything else.
+- Derived fields (`f -> ...`) are computed per build, once, and see overrides;
+  a cycle between them fails with the path.
+- `with`, `without` and `as` return a new factory, so a `static final`
+  declaration is safe in parallel tests. An unknown field or trait fails with
+  the known ones.
+- `f.label()` is the factory name plus a sequence shared by every copy, so
+  labels never repeat in a JVM. `f.unique(type, generator)` draws from a
+  `RunUniqueValues` registry — the factory's own by default; pass the bean with
+  `.uniqueValues(registry)` to share it with the rest of the suite.
 
 ## Prepared objects: `@Prepared` + pool
 
