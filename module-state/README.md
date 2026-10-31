@@ -53,6 +53,36 @@ For variants with extra tags:
 DemoTicket ticket
 ```
 
+## Supported targets, checked before any test needs them
+
+```java
+@Override
+public Set<String> targets() {
+    return Set.of("submitted", "approved");
+}
+```
+
+- `@Prepared(tags = "aproved")` then fails at once with `Recipe
+  state:DemoTicket cannot prepare 'aproved'; supported targets: [approved,
+  submitted]`, instead of whatever `targetState` makes of a typo.
+- `StateRecipes` holds every recipe bean; one test checks them all without
+  creating anything:
+
+  ```java
+  @Test
+  void everyRecipeCanReachEveryTarget(@Autowired StateRecipes recipes) {
+      recipes.assertAllValid();
+  }
+  ```
+
+  For each declared target it builds the request, maps it to states, builds
+  the steps and runs `FlowRunner.verify`: a dead end, a target no declared
+  transition reaches, or a target the recipe cannot map are reported. Only
+  steps declared with `FlowStep.of(state, action, next...)` can be judged —
+  and since steps are built per request, each should declare what it can
+  return *for that request* (the step at `SUBMITTED` declares the requested
+  target, not every outcome).
+
 ## What a state costs, and which branches were never prepared
 
 Every recipe's flow runs under the recipe's `name()` — `state:<Type>` by

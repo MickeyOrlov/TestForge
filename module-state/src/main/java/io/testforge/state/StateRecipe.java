@@ -35,4 +35,15 @@ public interface StateRecipe<T, S> {
     default String name() {
         return "state:" + type().getSimpleName();
     }
+
+    /**
+     * The target tags this recipe can prepare, e.g. {@code approved},
+     * {@code rejected}. Empty — the default — means "ask
+     * {@link #targetState}". Once declared, an unknown tag fails with the
+     * supported ones, and {@code StateRecipes.assertAllValid()} checks the
+     * recipe's flow for each of them before any test needs it.
+     */
+    default java.util.Set<String> targets() {
+        return java.util.Set.of();
+    }
 }

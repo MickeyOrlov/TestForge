@@ -1,6 +1,7 @@
 package io.testforge.state;
 
 import io.testforge.flow.FlowRunnerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,5 +17,11 @@ public class TestForgeStateAutoConfiguration {
             FlowRunnerFactory flowRunnerFactory,
             StateProperties properties) {
         return new StateRecipeExecutor(flowRunnerFactory, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public StateRecipes stateRecipes(ObjectProvider<StateRecipe<?, ?>> recipes, StateRecipeExecutor executor) {
+        return new StateRecipes(recipes.orderedStream().toList(), executor);
     }
 }

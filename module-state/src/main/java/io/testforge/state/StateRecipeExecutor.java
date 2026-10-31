@@ -26,6 +26,7 @@ public class StateRecipeExecutor {
     public <T, S> StatePreparation<T, S> prepareDetailed(StateRecipe<T, S> recipe, List<String> tags) {
         Objects.requireNonNull(recipe, "recipe");
         StateRequest request = new StateRequest(tags, properties.targetTagPrefix());
+        requireSupported(recipe, request);
         FlowContext context = Objects.requireNonNull(recipe.context(request), "recipe context");
         S initialState = Objects.requireNonNull(recipe.initialState(request), "initial state");
         S targetState = Objects.requireNonNull(recipe.targetState(request), "target state");
@@ -45,5 +46,42 @@ public class StateRecipeExecutor {
 
         T object = Objects.requireNonNull(recipe.materialize(result, request), "materialized object");
         return new StatePreparation<>(object, initialState, targetState, result, request);
+    }
+
+    /**
+     * What is wrong with {@code recipe} before it runs: for each declared
+     * target, the problems {@code FlowRunner.verify} finds in the flow it would
+     * run — a dead end, a target no declared transition reaches — and a target
+     * the recipe cannot even map to a state. Nothing is executed; only steps
+     * that declare their transitions can be judged. Empty for a recipe that
+     * declares no {@link StateRecipe#targets()}.
+     */
+    public <T, S> List<String> verify(StateRecipe<T, S> recipe) {
+        List<String> problems = new java.util.ArrayList<>();
+        for (String target : new java.util.TreeSet<>(recipe.targets())) {
+            StateRequest request = new StateRequest(List.of(target), properties.targetTagPrefix());
+            try {
+                S initial = Objects.requireNonNull(recipe.initialState(request), "initial state");
+                S targetState = Objects.requireNonNull(recipe.targetState(request), "target state");
+                Collection<? extends FlowStep<S>> steps = recipe.steps(request, recipe.context(request));
+                flowRunnerFactory.create(recipe.name(), steps, List.of()).verify(initial, targetState)
+                        .forEach(problem -> problems.add(recipe.name() + " '" + target + "': " + problem));
+            } catch (RuntimeException e) {
+                problems.add(recipe.name() + " '" + target + "': cannot be set up: " + e.getMessage());
+            }
+        }
+        return problems;
+    }
+
+    private static void requireSupported(StateRecipe<?, ?> recipe, StateRequest request) {
+        if (recipe.targets().isEmpty()) {
+            return;
+        }
+        String tag = request.targetTag().orElse(null);
+        if (tag == null || !recipe.targets().contains(tag)) {
+            throw new StateRecipeException("Recipe %s cannot prepare %s; supported targets: %s (tags %s)"
+                    .formatted(recipe.name(), tag == null ? "a state without a target tag" : "'" + tag + "'",
+                            new java.util.TreeSet<>(recipe.targets()), request.tags()));
+        }
     }
 }

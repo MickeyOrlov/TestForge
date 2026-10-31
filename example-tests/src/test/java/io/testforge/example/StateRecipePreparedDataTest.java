@@ -1,6 +1,7 @@
 package io.testforge.example;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.testforge.data.Generators;
 import io.testforge.data.RunUniqueValues;
@@ -14,6 +15,8 @@ import io.testforge.state.StatePreparation;
 import io.testforge.state.StatePreparedDataProvider;
 import io.testforge.state.StateRecipe;
 import io.testforge.state.StateRecipeExecutor;
+import io.testforge.state.StateRecipeException;
+import io.testforge.state.StateRecipes;
 import io.testforge.state.StateRequest;
 import java.util.Collection;
 import java.util.List;
@@ -35,6 +38,9 @@ class StateRecipePreparedDataTest {
     @Autowired
     StateRecipe<DemoTicket, DemoTicketState> ticketRecipe;
 
+    @Autowired
+    StateRecipes recipes;
+
     @Test
     void injectsDomainObjectPreparedByStateRecipe(@Prepared(tags = "approved") DemoTicket ticket) {
         assertThat(ticket.id()).startsWith("ticket-");
@@ -50,6 +56,19 @@ class StateRecipePreparedDataTest {
         assertThat(preparation.flowResult().path())
                 .containsExactly(DemoTicketState.NEW, DemoTicketState.SUBMITTED, DemoTicketState.APPROVED);
         assertThat(preparation.request().hasTag("tenant:demo")).isTrue();
+    }
+
+    @Test
+    void everyRecipeCanReachEveryTargetItDeclares() {
+        // no ticket is created: only the declared transitions are checked
+        recipes.assertAllValid();
+    }
+
+    @Test
+    void aTypoInATagNamesTheSupportedTargets() {
+        assertThatThrownBy(() -> states.prepare(ticketRecipe, List.of("aproved")))
+                .isInstanceOf(StateRecipeException.class)
+                .hasMessageContaining("supported targets: [approved, submitted]");
     }
 
     @TestConfiguration
@@ -93,6 +112,11 @@ class StateRecipePreparedDataTest {
         }
 
         @Override
+        public java.util.Set<String> targets() {
+            return java.util.Set.of("submitted", "approved");
+        }
+
+        @Override
         public DemoTicketState initialState(StateRequest request) {
             return DemoTicketState.NEW;
         }
@@ -109,37 +133,21 @@ class StateRecipePreparedDataTest {
         @Override
         public Collection<? extends FlowStep<DemoTicketState>> steps(StateRequest request, FlowContext context) {
             return List.of(
-                    step(DemoTicketState.NEW, current -> {
+                    FlowStep.of(DemoTicketState.NEW, current -> {
                         String id = "ticket-" + uniqueValues.generate("ticket", Generators.alphanumeric(8), 20);
                         current.put(TICKET, new DemoTicket(id, "submitted"));
                         return DemoTicketState.SUBMITTED;
-                    }),
-                    step(DemoTicketState.SUBMITTED, current -> {
+                    }, DemoTicketState.SUBMITTED),
+                    FlowStep.of(DemoTicketState.SUBMITTED, current -> {
                         DemoTicket ticket = current.get(TICKET, DemoTicket.class);
                         current.put(TICKET, new DemoTicket(ticket.id(), "approved"));
                         return DemoTicketState.APPROVED;
-                    }));
+                    }, DemoTicketState.APPROVED));
         }
 
         @Override
         public DemoTicket materialize(FlowResult<DemoTicketState> result, StateRequest request) {
             return DemoTicket.class.cast(result.contextSnapshot().get(TICKET));
-        }
-
-        private FlowStep<DemoTicketState> step(
-                DemoTicketState state,
-                java.util.function.Function<FlowContext, DemoTicketState> body) {
-            return new FlowStep<>() {
-                @Override
-                public DemoTicketState state() {
-                    return state;
-                }
-
-                @Override
-                public DemoTicketState execute(FlowContext context) {
-                    return body.apply(context);
-                }
-            };
         }
     }
 }
