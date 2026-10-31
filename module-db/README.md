@@ -174,6 +174,42 @@ row id=42: status expected NEW → SHIPPED, was NEW → PAID in orders where cus
   ~ id=42 status: NEW → PAID; version: 3 → 4
 ```
 
+### Nothing else moved: several tables at once
+
+A diff of one table cannot see the cascade delete, the second audit row or the
+stray update in a table the test never looked at. Watch every table the action
+might touch, then name the ones it should:
+
+```java
+DbSnapshot before = db.watch(
+        db.table("orders").keyedBy("id").where("customer_id = ?", customer),
+        db.table("payments").keyedBy("id").where("customer_id = ?", customer),
+        db.table("loyalty_points").keyedBy("customer_id").where("customer_id = ?", customer));
+
+api.pay(order);
+
+before.diff().expect()
+        .table("orders", t -> t.row(order).changed("status", "NEW", "PAID").onlyThese())
+        .table("payments", t -> t.added(1))
+        .nothingElse();          // loyalty_points must not have moved
+```
+
+`nothingElse()` fails on any watched table without expectations that changed;
+`onlyChanged("orders", "payments")` says the same without per-table checks. The
+failure lists the tables and their diffs:
+
+```
+tables changed that the checks did not name: [loyalty_points]
+loyalty_points where customer_id = ? (keyed by customer_id)
+  ~ customer_id=7 points: 100 → 0
+```
+
+On a database the test owns — embedded, or a container per run —
+`db.watchSchema("flyway_schema_history")` watches every table of the
+connection's schema, keyed by its primary key (a table without one is matched
+on all its columns). On a shared database every parallel test's writes would
+count there; use `watch(...)` with `where` clauses instead.
+
 ## Rows for setup, removed after the test
 
 For a state the product's API cannot produce, or cannot produce fast:
