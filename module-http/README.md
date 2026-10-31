@@ -119,6 +119,10 @@ try (MockScope scope = mocks.scope()) {
 The filter is a no-op when the scenario never opened a scope: tests that talk
 only to the real system under test keep sending untouched payloads.
 
+To check every response against the OpenAPI document during ordinary tests,
+turn on the contract guard (`forge.contract-guard.enabled`, in
+[module-api-explorer](../module-api-explorer/README.md#contract-guard-the-contract-checked-in-every-functional-test)).
+
 For role-based tokens, add [module-auth](../module-auth/README.md), configure
 `forge.auth.roles`, and select a role with `@AsUser("admin")`. Its `AuthFilter`
 is applied automatically by `ApiClient`; no custom token code is needed.

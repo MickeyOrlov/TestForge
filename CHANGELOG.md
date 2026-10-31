@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Contract guard (`module-api-explorer`, `forge.contract-guard.enabled`):
+  every response `ApiClient` receives in ordinary functional tests is checked
+  against the OpenAPI document with the explorer's checks. `record` mode
+  (default) logs each new finding once and publishes `contract-guard.json`
+  with a `healthy` verdict to the run index; `fail` mode fails the call that
+  received a drifted response. Calls the document does not describe are
+  reported as `UNDOCUMENTED_OPERATION`. Sends no extra requests.
 - `module-reporting`: `summary.md` is actionable. A *Needs attention* section
   (only when something failed) lists reports whose own verdict is negative
   (`healthy: false`, `compatible: false`, `outcome` `FINDINGS` / `*_ERROR`);

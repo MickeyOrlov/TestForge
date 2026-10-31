@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-api-explorer`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (all four steps of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
+**Scope:** Runs an OpenAPI document against a live environment and reports runtime contract drift per operation; the contract guard (`forge.contract-guard`) applies the same checks to every `ApiClient` response of ordinary tests. Stateful only through explicit `extract` rules; `RuleProposer` suggests rules from the document (all four steps of [docs/api-explorer-stateful-design.md](../docs/api-explorer-stateful-design.md)).
 
 **May depend on:** `module-api-discovery`, `module-http`.
 
@@ -29,9 +29,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Replay never fakes what it does not have: unrecorded, failed or truncated
   recordings come back as failed exchanges with the reason.
 
+- The contract guard never breaks a request: checking errors are swallowed;
+  only `mode: fail` turns a finding into a test failure. It sends nothing.
+
 ## Tests
 
-Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`, `WriteChainTest`, `ReplayTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerWriteChainExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
+Own: `SafetyPolicyTest`, `RequestPlanningTest`, `ResponseContractCheckerTest`, `ObservationFactoryTest`, `ApiExplorerRunnerTest`, `StatefulExplorationTest`, `RuleProposerTest`, `WriteChainTest`, `ReplayTest`, `ContractGuardTest`. Examples: `ApiExplorerExampleTest`, `ApiExplorerStatefulExampleTest`, `ApiExplorerProposalExampleTest`, `ApiExplorerWriteChainExampleTest`, `ContractGuardExampleTest`, `ApiExplorerLiveIT` (tag `live-api`).
 
 ## Before you finish
 

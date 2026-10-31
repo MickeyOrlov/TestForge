@@ -127,6 +127,37 @@ Configure credential field names once, in the module that already owned them.
 A parameter named like a credential — an API key in a query string — is masked
 too, by asking the redactor whether it would mask a field of that name.
 
+## Contract guard: the contract checked in every functional test
+
+The explorer runs on its own schedule. The guard needs no run at all: with it
+on, every response `ApiClient` receives in an ordinary test is checked against
+the same document, with the same checks.
+
+```yaml
+forge:
+  api-discovery:
+    specs:
+      orders:
+        location: classpath:/openapi/orders.yaml
+  contract-guard:
+    enabled: true
+    mode: record     # default: collect, log each new finding once, publish to the run index
+    # mode: fail     # fail the call that received a drifted response
+    specs: [orders]  # optional; default every registered spec
+```
+
+- Independent of `forge.api-explorer.enabled`; sends no extra requests.
+- A call the document does not describe is reported as `UNDOCUMENTED_OPERATION`.
+- `record` mode publishes `contract-guard.json` with `healthy: false` when
+  anything drifted, so it shows under *Needs attention* in `summary.md`.
+- `fail` mode throws an `AssertionError` naming the kind and JSON path, e.g.
+  `MISSING_REQUIRED_FIELD at $.items[].status`.
+- Paths are matched against the document relative to `forge.http.base-url`; a
+  literal path wins over a templated one.
+
+Start in `record` mode on an existing suite, read the first report, then
+switch the CI profile to `fail`.
+
 ## Stateful exploration: values from one call feeding the next
 
 Most item endpoints need an id that exists. Tell the explorer where to find
