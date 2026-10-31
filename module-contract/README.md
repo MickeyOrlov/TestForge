@@ -15,6 +15,8 @@ Message contract validation for event/API payload drift checks.
   For schema contracts the code is the schema keyword (`required`, `type`,
   `enum`, ...), ordered by a fixed priority so the first violation is the
   most actionable one.
+- **`ContractDrafts.fromSamples(name, samples)`** — a first JSON Schema drafted
+  from real payloads (shape only), to review and commit.
 - **`ContractMappers.strict()`** — parser preset used by the validator:
   duplicate keys and trailing garbage are violations (`invalid-json`), not
   silently repaired input.
@@ -62,6 +64,26 @@ SchemaContract schema = SchemaContract.fromResource(
         "partner-event", "contracts/partner-event.schema.json");
 validator.assertValid(payload, schema);
 ```
+
+## A first schema from real payloads
+
+Writing a schema for an existing producer from scratch is where contracts
+stall. Draft one from what it actually sends, review it, commit it:
+
+```java
+List<String> samples = kafkaProbe.findMessages(filter).stream().map(KafkaMessage::value).toList();
+SchemaContract draft = ContractDrafts.fromSamples("partner-event", samples);
+Files.writeString(Path.of("src/test/resources/contracts/partner-event.schema.json"), draft.schemaJson());
+```
+
+- A field is `required` when every sample that has its parent has it; types
+  are the union seen (`integer` widens to `number`, `null` is added when a
+  sample sent null); arrays get the merged shape of all their items.
+- Shape only: no values, enums, examples or patterns are copied — samples
+  may carry real data, and a contract pinned to one sample's values fails on
+  the next. Tighten by hand: enums, formats, `additionalProperties: false`.
+- A draft is a starting point, never regenerated on every run: a schema
+  rebuilt from today's payloads accepts exactly the drift it should catch.
 
 ## Agent notes
 

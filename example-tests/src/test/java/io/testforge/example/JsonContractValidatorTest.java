@@ -3,6 +3,7 @@ package io.testforge.example;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 
+import io.testforge.contract.json.ContractDrafts;
 import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.FieldType;
 import io.testforge.contract.json.JsonContractValidator;
@@ -109,5 +110,21 @@ class JsonContractValidatorTest {
                 .nullable("$.payload.details", FieldType.OBJECT)
                 .required("$.payload.items[0].sku", FieldType.STRING)
                 .build();
+    }
+
+    @Test
+    void aFirstSchemaIsDraftedFromRealPayloadsThenReviewed() {
+        // e.g. the last messages a KafkaProbe saw, or responses captured in a staging run
+        java.util.List<String> captured = java.util.List.of(
+                "{\"eventId\":\"evt-1\",\"payload\":{\"status\":\"accepted\",\"amount\":10}}",
+                "{\"eventId\":\"evt-2\",\"payload\":{\"status\":\"rejected\",\"amount\":5,\"reason\":\"limit\"}}");
+
+        SchemaContract draft = ContractDrafts.fromSamples("partner-event", captured);
+
+        // shape only: commit it after review, never regenerate it on every run
+        assertThat(draft.schemaJson()).contains("\"required\"").doesNotContain("evt-1", "limit");
+        captured.forEach(payload -> assertThat(contracts.validate(payload, draft)).isEmpty());
+        assertThat(contracts.validate("{\"eventId\":\"evt-3\",\"payload\":{\"status\":1}}", draft))
+                .isNotEmpty();
     }
 }
