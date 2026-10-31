@@ -130,6 +130,17 @@ To check every operation × every role at once, use the access matrix in
 - Login errors name the role, URL and status, never the password.
 - Inert unless `forge.auth.enabled=true`.
 
+## Which role a failed request ran as
+
+The filter leaves a note on every request it touches — `admin (header
+Authorization)`, `member (default role, header Authorization)`, `web (cookie
+SESSION)`, `anonymous (no credential)`, or `… set by the test` when the test
+sent its own credential. `module-http`'s failure diagnostics
+(`HttpDiagnosticsExtension`) print it as `As:` above each exchange, so a 403
+in a failed test says at once whether the test ran as the role it meant to.
+The note never contains the credential. The modules share only the name
+`RequestAttributes.AUTH` in `core`.
+
 ## Limits
 
 - HS256 only for local JWTs, flat string claims. A JOSE library is the right

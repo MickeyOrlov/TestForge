@@ -6,6 +6,7 @@ import io.restassured.http.Header;
 import io.restassured.response.Response;
 import io.restassured.specification.FilterableRequestSpecification;
 import io.restassured.specification.FilterableResponseSpecification;
+import io.testforge.core.context.RequestAttributes;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -43,13 +44,19 @@ public class ExchangeRecordingFilter implements OrderedFilter {
             Response response = ctx.next(requestSpec, responseSpec);
             journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), redactor.uri(requestSpec.getURI()),
                     response.getStatusCode(), millisSince(startedAt), headers, requestBody,
-                    body(textual(response.getContentType()) ? response.asString() : null), null));
+                    body(textual(response.getContentType()) ? response.asString() : null), null, auth(ctx)));
             return response;
         } catch (RuntimeException e) {
             journal.record(new HttpExchangeJournal.Exchange(requestSpec.getMethod(), redactor.uri(requestSpec.getURI()), null,
-                    millisSince(startedAt), headers, requestBody, null, e.toString()));
+                    millisSince(startedAt), headers, requestBody, null, e.toString(), auth(ctx)));
             throw e;
         }
+    }
+
+    /** Left by module-auth's filter, which runs earlier; absent without it. */
+    private static String auth(FilterContext ctx) {
+        Object auth = ctx.getValue(RequestAttributes.AUTH);
+        return auth == null ? null : auth.toString();
     }
 
     private String body(String body) {

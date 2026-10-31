@@ -13,6 +13,9 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.testforge.auth.AsUser;
 import io.testforge.auth.AuthContext;
 import io.testforge.http.ApiClient;
+import io.testforge.http.HttpDiagnosticsExtension;
+import io.testforge.http.HttpExchangeJournal;
+import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,8 @@ import org.springframework.test.context.DynamicPropertySource;
  * takes {@code client-secret} from an environment variable.
  */
 @SpringBootTest
+// a failed test here shows, per HTTP exchange, which role it ran as
+@ExtendWith(HttpDiagnosticsExtension.class)
 class AuthExampleTest {
 
     static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
@@ -65,6 +70,9 @@ class AuthExampleTest {
     @Autowired
     ApiClient api;
 
+    @Autowired
+    HttpExchangeJournal journal;
+
     @BeforeEach
     void stubs() {
         server.resetAll();
@@ -92,6 +100,16 @@ class AuthExampleTest {
         server.stubFor(get(urlPathEqualTo("/cart")).atPriority(1)
                 .withCookie("SESSION", equalTo("web-session-1"))
                 .willReturn(okJson("{\"items\":0}")));
+    }
+
+    @Test
+    @AsUser("member")
+    void theDiagnosticsOfEachExchangeSayWhoItRanAs() {
+        api.request().get("/me");
+        AuthContext.callAs("integration", () -> api.request().get("/reports"));
+
+        assertThat(journal.recent()).extracting(HttpExchangeJournal.Exchange::auth)
+                .containsExactly("member (header Authorization)", "integration (header X-API-Key)");
     }
 
     @Test

@@ -184,7 +184,9 @@ forge:
 ```
 
 The original failure is always rethrown unchanged. Nothing is written for
-passing tests, and nothing at all without `module-reporting` enabled.
+passing tests, and nothing at all without `module-reporting` enabled. With
+`module-auth`, each exchange also says which role it ran as (`As: admin
+(header Authorization)`).
 
 To check every response against the OpenAPI document during ordinary tests,
 turn on the contract guard (`forge.contract-guard.enabled`, in

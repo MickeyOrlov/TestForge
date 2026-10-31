@@ -90,7 +90,7 @@ class HttpDiagnosticsExtensionTest {
     void theJournalIsBoundedAndPerThread() throws Exception {
         HttpExchangeJournal journal = new HttpExchangeJournal(2);
         for (int i = 1; i <= 3; i++) {
-            journal.record(new HttpExchangeJournal.Exchange("GET", "/" + i, 200, 1, Map.of(), null, null, null));
+            journal.record(new HttpExchangeJournal.Exchange("GET", "/" + i, 200, 1, Map.of(), null, null, null, null));
         }
         List<String> otherThread = new java.util.ArrayList<>();
         Thread thread = new Thread(() -> journal.recent().forEach(e -> otherThread.add(e.uri())));
@@ -101,6 +101,18 @@ class HttpDiagnosticsExtensionTest {
         assertThat(otherThread).isEmpty();
         journal.clear();
         assertThat(journal.recent()).isEmpty();
+    }
+
+    @Test
+    void eachExchangeSaysWhoItRanAsWhenModuleAuthLeftANote() {
+        String markdown = HttpDiagnosticsExtension.render("t", List.of(
+                new HttpExchangeJournal.Exchange("GET", "/me", 403, 1, Map.of(), null, null, null,
+                        "member (header Authorization)"),
+                new HttpExchangeJournal.Exchange("GET", "/ping", 200, 1, Map.of(), null, null, null, null)),
+                new AssertionError("boom"));
+
+        assertThat(markdown).contains("As: member (header Authorization)");
+        assertThat(markdown.split("As: ", -1)).hasSize(2);
     }
 
     @Test

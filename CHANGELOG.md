@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Failure diagnostics say which role each HTTP exchange ran as:
+  `module-auth`'s filter leaves a note (`admin (header Authorization)`,
+  `anonymous (no credential)`, `… set by the test`) under
+  `RequestAttributes.AUTH` in `core`, and `HttpDiagnosticsExtension` prints
+  it as `As:` above each exchange. `HttpExchangeJournal.Exchange` gains `auth`.
 - `module-auth`: two more ways in. `type: api-key` sends a fixed key in a
   header (`X-API-Key` by default) or a query parameter; `type: session` logs
   in once (JSON or form) and sends the session cookie the login sets, cached
