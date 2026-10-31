@@ -10,7 +10,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 ## Invariants (do not break)
 
 - Bounded buffer, newest-first search.
-- Collector runs only with `forge.kafka.enabled=true`.
+- Collector runs only with `forge.kafka.enabled=true`; it joins a unique group per run by default, is assigned before `start()` returns, and records why it stopped in the buffer.
 - Waiting goes through `Waiter`; absence and settle windows use Awaitility's `during` — never a sleep.
 - Failure messages name offsets, keys and failed criteria, never a payload; the diagnostics report includes payloads only with `forge.kafka.diagnostics.payloads=true`.
 

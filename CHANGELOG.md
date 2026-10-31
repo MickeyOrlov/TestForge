@@ -6,7 +6,16 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Changed
+- `module-kafka`: the collector joins a consumer group of its own per run
+  (`forge.kafka.unique-group-id`, default `true`): two runs sharing one group
+  split the partitions and each missed part of the messages.
+
 ### Fixed
+- `module-kafka`: the collector's startup waits until partitions are
+  assigned and positioned, so an event sent right after the context starts is
+  no longer lost with `auto-offset-reset: latest`; a collector that stopped on
+  a Kafka error now says so in every later `awaitMessage` timeout.
 - `module-mock`: a blank scope id is rejected (it would have matched requests
   that carry no scope), and a second `close()` of a scope does nothing
   instead of publishing an empty artifact over the real one.

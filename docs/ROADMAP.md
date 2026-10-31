@@ -40,7 +40,7 @@ template building blocks.
 | `module-data` | Unique values, template rendering, generators, `Factory`, `@Prepared` pool SPI, `Cleanup`. Plan: [data-layer-roadmap.md](data-layer-roadmap.md). |
 | `module-db` | `DbWaiter` (repository or SQL value/count, parameters bound), repository polling, SQL logging, schema drift checks with documented limits, `DbState` table diffs and setup rows, SQL in failure diagnostics. Plan: [db-layer-roadmap.md](db-layer-roadmap.md). |
 | `module-flow` | Deterministic state-machine setup with path logging and decorators. |
-| `module-kafka` | Kafka buffer/probe/collector; contract validation composes outside the module. |
+| `module-kafka` | Kafka buffer/probe/collector (group per run, assigned before tests start), publisher with scenario headers, exactly-one/none assertions, failure diagnostics; contract validation composes outside the module. Plan: [kafka-layer-roadmap.md](kafka-layer-roadmap.md). |
 | `module-mock` | Scenario-scoped WireMock stubs for shared mock servers, per-scope response sequences, unused-stub detection; stubs checked against the downstream's document through `module-api-explorer`. Plan: [mock-layer-roadmap.md](mock-layer-roadmap.md). |
 | `module-reporting` | Run-scoped artifact collection, deterministic manifest/summary index, resource usage monitor, and optional Allure attachments. |
 | `module-web` | Playwright-powered environment prewarm, best-effort by design. |
@@ -116,6 +116,9 @@ surface is still expected to evolve.
 - Database layer: table snapshots and per-column diffs, SQL of failed tests in
   the run index, setup rows removed after the test, `DbWaiter.awaitValue`
   ([plan](db-layer-roadmap.md)).
+- Kafka layer: test event publishing, exactly-one and none-within-a-window
+  assertions, a failed test's traffic in the run index, a collector that
+  cannot silently miss messages ([plan](kafka-layer-roadmap.md)).
 - Mock layer: response sequences per scope, unused stubs, stubs held to the
   downstream's contract ([plan](mock-layer-roadmap.md)).
 - The run index's `summary.md` points at every report, including the ones a
