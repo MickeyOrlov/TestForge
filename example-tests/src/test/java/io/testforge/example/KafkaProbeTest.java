@@ -9,6 +9,7 @@ import io.testforge.contract.json.ContractViolation;
 import io.testforge.contract.json.FieldType;
 import io.testforge.contract.json.JsonContractValidator;
 import io.testforge.contract.json.MessageContract;
+import io.testforge.kafka.KafkaDiagnosticsExtension;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
 import io.testforge.kafka.KafkaProbe;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -29,6 +31,8 @@ import org.springframework.boot.test.context.SpringBootTest;
  * modules stay independently deletable.
  */
 @SpringBootTest
+// a failed test here lists the Kafka traffic it saw in the run index
+@ExtendWith(KafkaDiagnosticsExtension.class)
 class KafkaProbeTest {
 
     @Autowired

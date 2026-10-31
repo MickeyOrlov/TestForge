@@ -62,6 +62,22 @@ public class KafkaMessageBuffer {
                 .toList();
     }
 
+    /** The sequence of the last appended message: a watermark for {@link #since(long)}. */
+    public long sequence() {
+        return sequence.get();
+    }
+
+    /** Every buffered message appended after {@code watermark}, across topics, oldest first. */
+    public List<KafkaMessage> since(long watermark) {
+        List<SequencedMessage> messages = new ArrayList<>();
+        for (ConcurrentSkipListMap<Long, KafkaMessage> topicMessages : byTopic.values()) {
+            topicMessages.tailMap(watermark, false)
+                    .forEach((key, message) -> messages.add(new SequencedMessage(key, message)));
+        }
+        messages.sort(Comparator.comparingLong(SequencedMessage::sequence));
+        return messages.stream().map(SequencedMessage::message).toList();
+    }
+
     public void clear() {
         byTopic.clear();
     }
