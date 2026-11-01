@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-security` B4/B5: allowlisted, bounded JDK TLS/redirect assessment and
+  explicit pre-upload artifact secret scanning. Local TLS algorithm limits
+  remain unmeasured; symlinks/read/size limits are visible. Known credentials
+  stay in process memory only; artifact leaks cannot be accepted past the gate.
+
+
+### Added
 - `module-security` B2: bounded, allowlisted authentication/access probes using
   existing roles, JWT signer, request planner and access matrix. Explicit
   fixture ownership, positive controls and two-key write permission; session

@@ -113,3 +113,65 @@ configured, disposable test fixtures. Every non-GET/HEAD/OPTIONS request needs
 both write keys. An exact host allowlist is required before any probe request.
 Example: SecurityAuthExampleTest. Auth probe collection is explicit; call
 SecurityRunner afterward to write/gate the shared report.
+
+## B4: explicit transport checks
+
+```yaml
+forge:
+  security:
+    transport:
+      enabled: true
+      allowed-hosts: [api.staging.example.test]
+      expiry-warning-days: 30
+      timeout: 5s
+      probe-legacy: false        # default; true only on a JDK that still offers TLS 1.0/1.1
+      probe-weak-ciphers: false  # default; likewise for weak cipher suites
+```
+
+Call `SecurityTransportRunner.check("https://api.staging.example.test")` and
+then the shared report/gate. JDK TLS validates the chain, certificate validity
+and hostname; expiry within the warning window is a medium finding. HTTP targets
+receive one HEAD to inspect a same-host HTTPS redirect, without following it.
+Targets require the transport allowlist and must not contain query credentials.
+
+Legacy protocols/weak ciphers are probed only when asked for and only when the
+local JDK enables them. Java 21 typically disables them; enabled probes then
+say not_measured, not "server rejected them", and that incomplete coverage
+cannot pass assertAcceptable — so both are off by default, and coverage says no
+server-wide claim was requested. Turn them on in a job whose JDK offers them. No trust-all TLS context or global algorithm weakening is
+installed. Tests generate a temporary certificate/keystore at runtime.
+
+## B5: pre-upload artifact secret check
+
+```yaml
+forge:
+  security:
+    artifacts-scan:
+      enabled: true
+      roots: [build/testforge-artifacts, build/security, build/http-logs]
+      max-file-bytes: 8388608
+      max-total-bytes: 67108864
+      max-files: 10000
+```
+
+Run `securityArtifactScanner.assertClean()` after reports/logs are flushed and
+before uploading anything. Then write/gate the shared SecurityRunner report.
+Static configured role tokens/client secrets/passwords/JWT signing secrets and
+already-used request credentials are kept only in a bounded memory registry.
+Collection never obtains a new token or sends traffic. Projects can register
+other known secrets with `SecuritySecretRegistry.register(value)`; its toString
+is masked. JWT/private-key/credential-assignment patterns supplement exact matching.
+
+Archives are opened: every entry of a `.zip`/`.jar`/`.war` (a Playwright
+trace holds request headers) and the stream of a `.gz`/`.tgz` is scanned, the
+decompressed bytes counting against the same budgets, so a zip bomb stops
+early. A nested archive is not_measured; images and videos are not_applicable.
+
+No file content, match, secret hash or raw error enters a finding. Scans do not
+follow encountered symbolic links; missing/unreadable/oversized files and file,
+byte or registry limits mark incomplete coverage. File IDs retain safe names
+and mask identifier/secret-like segments. The scanner examines configured roots,
+not the whole workstation; include every artifact/log destination in roots.
+Artifact leaks always block assertClean and SecurityRunner.assertAcceptable,
+even with an accepted ID or an empty fail-on list. Do not upload on a gate error.
+Examples: SecurityTransportExampleTest and SecurityArtifactExampleTest.

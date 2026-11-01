@@ -14,6 +14,11 @@ Invariants:
 - Additional traffic requires explicit configured test targets and bounded work.
 
 Tests: SecurityPassiveTest, SecurityAuthTest, SecurityPassiveExampleTest and
-SecurityAuthExampleTest. Before finishing:
+SecurityAuthExampleTest, SecurityTransportTest, SecurityArtifactTest,
+SecurityTransportExampleTest and SecurityArtifactExampleTest. Before finishing:
 `./gradlew :module-security:test :architecture-tests:test`, then `./gradlew build`.
 Update README/examples/CHANGELOG with behavior changes. Keep the module removable.
+
+B4: never weaken global JDK TLS settings or treat a locally-disabled algorithm
+as server rejection. B5: no following symlinks, unbounded reads or secret values
+in diagnostics; leaks block upload even when ordinary findings are accepted.
