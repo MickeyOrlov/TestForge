@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-http`: `HttpTrafficSummary` — per operation (method and path
+  shape), requests, status classes, transport failures and p50 / p95 / max
+  latency, written as `http-summary.json` to the run index.
+  `module-quality`: `reliability` dimension from it — operations that
+  answered 5xx or failed in transport, even where the test expected it.
 - Business security policy suites over OpenAPI: protected fields, owner/foreign
   users, explicitly declared tenants, state transitions and replay with persisted
   state verification. No-traffic candidate sequences and complete operation ×

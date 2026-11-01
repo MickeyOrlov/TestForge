@@ -239,6 +239,47 @@ final class ModuleDimensions {
     }
 
     /**
+     * Operations that answered 5xx or failed in transport during the run (module-http's traffic
+     * summary) — including those a test expected or swallowed: the suite passing does not mean the
+     * service did.
+     */
+    static QualityDimension reliability(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-http", "http-summary", "http-summary.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.RELIABILITY,
+                    "no http-summary.json (module-http) in the run");
+        }
+        long requests = 0;
+        long failed = 0;
+        List<String> issues = new ArrayList<>();
+        List<String> facts = new ArrayList<>();
+        for (JsonNode report : reports) {
+            for (JsonNode operation : report.path("operations")) {
+                long count = operation.path("requests").asLong();
+                long errors = operation.path("status").path("5xx").asLong() + operation.path("transportErrors").asLong();
+                requests += count;
+                failed += errors;
+                if (errors > 0) {
+                    String name = operation.path("operation").asText();
+                    issues.add(name);
+                    if (issues.size() <= LISTED) {
+                        facts.add("server error: " + name + " " + errors + " of " + count
+                                + " requests answered 5xx or failed in transport");
+                    }
+                }
+            }
+        }
+        if (requests == 0) {
+            return QualityDimension.notMeasured(QualityDimension.RELIABILITY, "no HTTP request in the run");
+        }
+        facts.addFirst(requests + " HTTP requests, " + failed + " answered 5xx or failed in transport, across "
+                + issues.size() + " operations");
+        return new QualityDimension(QualityDimension.RELIABILITY, issues.isEmpty() ? QualityStatus.PASS
+                : QualityStatus.FAIL, Math.round(100f * (requests - failed) / requests),
+                "100 × requests without 5xx / requests", facts).withIssues(issues);
+    }
+
+    /**
      * Documented operations the suite never called (module-api-explorer's contract guard): the parts of
      * the API no test looks at. WARN while any is uncalled, FAIL below {@code min-api-coverage}.
      */

@@ -248,3 +248,15 @@ ApiRequestCustomizer bearerToken(TokenProvider tokens) {
   attempts always log at WARN so a suite leaning on retries is visible.
 - Waiting between attempts goes through `Waiter` — no sleeps in this module
   either.
+
+## Traffic summary
+
+`HttpTrafficSummary` (on by default, `forge.http.summary.enabled`) counts,
+per operation, the requests the suite sent, their status classes, transport
+failures and p50 / p95 / max latency. An operation is the method and the
+path shape — `/orders/42` reads `/orders/{n}`, UUIDs `{uuid}`, long ids
+`{id}` — without host or query. With module-reporting it writes
+`http-summary.json` to the run index when the context stops; module-quality
+turns it into the reliability dimension, where a 5xx a test expected or
+swallowed still counts. No body, header or query value is kept; at most 500
+operations and 2000 latency samples each.

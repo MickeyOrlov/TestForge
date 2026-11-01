@@ -147,7 +147,8 @@ class QualityRunnerTest {
                 + "2026-10-31T00:00:00Z)"));
         assertThat(report.measured()).isEqualTo(2);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
-                .contains("- measured: 2 of 10 dimensions — not measured: contracts, data, robustness");
+                .contains("- measured: 2 of " + report.dimensions().size()
+                        + " dimensions — not measured: contracts, data, robustness");
         assertThatThrownBy(gate::assertAcceptable)
                 .hasMessageStartingWith("Required dimensions not measured: contracts (no contract-guard report");
     }

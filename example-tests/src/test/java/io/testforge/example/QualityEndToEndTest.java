@@ -70,6 +70,8 @@ class QualityEndToEndTest {
         server.stubFor(get(urlPathEqualTo("/api/v1/tasks")).atPriority(2)
                 .willReturn(okJson("{\"items\":[{\"id\":\"t-1\",\"title\":\"Demo\"}]}")));
         // authorization: admins are let in; members get in too, which the matrix says they must not
+        // reliability: a status endpoint the suite calls answers 503
+        server.stubFor(get(urlPathEqualTo("/api/v1/status/42")).atPriority(2).willReturn(aResponse().withStatus(503)));
         server.stubFor(get(urlPathEqualTo("/api/v1/admin/audit"))
                 .withHeader("Authorization", equalTo("Bearer admin-token")).atPriority(2)
                 .willReturn(okJson("{}")));
@@ -150,6 +152,9 @@ class QualityEndToEndTest {
                     context.getBean(DbContractRunner.class).run();
                     // contracts: a test calls the drifted operation; the guard records it
                     AuthContext.callAs("admin", () -> context.getBean(ApiClient.class).request().get("/api/v1/tasks"));
+                    // the test expects the 503 and passes; the service still failed
+                    AuthContext.callAs("admin",
+                            () -> context.getBean(ApiClient.class).request().get("/api/v1/status/42"));
                     // events: the payload's status is a number, the contract says string
                     context.getBean(KafkaMessageBuffer.class).append(new KafkaMessage("partner.events", 0, 1, "k",
                             "{\"payload\":{\"status\":7}}", Instant.EPOCH, Map.of()));
@@ -175,6 +180,8 @@ class QualityEndToEndTest {
                 .isEqualTo(QualityStatus.PASS);
         assertThat(report.dimension(QualityDimension.SECURITY).orElseThrow().facts().getFirst())
                 .startsWith("new findings:");
+        assertThat(report.dimension(QualityDimension.RELIABILITY).orElseThrow().issues())
+                .contains("GET /api/v1/status/{n}");
         assertThat(report.dimension(QualityDimension.API_COVERAGE).orElseThrow().issues())
                 .as("the suite never creates a task").contains("demo POST /api/v1/tasks");
         assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("- run: e2e");

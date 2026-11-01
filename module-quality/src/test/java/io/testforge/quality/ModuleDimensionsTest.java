@@ -111,6 +111,27 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void reliabilityCountsServerErrorsEvenWhenTheTestsPassed() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 8, "status": {"2xx": 7, "5xx": 1}, "transportErrors": 0},
+                  {"operation": "POST /orders", "requests": 2, "status": {"2xx": 1}, "transportErrors": 1},
+                  {"operation": "GET /health", "requests": 10, "status": {"2xx": 10}, "transportErrors": 0}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-http", "category": "http-summary",
+                  "name": "http-summary.json", "path": "module-http/http-summary.json"}]}""");
+
+        QualityDimension reliability = runner().run().dimension(QualityDimension.RELIABILITY).orElseThrow();
+
+        assertThat(reliability.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(reliability.score()).isEqualTo(90);
+        assertThat(reliability.issues()).containsExactly("GET /orders/{n}", "POST /orders");
+        assertThat(reliability.facts().getFirst())
+                .isEqualTo("20 HTTP requests, 2 answered 5xx or failed in transport, across 2 operations");
+    }
+
+    @Test
     void apiCoverageNamesTheOperationsNoTestCalled() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         file("artifacts/r/module-api-explorer/api-coverage.json", """

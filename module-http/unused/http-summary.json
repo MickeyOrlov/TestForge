@@ -1,0 +1,34 @@
+{
+  "formatVersion" : 1,
+  "operations" : [ {
+    "operation" : "GET /first",
+    "requests" : 2,
+    "status" : {
+      "2xx" : 2
+    },
+    "transportErrors" : 0,
+    "p50Millis" : 13,
+    "p95Millis" : 700,
+    "maxMillis" : 700
+  }, {
+    "operation" : "GET /third",
+    "requests" : 1,
+    "status" : {
+      "4xx" : 1
+    },
+    "transportErrors" : 0,
+    "p50Millis" : 42,
+    "p95Millis" : 42,
+    "maxMillis" : 42
+  }, {
+    "operation" : "POST /second",
+    "requests" : 1,
+    "status" : {
+      "2xx" : 1
+    },
+    "transportErrors" : 0,
+    "p50Millis" : 58,
+    "p95Millis" : 58,
+    "maxMillis" : 58
+  } ]
+}
