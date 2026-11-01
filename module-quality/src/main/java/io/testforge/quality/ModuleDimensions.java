@@ -20,14 +20,16 @@ final class ModuleDimensions {
 
     static final int LISTED = 10;
     static final String SECURITY_INCOMPLETE = "security measurement incomplete";
+    /** The report layouts this module reads; a report without {@code formatVersion} is version 1. */
+    static final int FORMAT_VERSION = 1;
 
     private ModuleDimensions() {
     }
 
     /** API responses against their OpenAPI schema (contract guard) and event payloads (contract monitor). */
     static QualityDimension contracts(RunIndex index, ObjectMapper mapper) {
-        List<JsonNode> guards = reports(index, "module-api-explorer", "contract-guard", mapper);
-        List<JsonNode> monitors = reports(index, "module-contract-monitor", "contract-monitor", mapper)
+        List<JsonNode> guards = reports(index, "module-api-explorer", "contract-guard", "contract-guard.json", mapper);
+        List<JsonNode> monitors = reports(index, "module-contract-monitor", "contract-monitor", "report.json", mapper)
                 .stream().filter(report -> report.has("cases")).toList();
         if (guards.isEmpty() && monitors.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.CONTRACTS, "no contract-guard report "
@@ -67,7 +69,7 @@ final class ModuleDimensions {
 
     /** Schema changes against the database contract's baseline (module-db-contract). */
     static QualityDimension data(RunIndex index, ObjectMapper mapper) {
-        List<JsonNode> reports = reports(index, "module-db-contract", "db-contract", mapper).stream()
+        List<JsonNode> reports = reports(index, "module-db-contract", "db-contract", "report.json", mapper).stream()
                 .filter(report -> report.has("changes")).toList();
         if (reports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.DATA,
@@ -113,7 +115,7 @@ final class ModuleDimensions {
 
     /** Fuzz finding groups nobody accepted (module-api-fuzz). */
     static QualityDimension robustness(RunIndex index, ObjectMapper mapper) {
-        List<JsonNode> reports = reports(index, "module-api-fuzz", "api-fuzz", mapper).stream()
+        List<JsonNode> reports = reports(index, "module-api-fuzz", "api-fuzz", "findings.json", mapper).stream()
                 .filter(report -> report.has("groups")).toList();
         if (reports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.ROBUSTNESS,
@@ -145,7 +147,7 @@ final class ModuleDimensions {
 
     /** Roles that got in where they should not, or were shut out (module-api-explorer's access matrix). */
     static QualityDimension authorization(RunIndex index, ObjectMapper mapper) {
-        List<JsonNode> reports = reports(index, "module-api-explorer", "access-matrix", mapper).stream()
+        List<JsonNode> reports = reports(index, "module-api-explorer", "access-matrix", "access-matrix.json", mapper).stream()
                 .filter(report -> report.has("rows")).toList();
         if (reports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.AUTHORIZATION,
@@ -177,7 +179,7 @@ final class ModuleDimensions {
      * baseline; what it reports as {@code new} is what this dimension scores.
      */
     static QualityDimension security(RunIndex index, ObjectMapper mapper) {
-        List<JsonNode> reports = reports(index, "module-security", "security", mapper).stream()
+        List<JsonNode> reports = reports(index, "module-security", "security", "security-findings.json", mapper).stream()
                 .filter(report -> report.has("findings")).toList();
         if (reports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.SECURITY,
@@ -297,13 +299,35 @@ final class ModuleDimensions {
                 "100 × (compared − slower) / compared", facts).withIssues(issues);
     }
 
-    private static List<JsonNode> reports(RunIndex index, String source, String category, ObjectMapper mapper) {
+    /** A report in a layout this module does not know: judged as not measured, never as a zero. */
+    private static final class UnsupportedFormat extends RuntimeException {
+
+        UnsupportedFormat(String message) {
+            super(message);
+        }
+    }
+
+    /** The dimension, or NOT MEASURED naming the report whose {@code formatVersion} is unknown. */
+    static QualityDimension guarded(String name, java.util.function.Supplier<QualityDimension> dimension) {
+        try {
+            return dimension.get();
+        } catch (UnsupportedFormat e) {
+            return QualityDimension.notMeasured(name, e.getMessage());
+        }
+    }
+
+    /**
+     * The producer's report file by its name — not every JSON of the category: a module also
+     * registers files of other layouts (db-contract's schema snapshot has a version of its own).
+     */
+    private static List<JsonNode> reports(RunIndex index, String source, String category, String name,
+                                          ObjectMapper mapper) {
         if (index == null) {
             return List.of();
         }
         List<JsonNode> reports = new ArrayList<>();
         for (RunIndex.Artifact artifact : index.artifacts(source, category)) {
-            if (!artifact.name().endsWith(".json")) {
+            if (!artifact.name().equals(name) && !artifact.name().endsWith("/" + name)) {
                 continue;
             }
             Optional<Path> file = index.file(artifact);
@@ -311,7 +335,13 @@ final class ModuleDimensions {
                 continue;
             }
             try {
-                reports.add(mapper.readTree(file.get().toFile()));
+                JsonNode report = mapper.readTree(file.get().toFile());
+                int version = report.path("formatVersion").asInt(FORMAT_VERSION);
+                if (version != FORMAT_VERSION) {
+                    throw new UnsupportedFormat(source + "'s " + artifact.name() + " has formatVersion " + version
+                            + "; this module reads " + FORMAT_VERSION + " — update module-quality with it");
+                }
+                reports.add(report);
             } catch (IOException e) {
                 throw new QualityException("Could not read " + source + "'s " + artifact.name() + " at "
                         + file.get(), e);

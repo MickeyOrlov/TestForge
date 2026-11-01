@@ -111,6 +111,23 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void aReportInAnUnknownFormatIsNotMeasuredRatherThanReadAsZero() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-api-fuzz/findings.json",
+                "{\"formatVersion\": 2, \"outcome\": \"FINDINGS\", \"findingGroups\": []}");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-api-fuzz", "category": "api-fuzz",
+                  "name": "findings.json", "path": "module-api-fuzz/findings.json"}]}""");
+
+        QualityDimension robustness = runner().run().dimension(QualityDimension.ROBUSTNESS).orElseThrow();
+
+        assertThat(robustness.status()).isEqualTo(QualityStatus.NOT_MEASURED);
+        assertThat(robustness.facts().getFirst())
+                .isEqualTo("module-api-fuzz's findings.json has formatVersion 2; this module reads 1 — update "
+                        + "module-quality with it");
+    }
+
+    @Test
     void securityScoresTheNewFindingsModuleSecurityReports() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         // the layout of module-security's security-findings.json (format 1)

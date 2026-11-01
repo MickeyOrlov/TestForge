@@ -15,11 +15,27 @@ semantic versioning for its git tags.
   policies and secure/intentionally vulnerable offline examples.
 
 ### Fixed
+- `module-quality`: each dimension reads its producer's report by file name.
+  The format-version check read every JSON of a category, so db-contract's
+  schema snapshot (a layout of its own, version 2) made the data dimension
+  NOT MEASURED next to a report with a breaking change — found by
+  `QualityEndToEndTest`.
 - Incomplete security evidence cannot produce a clean quality score or pass a
   selected security gate through baseline acceptance. Observed high findings
   remain FAIL. Artifact secret leaks cannot be accepted or baseline-promoted.
 
 ### Added
+- `example-tests`: `QualityEndToEndTest` — contract guard, contract monitor,
+  db-contract, access matrix, api-fuzz and passive security run with a
+  planted defect into one run index; module-quality must find each in its
+  dimension, so a producer that changes what it writes breaks a test.
+- `module-quality`: how much was measured — `measured: N of 9 dimensions`
+  in the report and `forge.quality.required` dimensions that fail the gate
+  while NOT MEASURED; `forge.quality.results-not-before` drops stale JUnit
+  suites (the `qualityGate` task sets it when the test tasks run in the same
+  build); a module report with an unknown `formatVersion` is NOT MEASURED
+  instead of read as zero. `module-api-fuzz` `findings.json` and
+  `module-api-explorer` `contract-guard.json` now carry `formatVersion: 1`.
 - `module-security` B3: digest-pinned Docker ZAP delegation through an
   allowlisted, read-only, rate/request/time-limited loopback gateway. Sanitized
   OpenAPI input, explicit-page baseline mode, value-free normalized findings,
