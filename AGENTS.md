@@ -287,6 +287,14 @@ reviewing a module. Adapting a fresh clone follows
   and the mock must then match on that header (`forge.mock.scope-header`,
   which `module-http` also follows by default). The same applies to GET and
   DELETE, which have no body to carry the scope.
+- Test servers bind loopback explicitly: `WireMockConfiguration.options()
+  .dynamicPort().bindAddress("127.0.0.1")`, `HttpServer.create(new
+  InetSocketAddress("127.0.0.1", 0), 0)`. A bare `dynamicPort()` listens on the
+  dual-stack wildcard, and on macOS/BSD any other process that later binds
+  `127.0.0.1` on that same port with `SO_REUSEADDR` (IDE helpers, another
+  build's servers) wins every `localhost` connection. The whole test class then
+  fails at once with `Connection reset` / `header parser received no bytes`,
+  and the next run is green. With the loopback bind, the other process's bind fails instead.
 - A `RequestSpecification` built by `RequestSpecBuilder` cannot be sent on its
   own (no response specification attached); `ApiClient` merges it into
   `RestAssured.given()`.

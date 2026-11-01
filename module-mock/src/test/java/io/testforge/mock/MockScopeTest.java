@@ -33,7 +33,7 @@ class MockScopeTest {
 
     @BeforeEach
     void setUp() {
-        wireMockServer = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        wireMockServer = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort().bindAddress("127.0.0.1"));
         wireMockServer.start();
         wireMock = WireMock.create().host("localhost").port(wireMockServer.port()).build();
     }

@@ -78,7 +78,7 @@ class StubContractCheckerTest {
 
     @Test
     void everyStubOnTheServerCanBeHeldToTheDocumentAtOnce() {
-        WireMockServer server = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        WireMockServer server = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort().bindAddress("127.0.0.1"));
         server.start();
         try {
             WireMock wireMock = WireMock.create().host("localhost").port(server.port()).build();
