@@ -23,7 +23,8 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `reliability` | `100 × requests without 5xx / requests` | an operation answered 5xx or failed in transport — even where the test expected it | `module-http` `http-summary.json` |
 | `db-queries` | `100 − 10 × flagged statement shapes` | a statement failed (swallowed or not) or wrote every row of a table; WARN on one over `forge.db.queries.slow-millis` | `module-db` `db-queries.json` |
 | `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
-| `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems` | never (WARN) | run index |
+| `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
+| `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
 - **Flaky** means failed and passed in the same run: a test listed twice
   (Gradle's test-retry) or with `<flakyFailure>` (Surefire's rerun). Without

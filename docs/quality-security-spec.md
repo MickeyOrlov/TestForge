@@ -90,7 +90,8 @@ Each dimension produces **a status** (PASS / WARN / FAIL / NOT MEASURED),
 | Authorization | 100 − 20 × access-matrix violations | any violation |
 | Efficiency | 100 × (compared − slower) / compared, a test slower when ≥ 2× **and** ≥ 1 s slower than in the baseline (query budgets and HTTP latency publish no files to read) | never fails; WARN only |
 | Security | from Part B: 100 − weighted new findings (critical 40, high 20, medium 5, low 1) | any new critical or high finding |
-| Test hygiene | 100 − 5 × leftover rows − 10 × run-index reporting problems (skipped tests listed, not scored) | never fails; WARN only |
+| Test hygiene | 100 − 5 × leftover rows − 10 × run-index reporting problems − 5 × unused stubs − 5 × unmatched requests (skipped tests listed, not scored) | never fails; WARN only |
+| Flow coverage | 100 × taken / declared transitions (`module-flow` `flow-coverage.json`) | never fails; WARN only |
 
 **Overall assessment**: the worst status across measured dimensions, plus
 the unweighted mean score for trend lines. No single magic number decides a

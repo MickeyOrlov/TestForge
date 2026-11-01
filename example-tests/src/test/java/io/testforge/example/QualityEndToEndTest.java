@@ -6,6 +6,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,16 +24,25 @@ import io.testforge.contract.monitor.ContractMonitorRunner;
 import io.testforge.contract.monitor.JsonPayloadContract;
 import io.testforge.db.contract.DbContractRunner;
 import io.testforge.db.contract.usage.DbSchemaUsage;
+import io.testforge.flow.FlowContext;
+import io.testforge.flow.FlowRunnerFactory;
+import io.testforge.flow.FlowStep;
 import io.testforge.http.ApiClient;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageBuffer;
 import io.testforge.kafka.KafkaMessageFilter;
+import io.testforge.mock.MockScope;
+import io.testforge.mock.ScopedMockClient;
 import io.testforge.quality.QualityDimension;
 import io.testforge.quality.QualityProperties;
 import io.testforge.quality.QualityReport;
 import io.testforge.quality.QualityRunner;
 import io.testforge.quality.QualityStatus;
 import io.testforge.security.SecurityRunner;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -55,6 +65,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * or registers its report after the index is closed, breaks this test.
  */
 class QualityEndToEndTest {
+
+    enum Refund { REQUESTED, APPROVED, REJECTED }
 
     final Path run = Path.of("build/quality-e2e", UUID.randomUUID().toString());
     final WireMockServer server =
@@ -100,7 +112,9 @@ class QualityEndToEndTest {
                         io.testforge.kafka.TestForgeKafkaAutoConfiguration.class,
                         io.testforge.contract.TestForgeContractAutoConfiguration.class,
                         io.testforge.contract.monitor.TestForgeContractMonitorAutoConfiguration.class,
-                        io.testforge.security.TestForgeSecurityAutoConfiguration.class))
+                        io.testforge.security.TestForgeSecurityAutoConfiguration.class,
+                        io.testforge.mock.TestForgeMockAutoConfiguration.class,
+                        io.testforge.flow.TestForgeFlowAutoConfiguration.class))
                 .withBean(ObjectMapper.class, ObjectMapper::new)
                 .withBean(ProcessRunner.class, ApiFuzzExampleTest.StubProcessRunner::new)
                 .withBean(DbSchemaUsage.class, () -> DbSchemaUsage.ofMappings(List.of()))
@@ -115,6 +129,7 @@ class QualityEndToEndTest {
                         "forge.reporting.artifacts.dir=" + run.resolve("artifacts"),
                         "forge.reporting.artifacts.run-id=e2e",
                         "forge.http.base-url=http://localhost:" + server.port(),
+                        "forge.mock.base-url=http://localhost:" + server.port(),
                         "forge.api-discovery.specs.demo.location=classpath:/openapi/demo-api.yaml",
                         "forge.api-discovery.specs.access.location=classpath:/openapi/access-demo.yaml",
                         "forge.contract-guard.enabled=true",
@@ -165,6 +180,19 @@ class QualityEndToEndTest {
                     context.getBean(AccessMatrixRunner.class).run();
                     context.getBean(ApiFuzzRunner.class).run();
                     context.getBean(SecurityRunner.class).run();
+                    // hygiene: a stub the scenario never hits, and a scoped request no stub answers
+                    try (MockScope scope = context.getBean(ScopedMockClient.class).scope("e2e-scope")) {
+                        scope.stub(post(urlPathEqualTo("/downstream/refunds")).willReturn(aResponse().withStatus(409)));
+                        HttpClient.newHttpClient().send(HttpRequest.newBuilder(
+                                        URI.create("http://localhost:" + server.port() + "/downstream/ledger"))
+                                .POST(HttpRequest.BodyPublishers.ofString("{\"testScope\":\"e2e-scope\"}")).build(),
+                                HttpResponse.BodyHandlers.discarding());
+                    }
+                    // flow-coverage: the rejection branch is declared, no test walks it
+                    context.getBean(FlowRunnerFactory.class).create("refund", List.of(
+                                    FlowStep.of(Refund.REQUESTED, ctx -> Refund.APPROVED, Refund.APPROVED,
+                                            Refund.REJECTED)), List.of())
+                            .run(Refund.REQUESTED, Refund.APPROVED, new FlowContext());
                 });
 
         QualityReport report = new QualityRunner(new QualityProperties(true, List.of(run.resolve("none").toString()),
@@ -189,6 +217,10 @@ class QualityEndToEndTest {
                 .contains("GET /api/v1/status/{n}");
         assertThat(report.dimension(QualityDimension.API_COVERAGE).orElseThrow().issues())
                 .as("the suite never creates a task").contains("demo POST /api/v1/tasks");
+        assertThat(report.dimension(QualityDimension.HYGIENE).orElseThrow().issues())
+                .contains("unused stub POST /downstream/refunds → 409", "unmatched request POST /downstream/ledger");
+        assertThat(report.dimension(QualityDimension.FLOW_COVERAGE).orElseThrow().issues())
+                .containsExactly("flow refund REQUESTED -> REJECTED");
         assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("- run: e2e");
     }
 }

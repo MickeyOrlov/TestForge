@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-mock`: `MockSummary` — every closed scope's stubs no request hit
+  and scoped requests no stub answered, counted for the run and written as
+  `mock-summary.json` to the run index (`forge.mock.summary.enabled`, on by
+  default). `module-quality`: `hygiene` scores them, WARN only.
+- `module-flow`: `flow-coverage.json` beside `flow-coverage.md`.
+  `module-quality`: `flow-coverage` dimension — declared transitions no
+  flow took, WARN only.
 - `module-db`: `DbQuerySummary` — with `forge.db.queries.enabled`, every
   statement of the run aggregated by shape (count, failures, time, unbounded
   write, slow), written as `db-queries.json` to the run index.

@@ -7,9 +7,9 @@
       "2xx" : 2
     },
     "transportErrors" : 0,
-    "p50Millis" : 28,
-    "p95Millis" : 665,
-    "maxMillis" : 665
+    "p50Millis" : 8,
+    "p95Millis" : 715,
+    "maxMillis" : 715
   }, {
     "operation" : "GET /third",
     "requests" : 1,
@@ -17,9 +17,9 @@
       "4xx" : 1
     },
     "transportErrors" : 0,
-    "p50Millis" : 4,
-    "p95Millis" : 4,
-    "maxMillis" : 4
+    "p50Millis" : 44,
+    "p95Millis" : 44,
+    "maxMillis" : 44
   }, {
     "operation" : "POST /second",
     "requests" : 1,
@@ -27,8 +27,8 @@
       "2xx" : 1
     },
     "transportErrors" : 0,
-    "p50Millis" : 63,
-    "p95Millis" : 63,
-    "maxMillis" : 63
+    "p50Millis" : 43,
+    "p95Millis" : 43,
+    "maxMillis" : 43
   } ]
 }

@@ -87,10 +87,13 @@ class FlowCoverageTest {
 
         new FlowCoverageReporter(coverage, sink).stop();
 
-        assertThat(registered).singleElement().satisfies(artifact -> {
-            assertThat(artifact.name()).isEqualTo("flow-coverage.md");
-            assertThat(artifact.metadata()).containsEntry("healthy", "true").containsEntry("uncovered", "2");
-        });
+        assertThat(registered).extracting(TestArtifact::name).containsExactly("flow-coverage.md", "flow-coverage.json");
+        assertThat(registered.getFirst().metadata()).containsEntry("healthy", "true").containsEntry("uncovered", "2");
+        assertThat(Files.readString(runDir.resolve("module-flow/flow-coverage.json")))
+                .contains("\"formatVersion\" : 1")
+                .contains("\"flow\" : \"approval\"")
+                .contains("\"declared\" : 4")
+                .contains("\"SUBMITTED -> MANAGER_REVIEW\"");
         assertThat(Files.readString(runDir.resolve("module-flow/flow-coverage.md")))
                 .contains("## approval")
                 .contains("declared transitions taken: 2 of 4")

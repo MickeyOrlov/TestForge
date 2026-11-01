@@ -352,6 +352,60 @@ final class ModuleDimensions {
     }
 
     /**
+     * Declared state-machine transitions no flow took during the run (module-flow's coverage): the
+     * branches no test walks. WARN while any is untaken — a gap to read about, not a broken product.
+     */
+    static QualityDimension flowCoverage(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-flow", "flow-coverage", "flow-coverage.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
+                    "no flow-coverage.json (module-flow) in the run");
+        }
+        int declared = 0;
+        int flows = 0;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            for (JsonNode flow : report.path("flows")) {
+                if (flow.path("declared").asInt() == 0) {
+                    continue;
+                }
+                flows++;
+                declared += flow.path("declared").asInt();
+                String name = flow.path("flow").asText();
+                flow.path("uncovered").forEach(edge -> issues.add("flow " + name + " " + edge.asText()));
+            }
+        }
+        if (declared == 0) {
+            return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
+                    "no flow in the run declares its transitions");
+        }
+        List<String> facts = new ArrayList<>();
+        facts.add((declared - issues.size()) + " of " + declared + " declared transitions taken across " + flows
+                + " flows");
+        list(facts, "never taken", issues);
+        return new QualityDimension(QualityDimension.FLOW_COVERAGE, issues.isEmpty() ? QualityStatus.PASS
+                : QualityStatus.WARN, Math.round(100f * (declared - issues.size()) / declared),
+                "100 × taken / declared transitions", facts).withIssues(issues);
+    }
+
+    /** What the run's mock scopes left over (module-mock's summary); empty without a summary. */
+    record MockLeftovers(boolean measured, long scopes, List<String> unusedStubs, List<String> unmatched) {
+    }
+
+    static MockLeftovers mockLeftovers(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-mock", "mock-summary", "mock-summary.json", mapper);
+        long scopes = 0;
+        List<String> unused = new ArrayList<>();
+        List<String> unmatched = new ArrayList<>();
+        for (JsonNode report : reports) {
+            scopes += report.path("scopes").asLong();
+            report.path("unusedStubs").forEach(stub -> unused.add(stub.path("stub").asText()));
+            report.path("unmatchedRequests").forEach(request -> unmatched.add(request.path("request").asText()));
+        }
+        return new MockLeftovers(!reports.isEmpty(), scopes, unused, unmatched);
+    }
+
+    /**
      * A security run whose coverage is whole: enabled, measured, not marked
      * incomplete, no {@code not_measured} coverage row, and something actually
      * measured (or an explicit {@code complete} flag).
