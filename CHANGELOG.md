@@ -6,6 +6,11 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-security`: opt-in passive API checks, value-free findings and coverage,
+  explicit gates/baselines and Markdown/JSON/SARIF reports in the run index.
+
+
 ### Changed
 - `module-web`: prewarm visits each page once per JVM instead of running once
   per JVM: a second Spring context with other pages (another profile or

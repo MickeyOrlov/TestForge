@@ -2,6 +2,7 @@ dependencies {
     testImplementation platform(libs.spring.boot.dependencies)
 
     testImplementation project(":core")
+    testImplementation project(":module-security")
     testImplementation project(":module-contract")
     testImplementation project(":module-contract-monitor")
     testImplementation project(":module-api-discovery")
