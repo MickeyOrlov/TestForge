@@ -21,9 +21,20 @@ import org.springframework.context.annotation.Bean;
     SecurityTransportProperties.class,
     SecurityArtifactProperties.class,
     SecurityActiveProperties.class,
-    BusinessSecurityProperties.class
+    BusinessSecurityProperties.class,
+    BusinessScenarioProperties.class
 })
 public class TestForgeSecurityAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    public BusinessScenarioGenerator businessScenarioGenerator(
+            BusinessScenarioProperties properties,
+            SecurityProperties reports,
+            ObjectProvider<ArtifactSink> sink) {
+        return new BusinessScenarioGenerator(
+                properties, reports, sink.getIfAvailable(() -> ArtifactSink.NO_OP));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(

@@ -10,6 +10,8 @@ import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.testforge.api.explorer.PreparedRequest;
 import io.testforge.http.TestForgeHttpAutoConfiguration;
+import io.testforge.security.BusinessScenarioGenerator;
+import io.testforge.security.BusinessScenarioSeed;
 import io.testforge.security.BusinessSecurityRunner;
 import io.testforge.security.BusinessSecuritySuite;
 import io.testforge.security.SecurityRunner;
@@ -103,6 +105,26 @@ class PublishedBusinessSecuritySmokeTest {
                     .run(
                             context -> {
                                 assertThat(context).hasNotFailed();
+                                var draft =
+                                        context.getBean(BusinessScenarioGenerator.class)
+                                                .generate(
+                                                        document,
+                                                        List.of(
+                                                                new BusinessScenarioSeed(
+                                                                        "published-draft",
+                                                                        "v1",
+                                                                        BusinessSecuritySuite.Kind
+                                                                                .PROPERTY_READ,
+                                                                        "GET /public",
+                                                                        "GET /public",
+                                                                        "anonymous",
+                                                                        "anonymous",
+                                                                        List.of(),
+                                                                        null)));
+                                assertThat(draft.drafts().getFirst().status())
+                                        .isEqualTo("needs_review");
+                                assertThat(context.getBean(SecurityRunner.class).run().measured())
+                                        .isFalse();
                                 assertThat(
                                                 context.getBean(BusinessSecurityRunner.class)
                                                         .run(document, suite, Map.of())

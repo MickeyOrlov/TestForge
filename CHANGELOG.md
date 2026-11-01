@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Offline business scenario drafts from local OpenAPI Links and reviewable path
+  hints: bounded dependency graphs, response/request value bindings, explicit
+  ambiguity/refusal reports, editable policy scaffolds, review/input requirements
+  and published-library wiring. Generation never earns security coverage.
+
+### Fixed
+- Business setup controls can create collection resources and feed captured IDs
+  into entity probes, while final state checks remain bound to the probe fixture.
+
+### Added
 - `module-mock`: `MockSummary` — every closed scope's stubs no request hit
   and scoped requests no stub answered, counted for the run and written as
   `mock-summary.json` to the run index (`forge.mock.summary.enabled`, on by

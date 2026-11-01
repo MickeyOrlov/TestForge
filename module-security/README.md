@@ -378,3 +378,23 @@ owner/other user in tenant A, another user in tenant B, protected-field attempts
 state re-read and cleanup. `BusinessSecurityTest` additionally exercises state
 transitions, replay and deliberately vulnerable API behavior. No remote service
 or ZAP container is needed for these examples.
+
+## Linked scenario drafts
+
+`BusinessScenarioGenerator.generate(document, seeds)` now builds bounded local
+OpenAPI Link graphs and editable policy templates, including captured response
+IDs, shared path/query bindings, owner controls, replay checkpoints, verification
+and explicit cleanup choices. Path-derived edges remain reviewable hints.
+Unresolved or ambiguous chains are blocked; examples/defaults and literal Link
+values are never copied. Generation has no traffic and earns no measurements.
+
+Draft status sets and state assertions are empty: project review is required
+before the existing business executor can run them. See
+[the generation guide](../docs/business-scenario-generation.md),
+`BusinessScenarioGenerationExampleTest` and its linked OpenAPI fixture for the
+complete OpenAPI → draft → reviewed policy → local execution flow.
+
+Setup controls may create a resource at a collection URL, capture its ID and
+read the resulting entity. Cases with write setup still need final state
+assertions for the primary fixture after the probe. State checks for write
+probes and any subsequent mutation must address the same bound fixture.
