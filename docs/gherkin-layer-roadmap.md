@@ -12,7 +12,7 @@ not use Gherkin deletes the module.
 |---|---|---|---|
 | 1 | **Scenario lifecycle and HTTP** — a scope and correlation id per scenario, `${name}` variables, request / status / JSON-path / remember steps over `ApiClient` | `module-gherkin` (`io.testforge.gherkin.glue`, `io.testforge.gherkin.http`) | shipped |
 | 2 | **Messages** — publish, await, exactly one, none within a window, for Kafka and RabbitMQ | `io.testforge.gherkin.kafka`, `io.testforge.gherkin.rabbitmq` | shipped |
-| 3 | **Database and mocks** — a row exists / changed, a scoped stub answers, a downstream call was made | `io.testforge.gherkin.db`, `io.testforge.gherkin.mock` | planned |
+| 3 | **Database and mocks** — a row exists / changed, a scoped stub answers, a downstream call was made | `io.testforge.gherkin.db`, `io.testforge.gherkin.mock` | shipped |
 | 4 | **Review** | `module-gherkin` | planned |
 
 ## Shape

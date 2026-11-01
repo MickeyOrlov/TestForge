@@ -158,6 +158,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-gherkin`: database and mock steps — `io.testforge.gherkin.db`
+  waits for a row, proves one absent within `forge.gherkin.settle`, and checks
+  what changed in a watched table; `io.testforge.gherkin.mock` stubs and
+  verifies a downstream in the scenario's own scope, closed after it.
 - `module-gherkin`: message steps — `io.testforge.gherkin.kafka` and
   `io.testforge.gherkin.rabbitmq` publish, await by key / routing key / JSON
   path, check exactly one or none within `forge.gherkin.settle`, and remember

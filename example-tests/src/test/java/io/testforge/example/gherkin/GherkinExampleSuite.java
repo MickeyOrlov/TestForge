@@ -21,7 +21,8 @@ import org.junit.platform.suite.api.Suite;
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME,
-        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.gherkin.kafka,io.testforge.example.gherkin")
+        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.gherkin.kafka,"
+                + "io.testforge.gherkin.db,io.testforge.gherkin.mock,io.testforge.example.gherkin")
 @ConfigurationParameter(key = PLUGIN_PUBLISH_QUIET_PROPERTY_NAME, value = "true")
 class GherkinExampleSuite {
 }
