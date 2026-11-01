@@ -25,6 +25,10 @@ semantic versioning for its git tags.
   and published-library wiring. Generation never earns security coverage.
 
 ### Fixed
+- `module-reporting` README: a fixed `run-id` reused without `clean` keeps the
+  earlier build's files in the run directory (the index stays right); read
+  the run through the manifest, or use one run id per build. Found by
+  re-running the 1.2 dogfood suite on 1.3.0-SNAPSHOT.
 - Run-wide summaries (`http-summary.json`, `db-queries.json`,
   `mock-summary.json`, `flow-coverage.*`, `contract-guard.json`,
   `api-coverage.*`, module-data leftovers) were written under a fixed name
