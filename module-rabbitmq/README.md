@@ -16,6 +16,8 @@ test's own message.
   headers, body fragments or JSON paths; exactly one; none within a window.
 - **`RabbitPublisher`** — publish a test's own message with the scenario's
   scope and correlation headers; waits for the broker's confirm.
+- **`RabbitDiagnosticsExtension`** — a failed test leaves its traffic in the
+  run index: what it published, what arrived while it ran.
 
 Buffer, criteria and waiting are `core`'s broker-neutral
 `io.testforge.core.messaging`, shared with `module-kafka`: the two probes
@@ -96,8 +98,25 @@ No RabbitMQ message matching RabbitMessageFilter[exchange=orders, routingKey=ord
   - orders/order.placed#1 key=order.placed — failed: routing key
 ```
 
+## Failure diagnostics
+
+```java
+@SpringBootTest
+@ExtendWith(RabbitDiagnosticsExtension.class)
+class OrderEventsTest { ... }
+```
+
+A failed test writes `module-rabbitmq/<Class>-<method>.md` to the run index
+(`module-reporting`): the messages it published, then those that arrived
+while it ran — only those with its scope when `publish.scope-header` is set
+and the scenario has one. Positions, routing keys and header names; bodies
+only with `forge.rabbitmq.diagnostics.payloads=true`, cut at 500 characters.
+`forge.rabbitmq.diagnostics.last` (default 20) caps each section. The report
+is the same one `KafkaDiagnosticsExtension` writes (`core`'s
+`MessageTrafficReport`), so a run with both brokers reads the same way.
+
 ## Tests
 
-`RabbitProbeUnitTest`, `TestForgeRabbitAutoConfigurationTest` (offline).
+`RabbitProbeUnitTest`, `TestForgeRabbitAutoConfigurationTest`, `RabbitDiagnosticsExtensionTest` (offline).
 `RabbitMqProbeIT` in `example-tests` runs the collector, publisher and probe
 against RabbitMQ 4.1 (tag `containers`, `./gradlew :example-tests:containersTest`).

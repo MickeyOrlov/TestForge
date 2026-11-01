@@ -3,6 +3,7 @@ package io.testforge.kafka;
 import io.testforge.artifact.ArtifactSink;
 import io.testforge.core.context.ScenarioContext;
 import io.testforge.core.context.ScenarioKeys;
+import io.testforge.core.messaging.MessageTrafficReport;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -30,7 +31,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 public class KafkaDiagnosticsExtension implements BeforeEachCallback, TestExecutionExceptionHandler {
 
     static final String SOURCE = "module-kafka";
-    static final int MAX_PAYLOAD_CHARS = 500;
+    static final int MAX_PAYLOAD_CHARS = MessageTrafficReport.MAX_PAYLOAD_CHARS;
 
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create(KafkaDiagnosticsExtension.class);
@@ -66,49 +67,22 @@ public class KafkaDiagnosticsExtension implements BeforeEachCallback, TestExecut
         Long watermark = context.getStore(NAMESPACE).get("watermark", Long.class);
         String scopeHeader = publisher.map(KafkaPublisher::scopeHeader).orElse(null);
         Optional<String> scope = ScenarioContext.find(ScenarioKeys.TEST_SCOPE);
-        List<KafkaMessage> received = buffer.filter(ignored -> watermark != null)
-                .map(messages -> messages.since(watermark)).orElse(List.of()).stream()
-                .filter(message -> scopeHeader == null || scope.isEmpty()
-                        || scope.get().equals(message.headers().get(scopeHeader)))
-                .toList();
+        List<KafkaMessage> received = MessageTrafficReport.ownMessages(buffer.filter(ignored -> watermark != null)
+                .map(messages -> messages.since(watermark)).orElse(List.<KafkaMessage>of()), scopeHeader, scope);
         if (published.isEmpty() && received.isEmpty()) {
             return;
         }
-        String scopeNote = scopeHeader != null && scope.isPresent()
-                ? "only messages with " + scopeHeader + "=" + scope.get()
-                : "every message buffered while the test ran";
+        String scopeNote = MessageTrafficReport.scopeNote(scopeHeader, scope);
         ArtifactSink sink = bean(spring, ArtifactSink.class).orElse(ArtifactSink.NO_OP);
-        sink.write(SOURCE, "failed-test-kafka", safeName(context) + ".md", "text/markdown",
-                render(context.getDisplayName(), failure, tail(published, last), tail(received, last), scopeNote,
+        sink.write(SOURCE, "failed-test-kafka", MessageTrafficReport.fileName(context), "text/markdown",
+                render(context.getDisplayName(), failure, MessageTrafficReport.tail(published, last),
+                        MessageTrafficReport.tail(received, last), scopeNote,
                         properties.diagnostics().payloads()));
     }
 
     static String render(String test, Throwable failure, List<KafkaMessage> published, List<KafkaMessage> received,
                          String scopeNote, boolean payloads) {
-        StringBuilder out = new StringBuilder("# Kafka traffic before `").append(test).append("` failed\n\n");
-        out.append("Failure: ").append(String.valueOf(failure.getMessage()).lines().findFirst().orElse(""))
-                .append("\n\n");
-        out.append("## Published by the test (").append(published.size()).append(")\n\n");
-        published.forEach(message -> line(out, message, payloads));
-        out.append("\n## Received while it ran (").append(received.size()).append("; ").append(scopeNote)
-                .append(")\n\n");
-        received.forEach(message -> line(out, message, payloads));
-        return out.toString();
-    }
-
-    private static void line(StringBuilder out, KafkaMessage message, boolean payloads) {
-        out.append("- `").append(message.topic()).append('/').append(message.partition()).append('@')
-                .append(message.offset()).append("` key=").append(message.key()).append(' ')
-                .append(message.timestamp()).append(" headers=").append(message.headers().keySet()).append('\n');
-        if (payloads && message.value() != null && !message.value().isEmpty()) {
-            String value = message.value().length() > MAX_PAYLOAD_CHARS
-                    ? message.value().substring(0, MAX_PAYLOAD_CHARS) + "…" : message.value();
-            out.append("  ```\n  ").append(value.replace("\n", "\n  ")).append("\n  ```\n");
-        }
-    }
-
-    private static List<KafkaMessage> tail(List<KafkaMessage> messages, int last) {
-        return messages.size() <= last ? messages : messages.subList(messages.size() - last, messages.size());
+        return MessageTrafficReport.render("Kafka", test, failure, published, received, scopeNote, payloads);
     }
 
     private static <T> Optional<T> bean(ApplicationContext spring, Class<T> type) {
@@ -121,13 +95,5 @@ public class KafkaDiagnosticsExtension implements BeforeEachCallback, TestExecut
         } catch (RuntimeException | LinkageError e) {
             return Optional.empty();
         }
-    }
-
-    private static String safeName(ExtensionContext context) {
-        String name = context.getTestMethod()
-                .map(method -> method.getDeclaringClass().getSimpleName() + "-" + method.getName())
-                .orElseGet(context::getDisplayName);
-        String safe = name.replaceAll("[^a-zA-Z0-9._-]+", "-").replaceAll("(^-+|-+$)", "");
-        return safe.isBlank() ? "test" : safe;
     }
 }

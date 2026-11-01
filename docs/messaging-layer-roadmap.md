@@ -11,7 +11,7 @@ adds RabbitMQ and extracts what the two share, in that order of need.
 |---|---|---|---|
 | 1 | **Broker-neutral core** — message, bounded buffer, criteria, probe (await, exactly one, none within a window, closest messages on a timeout) | `core` (`io.testforge.core.messaging`), `module-kafka` rebuilt on it | shipped |
 | 2 | **RabbitMQ adapter** — a collector on a queue of its own per run, bound to the exchanges a test watches, so it never takes a message from the system's consumers; probe and filter by exchange, routing key, header, JSON path; publisher with the scenario's scope and correlation headers | `module-rabbitmq` | shipped |
-| 3 | **Messages in failure diagnostics** — the traffic of a failed test in the run index, for both brokers through one renderer | `core`, `module-kafka`, `module-rabbitmq` | planned |
+| 3 | **Messages in failure diagnostics** — the traffic of a failed test in the run index, for both brokers through one renderer | `core`, `module-kafka`, `module-rabbitmq` | shipped |
 | 4 | **Review** — close the gaps a review of the layer finds, including a real broker run in `containersTest` | all three | planned |
 
 ## Why `core`, not a `module-messaging`

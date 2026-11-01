@@ -6,9 +6,17 @@ dependencies {
     // RabbitAutoConfiguration builds the ConnectionFactory from spring.rabbitmq.*
     api "org.springframework.amqp:spring-rabbit"
     api "com.fasterxml.jackson.core:jackson-databind"
+    // RabbitDiagnosticsExtension reads the buffer and publisher from the test's Spring context
+    implementation "org.springframework:spring-test"
 }
 
 dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.junit.platform:junit-platform-testkit"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// fixtures run only through EngineTestKit (they fail on purpose)
+tasks.named("test") {
+    exclude "**/*TestkitFixture*"
 }
