@@ -17,6 +17,13 @@ semantic versioning for its git tags.
   into entity probes, while final state checks remain bound to the probe fixture.
 
 ### Added
+- `module-quality`: run labels (revision, branch, CI job, `run-labels`) in
+  `quality.json`, the history and the metrics; `components` with owners
+  that group issues by key pattern, each with its own status; accepted
+  entries that expire (`# until <date>`) and notes for stale ones;
+  `gate.<dimension>.min-score` / `max-new-issues`; `quality-summary.md` for a
+  pull request, `quality.prom` in OpenMetrics text and `quality.schema.json`
+  for `quality.json`, which now carries `formatVersion` and `measured`.
 - `module-quality`: run history (`forge.quality.history.dir`) — one entry per
   run with scores, test outcomes and durations and API operation p95, the
   oldest beyond `keep` dropped. `stability` counts a test that failed and

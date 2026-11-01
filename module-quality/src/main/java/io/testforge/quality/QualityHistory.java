@@ -40,21 +40,29 @@ public record QualityHistory(List<Entry> entries, List<String> skipped) {
      * @param outcomes   test id to {@code PASSED}, {@code FAILED} or {@code FLAKY}
      * @param durations  test id to milliseconds, passed tests only
      * @param latencies  API operation (module-http's shape) to its p95 in milliseconds
+     * @param labels     the run's metadata, as in the report
      */
     public record Entry(int formatVersion, String runId, String recordedAt, String revision, String overall,
                         Map<String, Integer> scores, Map<String, String> outcomes, Map<String, Long> durations,
-                        Map<String, Long> latencies) {
+                        Map<String, Long> latencies, Map<String, String> labels) {
 
         public Entry {
             scores = scores == null ? Map.of() : new LinkedHashMap<>(scores);
             outcomes = outcomes == null ? Map.of() : Map.copyOf(outcomes);
             durations = durations == null ? Map.of() : Map.copyOf(durations);
             latencies = latencies == null ? Map.of() : Map.copyOf(latencies);
+            labels = labels == null ? Map.of() : Map.copyOf(labels);
+        }
+
+        public Entry(int formatVersion, String runId, String recordedAt, String revision, String overall,
+                     Map<String, Integer> scores, Map<String, String> outcomes, Map<String, Long> durations,
+                     Map<String, Long> latencies) {
+            this(formatVersion, runId, recordedAt, revision, overall, scores, outcomes, durations, latencies, null);
         }
 
         public Entry(int formatVersion, String runId, String recordedAt, String revision, String overall,
                      Map<String, Integer> scores, Map<String, String> outcomes, Map<String, Long> durations) {
-            this(formatVersion, runId, recordedAt, revision, overall, scores, outcomes, durations, null);
+            this(formatVersion, runId, recordedAt, revision, overall, scores, outcomes, durations, null, null);
         }
     }
 
@@ -95,7 +103,7 @@ public record QualityHistory(List<Entry> entries, List<String> skipped) {
             }
         }
         return new Entry(FORMAT_VERSION, report.runId(), now.toString(), revision, report.overall().name(), scores,
-                outcomes, durations, latencies);
+                outcomes, durations, latencies, report.labels());
     }
 
     /**

@@ -29,15 +29,25 @@ public class QualityRunner {
     /** Runs without a FAIL, this one included, before the report suggests promoting the baseline. */
     static final int STEADY_RUNS = 5;
     private static final List<String> REVISION_VARIABLES = List.of("GITHUB_SHA", "CI_COMMIT_SHA", "GIT_COMMIT");
+    private static final List<String> BRANCH_VARIABLES = List.of("GITHUB_REF_NAME", "CI_COMMIT_REF_NAME",
+            "GIT_BRANCH", "BRANCH_NAME");
+    private static final List<String> JOB_VARIABLES = List.of("GITHUB_RUN_ID", "CI_JOB_ID", "BUILD_NUMBER");
 
     private final QualityProperties properties;
     private final ObjectMapper mapper;
     private final ArtifactSink sink;
+    private final java.time.Clock clock;
 
     public QualityRunner(QualityProperties properties, ObjectMapper mapper, ArtifactSink sink) {
+        this(properties, mapper, sink, java.time.Clock.systemUTC());
+    }
+
+    /** @param clock today's date, for accepted entries that expire */
+    QualityRunner(QualityProperties properties, ObjectMapper mapper, ArtifactSink sink, java.time.Clock clock) {
         this.properties = properties;
         this.mapper = mapper;
         this.sink = sink == null ? ArtifactSink.NO_OP : sink;
+        this.clock = clock;
     }
 
     /** Assesses and writes the report; never fails on a bad product, only on unreadable inputs. */
@@ -73,12 +83,16 @@ public class QualityRunner {
         }
         QualityReport assessed = QualityAssessor.assess(runId, tests, index, baseline, inputs, properties, mapper,
                 history, revision);
+        java.time.LocalDate today = java.time.LocalDate.now(clock);
         QualityReport compared = assessed.withDimensions(baseline == null ? null : baseline.runId(),
                 assessed.dimensions().stream()
-                        .map(d -> d.withDelta(QualityBaseline.compare(d, baseline, properties.accepted())))
+                        .map(d -> d.withDelta(QualityBaseline.compare(d, baseline, properties.accepted(),
+                                properties.acceptedUntil(), today)))
                         .toList());
-        compared = compared.withNotes(HistoryDimensions.baselineNotes(compared, history, baseline != null,
-                STEADY_RUNS));
+        List<String> notes = new ArrayList<>(acceptedNotes(compared, today));
+        notes.addAll(HistoryDimensions.baselineNotes(compared, history, baseline != null, STEADY_RUNS));
+        compared = compared.withNotes(notes).withLabels(labels(revision))
+                .withComponents(QualityComponents.assign(compared.dimensions(), properties.components()));
         QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper);
         if (historyProperties.enabled()) {
             QualityHistory.record(Path.of(historyProperties.dir()),
@@ -90,7 +104,47 @@ public class QualityRunner {
                 "text/markdown", metadata);
         sink.registerFile(SOURCE, "quality", QualityReportWriter.JSON, Path.of(report.reportJson()),
                 "application/json", metadata);
+        Path output = Path.of(report.reportJson()).getParent();
+        sink.registerFile(SOURCE, "quality", QualityReportWriter.SUMMARY, output.resolve(QualityReportWriter.SUMMARY),
+                "text/markdown", metadata);
+        sink.registerFile(SOURCE, "quality", QualityReportWriter.METRICS, output.resolve(QualityReportWriter.METRICS),
+                "application/openmetrics-text", metadata);
         return report;
+    }
+
+    /**
+     * Accepted entries that stopped letting their issue through (expired) or no longer match an
+     * issue of this run — candidates to delete from {@code forge.quality.accepted}.
+     */
+    private List<String> acceptedNotes(QualityReport report, java.time.LocalDate today) {
+        java.util.Set<String> present = new java.util.HashSet<>();
+        report.dimensions().forEach(d -> d.issues().forEach(issue -> present.add(d.name() + " " + issue)));
+        List<String> notes = new ArrayList<>();
+        for (String entry : properties.accepted()) {
+            java.time.LocalDate until = properties.acceptedUntil().get(entry);
+            if (QualityBaseline.expired(until, today) && present.contains(entry)) {
+                notes.add("accepted until " + until + ", expired — counted as new: " + entry);
+            } else if (!present.contains(entry)) {
+                notes.add("accepted but not seen in this run — delete it once that holds: " + entry);
+            }
+        }
+        return notes;
+    }
+
+    /** Revision, branch and CI job from the CI's own variables, then {@code run-labels} on top. */
+    private Map<String, String> labels(String revision) {
+        Map<String, String> labels = new java.util.TreeMap<>();
+        if (revision != null) {
+            labels.put("revision", revision);
+        }
+        firstSet(BRANCH_VARIABLES).ifPresent(branch -> labels.put("branch", branch));
+        firstSet(JOB_VARIABLES).ifPresent(job -> labels.put("job", job));
+        labels.putAll(properties.runLabels());
+        return labels;
+    }
+
+    private static java.util.Optional<String> firstSet(List<String> variables) {
+        return variables.stream().map(System::getenv).filter(v -> v != null && !v.isBlank()).findFirst();
     }
 
     /** A history entry keeps no latency it cannot read; a report of an unknown layout is just left out. */
@@ -107,8 +161,7 @@ public class QualityRunner {
         if (properties.history().revision() != null) {
             return properties.history().revision();
         }
-        return REVISION_VARIABLES.stream().map(System::getenv).filter(v -> v != null && !v.isBlank()).findFirst()
-                .orElse(null);
+        return firstSet(REVISION_VARIABLES).orElse(null);
     }
 
     /**
@@ -155,17 +208,46 @@ public class QualityRunner {
             throw new QualityException("Security measurement incomplete: the security gate needs complete coverage. "
                     + "See " + report.reportMarkdown());
         }
-        List<QualityDimension> failed = report.dimensions().stream()
+        List<String> failed = new ArrayList<>(report.dimensions().stream()
                 .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
                 // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails
                 .filter(d -> d.issues().isEmpty() || !d.newIssues().isEmpty())
-                .toList();
+                // a budget lets a FAIL through while its new issues stay within it
+                .filter(d -> d.issues().isEmpty() || !withinBudget(d))
+                .map(QualityRunner::describe)
+                .toList());
+        failed.addAll(policyFailures(report));
         if (!failed.isEmpty()) {
-            throw new QualityException("Quality gate failed on " + failed.stream()
-                    .map(QualityRunner::describe).collect(Collectors.joining("; ")) + ". See "
+            throw new QualityException("Quality gate failed on " + String.join("; ", failed) + ". See "
                     + report.reportMarkdown());
         }
         return report;
+    }
+
+    private boolean withinBudget(QualityDimension dimension) {
+        QualityProperties.GateProperties gate = properties.gate().get(dimension.name());
+        return gate != null && gate.maxNewIssues() != null && dimension.newIssues().size() <= gate.maxNewIssues();
+    }
+
+    /**
+     * {@code forge.quality.gate}: a score below {@code min-score} or new issues beyond
+     * {@code max-new-issues}, whatever the status. A NOT MEASURED dimension is left to {@code required}.
+     */
+    private List<String> policyFailures(QualityReport report) {
+        List<String> failures = new ArrayList<>();
+        properties.gate().forEach((name, gate) -> report.dimension(name)
+                .filter(d -> d.status() != QualityStatus.NOT_MEASURED)
+                .ifPresent(d -> {
+                    if (gate.minScore() != null && d.score() < gate.minScore()) {
+                        failures.add(name + " (score " + d.score() + " below the gate's " + gate.minScore() + ")");
+                    }
+                    if (gate.maxNewIssues() != null && d.newIssues().size() > gate.maxNewIssues()
+                            && !(d.status() == QualityStatus.FAIL && properties.failOn().contains(name))) {
+                        failures.add(name + " (" + d.newIssues().size() + " new issues, budget "
+                                + gate.maxNewIssues() + ")");
+                    }
+                }));
+        return failures;
     }
 
     private static String describe(QualityDimension dimension) {

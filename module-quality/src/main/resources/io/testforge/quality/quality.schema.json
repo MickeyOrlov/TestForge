@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TestForge quality assessment (quality.json)",
+  "description": "One run judged by module-quality. formatVersion changes when a field is removed or changes meaning; fields may be added within a version.",
+  "type": "object",
+  "required": ["formatVersion", "overall", "measured", "dimensions", "inputs"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "runId": { "type": ["string", "null"], "description": "The run index read; null without one." },
+    "baselineRunId": { "type": ["string", "null"], "description": "The run compared against; null without a baseline." },
+    "overall": { "$ref": "#/$defs/status" },
+    "meanScore": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+    "measured": { "type": "integer", "minimum": 0, "description": "Dimensions that were not NOT_MEASURED." },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Run metadata: revision, branch, job, forge.quality.run-labels."
+    },
+    "notes": { "type": "array", "items": { "type": "string" }, "description": "Suggestions for a reader; never acted on." },
+    "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
+    "dimensions": { "type": "array", "items": { "$ref": "#/$defs/dimension" } },
+    "inputs": { "type": "array", "items": { "type": "string" } },
+    "reportMarkdown": { "type": ["string", "null"] },
+    "reportJson": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "status": { "enum": ["NOT_MEASURED", "PASS", "WARN", "FAIL"] },
+    "issues": { "type": "array", "items": { "type": "string" } },
+    "dimension": {
+      "type": "object",
+      "required": ["name", "status", "facts", "issues"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "formula": { "type": ["string", "null"] },
+        "facts": { "type": "array", "items": { "type": "string" } },
+        "issues": { "$ref": "#/$defs/issues" },
+        "delta": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["newIssues", "acceptedIssues", "knownIssues", "resolvedIssues"],
+              "properties": {
+                "baselineScore": { "type": ["integer", "null"] },
+                "newIssues": { "$ref": "#/$defs/issues" },
+                "acceptedIssues": { "$ref": "#/$defs/issues" },
+                "knownIssues": { "$ref": "#/$defs/issues" },
+                "resolvedIssues": { "$ref": "#/$defs/issues" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "required": ["name", "status", "issues", "newIssues"],
+      "properties": {
+        "name": { "type": "string" },
+        "owner": { "type": ["string", "null"] },
+        "status": { "$ref": "#/$defs/status" },
+        "issues": { "$ref": "#/$defs/issues", "description": "\"<dimension> <issue>\" keys." },
+        "newIssues": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -65,6 +65,10 @@ class QualityAssessmentExampleTest {
         registry.add("forge.quality.baseline-file", () -> RUN.resolve("baseline/quality-baseline.json").toString());
         // one flaky test in three is above any sane limit; 50% keeps this example at WARN
         registry.add("forge.quality.max-flaky-rate", () -> "0.5");
+        // who owns what, and where the run came from (the CI's own variables add revision, branch, job)
+        registry.add("forge.quality.components.orders.owner", () -> "team-orders");
+        registry.add("forge.quality.components.orders.match[0]", () -> "io.acme.OrdersTest.*");
+        registry.add("forge.quality.run-labels.environment", () -> "example");
     }
 
     @Autowired
@@ -95,6 +99,14 @@ class QualityAssessmentExampleTest {
         // modules this run did not use say so instead of scoring as perfect
         assertThat(report.dimension(QualityDimension.DATA)).get()
                 .extracting(QualityDimension::status).isEqualTo(QualityStatus.NOT_MEASURED);
+        assertThat(report.labels()).containsEntry("environment", "example");
+        assertThat(report.components().getFirst()).satisfies(orders -> {
+            assertThat(orders.owner()).isEqualTo("team-orders");
+            assertThat(orders.issues()).contains("functional io.acme.OrdersTest.refundsAnOrder()");
+        });
+        // quality-summary.md is the short form for a pull request; quality.prom feeds a dashboard
+        assertThat(Path.of(report.reportJson()).resolveSibling("quality-summary.md")).exists();
+        assertThat(Path.of(report.reportJson()).resolveSibling("quality.prom")).exists();
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("- overall: **FAIL**")
                 .contains("| stability | WARN | 67 | — | 1 | `100 × (1 − flaky / executed)` |");
