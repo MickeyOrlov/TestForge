@@ -177,6 +177,19 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `example-tests`: a `qualityGate` task — the quality gate as a CI step,
+  after `test` / `containersTest`, pointed at their JUnit results, with
+  `-PqualityRunIds` and `-PqualityBaseline`; `QualityGateTest` (tag
+  `quality-gate`) is excluded from `test`.
+- `module-gherkin`: `forge.gherkin.scope-messages` limits message steps to
+  messages carrying the scenario's scope header — without it a step could be
+  satisfied by another scenario's event; `KafkaScenarioDiagnostics` /
+  `RabbitScenarioDiagnostics` attach a failed scenario's message traffic to
+  it and to the run index. The example suite runs scenarios in parallel.
+- `module-gherkin`: database and mock steps — `io.testforge.gherkin.db`
+  waits for a row, proves one absent within `forge.gherkin.settle`, and checks
+  what changed in a watched table; `io.testforge.gherkin.mock` stubs and
+  verifies a downstream in the scenario's own scope, closed after it.
 - `module-gherkin`: message steps — `io.testforge.gherkin.kafka` and
   `io.testforge.gherkin.rabbitmq` publish, await by key / routing key / JSON
   path, check exactly one or none within `forge.gherkin.settle`, and remember

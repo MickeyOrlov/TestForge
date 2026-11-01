@@ -21,7 +21,13 @@ import org.junit.platform.suite.api.Suite;
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME,
-        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.gherkin.kafka,io.testforge.example.gherkin")
+        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.gherkin.kafka,"
+                + "io.testforge.gherkin.db,io.testforge.gherkin.mock,io.testforge.example.gherkin")
 @ConfigurationParameter(key = PLUGIN_PUBLISH_QUIET_PROPERTY_NAME, value = "true")
+// scenarios run in parallel: their own scope keeps stubs, rows and messages apart (parallel.feature)
+@ConfigurationParameter(key = "cucumber.execution.parallel.enabled", value = "true")
+@ConfigurationParameter(key = "cucumber.execution.parallel.config.strategy", value = "fixed")
+@ConfigurationParameter(key = "cucumber.execution.parallel.config.fixed.parallelism", value = "4")
+@ConfigurationParameter(key = "cucumber.execution.parallel.config.fixed.max-pool-size", value = "4")
 class GherkinExampleSuite {
 }

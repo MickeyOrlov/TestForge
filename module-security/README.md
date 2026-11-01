@@ -41,6 +41,9 @@ Security score. Each coverage row names a check, target, optional role, status
 
 - High: credential-like response patterns, Luhn-valid card patterns,
   project-forbidden JSON fields, configured untrusted CORS origins allowed.
+  Forbidden fields apply to JSON responses only: an HTML page, text or file
+  is `not_applicable`, while JSON that cannot be parsed whole (cut at
+  `max-body-chars`) is `not_measured` and keeps the gate closed.
 - Medium: missing HTTPS HSTS, missing HTML CSP/frame protection, insecure
   session-cookie attributes, wildcard CORS with credentials, error stack/SQL
   patterns. This CORS combination is a misconfiguration, not proof that a
@@ -96,7 +99,9 @@ negative responses. Missing controls, redirects not declared as denial, 429,
 JWT cases reuse module-auth's signer: expired, wrong signature, alg:none,
 unsigned role tampering, and wrong audience when an audience is declared.
 Session checks compare pre-login/post-login cookies and retry the saved cookie
-after the configured logout step. No cookie/token value enters findings.
+after the configured logout step, then drop the role's cached session, so the
+role's next request logs in again instead of using the logged-out cookie. No
+cookie/token value enters findings.
 
 Probes use ApiClient's base URL/timeouts and module-auth's filter/credential
 placement. They explicitly clear default headers/cookies/query credentials,
