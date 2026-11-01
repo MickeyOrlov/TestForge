@@ -183,16 +183,7 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.SECURITY,
                     "no security-findings.json (module-security) in the run");
         }
-        boolean complete = reports.stream().allMatch(report -> {
-            if (!report.path("measured").asBoolean() || !report.path("enabled").asBoolean(true)) return false;
-            if (report.has("complete") && !report.path("complete").asBoolean()) return false;
-            boolean covered = report.has("complete");
-            for (JsonNode row : report.path("coverage")) {
-                if (row.path("status").asText().equals("not_measured")) return false;
-                if (row.path("status").asText().equals("measured")) covered = true;
-            }
-            return covered;
-        });
+        boolean complete = reports.stream().allMatch(ModuleDimensions::completeSecurityRun);
         java.util.Map<String, Integer> bySeverity = new java.util.LinkedHashMap<>();
         for (String severity : List.of("critical", "high", "medium", "low", "info")) {
             bySeverity.put(severity, 0);
@@ -243,6 +234,29 @@ final class ModuleDimensions {
         return new QualityDimension(QualityDimension.SECURITY, status,
                 Math.max(0, 100 - 40 * critical - 20 * high - 5 * medium - low),
                 "100 − 40 × critical − 20 × high − 5 × medium − 1 × low (new findings)", facts).withIssues(issues);
+    }
+
+    /**
+     * A security run whose coverage is whole: enabled, measured, not marked
+     * incomplete, no {@code not_measured} coverage row, and something actually
+     * measured (or an explicit {@code complete} flag).
+     */
+    private static boolean completeSecurityRun(JsonNode report) {
+        if (!report.path("measured").asBoolean() || !report.path("enabled").asBoolean(true)) {
+            return false;
+        }
+        if (report.has("complete") && !report.path("complete").asBoolean()) {
+            return false;
+        }
+        boolean covered = report.has("complete");
+        for (JsonNode row : report.path("coverage")) {
+            String status = row.path("status").asText();
+            if (status.equals("not_measured")) {
+                return false;
+            }
+            covered |= status.equals("measured");
+        }
+        return covered;
     }
 
     /**
