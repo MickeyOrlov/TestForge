@@ -238,6 +238,20 @@ final class ModuleDimensions {
                 "100 − 40 × critical − 20 × high − 5 × medium − 1 × low (new findings)", facts).withIssues(issues);
     }
 
+    /** Each API operation's p95 in this run (module-http's traffic summary); empty without one. */
+    static java.util.Map<String, Long> latencies(RunIndex index, ObjectMapper mapper) {
+        java.util.Map<String, Long> latencies = new java.util.TreeMap<>();
+        for (JsonNode report : reports(index, "module-http", "http-summary", "http-summary.json", mapper)) {
+            for (JsonNode operation : report.path("operations")) {
+                if (operation.path("requests").asLong() > 0 && operation.has("p95Millis")) {
+                    latencies.merge(operation.path("operation").asText(), operation.path("p95Millis").asLong(),
+                            Math::max);
+                }
+            }
+        }
+        return latencies;
+    }
+
     /**
      * Operations that answered 5xx or failed in transport during the run (module-http's traffic
      * summary) — including those a test expected or swallowed: the suite passing does not mean the

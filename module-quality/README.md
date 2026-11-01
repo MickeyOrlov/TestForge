@@ -13,12 +13,12 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | Dimension | Formula | FAIL when | Reads |
 |---|---|---|---|
 | `functional` | `100 × passed / (passed + failed)` | any test failed | JUnit XML |
-| `stability` | `100 × (1 − flaky / executed)` | flaky rate above `max-flaky-rate` (WARN below it) | JUnit XML |
+| `stability` | `100 × (1 − flaky / executed)` | flaky rate above `max-flaky-rate` (WARN below it) | JUnit XML, history |
 | `contracts` | `100 − 10 × mismatches` | any mismatch | `module-api-explorer` contract guard, `module-contract-monitor` |
 | `data` | `100 − 50 × breaking − 20 × risky − 5 × unknown` | a breaking schema change (WARN on risky/unknown) | `module-db-contract` |
 | `robustness` | `100 − 10 × finding groups` | a fuzz finding group nobody accepted | `module-api-fuzz` `findings.json` |
 | `authorization` | `100 − 20 × violations` | a role got in, or was shut out, against the access matrix | `module-api-explorer` access matrix |
-| `efficiency` | `100 × (compared − slower) / compared` | never (WARN): a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations + baseline |
+| `efficiency` | `100 × (compared − slower) / compared` | never (WARN): with history, a test or an API operation's p95 above its median + `mad-factor` × MAD; without, a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations, `http-summary.json`, history or baseline |
 | `security` | `100 − 40 × critical − 20 × high − 5 × medium − 1 × low` (new findings) | a new critical or high finding (WARN on medium/low) | `module-security` `security-findings.json` |
 | `reliability` | `100 × requests without 5xx / requests` | an operation answered 5xx or failed in transport — even where the test expected it | `module-http` `http-summary.json` |
 | `db-queries` | `100 − 10 × flagged statement shapes` | a statement failed (swallowed or not) or wrote every row of a table; WARN on one over `forge.db.queries.slow-millis` | `module-db` `db-queries.json` |
@@ -107,6 +107,50 @@ reviewed change. Keep the file as a CI artifact of the accepted run or a
 checked-in input. A FAIL without issue keys (a flaky rate over its limit
 with no flaky test named) always fails.
 
+## History: what one run cannot tell
+
+A baseline is one accepted run; the history is the last runs, one small
+entry each (`run-<run-id>.json`: dimension scores, test outcomes and
+durations, operation p95 — no messages, no payloads). With
+`forge.quality.history.dir` set, every `run()` reads the last `window`
+entries and then adds its own — replacing the entry of the same run id, so a
+gate run twice counts once — and drops the oldest beyond `keep`. In CI,
+restore the directory from a cache or the previous run's artifact before the
+gate and save it after; there is no database.
+
+```yaml
+forge:
+  quality:
+    history:
+      dir: build/quality/history
+      window: 10        # earlier runs read
+      keep: 30          # entries kept
+      min-runs: 3       # values a test or operation needs before its median counts
+      revision:         # the commit tested; default GITHUB_SHA, CI_COMMIT_SHA, GIT_COMMIT
+```
+
+- **stability** also counts a test that failed and passed across the runs of
+  the *same revision* — the code did not change, the outcome did. Without a
+  revision nothing is compared across runs: a fix between two commits is
+  not flakiness.
+- **efficiency** compares each passed test with the median of its own last
+  runs: slower means above median + `mad-factor` × MAD **and** `min-millis`
+  above it, after dividing out the run's pace (the median ratio of this
+  run's durations to those medians — a slower CI machine slows every test
+  and is not a regression). API operations compare their p95 from
+  `http-summary.json` the same way, without the pace and with
+  `min-latency-millis`. A test with fewer than `min-runs` values is left
+  out; with none at all the baseline comparison applies.
+- **trends**: every measured dimension lists its score over the window; a
+  PASS whose score fell in each of the last 3 runs becomes a WARN. A trend
+  adds no issue, so it never fails the gate.
+- **baseline hint**: after 5 runs without a FAIL, the report notes when the
+  baseline is behind (issues it holds are resolved) or missing. It only
+  says so: `writeBaseline()` stays an explicit, reviewed step.
+
+An entry that cannot be read, or has another `formatVersion`, is skipped
+and listed in the report's inputs, never a failed assessment.
+
 ## Configuration
 
 ```yaml
@@ -122,6 +166,10 @@ forge:
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise
       min-millis: 1000
+      mad-factor: 3.0                    # with history
+      min-latency-millis: 100            # with history, for API operations
+    history:
+      dir:                               # off unless set — see History
 ```
 
 ## Usage
@@ -153,8 +201,12 @@ results:
 
 ```bash
 ./gradlew :example-tests:test :example-tests:containersTest :example-tests:qualityGate \
-    -PqualityRunIds=<test-run>,<containers-run> -PqualityBaseline=ci/quality-baseline.json
+    -PqualityRunIds=<test-run>,<containers-run> -PqualityBaseline=ci/quality-baseline.json \
+    -PqualityHistory=ci/quality-history
 ```
+
+`-PqualityRevision=<commit>` names the commit when the CI exposes none of
+`GITHUB_SHA`, `CI_COMMIT_SHA`, `GIT_COMMIT`.
 
 It sets `forge.quality.enabled=true`, the test tasks' JUnit XML directories
 and `build/quality` as the output, is never up to date, and is not part of

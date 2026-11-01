@@ -194,7 +194,10 @@ must not replace each other. `example-tests` is never published.
    `forge.quality.enabled=true`, pointed at those jobs' `build/test-results`
    and run index — copy `example-tests`' `qualityGate` task and
    `QualityGateTest`. Read the first `quality.md` before tightening
-   `max-flaky-rate` or `fail-on`.
+   `max-flaky-rate` or `fail-on`. Keep `forge.quality.history.dir` in the CI
+   cache between runs (and the commit in `GITHUB_SHA` / `CI_COMMIT_SHA` /
+   `GIT_COMMIT` or `history.revision`): flakiness on unchanged code and
+   durations against their own median need the last runs, not one.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
    run: a page "ended at" a sign-in URL warmed the login wall, not the page.

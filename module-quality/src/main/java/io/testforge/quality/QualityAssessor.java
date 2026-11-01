@@ -20,9 +20,19 @@ final class QualityAssessor {
     static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, QualityBaseline baseline,
                                 List<String> inputs, QualityProperties properties,
                                 com.fasterxml.jackson.databind.ObjectMapper mapper) {
-        List<QualityDimension> dimensions = List.of(
+        return assess(runId, tests, index, baseline, inputs, properties, mapper, QualityHistory.empty(), null);
+    }
+
+    static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, QualityBaseline baseline,
+                                List<String> inputs, QualityProperties properties,
+                                com.fasterxml.jackson.databind.ObjectMapper mapper, QualityHistory history,
+                                String revision) {
+        QualityDimension byHistory = ModuleDimensions.guarded(QualityDimension.EFFICIENCY,
+                () -> HistoryDimensions.efficiency(tests, history, properties.efficiency(),
+                        properties.history().minRuns(), ModuleDimensions.latencies(index, mapper)));
+        List<QualityDimension> dimensions = java.util.stream.Stream.of(
                 functional(tests, properties),
-                stability(tests, properties),
+                stability(tests, properties, history, revision),
                 ModuleDimensions.guarded(QualityDimension.CONTRACTS, () -> ModuleDimensions.contracts(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.DATA, () -> ModuleDimensions.data(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.ROBUSTNESS, () -> ModuleDimensions.robustness(index, mapper)),
@@ -35,8 +45,10 @@ final class QualityAssessor {
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
-                ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
-                ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)));
+                byHistory != null ? byHistory : ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
+                ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)))
+                .map(dimension -> HistoryDimensions.trend(dimension, history))
+                .toList();
         QualityStatus overall = QualityStatus.NOT_MEASURED;
         int sum = 0;
         int measured = 0;
@@ -76,22 +88,40 @@ final class QualityAssessor {
     }
 
     static QualityDimension stability(List<TestCase> tests, QualityProperties properties) {
+        return stability(tests, properties, QualityHistory.empty(), null);
+    }
+
+    /**
+     * Flaky: failed and passed within this run (retries), or — with a history — across the runs of
+     * this run's revision, where the code did not change.
+     */
+    static QualityDimension stability(List<TestCase> tests, QualityProperties properties, QualityHistory history,
+                                      String revision) {
         long executed = tests.stream().filter(t -> t.outcome() != Outcome.SKIPPED).count();
         if (executed == 0) {
             return QualityDimension.notMeasured(QualityDimension.STABILITY,
                     "no executed tests in " + properties.junitResults());
         }
         List<TestCase> flaky = tests.stream().filter(TestCase::flaky).toList();
-        double rate = (double) flaky.size() / executed;
+        List<String> byHistory = HistoryDimensions.flakyByHistory(tests, history, revision);
+        int count = flaky.size() + byHistory.size();
+        double rate = (double) count / executed;
         List<String> facts = new ArrayList<>();
-        facts.add(flaky.size() + " of " + executed + " executed tests flaky (rate " + percent(rate) + ", limit "
+        facts.add(count + " of " + executed + " executed tests flaky (rate " + percent(rate) + ", limit "
                 + percent(properties.maxFlakyRate()) + ")");
+        String historyFact = HistoryDimensions.stabilityFact(history, revision, byHistory.size());
+        if (historyFact != null) {
+            facts.add(historyFact);
+        }
         flaky.stream().limit(LISTED)
                 .forEach(t -> facts.add("flaky: " + t.id() + (t.message() == null ? "" : " — " + t.message())));
-        QualityStatus status = flaky.isEmpty() ? QualityStatus.PASS
+        byHistory.stream().limit(LISTED).forEach(id -> facts.add("flaky across runs: " + id));
+        QualityStatus status = count == 0 ? QualityStatus.PASS
                 : rate > properties.maxFlakyRate() ? QualityStatus.FAIL : QualityStatus.WARN;
+        List<String> issues = new ArrayList<>(flaky.stream().map(TestCase::id).toList());
+        issues.addAll(byHistory);
         return new QualityDimension(QualityDimension.STABILITY, status, (int) Math.round(100 * (1 - rate)),
-                "100 × (1 − flaky / executed)", facts).withIssues(flaky.stream().map(TestCase::id).toList());
+                "100 × (1 − flaky / executed)", facts).withIssues(issues);
     }
 
     static QualityDimension hygiene(List<TestCase> tests, RunIndex index,

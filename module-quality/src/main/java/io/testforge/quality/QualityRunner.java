@@ -3,6 +3,7 @@ package io.testforge.quality;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.artifact.ArtifactSink;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,9 @@ import java.util.stream.Collectors;
 public class QualityRunner {
 
     static final String SOURCE = "module-quality";
+    /** Runs without a FAIL, this one included, before the report suggests promoting the baseline. */
+    static final int STEADY_RUNS = 5;
+    private static final List<String> REVISION_VARIABLES = List.of("GITHUB_SHA", "CI_COMMIT_SHA", "GIT_COMMIT");
 
     private final QualityProperties properties;
     private final ObjectMapper mapper;
@@ -56,19 +60,55 @@ public class QualityRunner {
         read.stale().forEach(file -> inputs.add(file + " (dropped: older than " + properties.resultsNotBefore() + ")"));
         inputs.add(index == null ? properties.artifactsRoot() + " (no run index)" : index.manifest().toString());
         inputs.add(baseline == null ? baselineFile + " (no baseline: every issue is new)" : baselineFile.toString());
-        QualityReport assessed = QualityAssessor.assess(index == null ? null : index.runId(), tests, index, baseline,
-                inputs, properties, mapper);
+        String runId = index == null ? null : index.runId();
+        QualityProperties.HistoryProperties historyProperties = properties.history();
+        String revision = revision();
+        QualityHistory history = historyProperties.enabled()
+                ? QualityHistory.read(Path.of(historyProperties.dir()), runId, historyProperties.window(), mapper)
+                : QualityHistory.empty();
+        if (historyProperties.enabled()) {
+            inputs.add(historyProperties.dir() + " (history: " + history.entries().size() + " earlier runs"
+                    + (revision == null ? ", revision unknown" : ", revision " + revision)
+                    + (history.skipped().isEmpty() ? "" : ", skipped " + String.join(", ", history.skipped())) + ")");
+        }
+        QualityReport assessed = QualityAssessor.assess(runId, tests, index, baseline, inputs, properties, mapper,
+                history, revision);
         QualityReport compared = assessed.withDimensions(baseline == null ? null : baseline.runId(),
                 assessed.dimensions().stream()
                         .map(d -> d.withDelta(QualityBaseline.compare(d, baseline, properties.accepted())))
                         .toList());
+        compared = compared.withNotes(HistoryDimensions.baselineNotes(compared, history, baseline != null,
+                STEADY_RUNS));
         QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper);
+        if (historyProperties.enabled()) {
+            QualityHistory.record(Path.of(historyProperties.dir()),
+                    QualityHistory.of(report, tests, revision, Instant.now(), latencies(index)),
+                    historyProperties.keep(), mapper);
+        }
         Map<String, String> metadata = Map.of("overall", report.overall().name());
         sink.registerFile(SOURCE, "quality", QualityReportWriter.MARKDOWN, Path.of(report.reportMarkdown()),
                 "text/markdown", metadata);
         sink.registerFile(SOURCE, "quality", QualityReportWriter.JSON, Path.of(report.reportJson()),
                 "application/json", metadata);
         return report;
+    }
+
+    /** A history entry keeps no latency it cannot read; a report of an unknown layout is just left out. */
+    private java.util.Map<String, Long> latencies(RunIndex index) {
+        try {
+            return ModuleDimensions.latencies(index, mapper);
+        } catch (RuntimeException e) {
+            return java.util.Map.of();
+        }
+    }
+
+    /** The commit this run tested: configured, or what the CI exposes; {@code null} when neither says. */
+    private String revision() {
+        if (properties.history().revision() != null) {
+            return properties.history().revision();
+        }
+        return REVISION_VARIABLES.stream().map(System::getenv).filter(v -> v != null && !v.isBlank()).findFirst()
+                .orElse(null);
     }
 
     /**

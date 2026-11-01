@@ -88,7 +88,7 @@ Each dimension produces **a status** (PASS / WARN / FAIL / NOT MEASURED),
 | Data compatibility | 100 for SAFE only; −20 per RISKY, −50 per BREAKING | any BREAKING schema change |
 | Robustness | 100 − 10 per new fuzz finding group | new finding groups above `max-new-fuzz-findings` |
 | Authorization | 100 − 20 × access-matrix violations | any violation |
-| Efficiency | 100 × (compared − slower) / compared, a test slower when ≥ 2× **and** ≥ 1 s slower than in the baseline (query budgets and HTTP latency publish no files to read) | never fails; WARN only |
+| Efficiency | 100 × (compared − slower) / compared; with a run history a test is slower above its median + 3 × MAD **and** 1 s, at the run's pace, and an API operation's p95 above its median + 3 × MAD **and** 100 ms; without one, ≥ 2× **and** ≥ 1 s slower than in the baseline | never fails; WARN only |
 | Security | from Part B: 100 − weighted new findings (critical 40, high 20, medium 5, low 1) | any new critical or high finding |
 | Test hygiene | 100 − 5 × leftover rows − 10 × run-index reporting problems − 5 × unused stubs − 5 × unmatched requests (skipped tests listed, not scored) | never fails; WARN only |
 | Flow coverage | 100 × taken / declared transitions (`module-flow` `flow-coverage.json`) | never fails; WARN only |
