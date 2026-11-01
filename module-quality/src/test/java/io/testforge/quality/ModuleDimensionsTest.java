@@ -111,6 +111,29 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void apiCoverageNamesTheOperationsNoTestCalled() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-api-explorer/api-coverage.json", """
+                {"formatVersion": 1, "documented": 4,
+                 "called": {"demo GET /tasks": 3, "demo GET /tasks/{id}": 1},
+                 "uncalled": ["demo POST /tasks", "demo DELETE /tasks/{id}"]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-api-explorer", "category": "api-coverage",
+                  "name": "api-coverage.json", "path": "module-api-explorer/api-coverage.json"}]}""");
+
+        QualityDimension coverage = new QualityRunner(new QualityProperties(true,
+                List.of(dir.resolve("results").toString()), dir.resolve("artifacts").toString(), null,
+                dir.resolve("quality").toString(), 0.02, null, null, null, null, null, null, 0.8),
+                new ObjectMapper(), ArtifactSink.NO_OP).run().dimension(QualityDimension.API_COVERAGE).orElseThrow();
+
+        assertThat(coverage.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(coverage.score()).isEqualTo(50);
+        assertThat(coverage.facts().getFirst()).isEqualTo("2 of 4 documented operations called by the suite "
+                + "(minimum 80%)");
+        assertThat(coverage.issues()).containsExactly("demo POST /tasks", "demo DELETE /tasks/{id}");
+    }
+
+    @Test
     void aReportInAnUnknownFormatIsNotMeasuredRatherThanReadAsZero() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         file("artifacts/r/module-api-fuzz/findings.json",

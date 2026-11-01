@@ -24,6 +24,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *       slowdown-factor: 2.0              # a test this many times slower than in the baseline…
  *       min-millis: 1000                  # …and at least this much slower counts
  *     required: [functional, contracts]   # the gate fails while one of these is NOT MEASURED
+ *     min-api-coverage: 0.8               # api-coverage FAILs below this share of documented operations
  *     results-not-before: 2026-11-01T12:00:00Z  # JUnit suites older than this are stale, dropped
  * </pre>
  *
@@ -46,7 +47,8 @@ public record QualityProperties(
         List<String> accepted,
         EfficiencyProperties efficiency,
         List<String> required,
-        java.time.Instant resultsNotBefore) {
+        java.time.Instant resultsNotBefore,
+        Double minApiCoverage) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -78,13 +80,24 @@ public record QualityProperties(
             efficiency = new EfficiencyProperties(null, null);
         }
         required = required == null ? List.of() : List.copyOf(required);
+        if (minApiCoverage != null && (minApiCoverage < 0 || minApiCoverage > 1)) {
+            throw new IllegalArgumentException("forge.quality.min-api-coverage is a share between 0 and 1");
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, null);
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
                              String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
                              List<String> accepted, EfficiencyProperties efficiency) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
-                efficiency, null, null);
+                efficiency, null, null, null);
     }
 
     /** When a test counts as slower than in the baseline: both limits at once. */

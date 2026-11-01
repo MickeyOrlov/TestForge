@@ -175,6 +175,8 @@ class QualityEndToEndTest {
                 .isEqualTo(QualityStatus.PASS);
         assertThat(report.dimension(QualityDimension.SECURITY).orElseThrow().facts().getFirst())
                 .startsWith("new findings:");
+        assertThat(report.dimension(QualityDimension.API_COVERAGE).orElseThrow().issues())
+                .as("the suite never creates a task").contains("demo POST /api/v1/tasks");
         assertThat(Files.readString(Path.of(report.reportMarkdown()))).contains("- run: e2e");
     }
 }
