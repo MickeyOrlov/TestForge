@@ -20,7 +20,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Only a report the current run wrote is parsed: the directory is
   snapshotted before the process starts.
 - `report.md` holds check names, operation labels, a message's first line and
-  TestForge's own arguments — never request headers or bodies.
+  TestForge's own arguments — never request headers or bodies. `findings.json`
+  holds the same groups without messages; `module-quality` reads its
+  `groups[specId, key, accepted]` and `outcome`.
 
 ## Tests
 

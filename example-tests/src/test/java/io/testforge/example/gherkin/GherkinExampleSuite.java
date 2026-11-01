@@ -16,11 +16,12 @@ import org.junit.platform.suite.api.Suite;
  * per module the project uses — and the project's own steps and Spring
  * context ({@link GherkinExampleContext}).
  */
-@Suite
+// a tag filter (containers / not containers) may leave a suite empty in one of the two tasks
+@Suite(failIfNoTests = false)
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME,
-        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.example.gherkin")
+        value = "io.testforge.gherkin.glue,io.testforge.gherkin.http,io.testforge.gherkin.kafka,io.testforge.example.gherkin")
 @ConfigurationParameter(key = PLUGIN_PUBLISH_QUIET_PROPERTY_NAME, value = "true")
 class GherkinExampleSuite {
 }
