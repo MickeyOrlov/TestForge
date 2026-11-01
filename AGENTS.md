@@ -20,7 +20,7 @@ module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
-module-security/ opt-in passive/auth/ZAP/TLS checks, pre-upload secret scan and value-free evidence
+module-security/ opt-in passive/auth/ZAP/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; publisher with confirms

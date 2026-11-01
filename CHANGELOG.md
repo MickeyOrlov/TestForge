@@ -6,6 +6,14 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- Business security policy suites over OpenAPI: protected fields, owner/foreign
+  users, explicitly declared tenants, state transitions and replay with persisted
+  state verification. No-traffic candidate sequences and complete operation ×
+  role × kind coverage, explicit exclusions, bounded isolated HTTP transport,
+  shared findings/gates and JSON/Markdown matrices. Includes declarative JSON
+  policies and secure/intentionally vulnerable offline examples.
+
 ### Fixed
 - `module-quality`: each dimension reads its producer's report by file name.
   The format-version check read every JSON of a category, so db-contract's

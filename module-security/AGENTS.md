@@ -34,3 +34,13 @@ Run :example-tests:securityScanTest for actual scanner/transport changes.
 Aggregate reports expose measured and complete separately; an enabled but
 unexecuted block cannot be hidden by other measurements. A4 consumes this
 contract and remains part of module-quality.
+
+Business policies: `BusinessSecuritySuite`, `BusinessSecurityPlanner`,
+`BusinessSecurityRunner` and private bounded JDK exchange. No automatic permission
+or tenant inference. Full document × role × kind scope; no silently omitted cells.
+Controls must succeed; writes need subsequent state assertions; cleanup is bounded
+and attempted on failure. Keep credentials and runtime bindings out of artifacts.
+Tenant aliases and all policy IDs/reasons are explicit non-sensitive metadata.
+Update `BusinessSecurityTest`, `BusinessSecurityExampleTest` and its JSON policy.
+Changing the business executor does not require ZAP acceptance unless the scanner
+or its transport also changed. Preserve the existing module dependency edges.

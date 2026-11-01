@@ -266,3 +266,115 @@ The quality adapter reads `complete` and coverage alongside findings. Selecting
 security in the quality gate rejects incomplete evidence. Current artifact
 secret leaks always stay `new`, make `healthy` false, and cannot be promoted into
 a security baseline, regardless of accepted findings or severity thresholds.
+
+## Business security: declared policies over OpenAPI
+
+`BusinessSecurityPlanner.propose(document, suite, maxCells)` produces **candidates**
+without traffic: operation × role × selected check kind, top-level readOnly /
+writeOnly field hints, and possible control → probe → verification sequences.
+Matching a GET on the same entity path or its parent is a scaffold for review,
+not proof of a business relationship. Permissions, tenant ownership, expected
+statuses, protected fields and business states always come from project policy.
+An incompatible read operation/write-check candidate has no suggested sequence;
+exclude it explicitly instead of counting it as measured. Document servers,
+examples, defaults and links never choose targets, credentials or test values.
+
+`BusinessSecurityRunner.run(document, suite, inputs)` executes the reviewed
+`BusinessSecuritySuite` records (also deserializable from JSON). Six case kinds:
+
+| Kind | Project-declared assertion |
+|---|---|
+| PROPERTY_READ | Forbidden response fields must be absent for the actor |
+| PROPERTY_WRITE | Attempt to change protected fields, then read persisted state |
+| OBJECT_ACCESS | Owner control succeeds; another role cannot access the object |
+| TENANT_ACCESS | Distinct owner/actor roles with explicitly different tenant aliases |
+| TRANSITION | A prohibited state change is refused and persisted invariants hold |
+| REPLAY | Identical request succeeds once; repeat obeys policy and effects stay bounded |
+
+```yaml
+forge:
+  security:
+    business:
+      enabled: true
+      test-environment: true
+      allowed-hosts: [api.staging.example.test:8443]
+      write-checks: true             # both keys required for every write, including cleanup
+      allow-unsafe-methods: true
+      max-requests: 1000             # per run, including controls and cleanup
+      max-cases: 100
+      max-steps: 50                  # per case, including cleanup
+      max-cells: 10000
+      max-body-bytes: 1048576        # request/response/expanded value and case bindings
+      timeout: 5m
+```
+
+The target is `forge.http.base-url`; connection/read timeouts reuse module-http.
+Roles/credential placement reuse module-auth, including explicit `anonymous`.
+Read requests cannot carry bodies; method-override query parameters are rejected.
+Default headers, credentials, cookies, filters, diagnostics and retries are not
+inherited. This private JDK transport bounds the response **during receipt**,
+uses normal TLS verification, and never follows redirects. It intentionally
+supports JSON bodies and scalar path/query bindings, without arbitrary request
+headers; project signing/customizer prerequisites are not inferred. Credential
+acquisition remains governed by module-auth's own configuration/timeouts; the
+suite deadline prevents subsequent API requests after its budget is exhausted.
+Runtime credentials also enter the existing in-memory secret registry.
+
+Every case has a successful CONTROL before its matching PROBE. Write cases
+need an asserted VERIFY after the last write. Object access needs a distinct
+owner GET control on the same entity path (or its action's parent), using the
+same declared path/query bindings as the probe. Persisted-state GET verification
+must likewise refer to the last mutated fixture; tenant checks additionally need the suite's explicit `tenants`
+map. Aliases describe disposable fixtures supplied by the project; the framework
+does not infer tenant membership from role names or decode tokens to prove it.
+REPLAY requires a preceding identical successful request under the same role.
+
+Steps declare expected statuses, JSON Pointer assertions (ABSENT, PRESENT,
+EQUALS), and captures `{bindingName: "/json/pointer"}`. Empty pointer means the
+whole JSON value. `${binding}` as an **entire JSON string node** substitutes the
+captured JSON value with its original type; a path/query value must be scalar.
+There is no partial-string interpolation. Captures cannot overwrite inputs or
+previous captures. Values stay case-local, are bounded, never reach reports,
+and are discarded after cleanup. Request templates, expected values and inputs
+are not report artifacts; keep sensitive policy data out of source control.
+
+A failed positive control, missing binding, malformed/oversized response,
+unconfigured status, redirect, 429, 5xx, timeout or cleanup failure leaves the
+case incomplete. An unexpected 2xx probe or a failed probe/verification invariant
+produces a HIGH finding. A denial status alone cannot establish protection for
+writes: verification can still find a persisted mutation. Cleanup controls are
+attempted in `finally`, including after failed controls; they obey the same
+allowlist, write switches and remaining budgets. Provision disposable fixtures
+with an independent expiry/cleanup mechanism for crashes or exhausted budgets.
+Use module-state/module-flow for reusable preparation, then pass fixture IDs
+as inputs; this runner has no branching, retries or workflow state search.
+
+Coverage is the **whole supplied document × declared roles × selected kinds**.
+Each cell needs completed cases or an explicit exclusion with a non-sensitive
+policy/ticket alias as its reason. Undeclared cells are `not_measured`, not
+implicitly excluded. Multiple cases in a cell must all finish. Incidental
+control/cleanup calls do not earn coverage for other cells. Exclusions cannot
+conflict with cases. This measures the declared cases, not every possible
+business attack or the completeness of the OpenAPI document itself.
+
+The runner writes `business-<suite>-<version>-coverage.json` and `.md`, registered through
+ArtifactSink. Call the existing `SecurityRunner.assertAcceptable()` afterward
+for shared JSON/Markdown/SARIF findings and the gate. An enabled but unexecuted
+business block or incomplete matrix keeps that gate closed; the quality adapter
+already consumes this completeness contract. A wholly excluded matrix earns no
+measurements and cannot alone pass the shared gate.
+
+Suite/case/step/role/version identifiers and exclusion reasons are policy aliases
+retained in artifacts: never put credentials or business identifiers in them.
+Finding IDs include suite, policy version, case, structural operation and role.
+**Change the version when expectations or scenario semantics change.** Old cases
+are not automatically resolved by a different suite/version or an exclusion;
+use an explicitly reviewed baseline migration for policy changes. Read-only
+observations of absence are not evidence that an untested policy was repaired.
+
+Living examples: `BusinessSecurityExampleTest` and
+`example-tests/src/test/resources/security/orders-business-policy.json`:
+owner/other user in tenant A, another user in tenant B, protected-field attempts,
+state re-read and cleanup. `BusinessSecurityTest` additionally exercises state
+transitions, replay and deliberately vulnerable API behavior. No remote service
+or ZAP container is needed for these examples.

@@ -1,0 +1,346 @@
+[
+  {
+    "id": "protected-fields",
+    "version": "v1",
+    "roles": [
+      "owner"
+    ],
+    "checks": [
+      "PROPERTY_WRITE"
+    ],
+    "cases": [
+      {
+        "id": "protected-fields",
+        "kind": "PROPERTY_WRITE",
+        "method": "PATCH",
+        "path": "/orders/{id}",
+        "role": "owner",
+        "steps": [
+          {
+            "id": "owner-control",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              200
+            ],
+            "assertions": [],
+            "captures": {
+              "snapshot": ""
+            }
+          },
+          {
+            "id": "forbidden-update",
+            "phase": "PROBE",
+            "role": "owner",
+            "request": {
+              "method": "PATCH",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": "{\"price\": 0, \"ownerId\": \"${foreignOwner}\"}",
+              "contentType": "application/json"
+            },
+            "statuses": [
+              403
+            ],
+            "assertions": [],
+            "captures": {}
+          },
+          {
+            "id": "persisted-state",
+            "phase": "VERIFY",
+            "role": "owner",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              200
+            ],
+            "assertions": [
+              {
+                "pointer": "",
+                "match": "EQUALS",
+                "expected": "${snapshot}"
+              }
+            ],
+            "captures": {}
+          }
+        ],
+        "cleanup": [
+          {
+            "id": "cleanup",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "DELETE",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              204
+            ],
+            "assertions": [],
+            "captures": {}
+          }
+        ]
+      }
+    ],
+    "exclusions": [
+      {
+        "kind": "PROPERTY_WRITE",
+        "method": "GET",
+        "path": "/orders/{id}",
+        "role": "owner",
+        "reason": "fixture-control-and-cleanup"
+      },
+      {
+        "kind": "PROPERTY_WRITE",
+        "method": "DELETE",
+        "path": "/orders/{id}",
+        "role": "owner",
+        "reason": "fixture-control-and-cleanup"
+      }
+    ],
+    "tenants": {
+      "owner": "tenant-a",
+      "other": "tenant-a",
+      "tenant": "tenant-b"
+    }
+  },
+  {
+    "id": "foreign-user",
+    "version": "v1",
+    "roles": [
+      "other"
+    ],
+    "checks": [
+      "OBJECT_ACCESS"
+    ],
+    "cases": [
+      {
+        "id": "foreign-user",
+        "kind": "OBJECT_ACCESS",
+        "method": "GET",
+        "path": "/orders/{id}",
+        "role": "other",
+        "steps": [
+          {
+            "id": "owner-control",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              200
+            ],
+            "assertions": [],
+            "captures": {
+              "snapshot": ""
+            }
+          },
+          {
+            "id": "forbidden-read",
+            "phase": "PROBE",
+            "role": "other",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              403
+            ],
+            "assertions": [],
+            "captures": {}
+          }
+        ],
+        "cleanup": [
+          {
+            "id": "cleanup",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "DELETE",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              204
+            ],
+            "assertions": [],
+            "captures": {}
+          }
+        ]
+      }
+    ],
+    "exclusions": [
+      {
+        "kind": "OBJECT_ACCESS",
+        "method": "PATCH",
+        "path": "/orders/{id}",
+        "role": "other",
+        "reason": "fixture-control-and-cleanup"
+      },
+      {
+        "kind": "OBJECT_ACCESS",
+        "method": "DELETE",
+        "path": "/orders/{id}",
+        "role": "other",
+        "reason": "fixture-control-and-cleanup"
+      }
+    ],
+    "tenants": {
+      "owner": "tenant-a",
+      "other": "tenant-a",
+      "tenant": "tenant-b"
+    }
+  },
+  {
+    "id": "foreign-tenant",
+    "version": "v1",
+    "roles": [
+      "tenant"
+    ],
+    "checks": [
+      "TENANT_ACCESS"
+    ],
+    "cases": [
+      {
+        "id": "foreign-tenant",
+        "kind": "TENANT_ACCESS",
+        "method": "GET",
+        "path": "/orders/{id}",
+        "role": "tenant",
+        "steps": [
+          {
+            "id": "owner-control",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              200
+            ],
+            "assertions": [],
+            "captures": {
+              "snapshot": ""
+            }
+          },
+          {
+            "id": "forbidden-read",
+            "phase": "PROBE",
+            "role": "tenant",
+            "request": {
+              "method": "GET",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              403
+            ],
+            "assertions": [],
+            "captures": {}
+          }
+        ],
+        "cleanup": [
+          {
+            "id": "cleanup",
+            "phase": "CONTROL",
+            "role": "owner",
+            "request": {
+              "method": "DELETE",
+              "pathTemplate": "/orders/{id}",
+              "pathParameters": {
+                "id": "${order}"
+              },
+              "queryParameters": {},
+              "body": null,
+              "contentType": null
+            },
+            "statuses": [
+              204
+            ],
+            "assertions": [],
+            "captures": {}
+          }
+        ]
+      }
+    ],
+    "exclusions": [
+      {
+        "kind": "TENANT_ACCESS",
+        "method": "PATCH",
+        "path": "/orders/{id}",
+        "role": "tenant",
+        "reason": "fixture-control-and-cleanup"
+      },
+      {
+        "kind": "TENANT_ACCESS",
+        "method": "DELETE",
+        "path": "/orders/{id}",
+        "role": "tenant",
+        "reason": "fixture-control-and-cleanup"
+      }
+    ],
+    "tenants": {
+      "owner": "tenant-a",
+      "other": "tenant-a",
+      "tenant": "tenant-b"
+    }
+  }
+]

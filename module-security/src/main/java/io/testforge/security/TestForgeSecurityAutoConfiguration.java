@@ -20,9 +20,36 @@ import org.springframework.context.annotation.Bean;
     SecurityAuthProperties.class,
     SecurityTransportProperties.class,
     SecurityArtifactProperties.class,
-    SecurityActiveProperties.class
+    SecurityActiveProperties.class,
+    BusinessSecurityProperties.class
 })
 public class TestForgeSecurityAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+            prefix = "forge.security.business",
+            name = "enabled",
+            havingValue = "true")
+    public BusinessSecurityRunner businessSecurityRunner(
+            BusinessSecurityProperties properties,
+            io.testforge.http.HttpProperties http,
+            ObjectProvider<io.testforge.auth.TokenProvider> tokens,
+            ObjectProvider<io.testforge.auth.AuthProperties> auth,
+            SecuritySecretRegistry secrets,
+            SecurityProperties reports,
+            SecurityCollector collector,
+            ObjectProvider<ArtifactSink> sink) {
+        return new BusinessSecurityRunner(
+                properties,
+                http,
+                tokens.getIfAvailable(),
+                auth.getIfAvailable(),
+                secrets,
+                reports,
+                collector,
+                sink.getIfAvailable(() -> ArtifactSink.NO_OP));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public ZapEngine zapEngine() {
@@ -143,7 +170,12 @@ public class TestForgeSecurityAutoConfiguration {
         java.util.function.Supplier<java.util.Set<String>> blocks =
                 () ->
                         java.util.List.of(
-                                        "passive", "auth", "transport", "artifacts-scan", "active")
+                                        "passive",
+                                        "auth",
+                                        "transport",
+                                        "artifacts-scan",
+                                        "active",
+                                        "business")
                                 .stream()
                                 .filter(
                                         block ->
