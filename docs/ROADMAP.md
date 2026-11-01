@@ -239,7 +239,9 @@ Target modules: `module-quality`, `module-security` (planned)
 - Shipped (A1): `module-quality` reads a finished run's JUnit XML and run
   index and scores functional, stability and hygiene dimensions with printed
   formulas; `quality.md` / `quality.json`; a gate that fails closed.
-- Next: baseline and deltas (A2), dimensions from the existing modules (A3),
+- Shipped (A2): `quality-baseline.json`, new / accepted / known / resolved
+  issues per dimension; the gate fails only on new ones.
+- Next: dimensions from the existing modules (A3),
   then the security block (B1–B5) and its dimension (A4).
 
 ### Gherkin Steps

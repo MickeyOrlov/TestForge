@@ -10,9 +10,11 @@ import java.util.Optional;
  * @param overall   the worst status among measured dimensions; {@code NOT_MEASURED} when none was
  * @param meanScore the unweighted mean of measured scores, for trend lines; {@code null} when none was
  * @param inputs    the files and directories read, so a reader can check the numbers
+ * @param baselineRunId the run the comparison is against, {@code null} without a baseline
  */
 public record QualityReport(
         String runId,
+        String baselineRunId,
         QualityStatus overall,
         Integer meanScore,
         List<QualityDimension> dimensions,
@@ -30,6 +32,10 @@ public record QualityReport(
     }
 
     QualityReport withFiles(String markdown, String json) {
-        return new QualityReport(runId, overall, meanScore, dimensions, inputs, markdown, json);
+        return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, markdown, json);
+    }
+
+    QualityReport withDimensions(String baseline, List<QualityDimension> compared) {
+        return new QualityReport(runId, baseline, overall, meanScore, compared, inputs, reportMarkdown, reportJson);
     }
 }

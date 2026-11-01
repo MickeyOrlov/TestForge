@@ -155,6 +155,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-quality`: baseline comparison (step A2). Each dimension names its
+  issues by stable keys; against `quality-baseline.json` they are new,
+  accepted (`forge.quality.accepted`), known or resolved, and
+  `assertAcceptable()` fails only on new ones. `writeBaseline()` promotes a
+  run explicitly; the check never writes the baseline itself.
 - `module-quality`: judges a finished run from its JUnit XML (Gradle,
   Surefire) and run index — `functional`, `stability` (flaky = failed and
   passed in one run) and `hygiene` dimensions, each with a status, a score

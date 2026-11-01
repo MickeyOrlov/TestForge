@@ -23,8 +23,34 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
   and the overall status ignores it. Nothing measured at all fails the gate.
 - **Overall** is the worst measured status; the mean score is for trend lines.
 
-More dimensions (contracts, data, robustness, efficiency, security) and a
-baseline comparison follow the spec's steps A2–A4.
+More dimensions (contracts, data, robustness, efficiency, security) follow
+the spec's steps A3–A4.
+
+## Baseline: fail on what is new
+
+Each dimension names its **issues** by stable keys — a failing test's id, a
+flaky test's id, a reporting problem. Against the last accepted run
+(`quality-baseline.json`) every issue is one of:
+
+- **new** — the baseline did not have it: the gate fails on these;
+- **accepted** — listed in `forge.quality.accepted` as `"<dimension> <issue>"`
+  with a reason after ` #`;
+- **known** — the baseline already had it;
+- **resolved** — the baseline had it, this run does not.
+
+```yaml
+forge:
+  quality:
+    baseline-file: build/quality/baseline/quality-baseline.json
+    accepted:
+      - "functional io.acme.OrdersTest.refundsAnOrder()  # ORD-12, fixed in 2.4"
+```
+
+Without a baseline every issue is new. `run()` and `assertAcceptable()`
+never write one: promoting a run is `qualityRunner.writeBaseline()` in a
+reviewed change. Keep the file as a CI artifact of the accepted run or a
+checked-in input. A FAIL without issue keys (a flaky rate over its limit
+with no flaky test named) always fails.
 
 ## Configuration
 
