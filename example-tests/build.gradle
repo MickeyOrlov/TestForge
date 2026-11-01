@@ -61,7 +61,7 @@ dependencies {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "browser", "live-api"
+        excludeTags "containers", "browser", "live-api", "quality-gate"
     }
     // fixtures run only through EngineTestKit (they fail on purpose)
     exclude "**/*TestkitFixture*"
@@ -76,6 +76,35 @@ tasks.register("containersTest", Test) {
         includeTags "containers"
     }
     shouldRunAfter tasks.named("test")
+}
+
+// The quality gate of a finished run (module-quality): a CI step after the test tasks.
+//   ./gradlew :example-tests:test :example-tests:containersTest :example-tests:qualityGate
+//   -PqualityRunIds=<run>,<run>   run indexes of the test JVMs (default: the newest)
+//   -PqualityBaseline=<file>      the accepted run's quality-baseline.json
+tasks.register("qualityGate", Test) {
+    description = "Judges the finished test run and fails on new quality issues (module-quality)"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags "quality-gate"
+    }
+    mustRunAfter tasks.named("test"), tasks.named("containersTest")
+    def results = [tasks.named("test"), tasks.named("containersTest")].collect {
+        it.get().reports.junitXml.outputLocation.get().asFile.absolutePath
+    }
+    systemProperty "forge.quality.enabled", "true"
+    systemProperty "forge.quality.junit-results", results.join(",")
+    systemProperty "forge.quality.output-dir", layout.buildDirectory.dir("quality").get().asFile.absolutePath
+    if (providers.gradleProperty("qualityRunIds").isPresent()) {
+        systemProperty "forge.quality.run-id", providers.gradleProperty("qualityRunIds").get()
+    }
+    if (providers.gradleProperty("qualityBaseline").isPresent()) {
+        systemProperty "forge.quality.baseline-file", providers.gradleProperty("qualityBaseline").get()
+    }
+    // the run to judge changes every time; there is nothing to be up to date with
+    outputs.upToDateWhen { false }
 }
 
 tasks.register("browsersTest", Test) {

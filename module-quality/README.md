@@ -113,6 +113,23 @@ class QualityGateTest {
 Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped). See build/quality/quality.md
 ```
 
+### As a Gradle task
+
+`example-tests` ships the step ready to copy — a `Test` task that runs only
+the `quality-gate`-tagged test, after the test tasks, pointed at their
+results:
+
+```bash
+./gradlew :example-tests:test :example-tests:containersTest :example-tests:qualityGate \
+    -PqualityRunIds=<test-run>,<containers-run> -PqualityBaseline=ci/quality-baseline.json
+```
+
+It sets `forge.quality.enabled=true`, the test tasks' JUnit XML directories
+and `build/quality` as the output, is never up to date, and is not part of
+`build`. Results of a test task that did not run in this build still count
+— a CI workspace starts clean; locally run `clean` first or leave that task
+out of `junit-results`.
+
 `quality.md` and `quality.json` are registered in the current run index
 under `module-quality`. Failure messages are their first line only; JUnit
 XML is parsed without DTDs or external entities.

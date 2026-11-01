@@ -55,25 +55,33 @@ public class SecurityArtifactScanner {
                   incomplete(target, "symbolic or non-regular file not scanned");
                   return FileVisitResult.CONTINUE;
                 }
+                String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
+                if (MEDIA.matcher(name).matches()) {
+                  collector.covered(
+                      "artifact-secret", target, null, "not_applicable", "image or video; no text to scan");
+                  return FileVisitResult.CONTINUE;
+                }
+                long remaining = properties.maxTotalBytes() - bytes[0];
+                int limit = (int) Math.min(properties.maxFileBytes(), remaining);
                 try (var stream = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-                  long remaining = properties.maxTotalBytes() - bytes[0];
-                  int limit = (int) Math.min(properties.maxFileBytes(), remaining);
-                  byte[] content = stream.readNBytes(limit + 1);
-                  bytes[0] += content.length;
-                  String text =
-                      new String(
-                          content, 0, Math.min(limit, content.length), StandardCharsets.UTF_8);
-                  if (content.length > limit)
-                    incomplete(target, "artifact exceeds scan budget; only prefix inspected");
+                  // a Playwright trace is a zip holding request headers: compressed is not clean
+                  Scanned scanned =
+                      ARCHIVE.matcher(name).matches()
+                          ? zip(stream, limit)
+                          : name.endsWith(".gz") || name.endsWith(".tgz")
+                              ? text(new java.util.zip.GZIPInputStream(stream), limit)
+                              : text(stream, limit);
+                  bytes[0] += scanned.bytes();
+                  if (scanned.incomplete() != null) incomplete(target, scanned.incomplete());
                   else collector.covered("artifact-secret", target, null, "measured", null);
-                  if (secrets.matches(text) || PATTERNS.matcher(text).find())
+                  if (scanned.leak())
                     collector.finding(
                         "artifact-secret",
                         Severity.CRITICAL,
                         target,
                         "artifact contains a known secret or credential/private-key pattern",
                         "API8:2023");
-                } catch (IOException e) {
+                } catch (IOException | RuntimeException e) {
                   incomplete(target, "artifact cannot be read safely");
                 }
                 return FileVisitResult.CONTINUE;
@@ -91,6 +99,41 @@ public class SecurityArtifactScanner {
     }
     if (files[0] == 0) incomplete("artifacts", "no files were scanned");
     if (!secrets.complete()) incomplete("artifacts", "known-secret registry reached its limit");
+  }
+
+  private static final Pattern MEDIA =
+      Pattern.compile(".*\\.(png|jpe?g|gif|webp|bmp|mp4|webm|mov)");
+  private static final Pattern ARCHIVE = Pattern.compile(".*\\.(zip|jar|war)");
+
+  /** What one file held: bytes read (decompressed), a leak, or why coverage is incomplete. */
+  private record Scanned(long bytes, boolean leak, String incomplete) {}
+
+  private Scanned text(java.io.InputStream stream, int limit) throws IOException {
+    byte[] content = stream.readNBytes(limit + 1);
+    String text = new String(content, 0, Math.min(limit, content.length), StandardCharsets.UTF_8);
+    return new Scanned(
+        content.length,
+        secrets.matches(text) || PATTERNS.matcher(text).find(),
+        content.length > limit ? "artifact exceeds scan budget; only prefix inspected" : null);
+  }
+
+  /** Every entry, decompressed bytes counted against the same budget (a zip bomb stops early). */
+  private Scanned zip(java.io.InputStream stream, int limit) throws IOException {
+    long read = 0;
+    boolean leak = false;
+    try (var zip = new java.util.zip.ZipInputStream(stream)) {
+      for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+        if (entry.isDirectory()) continue;
+        if (ARCHIVE.matcher(entry.getName().toLowerCase(Locale.ROOT)).matches())
+          return new Scanned(read, leak, "nested archive inside an artifact is not inspected");
+        Scanned scanned = text(zip, (int) Math.max(0, limit - read));
+        read += scanned.bytes();
+        leak |= scanned.leak();
+        if (scanned.incomplete() != null)
+          return new Scanned(read, leak, "archive exceeds scan budget; only a prefix inspected");
+      }
+    }
+    return new Scanned(read, leak, null);
   }
 
   public void assertClean() {

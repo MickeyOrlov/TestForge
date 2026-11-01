@@ -291,6 +291,10 @@ class SecurityAuthTest {
                   .extracting(SecurityFinding::check)
                   .contains("malformed-error", "session-fixation", "session-logout");
               assertThat(report.toString()).doesNotContain("synthetic-fixed", "synthetic-password");
+              // the logged-out session is not handed to the role's next request
+              server.resetRequests();
+              c.getBean(io.testforge.auth.TokenProvider.class).forRole("web");
+              server.verify(1, postRequestedFor(urlEqualTo("/login")));
             });
   }
 }

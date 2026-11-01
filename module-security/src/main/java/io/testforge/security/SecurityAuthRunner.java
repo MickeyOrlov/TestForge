@@ -210,12 +210,17 @@ public class SecurityAuthRunner {
       incomplete("session-logout", target, role, "authenticated control failed");
       return;
     }
-    Response exited = send(logout, AuthContext.ANONYMOUS, null, cookie);
-    if (exited == null || exited.statusCode() < 200 || exited.statusCode() >= 400) {
-      incomplete("session-logout", target, role, "logout step failed");
-      return;
+    try {
+      Response exited = send(logout, AuthContext.ANONYMOUS, null, cookie);
+      if (exited == null || exited.statusCode() < 200 || exited.statusCode() >= 400) {
+        incomplete("session-logout", target, role, "logout step failed");
+        return;
+      }
+      checkDenied("session-logout", protectedResource, AuthContext.ANONYMOUS, null, cookie);
+    } finally {
+      // the cached session was logged out: the role's next request must log in again
+      tokens.invalidate(role);
     }
-    checkDenied("session-logout", protectedResource, AuthContext.ANONYMOUS, null, cookie);
   }
 
   private void checkDenied(
