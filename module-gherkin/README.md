@@ -53,8 +53,50 @@ JUnit-first; a project that does not use Gherkin deletes this module.
   `I remember the RabbitMQ message field … as …`.
 
 A timeout names the closest messages by position and failed criteria, as
-the probes do; no step prints a message body. Steps for the database and
-mocks follow ([plan](../docs/gherkin-layer-roadmap.md)).
+the probes do; no step prints a message body.
+
+**Whose message is it?** Without more, `a Kafka message arrives on
+"orders.events" where "$.status" is "PAID"` is satisfied by *any* scenario's
+PAID event. Either filter on a run-unique value (`"$.orderId" is
+"${orderId}"`), or set `forge.gherkin.scope-messages: true`: message steps
+then match only messages whose scope header (`forge.kafka.publish.scope-header`
+/ `forge.rabbitmq.publish.scope-header`) carries this scenario's scope. That
+needs a system that copies the header from the command into its events.
+
+When a scenario fails, `KafkaScenarioDiagnostics` / `RabbitScenarioDiagnostics`
+(in the same glue packages) attach its traffic to the scenario and write it
+to the run index — the report `KafkaDiagnosticsExtension` writes for a JUnit
+test, scoped and without bodies by default.
+
+- **`io.testforge.gherkin.db.DbSteps`** — over `DbState`:
+
+| Step | |
+|---|---|
+| `Then table "orders" has a row where "id" is "${orderId}"` | waits for it |
+| `Then table "orders" has a row where "id" is "…" and "status" is "PAID"` | |
+| `Then in table "orders" the row where "id" is "${orderId}" has "status" set to "PAID"` | waits for it |
+| `Then table "orders" has no row where "id" is "${orderId}-copy"` | watches `forge.gherkin.settle` |
+| `Given I watch table "orders" keyed by "id" where "customer_id" is "${customerId}"` | a snapshot of the scenario's rows |
+| `Then table "orders" has 1 added, 0 changed and 0 removed rows` | against the watched snapshot, the diff in the failure |
+| `Then table "orders" is unchanged` | |
+
+  Values compare with the column's text (`CAST(… AS VARCHAR)`, H2 and
+  PostgreSQL), so `"10.00"` matches a `NUMERIC(10,2)` the way the database
+  prints it. Table and column names must be plain identifiers and are not
+  quoted in the condition: a column named after a reserved word needs a
+  project step.
+
+- **`io.testforge.gherkin.mock.MockSteps`** — over `ScopedMockClient`, in the
+  scenario's own scope (`forge.mock.base-url`, `forge.mock.scope-*`):
+
+| Step | |
+|---|---|
+| `Given the mock answers GET "/stock/book" with 200:` + doc string | JSON bodies get `Content-Type: application/json` |
+| `Given the mock answers DELETE "/carts/${cartId}" with 204` | |
+| `Then the mock received 1 GET request to "/stock/book"` | counts this scenario's calls only |
+| `Then the mock received no POST request to "/stock/book"` | |
+
+  The scope closes after the scenario and its stubs go with it.
 
 ## Setup
 
@@ -89,7 +131,13 @@ forge:
     scope-prefix: bdd
     correlation-per-scenario: true  # default
     settle: 2s                      # "exactly one" / "no message" watch this long
+    scope-messages: false           # true: message steps see only this scenario's messages
 ```
+
+Scenarios may run in parallel (`cucumber.execution.parallel.enabled=true`):
+each has its own scope, so stubs, rows and scoped messages stay apart —
+`parallel.feature` in `example-tests` runs four copies at once on the same
+paths.
 
 Feature files that need a container carry the Gherkin tag `@containers`;
 the JUnit Platform sees it as the tag `containers`, so the default build
@@ -110,5 +158,5 @@ in the `forge.http` log, redacted:
 
 ```
 POST /orders answered 404, expected 201 (the body is in the forge.http log)
-GET /orders/o-1: the response has no field $.state; top-level fields: [id, status, item]
+GET /orders/o-1: the body has no field $.state; top-level fields: [id, status, item]
 ```

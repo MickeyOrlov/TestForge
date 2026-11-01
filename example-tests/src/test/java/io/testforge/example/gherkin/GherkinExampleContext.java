@@ -43,6 +43,9 @@ public class GherkinExampleContext {
     @DynamicPropertySource
     static void orderService(DynamicPropertyRegistry registry) {
         registry.add("forge.http.base-url", () -> "http://localhost:" + ORDER_SERVICE.port());
+        // the same WireMock is the shared mock server: stubs match the scenario's scope header
+        registry.add("forge.mock.base-url", () -> "http://localhost:" + ORDER_SERVICE.port());
+        registry.add("forge.mock.scope-header", () -> "X-Test-Scope");
     }
 
     /** The system under test, in miniature: a PAY command on Kafka becomes one PAID event. */

@@ -161,13 +161,25 @@ public class PassiveSecurityChecks {
           !card,
           Severity.HIGH,
           "response body contains a Luhn-valid card-number pattern");
-      try {
-        JsonNode json = mapper.readTree(text);
-        if (json != null) fields(json, "$", target);
-      } catch (Exception e) {
+      String trimmed = text.strip();
+      boolean jsonBody =
+          first(h, "Content-Type").toLowerCase(Locale.ROOT).contains("json")
+              || trimmed.startsWith("{")
+              || trimmed.startsWith("[");
+      if (!jsonBody) {
+        // an HTML page, text or a file has no JSON fields: the rule does not apply, it is not unmeasured
         if (!properties.forbiddenFields().isEmpty())
           collector.covered(
-              "forbidden-fields", target, null, "not_measured", "response is not complete JSON");
+              "forbidden-fields", target, null, "not_applicable", "response is not JSON");
+      } else {
+        try {
+          JsonNode json = mapper.readTree(text);
+          if (json != null) fields(json, "$", target);
+        } catch (Exception e) {
+          if (!properties.forbiddenFields().isEmpty())
+            collector.covered(
+                "forbidden-fields", target, null, "not_measured", "response is not complete JSON");
+        }
       }
     } else
       collector.covered(
