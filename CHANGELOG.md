@@ -17,6 +17,14 @@ semantic versioning for its git tags.
   into entity probes, while final state checks remain bound to the probe fixture.
 
 ### Added
+- `module-quality`: run history (`forge.quality.history.dir`) — one entry per
+  run with scores, test outcomes and durations and API operation p95, the
+  oldest beyond `keep` dropped. `stability` counts a test that failed and
+  passed on the same revision; `efficiency` compares tests with their own
+  median + MAD at the run's pace and operation p95 with theirs; every
+  dimension lists its score trend, a PASS falling three runs in a row is a
+  WARN; the report notes when steady runs leave the baseline behind.
+  `qualityGate` takes `-PqualityHistory` and `-PqualityRevision`.
 - `module-mock`: `MockSummary` — every closed scope's stubs no request hit
   and scoped requests no stub answered, counted for the run and written as
   `mock-summary.json` to the run index (`forge.mock.summary.enabled`, on by

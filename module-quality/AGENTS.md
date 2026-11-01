@@ -10,6 +10,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 ## Invariants (do not break)
 
 - Read-only: the assessment never re-runs a test or changes an input file.
+  The one exception is `forge.quality.history.dir`: `run()` adds this run's
+  entry (replacing its own earlier one) and drops entries beyond `keep`; it
+  never edits another entry. History is advisory — an unreadable entry is
+  skipped and listed, never a failed run — and a trend never adds an issue.
 - The baseline changes only through `writeBaseline()`; `run()` and
   `assertAcceptable()` never write it. Issue keys are stable across runs
   (test ids, finding keys), never counters or timestamps.

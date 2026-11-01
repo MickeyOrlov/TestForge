@@ -101,6 +101,8 @@ tasks.register("containersTest", Test) {
 //   -PqualityBaseline=<file>      the accepted run's quality-baseline.json
 //   -PqualityResultsNotBefore=<instant>  drop JUnit results older than this (default: this build's
 //                                        start, when the test tasks run in the same build)
+//   -PqualityHistory=<dir>        the last runs (restore it from the CI cache before, save it after);
+//   -PqualityRevision=<commit>    the code tested, when the CI exposes no GITHUB_SHA / CI_COMMIT_SHA / GIT_COMMIT
 tasks.register("qualityGate", Test) {
     description = "Judges the finished test run and fails on new quality issues (module-quality)"
     group = "verification"
@@ -134,6 +136,12 @@ tasks.register("qualityGate", Test) {
     }
     if (providers.gradleProperty("qualityBaseline").isPresent()) {
         systemProperty "forge.quality.baseline-file", providers.gradleProperty("qualityBaseline").get()
+    }
+    if (providers.gradleProperty("qualityHistory").isPresent()) {
+        systemProperty "forge.quality.history.dir", providers.gradleProperty("qualityHistory").get()
+    }
+    if (providers.gradleProperty("qualityRevision").isPresent()) {
+        systemProperty "forge.quality.history.revision", providers.gradleProperty("qualityRevision").get()
     }
     // the run to judge changes every time; there is nothing to be up to date with
     outputs.upToDateWhen { false }

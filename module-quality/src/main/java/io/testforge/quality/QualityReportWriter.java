@@ -37,7 +37,9 @@ final class QualityReportWriter {
                 .append("- overall: **").append(report.overall()).append("**")
                 .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")").append('\n')
                 .append("- measured: ").append(report.measured()).append(" of ").append(report.dimensions().size())
-                .append(" dimensions").append(notMeasured(report)).append("\n\n")
+                .append(" dimensions").append(notMeasured(report)).append('\n');
+        report.notes().forEach(note -> out.append("- note: ").append(note).append('\n'));
+        out.append('\n')
                 .append("| Dimension | Status | Score | Baseline | New issues | Formula |\n|---|---|---|---|---|---|\n");
         for (QualityDimension dimension : report.dimensions()) {
             QualityDelta delta = dimension.delta();
