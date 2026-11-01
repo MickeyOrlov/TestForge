@@ -6,6 +6,11 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Fixed
+- Incomplete security evidence cannot produce a clean quality score or pass a
+  selected security gate through baseline acceptance. Observed high findings
+  remain FAIL. Artifact secret leaks cannot be accepted or baseline-promoted.
+
 ### Added
 - `module-security` B3: digest-pinned Docker ZAP delegation through an
   allowlisted, read-only, rate/request/time-limited loopback gateway. Sanitized

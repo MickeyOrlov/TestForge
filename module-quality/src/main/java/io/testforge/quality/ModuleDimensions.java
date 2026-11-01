@@ -19,6 +19,7 @@ import java.util.Optional;
 final class ModuleDimensions {
 
     static final int LISTED = 10;
+    static final String SECURITY_INCOMPLETE = "security measurement incomplete";
 
     private ModuleDimensions() {
     }
@@ -182,10 +183,16 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.SECURITY,
                     "no security-findings.json (module-security) in the run");
         }
-        if (reports.stream().noneMatch(report -> report.path("measured").asBoolean())) {
-            return QualityDimension.notMeasured(QualityDimension.SECURITY,
-                    "module-security ran but measured nothing — see its coverage in security.md");
-        }
+        boolean complete = reports.stream().allMatch(report -> {
+            if (!report.path("measured").asBoolean() || !report.path("enabled").asBoolean(true)) return false;
+            if (report.has("complete") && !report.path("complete").asBoolean()) return false;
+            boolean covered = report.has("complete");
+            for (JsonNode row : report.path("coverage")) {
+                if (row.path("status").asText().equals("not_measured")) return false;
+                if (row.path("status").asText().equals("measured")) covered = true;
+            }
+            return covered;
+        });
         java.util.Map<String, Integer> bySeverity = new java.util.LinkedHashMap<>();
         for (String severity : List.of("critical", "high", "medium", "low", "info")) {
             bySeverity.put(severity, 0);
@@ -222,6 +229,14 @@ final class ModuleDimensions {
         listed.stream().limit(LISTED).forEach(facts::add);
         if (listed.size() > LISTED) {
             facts.add("… and " + (listed.size() - LISTED) + " more");
+        }
+        if (!complete) {
+            facts.add("security measurement incomplete — see coverage in security.md");
+            issues.add(SECURITY_INCOMPLETE);
+            if (critical + high == 0) {
+                return new QualityDimension(QualityDimension.SECURITY, QualityStatus.NOT_MEASURED,
+                        null, null, facts).withIssues(issues);
+            }
         }
         QualityStatus status = critical + high > 0 ? QualityStatus.FAIL
                 : medium + low > 0 ? QualityStatus.WARN : QualityStatus.PASS;

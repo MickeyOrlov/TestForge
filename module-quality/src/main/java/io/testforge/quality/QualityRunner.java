@@ -97,6 +97,12 @@ public class QualityRunner {
             throw new QualityException("Nothing to assess: no executed tests in " + properties.junitResults()
                     + " and no run index under " + properties.artifactsRoot() + ". See " + report.reportMarkdown());
         }
+        if (properties.failOn().contains(QualityDimension.SECURITY)
+                && report.dimensions().stream().anyMatch(d -> d.name().equals(QualityDimension.SECURITY)
+                && d.issues().contains(ModuleDimensions.SECURITY_INCOMPLETE))) {
+            throw new QualityException("Security measurement incomplete: selected security gate requires complete coverage. See "
+                    + report.reportMarkdown());
+        }
         List<QualityDimension> failed = report.dimensions().stream()
                 .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
                 // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails

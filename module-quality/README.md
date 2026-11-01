@@ -121,3 +121,11 @@ XML is parsed without DTDs or external entities.
 
 `QualityRunnerTest` (Gradle and Surefire formats, flaky detection, newest
 run index, the DTD refusal, the gate). Example: `QualityAssessmentExampleTest`.
+
+Security coverage is part of the gate contract: `complete: false`, disabled or
+unmeasured security reports, and `not_measured` coverage rows cannot produce a
+clean score. With `fail-on: [security]`, incomplete reported evidence blocks the
+gate even if a quality baseline or accepted list contains that issue. Observed
+new critical/high findings still produce FAIL while coverage is incomplete.
+An absent optional security report remains NOT MEASURED. Legacy reports without
+`complete` require measured coverage to establish completeness.

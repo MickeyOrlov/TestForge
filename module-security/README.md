@@ -251,3 +251,8 @@ SecurityZapIT; focused fake-engine tests cover policy refusal and report privacy
 
 Artifact scanning matches raw text/known credential patterns; it is not OCR,
 archive decryption or a general DLP classifier for screenshots/documents.
+
+The quality adapter reads `complete` and coverage alongside findings. Selecting
+security in the quality gate rejects incomplete evidence. Current artifact
+secret leaks always stay `new`, make `healthy` false, and cannot be promoted into
+a security baseline, regardless of accepted findings or severity thresholds.

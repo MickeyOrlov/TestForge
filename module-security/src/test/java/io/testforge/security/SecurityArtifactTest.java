@@ -34,11 +34,15 @@ class SecurityArtifactTest {
         new SecurityProperties(
             null,
             dir.resolve("reports").toString(),
-            null,
+            dir.resolve("baseline.json").toString(),
             List.of(collector.findings().get(0).id() + " # synthetic accepted fixture"),
             Set.of(),
             null);
     var report = new SecurityRunner(reportProps, collector, ArtifactSink.NO_OP, () -> true);
+    assertThat(report.run().healthy()).isFalse();
+    assertThat(report.run().findings()).allMatch(f -> f.status().equals("new"));
+    assertThatThrownBy(report::writeBaseline).isInstanceOf(IllegalStateException.class);
+    assertThat(dir.resolve("baseline.json")).doesNotExist();
     assertThatThrownBy(report::assertAcceptable)
         .isInstanceOf(AssertionError.class)
         .hasMessageContaining("blocks upload");

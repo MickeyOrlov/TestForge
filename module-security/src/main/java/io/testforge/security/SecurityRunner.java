@@ -70,11 +70,13 @@ public class SecurityRunner {
     for (SecurityFinding f : collector.findings()) {
       current.add(f.id());
       findings.add(
-          accepted.containsKey(f.id())
-              ? f.withStatus("accepted", accepted.get(f.id()))
-              : baselineIds.contains(f.id())
-                  ? f.withStatus("accepted", "present in explicitly promoted baseline")
-                  : f);
+          f.check().equals("artifact-secret")
+              ? f.withStatus("new", null)
+              : accepted.containsKey(f.id())
+                  ? f.withStatus("accepted", accepted.get(f.id()))
+                  : baselineIds.contains(f.id())
+                      ? f.withStatus("accepted", "present in explicitly promoted baseline")
+                      : f);
     }
     List<SecurityCoverage> coverage = new ArrayList<>(collector.coverage());
     for (String block : requestedBlocks.get())
@@ -164,7 +166,10 @@ public class SecurityRunner {
             && coverage.stream().noneMatch(c -> c.status().equals("not_measured"))
             && findings.stream()
                 .noneMatch(
-                    f -> f.status().equals("new") && properties.failOn().contains(f.severity()));
+                    f ->
+                        f.status().equals("new")
+                            && (f.check().equals("artifact-secret")
+                                || properties.failOn().contains(f.severity())));
     SecurityReport report =
         new SecurityReport(
             1,
@@ -206,6 +211,10 @@ public class SecurityRunner {
         || report.coverage().stream().anyMatch(c -> c.status().equals("not_measured")))
       throw new IllegalStateException(
           "cannot promote an unmeasured or incomplete security baseline");
+    if (report.findings().stream()
+        .anyMatch(f -> f.check().equals("artifact-secret") && !f.status().equals("resolved")))
+      throw new IllegalStateException(
+          "cannot promote an artifact secret leak into a security baseline");
     try {
       Path p = Path.of(properties.baselineFile());
       if (p.getParent() != null) Files.createDirectories(p.getParent());
