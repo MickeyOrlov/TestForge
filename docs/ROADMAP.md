@@ -257,7 +257,8 @@ Target module: `module-gherkin` (optional)
   (scope and correlation id per scenario), `${name}` variables, HTTP steps.
   Shipped too: Kafka and RabbitMQ steps (publish, await, exactly one, none)
   and run-unique variables; database steps (row exists / absent / changed
-  since watched) and scoped mock steps. Next: review.
+  since watched) and scoped mock steps; reviewed with scenarios in parallel
+  (scope-filtered message steps, failure traffic for scenarios). Complete.
 
 ### API Bootstrap Path
 

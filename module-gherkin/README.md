@@ -55,6 +55,19 @@ JUnit-first; a project that does not use Gherkin deletes this module.
 A timeout names the closest messages by position and failed criteria, as
 the probes do; no step prints a message body.
 
+**Whose message is it?** Without more, `a Kafka message arrives on
+"orders.events" where "$.status" is "PAID"` is satisfied by *any* scenario's
+PAID event. Either filter on a run-unique value (`"$.orderId" is
+"${orderId}"`), or set `forge.gherkin.scope-messages: true`: message steps
+then match only messages whose scope header (`forge.kafka.publish.scope-header`
+/ `forge.rabbitmq.publish.scope-header`) carries this scenario's scope. That
+needs a system that copies the header from the command into its events.
+
+When a scenario fails, `KafkaScenarioDiagnostics` / `RabbitScenarioDiagnostics`
+(in the same glue packages) attach its traffic to the scenario and write it
+to the run index — the report `KafkaDiagnosticsExtension` writes for a JUnit
+test, scoped and without bodies by default.
+
 - **`io.testforge.gherkin.db.DbSteps`** — over `DbState`:
 
 | Step | |
@@ -118,7 +131,13 @@ forge:
     scope-prefix: bdd
     correlation-per-scenario: true  # default
     settle: 2s                      # "exactly one" / "no message" watch this long
+    scope-messages: false           # true: message steps see only this scenario's messages
 ```
+
+Scenarios may run in parallel (`cucumber.execution.parallel.enabled=true`):
+each has its own scope, so stubs, rows and scoped messages stay apart —
+`parallel.feature` in `example-tests` runs four copies at once on the same
+paths.
 
 Feature files that need a container carry the Gherkin tag `@containers`;
 the JUnit Platform sees it as the tag `containers`, so the default build
@@ -139,5 +158,5 @@ in the `forge.http` log, redacted:
 
 ```
 POST /orders answered 404, expected 201 (the body is in the forge.http log)
-GET /orders/o-1: the response has no field $.state; top-level fields: [id, status, item]
+GET /orders/o-1: the body has no field $.state; top-level fields: [id, status, item]
 ```

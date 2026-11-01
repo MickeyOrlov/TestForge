@@ -5,6 +5,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.testforge.gherkin.GherkinProperties;
 import io.testforge.gherkin.JsonFields;
+import io.testforge.gherkin.MessageScope;
 import io.testforge.gherkin.ScenarioVariables;
 import io.testforge.kafka.KafkaMessage;
 import io.testforge.kafka.KafkaMessageFilter;
@@ -58,8 +59,8 @@ public class KafkaSteps {
 
     @Then("a Kafka message arrives on {string} with key {string}")
     public void arrivesWithKey(String topic, String key) {
-        last = probe.awaitMessage(KafkaMessageFilter.builder().topic(variables.resolve(topic))
-                .key(variables.resolve(key)).build());
+        last = probe.awaitMessage(scoped(KafkaMessageFilter.builder().topic(variables.resolve(topic))
+                .key(variables.resolve(key))).build());
     }
 
     @Then("a Kafka message arrives on {string} where {string} is {string}")
@@ -87,7 +88,15 @@ public class KafkaSteps {
     }
 
     private KafkaMessageFilter where(String topic, String path, String value) {
-        return KafkaMessageFilter.builder().topic(variables.resolve(topic))
-                .jsonPathEquals(path, variables.resolve(value)).build();
+        return scoped(KafkaMessageFilter.builder().topic(variables.resolve(topic))
+                .jsonPathEquals(path, variables.resolve(value))).build();
+    }
+
+    /** With forge.gherkin.scope-messages, only messages carrying this scenario's scope header. */
+    private KafkaMessageFilter.Builder scoped(KafkaMessageFilter.Builder filter) {
+        KafkaPublisher kafka = publisher.getIfAvailable();
+        MessageScope.of(properties, kafka == null ? null : kafka.scopeHeader(), "forge.kafka.publish.scope-header")
+                .ifPresent(header -> filter.headerEquals(header.name(), header.value()));
+        return filter;
     }
 }
