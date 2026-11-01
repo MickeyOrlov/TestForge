@@ -158,6 +158,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-gherkin`: message steps — `io.testforge.gherkin.kafka` and
+  `io.testforge.gherkin.rabbitmq` publish, await by key / routing key / JSON
+  path, check exactly one or none within `forge.gherkin.settle`, and remember
+  a field; `VariableSteps` gives run-unique values and checks remembered ones.
+  Examples run on an embedded Kafka broker and, tagged `@containers`, on
+  RabbitMQ 4.1.
 - `module-quality`: `security` dimension (step A4) from `module-security`'s
   `security-findings.json` — new findings weighted 40 / 20 / 5 / 1 by
   severity, FAIL on a new critical or high; NOT MEASURED when the security
