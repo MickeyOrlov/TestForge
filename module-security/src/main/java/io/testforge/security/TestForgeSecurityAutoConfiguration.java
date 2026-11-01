@@ -13,8 +13,85 @@ import org.springframework.context.annotation.Bean;
       "io.testforge.auth.TestForgeAuthAutoConfiguration",
       "io.testforge.reporting.TestForgeReportingAutoConfiguration"
     })
-@EnableConfigurationProperties({SecurityProperties.class, SecurityAuthProperties.class})
+@EnableConfigurationProperties({
+  SecurityProperties.class,
+  SecurityAuthProperties.class,
+  SecurityTransportProperties.class,
+  SecurityArtifactProperties.class
+})
 public class TestForgeSecurityAutoConfiguration {
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnProperty(
+      prefix = "forge.security.transport",
+      name = "enabled",
+      havingValue = "true")
+  public SecurityTransportRunner securityTransportRunner(
+      SecurityTransportProperties p, SecurityCollector c) {
+    return new SecurityTransportRunner(p, c);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  public SecuritySecretRegistry securitySecretRegistry(
+      ObjectProvider<io.testforge.auth.AuthProperties> auth) {
+    var registry = new SecuritySecretRegistry();
+    auth.ifAvailable(
+        p -> {
+          registry.register(p.localJwt().secret());
+          p.roles()
+              .values()
+              .forEach(
+                  r -> {
+                    registry.register(r.token());
+                    registry.register(r.clientSecret());
+                    registry.register(r.password());
+                  });
+        });
+    return registry;
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnProperty(
+      prefix = "forge.security.artifacts-scan",
+      name = "enabled",
+      havingValue = "true")
+  public SecurityArtifactScanner securityArtifactScanner(
+      SecurityArtifactProperties p, SecuritySecretRegistry secrets, SecurityCollector c) {
+    return new SecurityArtifactScanner(p, secrets, c);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnProperty(
+      prefix = "forge.security.artifacts-scan",
+      name = "enabled",
+      havingValue = "true")
+  public SecurityCredentialCaptureFilter securityCredentialCaptureFilter(
+      SecuritySecretRegistry secrets,
+      io.testforge.http.HttpProperties http,
+      ObjectProvider<io.testforge.auth.AuthProperties> auth) {
+    var headers = new java.util.ArrayList<>(http.logging().redactHeaders());
+    var query = new java.util.ArrayList<String>();
+    auth.ifAvailable(
+        p -> {
+          headers.add(p.header());
+          p.roles()
+              .values()
+              .forEach(
+                  r -> {
+                    if (r.type() == io.testforge.auth.TokenType.API_KEY) {
+                      if (r.apiKey().in()
+                          == io.testforge.auth.AuthProperties.ApiKeyProperties.Placement.QUERY)
+                        query.add(r.apiKey().name());
+                      else headers.add(r.apiKey().name());
+                    }
+                  });
+        });
+    return new SecurityCredentialCaptureFilter(secrets, headers, query);
+  }
+
   @Bean
   @ConditionalOnMissingBean
   @ConditionalOnProperty(prefix = "forge.security.auth", name = "enabled", havingValue = "true")
@@ -44,7 +121,12 @@ public class TestForgeSecurityAutoConfiguration {
         p,
         c,
         sink.getIfAvailable(() -> ArtifactSink.NO_OP),
-        () -> environment.getProperty("forge.security.auth.enabled", Boolean.class, false));
+        () ->
+            java.util.List.of("auth", "transport", "artifacts-scan", "active").stream()
+                .anyMatch(
+                    block ->
+                        environment.getProperty(
+                            "forge.security." + block + ".enabled", Boolean.class, false)));
   }
 
   @Bean

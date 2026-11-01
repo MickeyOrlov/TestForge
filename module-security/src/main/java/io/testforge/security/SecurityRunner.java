@@ -126,6 +126,10 @@ public class SecurityRunner {
         || report.coverage().stream().anyMatch(c -> c.status().equals("not_measured")))
       throw new AssertionError(
           "security assessment is disabled, not measured or incomplete; see coverage");
+    if (report.findings().stream()
+        .anyMatch(f -> f.check().equals("artifact-secret") && !f.status().equals("resolved")))
+      throw new AssertionError(
+          "artifact secret leak blocks upload regardless of accepted findings or fail-on");
     if (!report.healthy())
       throw new AssertionError("new security findings meet fail-on severities; see security.md");
     return report;
