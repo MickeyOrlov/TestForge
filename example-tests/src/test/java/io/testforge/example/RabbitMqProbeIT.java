@@ -10,6 +10,7 @@ import com.rabbitmq.client.GetResponse;
 import io.testforge.core.context.ScenarioContext;
 import io.testforge.core.context.ScenarioKeys;
 import io.testforge.rabbitmq.RabbitCollector;
+import io.testforge.rabbitmq.RabbitDiagnosticsExtension;
 import io.testforge.rabbitmq.RabbitMessage;
 import io.testforge.rabbitmq.RabbitMessageBuffer;
 import io.testforge.rabbitmq.RabbitMessageFilter;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -51,6 +53,8 @@ import org.testcontainers.containers.RabbitMQContainer;
 })
 @Tag("containers")
 @Testcontainers
+// a failed test leaves module-rabbitmq/<test>.md in the run index: what it published and received
+@ExtendWith(RabbitDiagnosticsExtension.class)
 class RabbitMqProbeIT {
 
     static final String SERVICE_QUEUE = "order-service";

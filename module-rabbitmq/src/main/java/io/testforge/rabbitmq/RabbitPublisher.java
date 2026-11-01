@@ -95,7 +95,11 @@ public class RabbitPublisher {
             throw new IllegalStateException("Publishing to " + target + " was returned (" + returned.get()
                     + "): no queue is bound for it, so no consumer would ever see it");
         }
-        RabbitMessage message = new RabbitMessage(exchange, routingKey, value, now, sent, props.getMessageId(), -1);
+        return remember(new RabbitMessage(exchange, routingKey, value, now, sent, props.getMessageId(), -1));
+    }
+
+    /** Kept for {@link #publishedByThisThread()}, newest last, at most {@value #PUBLISHED_KEPT}. */
+    RabbitMessage remember(RabbitMessage message) {
         Deque<RabbitMessage> mine = published.get();
         mine.addLast(message);
         while (mine.size() > PUBLISHED_KEPT) {

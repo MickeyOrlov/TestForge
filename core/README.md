@@ -35,8 +35,9 @@ or more modules need it.
   `MessageBuffer` with watermarks, `MessageCriteria` (key, value fragments,
   headers, JSON paths) and `MessageProbe` (await, exactly one, none within a
   window; a timeout names the closest messages and failed criteria, never a
-  payload). Tests use the adapters (`KafkaProbe`); this is for writing a new
-  one. See [docs/messaging-layer-roadmap.md](../docs/messaging-layer-roadmap.md).
+  payload), and `MessageTrafficReport`, the failed-test traffic report both
+  diagnostics extensions write. Tests use the adapters (`KafkaProbe`,
+  `RabbitProbe`); this is for writing a new one. See [docs/messaging-layer-roadmap.md](../docs/messaging-layer-roadmap.md).
 
 ## Configuration
 

@@ -217,7 +217,8 @@ Target modules: `module-kafka`, possible future `module-messaging`
   adapter. Shipped: the broker-neutral probe, buffer and criteria in `core`
   (`io.testforge.core.messaging`), `module-kafka` rebuilt on them without an
   API change, and `module-rabbitmq` (collector on a queue of its own,
-  probe, confirmed publisher). Next: shared failure diagnostics.
+  probe, confirmed publisher), and one failed-test traffic report for both
+  (`MessageTrafficReport`, `RabbitDiagnosticsExtension`). Next: review.
 - Keep Kafka as the first concrete implementation.
 - Preserve separation between message collection and contract validation.
 

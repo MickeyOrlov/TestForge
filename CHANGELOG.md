@@ -149,6 +149,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-rabbitmq`: `RabbitDiagnosticsExtension` — a failed test writes
+  `module-rabbitmq/<test>.md` to the run index: what it published and what
+  arrived while it ran, scoped to the scenario, bodies only with
+  `forge.rabbitmq.diagnostics.payloads=true`. `core`'s
+  `MessageTrafficReport` renders it, and `KafkaDiagnosticsExtension` now
+  uses the same renderer (its report is unchanged).
 - `module-rabbitmq`: the second broker adapter. `RabbitCollector` reads a
   server-named, exclusive, auto-deleted queue of its own bound to
   `forge.rabbitmq.bindings`, so it never takes a service's messages;
