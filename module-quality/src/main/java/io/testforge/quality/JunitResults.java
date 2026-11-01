@@ -33,7 +33,8 @@ final class JunitResults {
 
     enum Outcome { PASSED, FAILED, SKIPPED }
 
-    record TestCase(String className, String name, Outcome outcome, boolean flaky, String message) {
+    /** @param millis the last attempt's duration, from the report's {@code time} (seconds) */
+    record TestCase(String className, String name, Outcome outcome, boolean flaky, String message, long millis) {
 
         String id() {
             return className + "." + name;
@@ -62,7 +63,8 @@ final class JunitResults {
         return tests;
     }
 
-    private record Attempt(String className, String name, Outcome outcome, boolean flakyMarker, String message) {
+    private record Attempt(String className, String name, Outcome outcome, boolean flakyMarker, String message,
+                           long millis) {
     }
 
     private static TestCase merge(List<Attempt> all) {
@@ -73,7 +75,8 @@ final class JunitResults {
         Outcome outcome = passed ? Outcome.PASSED : failed ? Outcome.FAILED : Outcome.SKIPPED;
         String message = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker())
                 .map(Attempt::message).filter(m -> m != null && !m.isBlank()).findFirst().orElse(null);
-        return new TestCase(first.className(), first.name(), outcome, passed && (failed || marked), message);
+        return new TestCase(first.className(), first.name(), outcome, passed && (failed || marked), message,
+                all.getLast().millis());
     }
 
     private static void read(Path file, Map<String, List<Attempt>> attempts) {
@@ -111,7 +114,15 @@ final class JunitResults {
                 }
             }
             attempts.computeIfAbsent(className + "." + name, ignored -> new ArrayList<>())
-                    .add(new Attempt(className, name, outcome, flakyMarker, message));
+                    .add(new Attempt(className, name, outcome, flakyMarker, message, millis(testcase)));
+        }
+    }
+
+    private static long millis(Element testcase) {
+        try {
+            return Math.round(Double.parseDouble(testcase.getAttribute("time").replace(",", "")) * 1000);
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 

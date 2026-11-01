@@ -286,6 +286,7 @@ public class ApiFuzzRunner {
         );
         try {
             aggregateArtifacts.put(FuzzMarkdownReport.FILE_NAME, FuzzMarkdownReport.write(outputDir, report, summaries));
+            aggregateArtifacts.put(FuzzFindingsJson.FILE_NAME, FuzzFindingsJson.write(outputDir, report));
             report = new ApiFuzzReport(report.runId(), report.specId(), report.outcome(), report.schemathesisVersion(),
                     report.seed(), report.phases(), report.totalScenarios(), report.failedScenarios(),
                     report.findings(), report.errors(), aggregateArtifacts, report.duration(),

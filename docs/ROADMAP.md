@@ -239,8 +239,14 @@ Target modules: `module-quality`, `module-security` (planned)
 - Shipped (A1): `module-quality` reads a finished run's JUnit XML and run
   index and scores functional, stability and hygiene dimensions with printed
   formulas; `quality.md` / `quality.json`; a gate that fails closed.
-- Next: baseline and deltas (A2), dimensions from the existing modules (A3),
-  then the security block (B1–B5) and its dimension (A4).
+- Shipped (A2): `quality-baseline.json`, new / accepted / known / resolved
+  issues per dimension; the gate fails only on new ones.
+- Shipped (A3): contracts, data, robustness, authorization and efficiency
+  dimensions from the existing modules' reports; `module-api-fuzz` writes a
+  machine-readable `findings.json` for it.
+- Shipped (A4): the security dimension from `module-security`'s
+  `security-findings.json`, and a review of Part A against real reports.
+  Part A is complete; Part B (`module-security`) is in progress separately.
 
 ### Gherkin Steps
 
@@ -249,7 +255,8 @@ Target module: `module-gherkin` (optional)
 - In progress ([plan](gherkin-layer-roadmap.md)): Cucumber steps over the
   modules for teams that write feature files. Shipped: scenario lifecycle
   (scope and correlation id per scenario), `${name}` variables, HTTP steps.
-  Next: messages, database and mocks.
+  Shipped too: Kafka and RabbitMQ steps (publish, await, exactly one, none)
+  and run-unique variables. Next: database and mocks.
 
 ### API Bootstrap Path
 

@@ -114,7 +114,7 @@ endpoint is exactly what the safety policy exists to prevent.
 
 ## Priority: product quality assessment and security (in progress)
 
-**Modules:** `module-quality` (A1 shipped), `module-security` (planned)
+**Modules:** `module-quality` (Part A shipped: all dimensions, baseline, gate), `module-security` (Part B, in progress)
 
 Spec and steps: [docs/quality-security-spec.md](docs/quality-security-spec.md).
 

@@ -17,11 +17,18 @@ final class QualityAssessor {
     private QualityAssessor() {
     }
 
-    static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, List<String> inputs,
-                                QualityProperties properties) {
+    static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, QualityBaseline baseline,
+                                List<String> inputs, QualityProperties properties,
+                                com.fasterxml.jackson.databind.ObjectMapper mapper) {
         List<QualityDimension> dimensions = List.of(
                 functional(tests, properties),
                 stability(tests, properties),
+                ModuleDimensions.contracts(index, mapper),
+                ModuleDimensions.data(index, mapper),
+                ModuleDimensions.robustness(index, mapper),
+                ModuleDimensions.authorization(index, mapper),
+                ModuleDimensions.security(index, mapper),
+                ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
                 hygiene(tests, index));
         QualityStatus overall = QualityStatus.NOT_MEASURED;
         int sum = 0;
@@ -36,7 +43,7 @@ final class QualityAssessor {
                 overall = dimension.status();
             }
         }
-        return new QualityReport(runId, overall, measured == 0 ? null : Math.round((float) sum / measured),
+        return new QualityReport(runId, null, overall, measured == 0 ? null : Math.round((float) sum / measured),
                 dimensions, inputs, null, null);
     }
 
@@ -57,7 +64,8 @@ final class QualityAssessor {
             facts.add("… and " + (failed - LISTED) + " more failed");
         }
         return new QualityDimension(QualityDimension.FUNCTIONAL, failed > 0 ? QualityStatus.FAIL : QualityStatus.PASS,
-                Math.round(100f * passed / (passed + failed)), "100 × passed / (passed + failed)", facts);
+                Math.round(100f * passed / (passed + failed)), "100 × passed / (passed + failed)", facts)
+                .withIssues(tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id).toList());
     }
 
     static QualityDimension stability(List<TestCase> tests, QualityProperties properties) {
@@ -76,7 +84,7 @@ final class QualityAssessor {
         QualityStatus status = flaky.isEmpty() ? QualityStatus.PASS
                 : rate > properties.maxFlakyRate() ? QualityStatus.FAIL : QualityStatus.WARN;
         return new QualityDimension(QualityDimension.STABILITY, status, (int) Math.round(100 * (1 - rate)),
-                "100 × (1 − flaky / executed)", facts);
+                "100 × (1 − flaky / executed)", facts).withIssues(flaky.stream().map(TestCase::id).toList());
     }
 
     static QualityDimension hygiene(List<TestCase> tests, RunIndex index) {
@@ -96,7 +104,8 @@ final class QualityAssessor {
         boolean clean = leftovers == 0 && problems == 0;
         return new QualityDimension(QualityDimension.HYGIENE, clean && skipped == 0 ? QualityStatus.PASS
                 : QualityStatus.WARN, Math.max(0, 100 - 5 * leftovers - 10 * problems),
-                "100 − 5 × leftover rows − 10 × reporting problems", facts);
+                "100 − 5 × leftover rows − 10 × reporting problems", facts)
+                .withIssues(index.reportingProblems().stream().map(p -> "reporting " + p).toList());
     }
 
     private static long count(List<TestCase> tests, Outcome outcome) {

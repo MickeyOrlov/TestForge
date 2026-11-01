@@ -114,6 +114,14 @@ class FuzzFindingsReportTest {
                 .contains("## Accepted findings no longer seen")
                 .contains("- `demo:not_a_server_error GET /gone`")
                 .doesNotContain("TICKET-17");
+        // the same groups for module-quality, machine-readable
+        com.fasterxml.jackson.databind.JsonNode findings = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(report.artifacts().get("findings.json").toFile());
+        assertThat(findings.path("groups")).extracting(g -> g.path("key").asText() + "|" + g.path("accepted").asBoolean())
+                .containsExactlyInAnyOrder("not_a_server_error GET /items/{id}|true",
+                        "unsupported_method GET /items/{id}|false");
+        assertThat(findings.path("staleAccepted").get(0).asText()).isEqualTo("demo:not_a_server_error GET /gone");
+        assertThat(findings.toString()).doesNotContain("TICKET-17").doesNotContain("localhost");
     }
 
     @Test
