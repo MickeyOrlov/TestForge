@@ -275,3 +275,9 @@ TestForge is not trying to create or replace:
 
 It should remain a template that arranges these tools into a maintainable test
 automation architecture.
+
+## Experimental: security assessment
+
+`module-security` collects opt-in passive API findings with explicit coverage,
+accepted findings and Markdown/JSON/SARIF reports. Active probes remain separate
+opt-ins; see module-security/README.md and security-implementation-notes.md.

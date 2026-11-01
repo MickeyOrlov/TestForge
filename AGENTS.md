@@ -20,6 +20,7 @@ module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
+module-security/ opt-in response security checks, value-free findings and coverage
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; publisher with confirms
@@ -321,3 +322,7 @@ reviewing a module. Adapting a fresh clone follows
   (`forge.api-codegen.compile`), but does not put them on any source set.
 - `module-api-fuzz`: `--include-method` alone does not stop the coverage phase from emitting unspecified methods. TestForge also generates a config file to enforce the safety policy.
 - Artifact reporting (`forge.reporting.artifacts.enabled`) and resource usage monitoring (`forge.reporting.resource-monitor.enabled`) are disabled by default (`false`); set `forge.reporting.artifacts.enabled=true` in CI profiles to generate run manifests and summaries. When `module-reporting` is absent or disabled, `ArtifactSink.NO_OP` is active, so producer calls succeed silently without collecting artifacts into a run directory.
+
+Security adoption: enable `forge.security.passive.enabled`, then call
+`SecurityRunner.assertAcceptable()` after API tests and before artifact upload.
+Read module-security/README.md for applicability and coverage limits.
