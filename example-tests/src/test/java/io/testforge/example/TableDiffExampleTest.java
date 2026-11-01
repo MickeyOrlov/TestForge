@@ -90,7 +90,8 @@ class TableDiffExampleTest {
         ownTasks();
 
         assertThat(sql.recent()).last().satisfies(statement -> {
-            assertThat(statement.sql()).isEqualTo("SELECT * FROM task_record WHERE task_id LIKE ?");
+            // the table is quoted in the case H2 stores it, so a reserved word would read too
+            assertThat(statement.sql()).isEqualTo("SELECT * FROM \"TASK_RECORD\" WHERE task_id LIKE ?");
             assertThat(statement.parameters()).containsExactly(java.util.List.of(prefix + "%"));
         });
     }

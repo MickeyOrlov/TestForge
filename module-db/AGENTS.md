@@ -28,11 +28,15 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 - Deeper checks (`row(...)`, `watch`/`watchSchema`, `invariants()`,
   `onlyOwnData`) only read; they never change a row. Discovered table names
-  are quoted, user-given ones are validated as plain identifiers.
+  are quoted as reported; user-given ones are validated as plain identifiers,
+  then quoted through `SqlNames` with the database's case folding — never
+  concatenate a name into SQL without it.
 
 ## Tests
 
-Own: `SchemaDriftTest`, `SchemaInheritanceTest`, `SchemaIndexForeignKeyDriftTest`, `MultiDataSourceIsolationTest` and others. Examples: `DbWaiterTest`, `MultiDataSourceExampleTest`, `SchemaValidatorTest`, `PostgresSchemaValidationIT` (tag `containers`).
+Own: `SchemaDriftTest`, `SchemaInheritanceTest`, `SchemaIndexForeignKeyDriftTest`, `MultiDataSourceIsolationTest` and others. Examples: `DbWaiterTest`, `MultiDataSourceExampleTest`, `SchemaValidatorTest`, `PostgresSchemaValidationIT` and `PostgresDbChecksIT` (tag `containers`;
+run `./gradlew :example-tests:containersTest` after changing how SQL is built
+or values are read — PostgreSQL differs in case, quoting and column types).
 
 ## Before you finish
 

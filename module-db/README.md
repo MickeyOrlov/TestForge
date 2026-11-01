@@ -141,7 +141,10 @@ columns changed that should not have: [total] in orders where customer_id = ? (k
   snapshot sees every parallel test's writes. More than 10 000 rows fails
   (`maxRows(...)` to raise it).
 - Table and column names must be plain identifiers; the `where` clause is
-  the test's own SQL with `?` parameters.
+  the test's own SQL with `?` parameters. Names are quoted for the database,
+  so a table called `order` or a column called `user` works; quoting follows
+  the database's own case folding, so `orders` still means `ORDERS` on H2.
+- Arrays compare by their elements, as lists (`List.of("a", "b")`).
 - `db.on("auditDataSource")` for a named datasource.
 
 ### Exactly what changed in a row
