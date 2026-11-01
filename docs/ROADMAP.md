@@ -244,8 +244,9 @@ Target modules: `module-quality`, `module-security` (planned)
 - Shipped (A3): contracts, data, robustness, authorization and efficiency
   dimensions from the existing modules' reports; `module-api-fuzz` writes a
   machine-readable `findings.json` for it.
-- Next:
-  then the security block (B1–B5) and its dimension (A4).
+- Shipped (A4): the security dimension from `module-security`'s
+  `security-findings.json`, and a review of Part A against real reports.
+  Part A is complete; Part B (`module-security`) is in progress separately.
 
 ### Gherkin Steps
 

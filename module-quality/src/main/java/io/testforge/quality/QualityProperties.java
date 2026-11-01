@@ -13,7 +13,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     enabled: true                       # assertAcceptable() fails closed without it
  *     junit-results: [build/test-results] # JUnit XML, searched recursively
  *     artifacts-root: build/testforge-artifacts
- *     run-id:                             # default: the newest run with a manifest
+ *     run-id:                             # default: the newest run; "a,b" merges runs of several JVMs
  *     output-dir: build/quality
  *     max-flaky-rate: 0.02                # stability FAILs above it
  *     fail-on: [functional, stability]    # dimensions whose FAIL fails the gate

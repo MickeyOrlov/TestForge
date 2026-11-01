@@ -99,6 +99,35 @@ class QualityRunnerTest {
     }
 
     @Test
+    void anEarlierQualityChecksOwnRunIsNeverTheRunJudged() throws IOException {
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"));
+        manifest("20261101-1000-tests", "{\"runId\":\"20261101-1000-tests\",\"artifacts\":[{\"source\":"
+                + "\"module-data\",\"category\":\"leftovers\",\"metadata\":{\"leftovers\":\"2\"}}]}");
+        // the gate's own JVM, run a minute later: only module-quality's report in it
+        manifest("20261101-1001-gate", "{\"runId\":\"20261101-1001-gate\",\"artifacts\":[{\"source\":"
+                + "\"module-quality\",\"category\":\"quality\",\"name\":\"quality.md\"}]}");
+
+        assertThat(runner(false, 0.02).run().runId()).isEqualTo("20261101-1000-tests");
+    }
+
+    @Test
+    void runsOfSeveralJvmsAreJudgedTogether() throws IOException {
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"));
+        manifest("unit", "{\"runId\":\"unit\",\"artifacts\":[{\"source\":\"module-data\","
+                + "\"category\":\"leftovers\",\"metadata\":{\"leftovers\":\"1\"}}]}");
+        manifest("containers", "{\"runId\":\"containers\",\"reportingProblems\":[\"disk full\"],"
+                + "\"artifacts\":[]}");
+
+        QualityReport report = new QualityRunner(new QualityProperties(false, List.of(dir.resolve("results").toString()),
+                dir.resolve("artifacts").toString(), "unit, containers", dir.resolve("quality").toString(), 0.02,
+                null), new ObjectMapper(), ArtifactSink.NO_OP).run();
+
+        assertThat(report.runId()).isEqualTo("unit,containers");
+        assertThat(report.dimension(QualityDimension.HYGIENE).orElseThrow().facts())
+                .contains("1 rows tests left behind (module-data leftovers)", "reporting problem: disk full");
+    }
+
+    @Test
     void anXmlFileWithADoctypeIsNotParsed() throws IOException {
         junit("TEST-evil.xml", "<?xml version=\"1.0\"?><!DOCTYPE t [<!ENTITY x SYSTEM \"file:///etc/passwd\">]>"
                 + "<testsuite><testcase classname=\"E\" name=\"&x;\"/></testsuite>");

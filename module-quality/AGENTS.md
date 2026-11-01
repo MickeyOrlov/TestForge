@@ -18,6 +18,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - NOT MEASURED is never a pass; the gate fails closed when disabled or when
   nothing was measured.
 - XML is parsed with DTDs disallowed and secure processing on.
+- The newest-run default never picks a run holding only `module-quality`'s
+  own report; listed runs (`run-id: a,b`) merge, each artifact resolved
+  against its own run directory.
 - Reports carry test names and first lines of failure messages only.
 - Another module's output is read from the run index by `source` /
   `category` and its file's JSON fields; a missing report is NOT MEASURED with

@@ -45,10 +45,18 @@ class QualityAssessmentExampleTest {
                   </testcase>
                 </testsuite>
                 """);
+        // module-security's findings, in its security-findings.json layout
+        write("artifacts/20261101T120000Z-ci-42/module-security/security-findings.json", """
+                {"formatVersion": 1, "measured": true, "findings": [
+                  {"id": "cookie-missing-httponly POST /login", "severity": "medium", "status": "new"}]}
+                """);
         write("artifacts/20261101T120000Z-ci-42/manifest.json", """
-                {"runId": "20261101T120000Z-ci-42", "artifactCount": 1, "reportingProblems": [],
+                {"runId": "20261101T120000Z-ci-42", "artifactCount": 2, "reportingProblems": [],
                  "artifacts": [{"source": "module-data", "category": "leftovers", "name": "leftovers.json",
-                                "metadata": {"healthy": "false", "leftovers": "1"}}]}
+                                "metadata": {"healthy": "false", "leftovers": "1"}},
+                               {"source": "module-security", "category": "security",
+                                "name": "security-findings.json",
+                                "path": "module-security/security-findings.json"}]}
                 """);
         registry.add("forge.quality.enabled", () -> "true");
         registry.add("forge.quality.junit-results", () -> RUN.resolve("results").toString());
@@ -80,6 +88,13 @@ class QualityAssessmentExampleTest {
         });
         assertThat(report.dimension(QualityDimension.HYGIENE)).get()
                 .extracting(QualityDimension::status).isEqualTo(QualityStatus.WARN);
+        assertThat(report.dimension(QualityDimension.SECURITY)).get().satisfies(security -> {
+            assertThat(security.status()).isEqualTo(QualityStatus.WARN);
+            assertThat(security.score()).isEqualTo(95);
+        });
+        // modules this run did not use say so instead of scoring as perfect
+        assertThat(report.dimension(QualityDimension.DATA)).get()
+                .extracting(QualityDimension::status).isEqualTo(QualityStatus.NOT_MEASURED);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("- overall: **FAIL**")
                 .contains("| stability | WARN | 67 | — | 1 | `100 × (1 − flaky / executed)` |");

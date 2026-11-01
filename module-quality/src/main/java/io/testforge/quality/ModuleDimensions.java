@@ -171,6 +171,66 @@ final class ModuleDimensions {
     }
 
     /**
+     * New findings of {@code module-security} ({@code security-findings.json}),
+     * weighted by severity. That module keeps its own accepted list and
+     * baseline; what it reports as {@code new} is what this dimension scores.
+     */
+    static QualityDimension security(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-security", "security", mapper).stream()
+                .filter(report -> report.has("findings")).toList();
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.SECURITY,
+                    "no security-findings.json (module-security) in the run");
+        }
+        if (reports.stream().noneMatch(report -> report.path("measured").asBoolean())) {
+            return QualityDimension.notMeasured(QualityDimension.SECURITY,
+                    "module-security ran but measured nothing — see its coverage in security.md");
+        }
+        java.util.Map<String, Integer> bySeverity = new java.util.LinkedHashMap<>();
+        for (String severity : List.of("critical", "high", "medium", "low", "info")) {
+            bySeverity.put(severity, 0);
+        }
+        List<String> issues = new ArrayList<>();
+        List<String> listed = new ArrayList<>();
+        int accepted = 0;
+        int resolved = 0;
+        for (JsonNode report : reports) {
+            for (JsonNode finding : report.path("findings")) {
+                String status = finding.path("status").asText();
+                if (status.equals("accepted")) {
+                    accepted++;
+                } else if (status.equals("resolved")) {
+                    resolved++;
+                } else if (status.equals("new")) {
+                    String severity = finding.path("severity").asText().toLowerCase(java.util.Locale.ROOT);
+                    bySeverity.merge(severity, 1, Integer::sum);
+                    if (!severity.equals("info")) {
+                        issues.add(finding.path("id").asText());
+                        listed.add(severity + ": " + finding.path("id").asText());
+                    }
+                }
+            }
+        }
+        int critical = bySeverity.getOrDefault("critical", 0);
+        int high = bySeverity.getOrDefault("high", 0);
+        int medium = bySeverity.getOrDefault("medium", 0);
+        int low = bySeverity.getOrDefault("low", 0);
+        List<String> facts = new ArrayList<>();
+        facts.add("new findings: " + critical + " critical, " + high + " high, " + medium + " medium, " + low
+                + " low, " + bySeverity.getOrDefault("info", 0) + " info; " + accepted + " accepted, " + resolved
+                + " resolved (module-security)");
+        listed.stream().limit(LISTED).forEach(facts::add);
+        if (listed.size() > LISTED) {
+            facts.add("… and " + (listed.size() - LISTED) + " more");
+        }
+        QualityStatus status = critical + high > 0 ? QualityStatus.FAIL
+                : medium + low > 0 ? QualityStatus.WARN : QualityStatus.PASS;
+        return new QualityDimension(QualityDimension.SECURITY, status,
+                Math.max(0, 100 - 40 * critical - 20 * high - 5 * medium - low),
+                "100 − 40 × critical − 20 × high − 5 × medium − 1 × low (new findings)", facts).withIssues(issues);
+    }
+
+    /**
      * Tests that got markedly slower than in the baseline: at least
      * {@code factor} times and {@code minMillis} longer. Needs a baseline —
      * one run's durations alone say nothing about efficiency.

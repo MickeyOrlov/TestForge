@@ -19,6 +19,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `robustness` | `100 − 10 × finding groups` | a fuzz finding group nobody accepted | `module-api-fuzz` `findings.json` |
 | `authorization` | `100 − 20 × violations` | a role got in, or was shut out, against the access matrix | `module-api-explorer` access matrix |
 | `efficiency` | `100 × (compared − slower) / compared` | never (WARN): a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations + baseline |
+| `security` | `100 − 40 × critical − 20 × high − 5 × medium − 1 × low` (new findings) | a new critical or high finding (WARN on medium/low) | `module-security` `security-findings.json` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems` | never (WARN) | run index |
 
 - **Flaky** means failed and passed in the same run: a test listed twice
@@ -31,7 +32,22 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 A module that is not used leaves its dimension NOT MEASURED with the reason
 ("no db-contract report (module-db-contract) in the run"); its reports are
 read as JSON from the run index, so deleting a module never breaks this one.
-The security dimension follows with step A4.
+`module-security` keeps its own accepted list and baseline; `security`
+scores what it reports as `new`, and a security run that measured nothing is
+NOT MEASURED, not a pass.
+
+## Which run is judged
+
+- By default the newest run index with a manifest — skipping one that holds
+  only `module-quality`'s own report, which the gate's JVM leaves behind.
+- A pipeline whose tests ran in several JVMs (`test`, `containersTest`,
+  parallel forks) has one run directory each: list them,
+  `forge.quality.run-id: "<unit-run>,<containers-run>"`, and they are judged
+  as one. Setting `forge.reporting.artifacts.run-id` per job to a known value
+  (the CI job id) makes them easy to name.
+- Point `junit-results` at the test jobs' directories
+  (`build/test-results/test`, `build/test-results/containersTest`) rather
+  than at the gate's own task.
 
 ## Baseline: fail on what is new
 
