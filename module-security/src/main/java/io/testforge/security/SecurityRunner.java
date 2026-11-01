@@ -11,17 +11,27 @@ public class SecurityRunner {
   private final SecurityProperties properties;
   private final SecurityCollector collector;
   private final ArtifactSink sink;
+  private final java.util.function.BooleanSupplier additionalEnabled;
   private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
   public SecurityRunner(
       SecurityProperties properties, SecurityCollector collector, ArtifactSink sink) {
+    this(properties, collector, sink, () -> false);
+  }
+
+  public SecurityRunner(
+      SecurityProperties properties,
+      SecurityCollector collector,
+      ArtifactSink sink,
+      java.util.function.BooleanSupplier additionalEnabled) {
+    this.additionalEnabled = additionalEnabled;
     this.properties = properties;
     this.collector = collector;
     this.sink = sink;
   }
 
   public SecurityReport run() {
-    boolean enabled = properties.passive().enabled();
+    boolean enabled = properties.passive().enabled() || additionalEnabled.getAsBoolean();
     List<SecurityFinding> findings = new ArrayList<>();
     Set<String> current = new HashSet<>();
     Map<String, String> accepted = new HashMap<>();

@@ -2,6 +2,8 @@ dependencies {
     api platform(libs.spring.boot.dependencies)
     api project(":core")
     api project(":module-http")
+    api project(":module-auth")
+    api project(":module-api-explorer")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api "com.fasterxml.jackson.core:jackson-databind"
     testImplementation "org.springframework.boot:spring-boot-starter-test"
