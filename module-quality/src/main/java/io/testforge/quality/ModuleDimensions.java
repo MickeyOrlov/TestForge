@@ -280,6 +280,46 @@ final class ModuleDimensions {
     }
 
     /**
+     * The run's statements by shape (module-db's query summary): one that failed — swallowed by the
+     * application or not — or wrote every row of a table fails; one over the slow threshold warns.
+     */
+    static QualityDimension dbQueries(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-db", "db-queries", "db-queries.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.DB_QUERIES,
+                    "no db-queries.json (module-db with forge.db.queries.enabled=true) in the run");
+        }
+        long statements = 0;
+        int shapes = 0;
+        boolean failing = false;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            statements += report.path("statements").asLong();
+            for (JsonNode shape : report.path("shapes")) {
+                shapes++;
+                String sql = shape.path("shape").asText();
+                if (shape.path("errors").asLong() > 0) {
+                    issues.add("failed " + sql);
+                    failing = true;
+                }
+                if (shape.path("unboundedWrite").asBoolean()) {
+                    issues.add("unbounded " + sql);
+                    failing = true;
+                }
+                if (shape.path("slow").asBoolean()) {
+                    issues.add("slow " + sql);
+                }
+            }
+        }
+        List<String> facts = new ArrayList<>();
+        facts.add(statements + " statements in " + shapes + " shapes, " + issues.size() + " flagged");
+        list(facts, "statement", issues);
+        return new QualityDimension(QualityDimension.DB_QUERIES, failing ? QualityStatus.FAIL
+                : issues.isEmpty() ? QualityStatus.PASS : QualityStatus.WARN, Math.max(0, 100 - 10 * issues.size()),
+                "100 − 10 × flagged statement shapes", facts).withIssues(issues);
+    }
+
+    /**
      * Documented operations the suite never called (module-api-explorer's contract guard): the parts of
      * the API no test looks at. WARN while any is uncalled, FAIL below {@code min-api-coverage}.
      */

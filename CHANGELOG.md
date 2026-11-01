@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-db`: `DbQuerySummary` — with `forge.db.queries.enabled`, every
+  statement of the run aggregated by shape (count, failures, time, unbounded
+  write, slow), written as `db-queries.json` to the run index.
+  `module-quality`: `db-queries` dimension from it — FAIL on a failed or
+  unbounded statement, WARN on a slow one.
 - `module-http`: `HttpTrafficSummary` — per operation (method and path
   shape), requests, status classes, transport failures and p50 / p95 / max
   latency, written as `http-summary.json` to the run index.

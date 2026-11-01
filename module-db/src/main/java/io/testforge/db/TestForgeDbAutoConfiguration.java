@@ -97,6 +97,17 @@ public class TestForgeDbAutoConfiguration {
         return new io.testforge.db.query.QueryRecorder();
     }
 
+    /** Run-wide statement shapes for module-quality's db-queries dimension. */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.db.queries", name = "enabled", havingValue = "true")
+    public io.testforge.db.query.DbQuerySummary dbQuerySummary(io.testforge.db.query.QueryRecorder recorder,
+            ObjectProvider<io.testforge.artifact.ArtifactSink> sink, Environment environment) {
+        return new io.testforge.db.query.DbQuerySummary(recorder,
+                sink.getIfAvailable(() -> io.testforge.artifact.ArtifactSink.NO_OP),
+                environment.getProperty("forge.db.queries.slow-millis", Long.class, 1000L));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "forge.db.queries", name = "enabled", havingValue = "true")

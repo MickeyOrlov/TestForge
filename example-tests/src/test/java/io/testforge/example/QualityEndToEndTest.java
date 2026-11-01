@@ -110,6 +110,7 @@ class QualityEndToEndTest {
                                 .required("$.payload.status", FieldType.STRING).build())))
                 .withPropertyValues(
                         "spring.datasource.url=jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1",
+                        "forge.db.queries.enabled=true",
                         "forge.reporting.artifacts.enabled=true",
                         "forge.reporting.artifacts.dir=" + run.resolve("artifacts"),
                         "forge.reporting.artifacts.run-id=e2e",
@@ -150,6 +151,8 @@ class QualityEndToEndTest {
                     context.getBean(DbContractRunner.class).writeBaseline();
                     jdbc.execute("ALTER TABLE e2e_orders DROP COLUMN amount");
                     context.getBean(DbContractRunner.class).run();
+                    // db-queries: a write without WHERE reaches every row
+                    jdbc.update("UPDATE e2e_orders SET id = id");
                     // contracts: a test calls the drifted operation; the guard records it
                     AuthContext.callAs("admin", () -> context.getBean(ApiClient.class).request().get("/api/v1/tasks"));
                     // the test expects the 503 and passes; the service still failed
@@ -180,6 +183,8 @@ class QualityEndToEndTest {
                 .isEqualTo(QualityStatus.PASS);
         assertThat(report.dimension(QualityDimension.SECURITY).orElseThrow().facts().getFirst())
                 .startsWith("new findings:");
+        assertThat(report.dimension(QualityDimension.DB_QUERIES).orElseThrow().issues())
+                .contains("unbounded UPDATE e2e_orders SET id = id");
         assertThat(report.dimension(QualityDimension.RELIABILITY).orElseThrow().issues())
                 .contains("GET /api/v1/status/{n}");
         assertThat(report.dimension(QualityDimension.API_COVERAGE).orElseThrow().issues())

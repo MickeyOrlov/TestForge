@@ -30,6 +30,7 @@ final class QualityAssessor {
                         () -> ModuleDimensions.authorization(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.SECURITY, () -> ModuleDimensions.security(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.RELIABILITY, () -> ModuleDimensions.reliability(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.DB_QUERIES, () -> ModuleDimensions.dbQueries(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.API_COVERAGE,
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
