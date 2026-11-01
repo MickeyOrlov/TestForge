@@ -61,9 +61,9 @@ journal assertions, readable mismatch diagnostics and failure artifacts are
 delivered. Revisit only for a concrete adaptation need (for example, matching
 a scope that the system under test splits across two fields).
 
-## Priority 4: messaging abstraction beyond Kafka (in progress)
+## Priority 4: messaging abstraction beyond Kafka (shipped)
 
-Plan: [docs/messaging-layer-roadmap.md](docs/messaging-layer-roadmap.md). The neutral core is in `core`; `module-rabbitmq` is the second adapter. Both write the same failed-test traffic report. Next: review.
+Plan: [docs/messaging-layer-roadmap.md](docs/messaging-layer-roadmap.md). The neutral core is in `core`; `module-rabbitmq` is the second adapter. Both write the same failed-test traffic report; reviewed against a real broker.
 
 **Modules:** `module-kafka`, possible future `module-messaging`
 

@@ -87,6 +87,15 @@ class RabbitProbeUnitTest {
     }
 
     @Test
+    void aJsonStringIsLabelledJsonForASpringConsumersConverter() {
+        assertThat(RabbitPublisher.contentType(Map.of("a", 1), "{\"a\":1}")).isEqualTo("application/json");
+        assertThat(RabbitPublisher.contentType(" {\"a\":1} ", " {\"a\":1} ")).isEqualTo("application/json");
+        assertThat(RabbitPublisher.contentType("[1,2]", "[1,2]")).isEqualTo("application/json");
+        assertThat(RabbitPublisher.contentType("PAY o-1", "PAY o-1")).isEqualTo("text/plain");
+        assertThat(RabbitPublisher.contentType(null, null)).isEqualTo("text/plain");
+    }
+
+    @Test
     void bindingsDefaultToEveryRoutingKeyAndBlankOnesAreDropped() {
         RabbitProbeProperties properties = new RabbitProbeProperties(true, java.util.Arrays.asList(
                 new RabbitProbeProperties.Binding("orders", null),

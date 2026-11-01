@@ -83,6 +83,10 @@ void payingEmitsOnePaymentEvent() {
 }
 ```
 
+An object payload is sent as JSON; a String is sent as is, labelled
+`application/json` when it is a JSON object or array (Spring AMQP's Jackson
+converter refuses anything else) and `text/plain` otherwise.
+
 A publish is synchronous and mandatory: it waits for the broker's confirm,
 and a message no queue is bound for fails at that line —
 `Publishing to exchange audit with routing key nobody.listens was returned

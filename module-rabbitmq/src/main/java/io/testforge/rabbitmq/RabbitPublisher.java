@@ -66,7 +66,7 @@ public class RabbitPublisher {
                 + " with routing key " + routingKey;
         Instant now = Instant.now();
         AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-                .contentType(payload instanceof String ? "text/plain" : "application/json")
+                .contentType(contentType(payload, value))
                 .contentEncoding(StandardCharsets.UTF_8.name())
                 .headers(new LinkedHashMap<>(sent))
                 .messageId(UUID.randomUUID().toString())
@@ -89,7 +89,8 @@ public class RabbitPublisher {
             throw new IllegalStateException("Publishing to " + target + " got no confirm within "
                     + properties.confirmTimeout(), e);
         } finally {
-            close(channel);
+            // never back into Spring's cache in confirm mode, with this publish's return listener on it
+            RabbitCollector.closePhysically(channel);
         }
         if (returned.get() != null) {
             throw new IllegalStateException("Publishing to " + target + " was returned (" + returned.get()
@@ -135,6 +136,23 @@ public class RabbitPublisher {
         return headers;
     }
 
+    /**
+     * {@code application/json} for an object, and for a String that is JSON —
+     * a Spring consumer's Jackson converter refuses a body labelled anything
+     * without "json"; {@code text/plain} for any other String.
+     */
+    static String contentType(Object payload, String value) {
+        if (payload == null) {
+            return "text/plain";
+        }
+        if (!(payload instanceof String)) {
+            return "application/json";
+        }
+        String text = value.strip();
+        return text.startsWith("{") && text.endsWith("}") || text.startsWith("[") && text.endsWith("]")
+                ? "application/json" : "text/plain";
+    }
+
     private String serialize(Object payload) {
         if (payload == null || payload instanceof String) {
             return (String) payload;
@@ -144,16 +162,6 @@ public class RabbitPublisher {
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Payload of type " + payload.getClass().getName()
                     + " cannot be written as JSON: " + e.getOriginalMessage(), e);
-        }
-    }
-
-    private static void close(Channel channel) {
-        try {
-            if (channel.isOpen()) {
-                channel.close();
-            }
-        } catch (IOException | TimeoutException | RuntimeException ignored) {
-            // the publish outcome is already decided; a channel the broker closed has nothing left to release
         }
     }
 }

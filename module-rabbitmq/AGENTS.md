@@ -16,6 +16,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   before `start()` returns, and a failure is recorded in the buffer.
 - Nothing connects at context start unless the collector is enabled: the
   publisher opens a channel per publish.
+- Every channel this module opens is closed physically
+  (`RabbitCollector.closePhysically`): Spring's `CachingConnectionFactory`
+  would otherwise keep the collector's consumer alive in its cache, or hand a
+  confirm-mode channel to the application's next `RabbitTemplate` call.
 - Publishing is synchronous, confirmed and mandatory — an unroutable message
   fails where it was published.
 - Failure messages name exchange, routing key, delivery number and failed
