@@ -1,7 +1,5 @@
 package io.testforge.gherkin.http;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -9,12 +7,10 @@ import io.cucumber.java.en.When;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
-import io.testforge.core.json.JsonPath;
+import io.testforge.gherkin.JsonFields;
 import io.testforge.gherkin.ScenarioVariables;
 import io.testforge.http.ApiClient;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -115,25 +111,7 @@ public class HttpSteps {
     }
 
     private String field(String path) {
-        JsonNode root;
-        try {
-            root = objectMapper.readTree(response().asString());
-        } catch (JsonProcessingException e) {
-            throw new AssertionError(request + ": the response is not JSON (" + response().contentType()
-                    + "), so it has no field " + path);
-        }
-        JsonNode value = JsonPath.read(root, path);
-        if (value.isMissingNode()) {
-            throw new AssertionError(request + ": the response has no field " + path
-                    + (root.isObject() ? "; top-level fields: " + fieldNames(root) : ""));
-        }
-        return value.isValueNode() ? value.asText() : value.toString();
-    }
-
-    private static List<String> fieldNames(JsonNode root) {
-        List<String> names = new ArrayList<>();
-        root.fieldNames().forEachRemaining(names::add);
-        return names;
+        return JsonFields.read(response().asString(), path, request, objectMapper);
     }
 
     private Response response() {

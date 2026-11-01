@@ -116,6 +116,38 @@ class SecurityPassiveTest {
   }
 
   @Test
+  void forbiddenFieldsDoNotApplyToResponsesThatAreNotJson() {
+    var collector = new SecurityCollector(1000);
+    var checks =
+        new PassiveSecurityChecks(
+            new SecurityProperties.Passive(true, null, List.of("$.ssn"), null, null, null),
+            collector);
+
+    checks.inspect(
+        "GET",
+        "http://localhost/export",
+        false,
+        null,
+        200,
+        Map.of("Content-Type", List.of("text/csv")),
+        "id,total\n1,10");
+    checks.inspect(
+        "GET",
+        "http://localhost/truncated",
+        false,
+        null,
+        200,
+        Map.of("Content-Type", List.of("application/json")),
+        "{\"ssn\": ");
+
+    assertThat(collector.coverage())
+        .filteredOn(c -> c.check().equals("forbidden-fields"))
+        .extracting(c -> c.target() + " " + c.status())
+        .containsExactlyInAnyOrder(
+            "GET /export not_applicable", "GET /truncated not_measured");
+  }
+
+  @Test
   void healthyCookiesHtmlAndErrorHygieneAreContextual() {
     var c = new SecurityCollector(1000);
     var checks =

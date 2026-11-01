@@ -42,6 +42,9 @@ enabled blocks to execute and no incomplete coverage. Each coverage row names a 
 
 - High: credential-like response patterns, Luhn-valid card patterns,
   project-forbidden JSON fields, configured untrusted CORS origins allowed.
+  Forbidden fields apply to JSON responses only: an HTML page, text or file
+  is `not_applicable`, while JSON that cannot be parsed whole (cut at
+  `max-body-chars`) is `not_measured` and keeps the gate closed.
 - Medium: missing HTTPS HSTS, missing HTML CSP/frame protection, insecure
   session-cookie attributes, wildcard CORS with credentials, error stack/SQL
   patterns. This CORS combination is a misconfiguration, not proof that a
@@ -97,7 +100,9 @@ negative responses. Missing controls, redirects not declared as denial, 429,
 JWT cases reuse module-auth's signer: expired, wrong signature, alg:none,
 unsigned role tampering, and wrong audience when an audience is declared.
 Session checks compare pre-login/post-login cookies and retry the saved cookie
-after the configured logout step. No cookie/token value enters findings.
+after the configured logout step, then drop the role's cached session, so the
+role's next request logs in again instead of using the logged-out cookie. No
+cookie/token value enters findings.
 
 Probes use ApiClient's base URL/timeouts and module-auth's filter/credential
 placement. They explicitly clear default headers/cookies/query credentials,
@@ -120,8 +125,8 @@ forge:
       allowed-hosts: [api.staging.example.test]
       expiry-warning-days: 30
       timeout: 5s
-      probe-legacy: true
-      probe-weak-ciphers: true
+      probe-legacy: false        # default; true only on a JDK that still offers TLS 1.0/1.1
+      probe-weak-ciphers: false  # default; likewise for weak cipher suites
 ```
 
 Call `SecurityTransportRunner.check("https://api.staging.example.test")` and
@@ -130,11 +135,11 @@ and hostname; expiry within the warning window is a medium finding. HTTP targets
 receive one HEAD to inspect a same-host HTTPS redirect, without following it.
 Targets require the transport allowlist and must not contain query credentials.
 
-Legacy protocols/weak ciphers are probed only when the local JDK enables them.
-Java 21 typically disables them; those checks then say not_measured, not
-"server rejected them". This incomplete coverage cannot pass assertAcceptable.
-A project may explicitly disable those probes; coverage then says no server-wide
-claim was requested. No trust-all TLS context or global algorithm weakening is
+Legacy protocols/weak ciphers are probed only when asked for and only when the
+local JDK enables them. Java 21 typically disables them; enabled probes then
+say not_measured, not "server rejected them", and that incomplete coverage
+cannot pass assertAcceptable — so both are off by default, and coverage says no
+server-wide claim was requested. Turn them on in a job whose JDK offers them. No trust-all TLS context or global algorithm weakening is
 installed. Tests generate a temporary certificate/keystore at runtime.
 
 ## B5: pre-upload artifact secret check
@@ -157,6 +162,11 @@ already-used request credentials are kept only in a bounded memory registry.
 Collection never obtains a new token or sends traffic. Projects can register
 other known secrets with `SecuritySecretRegistry.register(value)`; its toString
 is masked. JWT/private-key/credential-assignment patterns supplement exact matching.
+
+Archives are opened: every entry of a `.zip`/`.jar`/`.war` (a Playwright
+trace holds request headers) and the stream of a `.gz`/`.tgz` is scanned, the
+decompressed bytes counting against the same budgets, so a zip bomb stops
+early. A nested archive is not_measured; images and videos are not_applicable.
 
 No file content, match, secret hash or raw error enters a finding. Scans do not
 follow encountered symbolic links; missing/unreadable/oversized files and file,

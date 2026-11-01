@@ -54,7 +54,8 @@ final class Modules {
             Map.entry("module-db", Set.of("module-data")),
             Map.entry("module-db-contract", Set.of("module-db")),
             // step glue per adapter, each module compileOnly
-            Map.entry("module-gherkin", Set.of("module-http", "module-kafka", "module-rabbitmq")),
+            Map.entry("module-gherkin", Set.of("module-http", "module-kafka", "module-rabbitmq", "module-db",
+                    "module-mock")),
             Map.entry("module-state", Set.of("module-flow", "module-data")));
 
     private Modules() {

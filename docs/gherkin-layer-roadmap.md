@@ -12,8 +12,8 @@ not use Gherkin deletes the module.
 |---|---|---|---|
 | 1 | **Scenario lifecycle and HTTP** — a scope and correlation id per scenario, `${name}` variables, request / status / JSON-path / remember steps over `ApiClient` | `module-gherkin` (`io.testforge.gherkin.glue`, `io.testforge.gherkin.http`) | shipped |
 | 2 | **Messages** — publish, await, exactly one, none within a window, for Kafka and RabbitMQ | `io.testforge.gherkin.kafka`, `io.testforge.gherkin.rabbitmq` | shipped |
-| 3 | **Database and mocks** — a row exists / changed, a scoped stub answers, a downstream call was made | `io.testforge.gherkin.db`, `io.testforge.gherkin.mock` | planned |
-| 4 | **Review** | `module-gherkin` | planned |
+| 3 | **Database and mocks** — a row exists / changed, a scoped stub answers, a downstream call was made | `io.testforge.gherkin.db`, `io.testforge.gherkin.mock` | shipped |
+| 4 | **Review** | `module-gherkin` | shipped |
 
 ## Shape
 
@@ -29,3 +29,25 @@ not use Gherkin deletes the module.
   generic vocabulary only.
 - **No Cucumber in other modules.** Nothing outside `module-gherkin` depends
   on Cucumber.
+
+## What the review found
+
+All four steps shipped (PRs #125, #133, #135 and the review). The review ran
+the example suite with parallelism 4 and an outline of eight copies stubbing
+the same paths on one WireMock: stubs, rows and orders stayed apart in every
+run. It found three things:
+
+- **A message step could be satisfied by another scenario.** "A Kafka message
+  arrives where status is PAID" matched any scenario's PAID event — found when
+  a fixture meant to fail passed. `forge.gherkin.scope-messages` now limits
+  message steps to this scenario's scope header; without it the README says
+  to filter by a run-unique value.
+- **A failed scenario left no message traffic behind.** The broker modules'
+  diagnostics are JUnit extensions, which Cucumber does not run.
+  `KafkaScenarioDiagnostics` / `RabbitScenarioDiagnostics` attach the same
+  report to the scenario and the run index.
+- `HttpSteps` read JSON fields with its own copy of the logic; it uses
+  `JsonFields` like the message steps.
+
+The example suite now runs its scenarios in parallel, and `parallel.feature`
+keeps four copies on the same paths as a standing check.

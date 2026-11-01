@@ -5,6 +5,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import io.testforge.gherkin.GherkinProperties;
 import io.testforge.gherkin.JsonFields;
+import io.testforge.gherkin.MessageScope;
 import io.testforge.gherkin.ScenarioVariables;
 import io.testforge.rabbitmq.RabbitMessage;
 import io.testforge.rabbitmq.RabbitMessageFilter;
@@ -58,8 +59,8 @@ public class RabbitSteps {
 
     @Then("a RabbitMQ message arrives on exchange {string} with routing key {string}")
     public void arrivesWithRoutingKey(String exchange, String routingKey) {
-        last = probe.awaitMessage(RabbitMessageFilter.builder().exchange(variables.resolve(exchange))
-                .routingKey(variables.resolve(routingKey)).build());
+        last = probe.awaitMessage(scoped(RabbitMessageFilter.builder().exchange(variables.resolve(exchange))
+                .routingKey(variables.resolve(routingKey))).build());
     }
 
     @Then("a RabbitMQ message arrives on exchange {string} where {string} is {string}")
@@ -87,7 +88,15 @@ public class RabbitSteps {
     }
 
     private RabbitMessageFilter where(String exchange, String path, String value) {
-        return RabbitMessageFilter.builder().exchange(variables.resolve(exchange))
-                .jsonPathEquals(path, variables.resolve(value)).build();
+        return scoped(RabbitMessageFilter.builder().exchange(variables.resolve(exchange))
+                .jsonPathEquals(path, variables.resolve(value))).build();
+    }
+
+    /** With forge.gherkin.scope-messages, only messages carrying this scenario's scope header. */
+    private RabbitMessageFilter.Builder scoped(RabbitMessageFilter.Builder filter) {
+        RabbitPublisher rabbit = publisher.getIfAvailable();
+        MessageScope.of(properties, rabbit == null ? null : rabbit.scopeHeader(), "forge.rabbitmq.publish.scope-header")
+                .ifPresent(header -> filter.headerEquals(header.name(), header.value()));
+        return filter;
     }
 }

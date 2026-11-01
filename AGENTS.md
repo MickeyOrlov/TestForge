@@ -192,7 +192,8 @@ must not replace each other. `example-tests` is never published.
 17a. **module-quality**: add a CI step after the test jobs that runs one
    JUnit test calling `qualityRunner.assertAcceptable()` with
    `forge.quality.enabled=true`, pointed at those jobs' `build/test-results`
-   and run index. Read the first `quality.md` before tightening
+   and run index — copy `example-tests`' `qualityGate` task and
+   `QualityGateTest`. Read the first `quality.md` before tightening
    `max-flaky-rate` or `fail-on`.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
