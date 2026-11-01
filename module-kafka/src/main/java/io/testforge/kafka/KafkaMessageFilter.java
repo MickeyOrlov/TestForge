@@ -1,9 +1,8 @@
 package io.testforge.kafka;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.testforge.core.json.JsonPath;
+import io.testforge.core.messaging.MessageCriteria;
+import io.testforge.core.messaging.MessageQuery;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,7 +14,7 @@ public record KafkaMessageFilter(
         List<String> valueContains,
         Map<String, String> headerEquals,
         Map<String, String> jsonPathEquals,
-        Map<String, String> jsonPathContains) {
+        Map<String, String> jsonPathContains) implements MessageQuery {
 
     public KafkaMessageFilter {
         valueContains = List.copyOf(valueContains == null ? List.of() : valueContains);
@@ -28,77 +27,23 @@ public record KafkaMessageFilter(
         return new Builder();
     }
 
+    /** The criteria {@link io.testforge.core.messaging.MessageProbe} matches, the key named {@code key}. */
+    @Override
+    public MessageCriteria criteria() {
+        return new MessageCriteria(topic, key, valueContains, headerEquals, jsonPathEquals, jsonPathContains,
+                "topic", "key");
+    }
+
     boolean matches(KafkaMessage message, ObjectMapper objectMapper) {
-        return mismatches(message, objectMapper).isEmpty();
+        return criteria().matches(message, objectMapper);
     }
 
     /**
      * The criteria {@code message} fails, by name only — {@code key},
-     * {@code header X-Scope}, {@code $.payload.status} — never the values, so a
-     * timeout can say how close a message came without printing its payload.
+     * {@code header X-Scope}, {@code $.payload.status} — never the values.
      */
     List<String> mismatches(KafkaMessage message, ObjectMapper objectMapper) {
-        List<String> failed = new ArrayList<>();
-        if (topic != null && !topic.equals(message.topic())) {
-            failed.add("topic");
-            return failed;
-        }
-        if (key != null && !normalize(key).equals(normalize(message.key()))) {
-            failed.add("key");
-        }
-        for (int i = 0; i < valueContains.size(); i++) {
-            if (!message.value().contains(valueContains.get(i))) {
-                failed.add("value contains #" + (i + 1));
-            }
-        }
-        for (Map.Entry<String, String> expectedHeader : new java.util.TreeMap<>(headerEquals).entrySet()) {
-            if (!expectedHeader.getValue().equals(message.headers().get(expectedHeader.getKey()))) {
-                failed.add("header " + expectedHeader.getKey());
-            }
-        }
-        if (!jsonPathEquals.isEmpty() || !jsonPathContains.isEmpty()) {
-            JsonNode root = readJson(message, objectMapper);
-            if (root == null) {
-                failed.add("value is not JSON");
-                return failed;
-            }
-            new java.util.TreeMap<>(jsonPathEquals).forEach((path, expected) -> {
-                JsonNode value = JsonPath.read(root, path);
-                if (value.isMissingNode() || !expected.equals(text(value))) {
-                    failed.add(path);
-                }
-            });
-            new java.util.TreeMap<>(jsonPathContains).forEach((path, expected) -> {
-                JsonNode value = JsonPath.read(root, path);
-                if (value.isMissingNode() || !text(value).contains(expected)) {
-                    failed.add(path + " contains");
-                }
-            });
-        }
-        return failed;
-    }
-
-    private JsonNode readJson(KafkaMessage message, ObjectMapper objectMapper) {
-        try {
-            return objectMapper.readTree(message.value());
-        } catch (JsonProcessingException e) {
-            return null;
-        }
-    }
-
-    private String text(JsonNode value) {
-        return value.isValueNode() ? value.asText() : value.toString();
-    }
-
-    private String normalize(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
-            return trimmed.substring(1, trimmed.length() - 1);
-        }
-        return trimmed;
+        return criteria().mismatches(message, objectMapper);
     }
 
     public static final class Builder {

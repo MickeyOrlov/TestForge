@@ -1,5 +1,6 @@
 package io.testforge.kafka;
 
+import io.testforge.core.messaging.BrokerMessage;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
@@ -15,7 +16,7 @@ public record KafkaMessage(
         String key,
         String value,
         Instant timestamp,
-        Map<String, String> headers) {
+        Map<String, String> headers) implements BrokerMessage {
 
     public KafkaMessage {
         if (topic == null || topic.isBlank()) {
@@ -29,6 +30,18 @@ public record KafkaMessage(
         }
         headers = Collections.unmodifiableMap(new LinkedHashMap<>(
                 headers == null ? Map.of() : headers));
+    }
+
+    /** The topic. */
+    @Override
+    public String channel() {
+        return topic;
+    }
+
+    /** {@code orders/0@42}: topic, partition, offset. */
+    @Override
+    public String position() {
+        return topic + "/" + partition + "@" + offset;
     }
 
     static KafkaMessage from(ConsumerRecord<String, String> record) {

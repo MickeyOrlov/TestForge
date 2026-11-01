@@ -149,6 +149,12 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `core`: `io.testforge.core.messaging` — `BrokerMessage`, `MessageBuffer`,
+  `MessageCriteria`, `MessageQuery` and `MessageProbe`, the broker-neutral
+  part of `module-kafka` (buffer, criteria, await / exactly one / none within
+  a window, closest messages on a timeout), for a second broker adapter.
+  `module-kafka` is rebuilt on it; its public API and messages are unchanged
+  ([plan](docs/messaging-layer-roadmap.md)).
 - `module-db`: `CapturedQueries` measures time and failures —
   `slowest(n)`, `totalMillis()`, `failed()`, and `expect().noneSlowerThan(limit)`,
   `totalUnder(budget)`, `noErrors()` (a statement that failed inside an action
