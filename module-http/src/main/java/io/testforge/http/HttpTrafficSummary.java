@@ -125,7 +125,7 @@ public class HttpTrafficSummary implements OrderedFilter, SmartLifecycle {
             return;
         }
         try {
-            Path file = sink.directoryFor(SOURCE).resolve(FILE);
+            Path file = sink.newFile(SOURCE, FILE);
             Files.createDirectories(file.getParent());
             Map<String, Object> json = new LinkedHashMap<>();
             json.put("formatVersion", 1);

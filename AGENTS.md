@@ -331,6 +331,12 @@ reviewing a module. Adapting a fresh clone follows
   runner compiles them into `<spec>/classes` to prove they build
   (`forge.api-codegen.compile`), but does not put them on any source set.
 - `module-api-fuzz`: `--include-method` alone does not stop the coverage phase from emitting unspecified methods. TestForge also generates a config file to enforce the safety policy.
+- Every Spring context of a test JVM writes into the same run directory. A
+  producer that writes a run-wide summary when its context closes takes the
+  file from `ArtifactSink.newFile(source, name)` (`name`, `name-2`, …), never
+  `directoryFor(source).resolve(name)`: under a fixed name the context that
+  closes last overwrites the others, and module-quality judges a fraction of
+  the run. Readers merge the files registered under that name.
 - Artifact reporting (`forge.reporting.artifacts.enabled`) and resource usage monitoring (`forge.reporting.resource-monitor.enabled`) are disabled by default (`false`); set `forge.reporting.artifacts.enabled=true` in CI profiles to generate run manifests and summaries. When `module-reporting` is absent or disabled, `ArtifactSink.NO_OP` is active, so producer calls succeed silently without collecting artifacts into a run directory.
 
 Security adoption: enable `forge.security.passive.enabled`, then call

@@ -179,7 +179,8 @@ class QualityHistoryTest {
         QualityDimension efficiency = runner("r").run().dimension(QualityDimension.EFFICIENCY).orElseThrow();
 
         assertThat(efficiency.status()).isEqualTo(QualityStatus.NOT_MEASURED);
-        assertThat(efficiency.facts().getFirst()).startsWith("needs a baseline");
+        assertThat(efficiency.facts().getFirst()).isEqualTo("the history holds 1 earlier runs, a test needs 3 "
+                + "before its median counts; no baseline with test durations either");
     }
 
     @Test

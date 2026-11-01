@@ -13,6 +13,15 @@ semantic versioning for its git tags.
   and published-library wiring. Generation never earns security coverage.
 
 ### Fixed
+- Run-wide summaries (`http-summary.json`, `db-queries.json`,
+  `mock-summary.json`, `flow-coverage.*`, `contract-guard.json`,
+  `api-coverage.*`, module-data leftovers) were written under a fixed name
+  into the run directory every Spring context of a test JVM shares, so the
+  context that closed last overwrote the others: a review on the example
+  suite saw 12 HTTP requests of a whole run. `ArtifactSink.newFile` (core)
+  hands each context its own file (`http-summary-2.json`, …) under the same
+  logical name, and `module-quality` merges them per operation, statement
+  shape, flow and documented operation, counting each issue once.
 - Business setup controls can create collection resources and feed captured IDs
   into entity probes, while final state checks remain bound to the probe fixture.
 

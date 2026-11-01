@@ -57,6 +57,8 @@ depend on opt-in runtime integrations.
 | `module-db-contract` | Schema snapshot, bounded diff, and compatibility classification (`BREAKING`/`RISKY`/`NON_BREAKING`/`UNKNOWN`) with a CI gate. Reading is delegated to SchemaCrawler; the model, diff, policy and report belong to TestForge. Likely renames are pointed out. Plan: [db-contract-layer-roadmap.md](db-contract-layer-roadmap.md). |
 | `module-http` | Preconfigured REST Assured specification: environment base URLs, scenario scope and request id correlation, redacted logging, opt-in retry. Authentication is left to project customizers. |
 | `module-auth` | Credentials per role (static, OAuth2 client credentials/password, local HS256 JWT, API key, session-cookie login), cached with early refresh, `@AsUser` and reserved `anonymous` role, role shown in failure diagnostics, access matrix (operation × role) through `module-api-explorer`. |
+| `module-rabbitmq` | RabbitMQ collector on a queue of its own, probe and confirmed publisher on the broker-neutral messaging core shared with `module-kafka`. Plan: [messaging-layer-roadmap.md](messaging-layer-roadmap.md). |
+| `module-gherkin` | Optional Cucumber steps over the modules (HTTP, Kafka, RabbitMQ, database, scoped mocks), a scope per scenario, parallel-safe. Plan: [gherkin-layer-roadmap.md](gherkin-layer-roadmap.md). |
 | `module-state` | Reusable state recipes over `module-flow`, bridged into `@Prepared`; flows named per recipe, declared targets, all recipes verified without running. Plan: [state-layer-roadmap.md](state-layer-roadmap.md). |
 | `module-web-playwright` | Playwright lifecycle, `Page` fixture, and failure artifacts. Browser-backed examples run outside the default build; a failing test also leaves `browser.md` (failed requests, console and page errors). Plan: [playwright-layer-roadmap.md](playwright-layer-roadmap.md). |
 | `module-mobile-appium` | Appium device matrix, lazy sessions, JUnit fixture extension, optional local node, and failure artifacts (screenshot, page source, session summary with redacted capabilities, device log tail). Real devices are opt-in. Plan: [mobile-layer-roadmap.md](mobile-layer-roadmap.md). |
@@ -70,6 +72,8 @@ surface is still expected to evolve.
 |---|---|
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons, compiled right after generation so a document Java cannot take fails the run that wrote it. Writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. Plan: [codegen-layer-roadmap.md](codegen-layer-roadmap.md). |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
+| `module-quality` | Judges a finished run from its JUnit XML and run index: 13 dimensions with printed formulas, baseline (new / accepted / known / resolved, expiring acceptance), run history (flakiness on the same revision, durations against their median, trends), components and owners, per-dimension gate policy; `quality.md` / `quality.json` with a JSON Schema, a PR summary and OpenMetrics. Plan: [quality-security-spec.md](quality-security-spec.md). |
+| `module-security` | Opt-in passive, auth, ZAP and TLS checks, business security policies with coverage, artifact secret scan; see below. |
 | `module-api-fuzz` | Thin adapter for the Schemathesis CLI engine. Handles configuration, safety policy, and result ingestion; findings grouped by check and operation in a `report.md` with reproduce commands. Plan: [fuzz-layer-roadmap.md](fuzz-layer-roadmap.md). |
 
 ## Completed
@@ -233,7 +237,7 @@ Target module: `module-data`
 
 ### Product Quality Assessment And Security
 
-Target modules: `module-quality`, `module-security` (planned)
+Target modules: `module-quality`, `module-security`
 
 - Spec: [quality-security-spec.md](quality-security-spec.md). Part A first.
 - Shipped (A1): `module-quality` reads a finished run's JUnit XML and run
@@ -247,6 +251,15 @@ Target modules: `module-quality`, `module-security` (planned)
 - Shipped (A4): the security dimension from `module-security`'s
   `security-findings.json`, and a review of Part A against real reports.
   Part A is complete; Part B (`module-security`) is in progress separately.
+- Shipped after Part A: every dimension has a default producer writing a
+  versioned report (`http-summary.json`, `db-queries.json`,
+  `mock-summary.json`, `flow-coverage.json`, `api-coverage.json`); the report
+  states how much was measured and the gate can require dimensions; stale
+  JUnit results are dropped; a run history adds flakiness on the same
+  revision, durations and operation p95 against their median, trends and a
+  baseline hint; run labels, components and owners, expiring acceptance,
+  per-dimension gate policy, a PR summary, OpenMetrics and a JSON Schema for
+  `quality.json`. An end-to-end test runs every producer into one run index.
 
 ### Gherkin Steps
 
