@@ -160,6 +160,13 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-quality`: judges a finished run from its JUnit XML (Gradle,
+  Surefire) and run index — `functional`, `stability` (flaky = failed and
+  passed in one run) and `hygiene` dimensions, each with a status, a score
+  and the printed formula behind it; `quality.md` / `quality.json` in the run
+  index; `assertAcceptable()` fails on `fail-on` dimensions and closed when
+  disabled or when nothing was measured
+  ([spec](docs/quality-security-spec.md), step A1).
 - `module-gherkin` (optional): Cucumber steps over the TestForge modules for
   teams that write feature files. Every scenario opens with a cleared
   `ScenarioContext`, its own scope and correlation id; `ScenarioVariables`

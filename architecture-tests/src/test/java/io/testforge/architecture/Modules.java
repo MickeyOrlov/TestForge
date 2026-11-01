@@ -31,6 +31,7 @@ final class Modules {
             Map.entry("module-kafka", "io.testforge.kafka"),
             Map.entry("module-rabbitmq", "io.testforge.rabbitmq"),
             Map.entry("module-gherkin", "io.testforge.gherkin"),
+            Map.entry("module-quality", "io.testforge.quality"),
             Map.entry("module-mobile-appium", "io.testforge.mobile.appium"),
             Map.entry("module-mock", "io.testforge.mock"),
             Map.entry("module-reporting", "io.testforge.reporting"),

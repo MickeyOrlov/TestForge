@@ -27,6 +27,7 @@ module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; p
 module-gherkin/ optional Cucumber steps over the modules: scope per scenario, ${vars}, HTTP steps
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
+module-quality/ judges a finished run: dimensions with formulas, quality.md/json, gate
 module-web/    PrewarmRunner — warm key pages once per suite
 module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
 module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
@@ -188,6 +189,11 @@ must not replace each other. `example-tests` is never published.
    index. Producing modules publish through the `ArtifactSink` seam in `core`.
    Turn `forge.reporting.resource-monitor.enabled=true` on for JVM memory/CPU
    sampling.
+17a. **module-quality**: add a CI step after the test jobs that runs one
+   JUnit test calling `qualityRunner.assertAcceptable()` with
+   `forge.quality.enabled=true`, pointed at those jobs' `build/test-results`
+   and run index. Read the first `quality.md` before tightening
+   `max-flaky-rate` or `fail-on`.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
    run: a page "ended at" a sign-in URL warmed the login wall, not the page.
