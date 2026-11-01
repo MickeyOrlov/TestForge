@@ -32,12 +32,13 @@ final class BusinessSecurityValidator {
         boolean control = false, probe = false;
         List<Step> ownerControls = new ArrayList<>();
         PreparedRequest lastMutation = null;
+        PreparedRequest primary = null;
         List<PreparedRequest> replayControls = new ArrayList<>();
         if (Set.of(Kind.PROPERTY_WRITE, Kind.TRANSITION, Kind.REPLAY).contains(test.kind())
                 && Set.of("GET", "HEAD", "OPTIONS").contains(test.method()))
             throw new BusinessSecurityException(
                     "write/transition/replay cases require a write operation");
-        int lastWrite = -1, lastVerify = -1, index = 0;
+        int lastWrite = -1, lastVerify = -1, lastProbe = -1, index = 0;
         Set<String> captured = new HashSet<>(inputs);
         Set<String> ids = new HashSet<>();
         List<Step> all = new ArrayList<>(test.steps());
@@ -66,7 +67,8 @@ final class BusinessSecurityValidator {
             }
             index++;
             if (!Set.of("GET", "HEAD", "OPTIONS")
-                    .contains(step.request().method().toUpperCase(Locale.ROOT))) {
+                            .contains(step.request().method().toUpperCase(Locale.ROOT))
+                    && (step.phase() == Phase.PROBE || probe)) {
                 lastWrite = index;
                 lastMutation = step.request();
             }
@@ -125,13 +127,15 @@ final class BusinessSecurityValidator {
                         throw new BusinessSecurityException(
                                 "property-write probe requires an explicit body");
                     probe = true;
+                    primary = step.request();
+                    lastProbe = index;
                 }
             }
             if (step.phase() == Phase.VERIFY
                     && probe
                     && !step.assertions().isEmpty()
-                    && lastMutation != null
-                    && sameFixture(step.request(), lastMutation)) lastVerify = index;
+                    && sameFixture(step.request(), lastMutation == null ? primary : lastMutation))
+                lastVerify = index;
         }
         if (!probe || !control)
             throw new BusinessSecurityException("case needs control and matching probe");
@@ -144,7 +148,7 @@ final class BusinessSecurityValidator {
                                                         step.request()
                                                                 .method()
                                                                 .toUpperCase(Locale.ROOT)));
-        if (writes && lastVerify <= lastWrite)
+        if (writes && lastVerify <= Math.max(lastWrite, lastProbe))
             throw new BusinessSecurityException(
                     "business writes need subsequent persisted-state assertions");
         if (test.kind() == Kind.PROPERTY_READ

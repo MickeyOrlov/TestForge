@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.3",
+  "info": {"title": "Owned orders scenario example", "version": "1"},
+  "servers": [{"url": "https://ignored.example.invalid"}],
+  "paths": {
+    "/orders": {
+      "post": {
+        "operationId": "createOrder",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"price": {"type": "integer"}}}}}},
+        "responses": {"201": {"description": "Created", "content": {"application/json": {"schema": {"type": "object", "properties": {"id": {"type": "string"}, "price": {"type": "integer"}}}}},
+          "links": {"readCreated": {"operationId": "readOrder", "parameters": {"id": "$response.body#/id"}}}}}
+      }
+    },
+    "/orders/{id}": {
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
+      "get": {"operationId": "readOrder", "responses": {"200": {"description": "Owned order"}, "403": {"description": "Denied"}}},
+      "patch": {"operationId": "updateOrder", "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"price": {"type": "integer"}}}}}}, "responses": {"403": {"description": "Protected fields cannot be changed"}}},
+      "delete": {"operationId": "deleteOrder", "responses": {"204": {"description": "Owned disposable fixture removed"}}}
+    }
+  }
+}

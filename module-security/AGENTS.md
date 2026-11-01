@@ -44,3 +44,13 @@ Tenant aliases and all policy IDs/reasons are explicit non-sensitive metadata.
 Update `BusinessSecurityTest`, `BusinessSecurityExampleTest` and its JSON policy.
 Changing the business executor does not require ZAP acceptance unless the scanner
 or its transport also changed. Preserve the existing module dependency edges.
+
+Scenario drafts: `BusinessScenarioGraph` resolves only local Link metadata;
+`BusinessScenarioGenerator` never sends traffic, obtains credentials, enables
+probes or records coverage. Drafts retain empty expected statuses/assertions until
+project review. Never copy source examples/defaults, literal Link bodies, remote
+references or credentials into artifacts. Preserve ambiguity/cycle/budget refusal
+and the non-executable blocked-file behavior. Tests: BusinessScenarioGeneratorTest,
+BusinessScenarioGenerationExampleTest and the published business-security smoke.
+Setup controls may create collection resources; final verification binds to the
+primary fixture or last write probe, never an unrelated object.

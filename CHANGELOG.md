@@ -7,6 +7,16 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Offline business scenario drafts from local OpenAPI Links and reviewable path
+  hints: bounded dependency graphs, response/request value bindings, explicit
+  ambiguity/refusal reports, editable policy scaffolds, review/input requirements
+  and published-library wiring. Generation never earns security coverage.
+
+### Fixed
+- Business setup controls can create collection resources and feed captured IDs
+  into entity probes, while final state checks remain bound to the probe fixture.
+
+### Added
 - Business security policy suites over OpenAPI: protected fields, owner/foreign
   users, explicitly declared tenants, state transitions and replay with persisted
   state verification. No-traffic candidate sequences and complete operation ×

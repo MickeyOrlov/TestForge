@@ -332,7 +332,7 @@ Project philosophy, module maturity, completed work, and planned scope live in
 
 Release history is in [CHANGELOG.md](CHANGELOG.md).
 
-Business security policies, OpenAPI coverage and declared field/owner/tenant/state/replay checks are documented in [module-security](module-security/README.md).
+Business security policies, linked OpenAPI scenario drafts, coverage and declared field/owner/tenant/state/replay checks are documented in [module-security](module-security/README.md).
 
 ## License
 
