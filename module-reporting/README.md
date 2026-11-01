@@ -151,6 +151,16 @@ Separate JVMs (Gradle `maxParallelForks > 1`) generate separate runs. A fixed
 index then holds only the last JVM's artifacts: leave it unset there, or
 include the fork in it.
 
+A fixed `run-id` reused by the next build without `clean` reopens the same
+directory. The index stays right — `manifest.json` lists only what this run
+registered — but the earlier run's files are still on disk, and this run's
+run-wide summaries take the next free name (`http-summary-2.json`, …). Read
+the run through `manifest.json` / `summary.md`, never by listing the
+directory, or give each build its own `run-id` (the CI job id). Since 1.3
+more modules write there by default (`module-http`, `module-mock`,
+`module-flow`, contract guard): a test that asserts a module's directory is
+absent from the run depends on the previous build.
+
 ## Reading Failed Runs in CI Without Allure
 
 Allure is entirely optional. In standard CI environments (GitHub Actions, GitLab CI, Jenkins):
