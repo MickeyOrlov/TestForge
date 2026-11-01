@@ -53,8 +53,37 @@ JUnit-first; a project that does not use Gherkin deletes this module.
   `I remember the RabbitMQ message field … as …`.
 
 A timeout names the closest messages by position and failed criteria, as
-the probes do; no step prints a message body. Steps for the database and
-mocks follow ([plan](../docs/gherkin-layer-roadmap.md)).
+the probes do; no step prints a message body.
+
+- **`io.testforge.gherkin.db.DbSteps`** — over `DbState`:
+
+| Step | |
+|---|---|
+| `Then table "orders" has a row where "id" is "${orderId}"` | waits for it |
+| `Then table "orders" has a row where "id" is "…" and "status" is "PAID"` | |
+| `Then in table "orders" the row where "id" is "${orderId}" has "status" set to "PAID"` | waits for it |
+| `Then table "orders" has no row where "id" is "${orderId}-copy"` | watches `forge.gherkin.settle` |
+| `Given I watch table "orders" keyed by "id" where "customer_id" is "${customerId}"` | a snapshot of the scenario's rows |
+| `Then table "orders" has 1 added, 0 changed and 0 removed rows` | against the watched snapshot, the diff in the failure |
+| `Then table "orders" is unchanged` | |
+
+  Values compare with the column's text (`CAST(… AS VARCHAR)`, H2 and
+  PostgreSQL), so `"10.00"` matches a `NUMERIC(10,2)` the way the database
+  prints it. Table and column names must be plain identifiers and are not
+  quoted in the condition: a column named after a reserved word needs a
+  project step.
+
+- **`io.testforge.gherkin.mock.MockSteps`** — over `ScopedMockClient`, in the
+  scenario's own scope (`forge.mock.base-url`, `forge.mock.scope-*`):
+
+| Step | |
+|---|---|
+| `Given the mock answers GET "/stock/book" with 200:` + doc string | JSON bodies get `Content-Type: application/json` |
+| `Given the mock answers DELETE "/carts/${cartId}" with 204` | |
+| `Then the mock received 1 GET request to "/stock/book"` | counts this scenario's calls only |
+| `Then the mock received no POST request to "/stock/book"` | |
+
+  The scope closes after the scenario and its stubs go with it.
 
 ## Setup
 

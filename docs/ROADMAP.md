@@ -256,7 +256,8 @@ Target module: `module-gherkin` (optional)
   modules for teams that write feature files. Shipped: scenario lifecycle
   (scope and correlation id per scenario), `${name}` variables, HTTP steps.
   Shipped too: Kafka and RabbitMQ steps (publish, await, exactly one, none)
-  and run-unique variables. Next: database and mocks.
+  and run-unique variables; database steps (row exists / absent / changed
+  since watched) and scoped mock steps. Next: review.
 
 ### API Bootstrap Path
 

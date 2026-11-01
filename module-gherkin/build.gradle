@@ -13,6 +13,8 @@ dependencies {
     compileOnly project(":module-http")
     compileOnly project(":module-kafka")
     compileOnly project(":module-rabbitmq")
+    compileOnly project(":module-db")
+    compileOnly project(":module-mock")
 }
 
 dependencies {
@@ -20,5 +22,9 @@ dependencies {
     testImplementation project(":module-http")
     testImplementation project(":module-kafka")
     testImplementation project(":module-rabbitmq")
+    testImplementation project(":module-db")
+    testImplementation project(":module-mock")
+    testImplementation "org.springframework:spring-jdbc"
+    testRuntimeOnly "com.h2database:h2"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
