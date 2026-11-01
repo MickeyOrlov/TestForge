@@ -90,7 +90,9 @@ To reproduce a failure: rerun Schemathesis locally with the same `--seed`, and u
 Every generated case that breaks a check is a finding, so one broken operation
 easily produces dozens. They are grouped by check and operation —
 `ApiFuzzReport.findingGroups()` — and each run writes
-`<output-dir>/report.md`, which is the file to open first:
+`<output-dir>/report.md`, which is the file to open first, and
+`<output-dir>/findings.json`, the same groups (spec, key, check, operation,
+occurrences, accepted) for tools — `module-quality` scores robustness from it:
 
 ```text
 ## demo

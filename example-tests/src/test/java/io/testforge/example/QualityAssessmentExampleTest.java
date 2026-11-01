@@ -45,15 +45,24 @@ class QualityAssessmentExampleTest {
                   </testcase>
                 </testsuite>
                 """);
+        // module-security's findings, in its security-findings.json layout
+        write("artifacts/20261101T120000Z-ci-42/module-security/security-findings.json", """
+                {"formatVersion": 1, "measured": true, "findings": [
+                  {"id": "cookie-missing-httponly POST /login", "severity": "medium", "status": "new"}]}
+                """);
         write("artifacts/20261101T120000Z-ci-42/manifest.json", """
-                {"runId": "20261101T120000Z-ci-42", "artifactCount": 1, "reportingProblems": [],
+                {"runId": "20261101T120000Z-ci-42", "artifactCount": 2, "reportingProblems": [],
                  "artifacts": [{"source": "module-data", "category": "leftovers", "name": "leftovers.json",
-                                "metadata": {"healthy": "false", "leftovers": "1"}}]}
+                                "metadata": {"healthy": "false", "leftovers": "1"}},
+                               {"source": "module-security", "category": "security",
+                                "name": "security-findings.json",
+                                "path": "module-security/security-findings.json"}]}
                 """);
         registry.add("forge.quality.enabled", () -> "true");
         registry.add("forge.quality.junit-results", () -> RUN.resolve("results").toString());
         registry.add("forge.quality.artifacts-root", () -> RUN.resolve("artifacts").toString());
         registry.add("forge.quality.output-dir", () -> RUN.resolve("quality").toString());
+        registry.add("forge.quality.baseline-file", () -> RUN.resolve("baseline/quality-baseline.json").toString());
         // one flaky test in three is above any sane limit; 50% keeps this example at WARN
         registry.add("forge.quality.max-flaky-rate", () -> "0.5");
     }
@@ -79,16 +88,40 @@ class QualityAssessmentExampleTest {
         });
         assertThat(report.dimension(QualityDimension.HYGIENE)).get()
                 .extracting(QualityDimension::status).isEqualTo(QualityStatus.WARN);
+        assertThat(report.dimension(QualityDimension.SECURITY)).get().satisfies(security -> {
+            assertThat(security.status()).isEqualTo(QualityStatus.WARN);
+            assertThat(security.score()).isEqualTo(95);
+        });
+        // modules this run did not use say so instead of scoring as perfect
+        assertThat(report.dimension(QualityDimension.DATA)).get()
+                .extracting(QualityDimension::status).isEqualTo(QualityStatus.NOT_MEASURED);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("- overall: **FAIL**")
-                .contains("| stability | WARN | 67 | `100 × (1 − flaky / executed)` |");
+                .contains("| stability | WARN | 67 | — | 1 | `100 × (1 − flaky / executed)` |");
     }
 
     @Test
     void theGateNamesWhatFailed() {
         assertThatThrownBy(() -> quality.assertAcceptable())
                 .isInstanceOf(QualityException.class)
-                .hasMessageStartingWith("Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped)");
+                .hasMessageStartingWith("Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped, "
+                        + "new: io.acme.OrdersTest.refundsAnOrder())");
+    }
+
+    @Test
+    void aKnownFailureIsAcceptedOnceTheTeamHasDecided() throws IOException {
+        // a reviewed change promotes this run: its failing test is now known, not new
+        quality.writeBaseline();
+        try {
+            QualityReport report = quality.assertAcceptable();
+
+            assertThat(report.baselineRunId()).isEqualTo("20261101T120000Z-ci-42");
+            assertThat(report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().delta().knownIssues())
+                    .containsExactly("io.acme.OrdersTest.refundsAnOrder()");
+        } finally {
+            // the other examples judge this run without a baseline
+            Files.deleteIfExists(RUN.resolve("baseline/quality-baseline.json"));
+        }
     }
 
     private static void write(String relative, String content) throws IOException {
