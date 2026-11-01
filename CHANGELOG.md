@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Local structural reviews for business-security policies: per-case OpenAPI/schema/
+  Link impact, value-free snapshots, input/capture/cleanup preflight, explicit
+  review promotion and VALID/REVIEW_REQUIRED/INVALID JSON/Markdown assessments.
+  An opt-in gate blocks stale policies before HTTP without earning security
+  coverage. Includes local drift/review regressions and published-JAR verification.
+
+### Added
 - Offline business scenario drafts from local OpenAPI Links and reviewable path
   hints: bounded dependency graphs, response/request value bindings, explicit
   ambiguity/refusal reports, editable policy scaffolds, review/input requirements

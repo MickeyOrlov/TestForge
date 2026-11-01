@@ -14,12 +14,21 @@ import java.util.Set;
 /** Preflight the whole suite before controls, mutations or cleanup can send traffic. */
 final class BusinessSecurityValidator {
     private final BusinessSecurityProperties properties;
-    private final BusinessSecurityExchange exchange;
+    private final java.util.function.Predicate<String> knownRole;
+    private final java.util.function.Consumer<PreparedRequest> requestValidator;
 
     BusinessSecurityValidator(
             BusinessSecurityProperties properties, BusinessSecurityExchange exchange) {
+        this(properties, exchange::knownRole, exchange::validate);
+    }
+
+    BusinessSecurityValidator(
+            BusinessSecurityProperties properties,
+            java.util.function.Predicate<String> knownRole,
+            java.util.function.Consumer<PreparedRequest> requestValidator) {
         this.properties = properties;
-        this.exchange = exchange;
+        this.knownRole = knownRole;
+        this.requestValidator = requestValidator;
     }
 
     void validateCase(
@@ -48,9 +57,9 @@ final class BusinessSecurityValidator {
             captureCount += step.captures().size();
             if (captureCount > properties.maxSteps())
                 throw new BusinessSecurityException("too many business captures");
-            if (!ids.add(step.id()) || !exchange.knownRole(step.role()))
+            if (!ids.add(step.id()) || !knownRole.test(step.role()))
                 throw new BusinessSecurityException("duplicate step or unknown role");
-            exchange.validate(step.request());
+            requestValidator.accept(step.request());
             if (!operations.contains(
                     step.request().method().toUpperCase(Locale.ROOT)
                             + " "

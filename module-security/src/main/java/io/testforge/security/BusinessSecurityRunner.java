@@ -37,6 +37,7 @@ public class BusinessSecurityRunner implements AutoCloseable {
     private final ArtifactSink sink;
     private final BusinessSecurityExchange exchange;
     private final BusinessSecurityValidator validator;
+    private final BusinessPolicyRunner policies;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public BusinessSecurityRunner(
@@ -48,6 +49,20 @@ public class BusinessSecurityRunner implements AutoCloseable {
             SecurityProperties reports,
             SecurityCollector collector,
             ArtifactSink sink) {
+        this(properties, http, tokens, auth, secrets, reports, collector, sink, null);
+    }
+
+    public BusinessSecurityRunner(
+            BusinessSecurityProperties properties,
+            HttpProperties http,
+            TokenProvider tokens,
+            AuthProperties auth,
+            SecuritySecretRegistry secrets,
+            SecurityProperties reports,
+            SecurityCollector collector,
+            ArtifactSink sink,
+            BusinessPolicyRunner policies) {
+        this.policies = policies;
         this.properties = properties;
         this.reports = reports;
         this.collector = collector;
@@ -81,6 +96,8 @@ public class BusinessSecurityRunner implements AutoCloseable {
         if (!properties.enabled() || !properties.testEnvironment())
             throw new BusinessSecurityException(
                     "business probes need enabled and test-environment");
+        if (policies != null && policies.required())
+            policies.assertCurrent(document, suite, inputs.keySet());
         var operations = new OperationSelector().select("business", document);
         if ((long) operations.size() * suite.roles().size() * suite.checks().size()
                 > properties.maxCells())

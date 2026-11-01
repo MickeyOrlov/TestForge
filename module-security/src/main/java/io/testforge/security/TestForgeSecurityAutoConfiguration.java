@@ -22,9 +22,29 @@ import org.springframework.context.annotation.Bean;
     SecurityArtifactProperties.class,
     SecurityActiveProperties.class,
     BusinessSecurityProperties.class,
-    BusinessScenarioProperties.class
+    BusinessScenarioProperties.class,
+    BusinessPolicyProperties.class
 })
 public class TestForgeSecurityAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean
+    public BusinessPolicyRunner businessPolicyRunner(
+            BusinessPolicyProperties properties,
+            BusinessSecurityProperties business,
+            SecurityProperties reports,
+            ObjectProvider<io.testforge.auth.TokenProvider> tokens,
+            SecurityCollector collector,
+            ObjectProvider<ArtifactSink> sink) {
+        var provider = tokens.getIfAvailable();
+        return new BusinessPolicyRunner(
+                properties,
+                business,
+                reports,
+                provider == null ? java.util.Set.of() : provider.roles(),
+                collector,
+                sink.getIfAvailable(() -> ArtifactSink.NO_OP));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public BusinessScenarioGenerator businessScenarioGenerator(
@@ -43,6 +63,7 @@ public class TestForgeSecurityAutoConfiguration {
             havingValue = "true")
     public BusinessSecurityRunner businessSecurityRunner(
             BusinessSecurityProperties properties,
+            BusinessPolicyRunner policies,
             io.testforge.http.HttpProperties http,
             ObjectProvider<io.testforge.auth.TokenProvider> tokens,
             ObjectProvider<io.testforge.auth.AuthProperties> auth,
@@ -58,7 +79,8 @@ public class TestForgeSecurityAutoConfiguration {
                 secrets,
                 reports,
                 collector,
-                sink.getIfAvailable(() -> ArtifactSink.NO_OP));
+                sink.getIfAvailable(() -> ArtifactSink.NO_OP),
+                policies);
     }
 
     @Bean
@@ -179,22 +201,32 @@ public class TestForgeSecurityAutoConfiguration {
             ObjectProvider<ArtifactSink> sink,
             org.springframework.core.env.Environment environment) {
         java.util.function.Supplier<java.util.Set<String>> blocks =
-                () ->
-                        java.util.List.of(
-                                        "passive",
-                                        "auth",
-                                        "transport",
-                                        "artifacts-scan",
-                                        "active",
-                                        "business")
-                                .stream()
-                                .filter(
-                                        block ->
-                                                environment.getProperty(
-                                                        "forge.security." + block + ".enabled",
-                                                        Boolean.class,
-                                                        false))
-                                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                () -> {
+                    var enabled =
+                            java.util.List.of(
+                                            "passive",
+                                            "auth",
+                                            "transport",
+                                            "artifacts-scan",
+                                            "active",
+                                            "business")
+                                    .stream()
+                                    .filter(
+                                            block ->
+                                                    environment.getProperty(
+                                                            "forge.security." + block + ".enabled",
+                                                            Boolean.class,
+                                                            false))
+                                    .collect(
+                                            java.util.stream.Collectors.toCollection(
+                                                    java.util.TreeSet::new));
+                    if (environment.getProperty(
+                            "forge.security.business.policy.required", Boolean.class, false)) {
+                        enabled.add("business");
+                        enabled.add("business-policy");
+                    }
+                    return java.util.Set.copyOf(enabled);
+                };
         return new SecurityRunner(
                 p,
                 c,

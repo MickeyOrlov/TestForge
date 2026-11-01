@@ -10,6 +10,8 @@ import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.testforge.api.explorer.PreparedRequest;
 import io.testforge.http.TestForgeHttpAutoConfiguration;
+import io.testforge.security.BusinessPolicyReport;
+import io.testforge.security.BusinessPolicyRunner;
 import io.testforge.security.BusinessScenarioGenerator;
 import io.testforge.security.BusinessScenarioSeed;
 import io.testforge.security.BusinessSecurityRunner;
@@ -90,7 +92,59 @@ class PublishedBusinessSecuritySmokeTest {
                                     new Paths()
                                             .addPathItem(
                                                     "/public",
-                                                    new PathItem().get(new Operation())));
+                                                    new PathItem()
+                                                            .get(
+                                                                    new Operation()
+                                                                            .responses(
+                                                                                    new io.swagger
+                                                                                                    .v3
+                                                                                                    .oas
+                                                                                                    .models
+                                                                                                    .responses
+                                                                                                    .ApiResponses()
+                                                                                            .addApiResponse(
+                                                                                                    "200",
+                                                                                                    new io
+                                                                                                                    .swagger
+                                                                                                                    .v3
+                                                                                                                    .oas
+                                                                                                                    .models
+                                                                                                                    .responses
+                                                                                                                    .ApiResponse()
+                                                                                                            .content(
+                                                                                                                    new io
+                                                                                                                                    .swagger
+                                                                                                                                    .v3
+                                                                                                                                    .oas
+                                                                                                                                    .models
+                                                                                                                                    .media
+                                                                                                                                    .Content()
+                                                                                                                            .addMediaType(
+                                                                                                                                    "application/json",
+                                                                                                                                    new io
+                                                                                                                                                    .swagger
+                                                                                                                                                    .v3
+                                                                                                                                                    .oas
+                                                                                                                                                    .models
+                                                                                                                                                    .media
+                                                                                                                                                    .MediaType()
+                                                                                                                                            .schema(
+                                                                                                                                                    new io
+                                                                                                                                                                    .swagger
+                                                                                                                                                                    .v3
+                                                                                                                                                                    .oas
+                                                                                                                                                                    .models
+                                                                                                                                                                    .media
+                                                                                                                                                                    .ObjectSchema()
+                                                                                                                                                            .addProperty(
+                                                                                                                                                                    "message",
+                                                                                                                                                                    new io
+                                                                                                                                                                            .swagger
+                                                                                                                                                                            .v3
+                                                                                                                                                                            .oas
+                                                                                                                                                                            .models
+                                                                                                                                                                            .media
+                                                                                                                                                                            .StringSchema())))))))));
             new ApplicationContextRunner()
                     .withConfiguration(
                             AutoConfigurations.of(
@@ -101,7 +155,9 @@ class PublishedBusinessSecuritySmokeTest {
                             "forge.security.business.enabled=true",
                             "forge.security.business.test-environment=true",
                             "forge.security.business.allowed-hosts[0]=127.0.0.1",
-                            "forge.security.output-dir=" + dir)
+                            "forge.security.output-dir=" + dir,
+                            "forge.security.business.policy.required=true",
+                            "forge.security.business.policy.review-dir=" + dir.resolve("reviews"))
                     .run(
                             context -> {
                                 assertThat(context).hasNotFailed();
@@ -125,6 +181,12 @@ class PublishedBusinessSecuritySmokeTest {
                                         .isEqualTo("needs_review");
                                 assertThat(context.getBean(SecurityRunner.class).run().measured())
                                         .isFalse();
+                                var policies = context.getBean(BusinessPolicyRunner.class);
+                                assertThat(policies.assess(document, suite, Set.of()).status())
+                                        .isEqualTo(BusinessPolicyReport.Status.REVIEW_REQUIRED);
+                                policies.writeReview(document, suite, Set.of());
+                                assertThat(policies.assess(document, suite, Set.of()).status())
+                                        .isEqualTo(BusinessPolicyReport.Status.VALID);
                                 assertThat(
                                                 context.getBean(BusinessSecurityRunner.class)
                                                         .run(document, suite, Map.of())
