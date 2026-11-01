@@ -112,6 +112,13 @@ removed. When the test body already failed, the note is attached to that
 failure as suppressed instead of replacing it. Stubs registered for "just in
 case" paths belong in the defaults, not in a strict scope.
 
+Strict or not, every closed scope's leftovers are also counted for the run:
+with a run index (`forge.reporting.artifacts.enabled=true`),
+`module-mock/mock-summary.json` lists the unused stubs (with how many scopes
+left each one unused) and the scoped requests no stub answered (method and
+path only, no query or body), and `module-quality`'s `hygiene` dimension
+scores them. `forge.mock.summary.enabled=false` turns the summary off.
+
 ### A downstream that fails, then recovers
 
 To test the system's retries, answer the same request differently each time:

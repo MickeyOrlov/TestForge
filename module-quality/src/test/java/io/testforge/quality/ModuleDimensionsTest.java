@@ -153,6 +153,47 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void flowCoverageNamesTheTransitionsNoFlowTook() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-flow/flow-coverage.json", """
+                {"formatVersion": 1, "flows": [
+                  {"flow": "approval", "runs": 3, "declared": 4, "taken": ["A -> B", "B -> C"],
+                   "uncovered": ["B -> REJECTED", "C -> ESCALATED"]},
+                  {"flow": "undeclared", "runs": 1, "declared": 0, "taken": ["X -> Y"], "uncovered": []}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-flow", "category": "flow-coverage",
+                  "name": "flow-coverage.json", "path": "module-flow/flow-coverage.json"}]}""");
+
+        QualityDimension flows = runner().run().dimension(QualityDimension.FLOW_COVERAGE).orElseThrow();
+
+        assertThat(flows.status()).isEqualTo(QualityStatus.WARN);
+        assertThat(flows.score()).isEqualTo(50);
+        assertThat(flows.facts().getFirst()).isEqualTo("2 of 4 declared transitions taken across 1 flows");
+        assertThat(flows.issues()).containsExactly("flow approval B -> REJECTED", "flow approval C -> ESCALATED");
+    }
+
+    @Test
+    void hygieneCountsWhatTheMockScopesLeftOver() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-mock/mock-summary.json", """
+                {"formatVersion": 1, "scopes": 12, "stubs": 30, "scopesWithUnusedStubs": 2,
+                 "unusedStubs": [{"stub": "POST /refunds → 409", "scopes": 2}],
+                 "unmatchedRequests": [{"request": "POST /ledger", "count": 3}, {"request": "GET /limits", "count": 1}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-mock", "category": "mock-summary",
+                  "name": "mock-summary.json", "path": "module-mock/mock-summary.json"}]}""");
+
+        QualityDimension hygiene = runner().run().dimension(QualityDimension.HYGIENE).orElseThrow();
+
+        assertThat(hygiene.status()).isEqualTo(QualityStatus.WARN);
+        assertThat(hygiene.score()).as("100 − 5 × 1 unused stub − 5 × 2 unmatched requests").isEqualTo(85);
+        assertThat(hygiene.facts()).contains(
+                "1 stubs never called and 2 requests no stub answered, across 12 mock scopes (module-mock)");
+        assertThat(hygiene.issues()).containsExactly("unused stub POST /refunds → 409",
+                "unmatched request POST /ledger", "unmatched request GET /limits");
+    }
+
+    @Test
     void apiCoverageNamesTheOperationsNoTestCalled() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         file("artifacts/r/module-api-explorer/api-coverage.json", """
