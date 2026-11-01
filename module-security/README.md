@@ -99,7 +99,9 @@ negative responses. Missing controls, redirects not declared as denial, 429,
 JWT cases reuse module-auth's signer: expired, wrong signature, alg:none,
 unsigned role tampering, and wrong audience when an audience is declared.
 Session checks compare pre-login/post-login cookies and retry the saved cookie
-after the configured logout step. No cookie/token value enters findings.
+after the configured logout step, then drop the role's cached session, so the
+role's next request logs in again instead of using the logged-out cookie. No
+cookie/token value enters findings.
 
 Probes use ApiClient's base URL/timeouts and module-auth's filter/credential
 placement. They explicitly clear default headers/cookies/query credentials,
