@@ -63,7 +63,7 @@ a scope that the system under test splits across two fields).
 
 ## Priority 4: messaging abstraction beyond Kafka (in progress)
 
-Plan: [docs/messaging-layer-roadmap.md](docs/messaging-layer-roadmap.md). The neutral core is in `core`; RabbitMQ is next.
+Plan: [docs/messaging-layer-roadmap.md](docs/messaging-layer-roadmap.md). The neutral core is in `core`; `module-rabbitmq` is the second adapter. Next: one failure-diagnostics renderer for both.
 
 **Modules:** `module-kafka`, possible future `module-messaging`
 

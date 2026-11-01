@@ -22,6 +22,7 @@ module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
+module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; publisher with confirms
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
 module-web/    PrewarmRunner — warm key pages once per suite
@@ -174,7 +175,11 @@ must not replace each other. `example-tests` is never published.
    broker access. Use `KafkaProbe` to find messages by topic/key/header/JSON
    path; shape checks compose with `module-contract` (await the message, then
    `assertValid` its value) — never reintroduce a hard dependency between the
-   two modules.
+   two modules. On RabbitMQ, **module-rabbitmq** does the same: list the
+   exchanges in `forge.rabbitmq.bindings` (routing key `#` on a topic
+   exchange), enable `forge.rabbitmq.enabled` only where the broker is
+   reachable; its queue is its own, so it never takes a service's messages.
+   Delete whichever broker module the product does not use.
 17. **module-reporting**: enable `forge.reporting.artifacts.enabled=true` in
    CI profiles to collect run diagnostics into a unified directory
    (`build/testforge-artifacts/<run-id>/`) with a `manifest.json` and `summary.md`

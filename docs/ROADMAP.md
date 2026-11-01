@@ -214,9 +214,10 @@ Target module: `module-mock`
 Target modules: `module-kafka`, possible future `module-messaging`
 
 - In progress ([plan](messaging-layer-roadmap.md)): RabbitMQ as the second
-  adapter. Step 1 shipped: the broker-neutral probe, buffer and criteria live
-  in `core` (`io.testforge.core.messaging`) and `module-kafka` is rebuilt on
-  them without an API change.
+  adapter. Shipped: the broker-neutral probe, buffer and criteria in `core`
+  (`io.testforge.core.messaging`), `module-kafka` rebuilt on them without an
+  API change, and `module-rabbitmq` (collector on a queue of its own,
+  probe, confirmed publisher). Next: shared failure diagnostics.
 - Keep Kafka as the first concrete implementation.
 - Preserve separation between message collection and contract validation.
 

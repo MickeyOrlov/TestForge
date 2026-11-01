@@ -149,6 +149,14 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-rabbitmq`: the second broker adapter. `RabbitCollector` reads a
+  server-named, exclusive, auto-deleted queue of its own bound to
+  `forge.rabbitmq.bindings`, so it never takes a service's messages;
+  `RabbitProbe` / `RabbitMessageFilter` wait by exchange, routing key,
+  header, body fragment or JSON path (exactly one, none within a window);
+  `RabbitPublisher` publishes with the scenario's scope and correlation
+  headers, waits for the confirm and fails on an unroutable message.
+  `RabbitMqProbeIT` runs it against RabbitMQ 4.1 (`containersTest`).
 - `core`: `io.testforge.core.messaging` — `BrokerMessage`, `MessageBuffer`,
   `MessageCriteria`, `MessageQuery` and `MessageProbe`, the broker-neutral
   part of `module-kafka` (buffer, criteria, await / exactly one / none within
