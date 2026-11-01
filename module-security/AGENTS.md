@@ -54,3 +54,11 @@ and the non-executable blocked-file behavior. Tests: BusinessScenarioGeneratorTe
 BusinessScenarioGenerationExampleTest and the published business-security smoke.
 Setup controls may create collection resources; final verification binds to the
 primary fixture or last write probe, never an unrelated object.
+
+Policy validity: BusinessPolicyRunner/Preflight/ContractSnapshotter. Inspection is
+metadata-only; only writeReview changes review files. Default required=false.
+Never persist/hash actual literals/observations; document structural comparison
+limits. Required guard + business execution must both be observed. Preflight
+failure must precede HTTP and produce incomplete coverage, never a finding that
+can be baseline-accepted. Keep dependency-level impact and explicit file promotion.
+Tests: BusinessPolicyTest, BusinessPolicyValidityExampleTest, published consumer.

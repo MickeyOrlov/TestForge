@@ -398,3 +398,21 @@ Setup controls may create a resource at a collection URL, capture its ID and
 read the resulting entity. Cases with write setup still need final state
 assertions for the primary fixture after the probe. State checks for write
 probes and any subsequent mutation must address the same bound fixture.
+
+## Reviewed policy validity
+
+`BusinessPolicyRunner.assess(document, suite, inputNames)` reports VALID,
+REVIEW_REQUIRED or INVALID without HTTP or reading input values. Only an explicit
+`writeReview` updates its value-free structural snapshot. Used contract/schema/
+Link changes affect dependent cases; unrelated schemas do not invalidate them.
+
+Enable `forge.security.business.policy.required=true` and configure `review-dir`
+to guard business runs before the first request. Missing bindings, stale capture
+pointers, invalid cleanup dependencies and incomplete coverage cannot pass the
+selected gate, even if another block measured successfully. Static checks earn
+no security measurements. Review files should be project-controlled inputs.
+
+See [policy validity](../docs/business-policy-validity.md) for configuration,
+limits, report locations and the explicit review workflow. Expected literal
+values and enum/constraint contents are not retained or fingerprinted: changes
+to those business rules require a new policy version and project review.
