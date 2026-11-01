@@ -69,3 +69,47 @@ are explicit incomplete coverage and cannot pass assertAcceptable.
 Passive reporting is explicit (`run`/`assertAcceptable`); call the gate before
 uploading CI artifacts. Module removal leaves the rest of the template usable.
 Example: `SecurityPassiveExampleTest`.
+
+## B2: explicit authentication and access probes
+
+```yaml
+forge:
+  security:
+    auth:
+      enabled: true
+      allowed-hosts: [127.0.0.1, api.staging.example.test:8443]
+      max-requests: 1000
+      denied-statuses: [401, 403] # add 404 or a login redirect only when policy explicitly uses them
+      write-checks: false
+      allow-unsafe-methods: false
+```
+
+`SecurityAuthRunner` exposes `unauthenticated(PreparedRequest)`,
+`securedOperations(specId, OpenAPI, ApiExplorerProperties)`,
+`jwtRejections(request, localJwtRole, requiredAudience)`,
+`objectAccess(request, ownerRole, otherRole)`, `session(role, preLogin, logout,
+protectedResource)`, `malformed(request)` and `accessMatrix(existingReport)`.
+The last method consumes the existing matrix result without sending more traffic.
+OpenAPI parsing/operation selection/request planning reuse the existing modules.
+
+The project supplies owned fixtures/tenant roles through its write chains.
+BOLA/JWT/session checks require a successful positive control before interpreting
+negative responses. Missing controls, redirects not declared as denial, 429,
+5xx and transport failures are incomplete coverage, never successful protection.
+JWT cases reuse module-auth's signer: expired, wrong signature, alg:none,
+unsigned role tampering, and wrong audience when an audience is declared.
+Session checks compare pre-login/post-login cookies and retry the saved cookie
+after the configured logout step, then drop the role's cached session, so the
+role's next request logs in again instead of using the logged-out cookie. No
+cookie/token value enters findings.
+
+Probes use ApiClient's base URL/timeouts and module-auth's filter/credential
+placement. They explicitly clear default headers/cookies/query credentials,
+custom filters/retries and automatic redirects so anonymous and invalid-token
+checks cannot accidentally inherit a valid credential. Project-specific signing
+filters are therefore not applied to probes; missing project prerequisites
+must be supplied explicitly in PreparedRequest data, not inferred. Use only
+configured, disposable test fixtures. Every non-GET/HEAD/OPTIONS request needs
+both write keys. An exact host allowlist is required before any probe request.
+Example: SecurityAuthExampleTest. Auth probe collection is explicit; call
+SecurityRunner afterward to write/gate the shared report.

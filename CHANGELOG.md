@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-security` B2: bounded, allowlisted authentication/access probes using
+  existing roles, JWT signer, request planner and access matrix. Explicit
+  fixture ownership, positive controls and two-key write permission; session
+  rotation/logout and malformed-request fixtures share the value-free report.
+
+
+### Added
 - `module-security`: opt-in passive API checks, value-free findings and coverage,
   explicit gates/baselines and Markdown/JSON/SARIF reports in the run index.
 
