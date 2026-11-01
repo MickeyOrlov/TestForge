@@ -543,3 +543,12 @@ orders.customer_id: foreign key points to legacy_customers.id but the mapping ex
   database.
 - `missingColumns` keeps its old narrow meaning and does NOT return type or nullability findings — use `schemaDrift` for everything.
 
+## Run-wide query summary
+
+With `forge.db.queries.enabled=true`, `DbQuerySummary` aggregates every
+statement of the run by shape (literals folded): count, failures — one the
+application swallowed included — max and total time, whether it wrote every
+row of a table, and whether it ran over `forge.db.queries.slow-millis`
+(default 1000). With module-reporting it writes `db-queries.json` to the run
+index when the context stops; module-quality turns it into the db-queries
+dimension. Only shapes are kept, never a parameter; at most 1000 shapes.

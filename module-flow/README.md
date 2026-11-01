@@ -97,6 +97,9 @@ Report-only (`healthy: true`, `uncovered` as metadata): a green suite that
 never exercised the manager review is a gap to read about. Name runners
 (`create("approval", steps)`) so coverage adds up; only declared transitions
 count. `flowRunnerFactory.coverage()` gives the same in a test.
+`flow-coverage.json` beside it carries the same entries for
+`module-quality`'s `flow-coverage` dimension (WARN while a declared
+transition is untaken).
 
 Branching example: put `role` or `amount` into `FlowContext` in a setup hook,
 then let the step at `SUBMITTED` return `OPERATOR_REVIEW` or `MANAGER_REVIEW`

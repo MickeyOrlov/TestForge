@@ -52,6 +52,7 @@ public class MockScope implements AutoCloseable {
     private final List<StubMapping> stubs = new CopyOnWriteArrayList<>();
     private final AtomicInteger sequences = new AtomicInteger();
     private final boolean failOnUnusedStubs;
+    private final MockSummary summary;
     private final java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
 
     MockScope(WireMock wireMock, String scopeJsonPath, String scopeId) {
@@ -68,6 +69,11 @@ public class MockScope implements AutoCloseable {
 
     MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink,
               boolean failOnUnusedStubs) {
+        this(wireMock, marker, scopeId, artifactSink, failOnUnusedStubs, null);
+    }
+
+    MockScope(WireMock wireMock, ScopeMarker marker, String scopeId, ArtifactSink artifactSink,
+              boolean failOnUnusedStubs, MockSummary summary) {
         if (scopeId == null || scopeId.isBlank()) {
             // a blank id would match every request that carries no scope at all
             throw new IllegalArgumentException("A mock scope needs a non-blank id");
@@ -77,6 +83,7 @@ public class MockScope implements AutoCloseable {
         this.scopeId = scopeId;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
         this.failOnUnusedStubs = failOnUnusedStubs;
+        this.summary = summary;
     }
 
     public String scopeId() {
@@ -205,7 +212,8 @@ public class MockScope implements AutoCloseable {
      * Publishes diagnostics and removes this scope's stubs. With
      * {@code forge.mock.fail-on-unused-stubs}, then fails if any stub was never
      * called — after the stubs are gone, so the shared server stays clean, and
-     * as a suppressed exception when the test body already failed.
+     * as a suppressed exception when the test body already failed. The
+     * scope's leftovers also go to the run's {@link MockSummary}.
      */
     @Override
     public void close() {
@@ -213,24 +221,29 @@ public class MockScope implements AutoCloseable {
             // a second close (an after-hook behind try-with-resources) must not publish an empty artifact over the real one
             return;
         }
-        List<String> unused = failOnUnusedStubs ? unusedStubs() : List.of();
+        boolean publishing = artifactSink != ArtifactSink.NO_OP;
+        List<String> unused = failOnUnusedStubs || publishing ? unusedStubs() : List.of();
         try {
-            publishDiagnostics();
+            List<String> unmatched = publishDiagnostics(unused);
+            if (summary != null && publishing) {
+                summary.record(stubs.size(), unused, unmatched);
+            }
         } catch (Throwable t) {
             // Best-effort: diagnostic publishing failures must never fail a test or mask a mock failure.
         } finally {
             stubs.forEach(wireMock::removeStubMapping);
             stubs.clear();
         }
-        if (!unused.isEmpty()) {
+        if (failOnUnusedStubs && !unused.isEmpty()) {
             throw new AssertionError("Scope " + scopeId + ": stubs the scenario never called — it took another "
                     + "path than the test assumed: " + unused);
         }
     }
 
-    private void publishDiagnostics() {
+    /** @return this scope's unmatched requests as {@code METHOD /path} */
+    private List<String> publishDiagnostics(List<String> unused) {
         if (artifactSink == null || artifactSink == ArtifactSink.NO_OP) {
-            return;
+            return List.of();
         }
 
         ObjectNode root = MAPPER.createObjectNode();
@@ -281,9 +294,9 @@ public class MockScope implements AutoCloseable {
         }
         root.put("stubCount", stubs.size());
         ArrayNode unusedArray = root.putArray("unusedStubs");
-        unusedStubs().forEach(unusedArray::add);
+        unused.forEach(unusedArray::add);
 
-        publishScopedUnmatchedRequests(root);
+        List<String> unmatched = publishScopedUnmatchedRequests(root);
 
         String jsonContent;
         try {
@@ -299,6 +312,7 @@ public class MockScope implements AutoCloseable {
                 "application/json",
                 jsonContent
         );
+        return unmatched;
     }
 
     /**
@@ -322,8 +336,9 @@ public class MockScope implements AutoCloseable {
      * stored — only method, url, loggedDate, and non-sensitive mismatch metadata are
      * recorded, preserving the no-payload guarantee above.
      */
-    private void publishScopedUnmatchedRequests(ObjectNode root) {
+    private List<String> publishScopedUnmatchedRequests(ObjectNode root) {
         ArrayNode unmatchedArray = root.putArray("unmatchedRequests");
+        List<String> unmatched = new java.util.ArrayList<>();
         int count = 0;
         try {
             for (LoggedRequest req : wireMock.findAllUnmatchedRequests()) {
@@ -348,11 +363,14 @@ public class MockScope implements AutoCloseable {
                 } catch (Throwable ignored) {
                     // Best-effort: an unexplainable request still gets its method/url/loggedDate.
                 }
+                unmatched.add((req.getMethod() == null ? "ANY" : req.getMethod().getName()) + " "
+                        + (req.getUrl() == null ? "?" : req.getUrl().replaceFirst("[?#].*", "")));
                 count++;
             }
         } catch (Throwable ignored) {
             // Best-effort: diagnostics must never fail a test.
         }
         root.put("unmatchedCount", count);
+        return unmatched;
     }
 }

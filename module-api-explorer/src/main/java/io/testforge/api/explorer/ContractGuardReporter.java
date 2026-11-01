@@ -81,9 +81,18 @@ public class ContractGuardReporter implements SmartLifecycle {
         Path file = sink.directoryFor(SOURCE).resolve("api-coverage.md");
         Files.createDirectories(file.getParent());
         Files.writeString(file, out.toString(), java.nio.charset.StandardCharsets.UTF_8);
-        sink.registerFile(SOURCE, "api-coverage", "api-coverage.md", file, "text/markdown",
-                Map.of("healthy", "true", "uncalled", String.valueOf(coverage.uncalled().size()),
-                        "documented", String.valueOf(coverage.documented())));
+        Map<String, String> metadata = Map.of("healthy", "true", "uncalled",
+                String.valueOf(coverage.uncalled().size()), "documented", String.valueOf(coverage.documented()));
+        sink.registerFile(SOURCE, "api-coverage", "api-coverage.md", file, "text/markdown", metadata);
+        // the same for module-quality's api-coverage dimension
+        Map<String, Object> json = new LinkedHashMap<>();
+        json.put("formatVersion", 1);
+        json.put("documented", coverage.documented());
+        json.put("called", coverage.called());
+        json.put("uncalled", coverage.uncalled());
+        Path data = sink.directoryFor(SOURCE).resolve("api-coverage.json");
+        new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(data.toFile(), json);
+        sink.registerFile(SOURCE, "api-coverage", "api-coverage.json", data, "application/json", metadata);
     }
 
     @Override

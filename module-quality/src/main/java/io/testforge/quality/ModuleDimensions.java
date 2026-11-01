@@ -239,6 +239,173 @@ final class ModuleDimensions {
     }
 
     /**
+     * Operations that answered 5xx or failed in transport during the run (module-http's traffic
+     * summary) — including those a test expected or swallowed: the suite passing does not mean the
+     * service did.
+     */
+    static QualityDimension reliability(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-http", "http-summary", "http-summary.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.RELIABILITY,
+                    "no http-summary.json (module-http) in the run");
+        }
+        long requests = 0;
+        long failed = 0;
+        List<String> issues = new ArrayList<>();
+        List<String> facts = new ArrayList<>();
+        for (JsonNode report : reports) {
+            for (JsonNode operation : report.path("operations")) {
+                long count = operation.path("requests").asLong();
+                long errors = operation.path("status").path("5xx").asLong() + operation.path("transportErrors").asLong();
+                requests += count;
+                failed += errors;
+                if (errors > 0) {
+                    String name = operation.path("operation").asText();
+                    issues.add(name);
+                    if (issues.size() <= LISTED) {
+                        facts.add("server error: " + name + " " + errors + " of " + count
+                                + " requests answered 5xx or failed in transport");
+                    }
+                }
+            }
+        }
+        if (requests == 0) {
+            return QualityDimension.notMeasured(QualityDimension.RELIABILITY, "no HTTP request in the run");
+        }
+        facts.addFirst(requests + " HTTP requests, " + failed + " answered 5xx or failed in transport, across "
+                + issues.size() + " operations");
+        return new QualityDimension(QualityDimension.RELIABILITY, issues.isEmpty() ? QualityStatus.PASS
+                : QualityStatus.FAIL, Math.round(100f * (requests - failed) / requests),
+                "100 × requests without 5xx / requests", facts).withIssues(issues);
+    }
+
+    /**
+     * The run's statements by shape (module-db's query summary): one that failed — swallowed by the
+     * application or not — or wrote every row of a table fails; one over the slow threshold warns.
+     */
+    static QualityDimension dbQueries(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-db", "db-queries", "db-queries.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.DB_QUERIES,
+                    "no db-queries.json (module-db with forge.db.queries.enabled=true) in the run");
+        }
+        long statements = 0;
+        int shapes = 0;
+        boolean failing = false;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            statements += report.path("statements").asLong();
+            for (JsonNode shape : report.path("shapes")) {
+                shapes++;
+                String sql = shape.path("shape").asText();
+                if (shape.path("errors").asLong() > 0) {
+                    issues.add("failed " + sql);
+                    failing = true;
+                }
+                if (shape.path("unboundedWrite").asBoolean()) {
+                    issues.add("unbounded " + sql);
+                    failing = true;
+                }
+                if (shape.path("slow").asBoolean()) {
+                    issues.add("slow " + sql);
+                }
+            }
+        }
+        List<String> facts = new ArrayList<>();
+        facts.add(statements + " statements in " + shapes + " shapes, " + issues.size() + " flagged");
+        list(facts, "statement", issues);
+        return new QualityDimension(QualityDimension.DB_QUERIES, failing ? QualityStatus.FAIL
+                : issues.isEmpty() ? QualityStatus.PASS : QualityStatus.WARN, Math.max(0, 100 - 10 * issues.size()),
+                "100 − 10 × flagged statement shapes", facts).withIssues(issues);
+    }
+
+    /**
+     * Documented operations the suite never called (module-api-explorer's contract guard): the parts of
+     * the API no test looks at. WARN while any is uncalled, FAIL below {@code min-api-coverage}.
+     */
+    static QualityDimension apiCoverage(RunIndex index, ObjectMapper mapper, Double minimum) {
+        List<JsonNode> reports = reports(index, "module-api-explorer", "api-coverage", "api-coverage.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.API_COVERAGE,
+                    "no api-coverage.json (module-api-explorer contract guard) in the run");
+        }
+        int documented = 0;
+        int called = 0;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            documented += report.path("documented").asInt();
+            called += report.path("called").size();
+            report.path("uncalled").forEach(operation -> issues.add(operation.asText()));
+        }
+        if (documented == 0) {
+            return QualityDimension.notMeasured(QualityDimension.API_COVERAGE, "no documented operations");
+        }
+        double share = (double) called / documented;
+        List<String> facts = new ArrayList<>();
+        facts.add(called + " of " + documented + " documented operations called by the suite"
+                + (minimum == null ? "" : " (minimum " + Math.round(minimum * 100) + "%)"));
+        list(facts, "never called", issues);
+        QualityStatus status = minimum != null && share < minimum ? QualityStatus.FAIL
+                : issues.isEmpty() ? QualityStatus.PASS : QualityStatus.WARN;
+        return new QualityDimension(QualityDimension.API_COVERAGE, status, (int) Math.round(100 * share),
+                "100 × called / documented operations", facts).withIssues(issues);
+    }
+
+    /**
+     * Declared state-machine transitions no flow took during the run (module-flow's coverage): the
+     * branches no test walks. WARN while any is untaken — a gap to read about, not a broken product.
+     */
+    static QualityDimension flowCoverage(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-flow", "flow-coverage", "flow-coverage.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
+                    "no flow-coverage.json (module-flow) in the run");
+        }
+        int declared = 0;
+        int flows = 0;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            for (JsonNode flow : report.path("flows")) {
+                if (flow.path("declared").asInt() == 0) {
+                    continue;
+                }
+                flows++;
+                declared += flow.path("declared").asInt();
+                String name = flow.path("flow").asText();
+                flow.path("uncovered").forEach(edge -> issues.add("flow " + name + " " + edge.asText()));
+            }
+        }
+        if (declared == 0) {
+            return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
+                    "no flow in the run declares its transitions");
+        }
+        List<String> facts = new ArrayList<>();
+        facts.add((declared - issues.size()) + " of " + declared + " declared transitions taken across " + flows
+                + " flows");
+        list(facts, "never taken", issues);
+        return new QualityDimension(QualityDimension.FLOW_COVERAGE, issues.isEmpty() ? QualityStatus.PASS
+                : QualityStatus.WARN, Math.round(100f * (declared - issues.size()) / declared),
+                "100 × taken / declared transitions", facts).withIssues(issues);
+    }
+
+    /** What the run's mock scopes left over (module-mock's summary); empty without a summary. */
+    record MockLeftovers(boolean measured, long scopes, List<String> unusedStubs, List<String> unmatched) {
+    }
+
+    static MockLeftovers mockLeftovers(RunIndex index, ObjectMapper mapper) {
+        List<JsonNode> reports = reports(index, "module-mock", "mock-summary", "mock-summary.json", mapper);
+        long scopes = 0;
+        List<String> unused = new ArrayList<>();
+        List<String> unmatched = new ArrayList<>();
+        for (JsonNode report : reports) {
+            scopes += report.path("scopes").asLong();
+            report.path("unusedStubs").forEach(stub -> unused.add(stub.path("stub").asText()));
+            report.path("unmatchedRequests").forEach(request -> unmatched.add(request.path("request").asText()));
+        }
+        return new MockLeftovers(!reports.isEmpty(), scopes, unused, unmatched);
+    }
+
+    /**
      * A security run whose coverage is whole: enabled, measured, not marked
      * incomplete, no {@code not_measured} coverage row, and something actually
      * measured (or an explicit {@code complete} flag).

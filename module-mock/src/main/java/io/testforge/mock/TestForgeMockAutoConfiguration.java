@@ -17,7 +17,8 @@ public class TestForgeMockAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ScopedMockClient scopedMockClient(MockProperties properties, ObjectProvider<ArtifactSink> artifactSinkProvider) {
+    public ScopedMockClient scopedMockClient(MockProperties properties, ObjectProvider<ArtifactSink> artifactSinkProvider,
+                                             ObjectProvider<MockSummary> summary) {
         URI uri = URI.create(properties.baseUrl());
         String scheme = uri.getScheme() == null ? "http" : uri.getScheme();
         int port = uri.getPort() != -1 ? uri.getPort() : ("https".equals(scheme) ? 443 : 80);
@@ -29,6 +30,15 @@ public class TestForgeMockAutoConfiguration {
                 .build();
 
         ArtifactSink artifactSink = artifactSinkProvider.getIfAvailable(() -> ArtifactSink.NO_OP);
-        return new ScopedMockClient(wireMock, properties.scopeMarker(), artifactSink, properties.failOnUnusedStubs());
+        return new ScopedMockClient(wireMock, properties.scopeMarker(), artifactSink, properties.failOnUnusedStubs(),
+                summary.getIfAvailable());
+    }
+
+    /** Unused stubs and unmatched requests of the run, for module-quality's hygiene dimension. */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.mock.summary", name = "enabled", matchIfMissing = true)
+    public MockSummary mockSummary(ObjectProvider<ArtifactSink> artifactSinkProvider) {
+        return new MockSummary(artifactSinkProvider.getIfAvailable(() -> ArtifactSink.NO_OP));
     }
 }

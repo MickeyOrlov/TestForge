@@ -111,6 +111,112 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void reliabilityCountsServerErrorsEvenWhenTheTestsPassed() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 8, "status": {"2xx": 7, "5xx": 1}, "transportErrors": 0},
+                  {"operation": "POST /orders", "requests": 2, "status": {"2xx": 1}, "transportErrors": 1},
+                  {"operation": "GET /health", "requests": 10, "status": {"2xx": 10}, "transportErrors": 0}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-http", "category": "http-summary",
+                  "name": "http-summary.json", "path": "module-http/http-summary.json"}]}""");
+
+        QualityDimension reliability = runner().run().dimension(QualityDimension.RELIABILITY).orElseThrow();
+
+        assertThat(reliability.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(reliability.score()).isEqualTo(90);
+        assertThat(reliability.issues()).containsExactly("GET /orders/{n}", "POST /orders");
+        assertThat(reliability.facts().getFirst())
+                .isEqualTo("20 HTTP requests, 2 answered 5xx or failed in transport, across 2 operations");
+    }
+
+    @Test
+    void dbQueriesFlagFailedUnboundedAndSlowShapes() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-db/db-queries.json", """
+                {"formatVersion": 1, "statements": 40, "shapes": [
+                  {"shape": "SELECT * FROM orders WHERE id = ?", "count": 30, "errors": 0, "unboundedWrite": false, "slow": false},
+                  {"shape": "INSERT INTO customers VALUES (?)", "count": 5, "errors": 1, "unboundedWrite": false, "slow": false},
+                  {"shape": "UPDATE orders SET status = ?", "count": 1, "errors": 0, "unboundedWrite": true, "slow": false},
+                  {"shape": "SELECT * FROM report_view", "count": 4, "errors": 0, "unboundedWrite": false, "slow": true}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-db", "category": "db-queries",
+                  "name": "db-queries.json", "path": "module-db/db-queries.json"}]}""");
+
+        QualityDimension queries = runner().run().dimension(QualityDimension.DB_QUERIES).orElseThrow();
+
+        assertThat(queries.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(queries.score()).isEqualTo(70);
+        assertThat(queries.issues()).containsExactly("failed INSERT INTO customers VALUES (?)",
+                "unbounded UPDATE orders SET status = ?", "slow SELECT * FROM report_view");
+    }
+
+    @Test
+    void flowCoverageNamesTheTransitionsNoFlowTook() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-flow/flow-coverage.json", """
+                {"formatVersion": 1, "flows": [
+                  {"flow": "approval", "runs": 3, "declared": 4, "taken": ["A -> B", "B -> C"],
+                   "uncovered": ["B -> REJECTED", "C -> ESCALATED"]},
+                  {"flow": "undeclared", "runs": 1, "declared": 0, "taken": ["X -> Y"], "uncovered": []}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-flow", "category": "flow-coverage",
+                  "name": "flow-coverage.json", "path": "module-flow/flow-coverage.json"}]}""");
+
+        QualityDimension flows = runner().run().dimension(QualityDimension.FLOW_COVERAGE).orElseThrow();
+
+        assertThat(flows.status()).isEqualTo(QualityStatus.WARN);
+        assertThat(flows.score()).isEqualTo(50);
+        assertThat(flows.facts().getFirst()).isEqualTo("2 of 4 declared transitions taken across 1 flows");
+        assertThat(flows.issues()).containsExactly("flow approval B -> REJECTED", "flow approval C -> ESCALATED");
+    }
+
+    @Test
+    void hygieneCountsWhatTheMockScopesLeftOver() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-mock/mock-summary.json", """
+                {"formatVersion": 1, "scopes": 12, "stubs": 30, "scopesWithUnusedStubs": 2,
+                 "unusedStubs": [{"stub": "POST /refunds → 409", "scopes": 2}],
+                 "unmatchedRequests": [{"request": "POST /ledger", "count": 3}, {"request": "GET /limits", "count": 1}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-mock", "category": "mock-summary",
+                  "name": "mock-summary.json", "path": "module-mock/mock-summary.json"}]}""");
+
+        QualityDimension hygiene = runner().run().dimension(QualityDimension.HYGIENE).orElseThrow();
+
+        assertThat(hygiene.status()).isEqualTo(QualityStatus.WARN);
+        assertThat(hygiene.score()).as("100 − 5 × 1 unused stub − 5 × 2 unmatched requests").isEqualTo(85);
+        assertThat(hygiene.facts()).contains(
+                "1 stubs never called and 2 requests no stub answered, across 12 mock scopes (module-mock)");
+        assertThat(hygiene.issues()).containsExactly("unused stub POST /refunds → 409",
+                "unmatched request POST /ledger", "unmatched request GET /limits");
+    }
+
+    @Test
+    void apiCoverageNamesTheOperationsNoTestCalled() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-api-explorer/api-coverage.json", """
+                {"formatVersion": 1, "documented": 4,
+                 "called": {"demo GET /tasks": 3, "demo GET /tasks/{id}": 1},
+                 "uncalled": ["demo POST /tasks", "demo DELETE /tasks/{id}"]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-api-explorer", "category": "api-coverage",
+                  "name": "api-coverage.json", "path": "module-api-explorer/api-coverage.json"}]}""");
+
+        QualityDimension coverage = new QualityRunner(new QualityProperties(true,
+                List.of(dir.resolve("results").toString()), dir.resolve("artifacts").toString(), null,
+                dir.resolve("quality").toString(), 0.02, null, null, null, null, null, null, 0.8),
+                new ObjectMapper(), ArtifactSink.NO_OP).run().dimension(QualityDimension.API_COVERAGE).orElseThrow();
+
+        assertThat(coverage.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(coverage.score()).isEqualTo(50);
+        assertThat(coverage.facts().getFirst()).isEqualTo("2 of 4 documented operations called by the suite "
+                + "(minimum 80%)");
+        assertThat(coverage.issues()).containsExactly("demo POST /tasks", "demo DELETE /tasks/{id}");
+    }
+
+    @Test
     void aReportInAnUnknownFormatIsNotMeasuredRatherThanReadAsZero() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         file("artifacts/r/module-api-fuzz/findings.json",

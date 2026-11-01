@@ -17,6 +17,23 @@ semantic versioning for its git tags.
   into entity probes, while final state checks remain bound to the probe fixture.
 
 ### Added
+- `module-mock`: `MockSummary` — every closed scope's stubs no request hit
+  and scoped requests no stub answered, counted for the run and written as
+  `mock-summary.json` to the run index (`forge.mock.summary.enabled`, on by
+  default). `module-quality`: `hygiene` scores them, WARN only.
+- `module-flow`: `flow-coverage.json` beside `flow-coverage.md`.
+  `module-quality`: `flow-coverage` dimension — declared transitions no
+  flow took, WARN only.
+- `module-db`: `DbQuerySummary` — with `forge.db.queries.enabled`, every
+  statement of the run aggregated by shape (count, failures, time, unbounded
+  write, slow), written as `db-queries.json` to the run index.
+  `module-quality`: `db-queries` dimension from it — FAIL on a failed or
+  unbounded statement, WARN on a slow one.
+- `module-http`: `HttpTrafficSummary` — per operation (method and path
+  shape), requests, status classes, transport failures and p50 / p95 / max
+  latency, written as `http-summary.json` to the run index.
+  `module-quality`: `reliability` dimension from it — operations that
+  answered 5xx or failed in transport, even where the test expected it.
 - Business security policy suites over OpenAPI: protected fields, owner/foreign
   users, explicitly declared tenants, state transitions and replay with persisted
   state verification. No-traffic candidate sequences and complete operation ×
@@ -35,6 +52,10 @@ semantic versioning for its git tags.
   remain FAIL. Artifact secret leaks cannot be accepted or baseline-promoted.
 
 ### Added
+- `module-quality`: `api-coverage` dimension — the share of documented
+  operations the suite called, from a new `api-coverage.json` the contract
+  guard writes beside `api-coverage.md`; uncalled operations are its issues,
+  `forge.quality.min-api-coverage` makes a low share fail.
 - `example-tests`: `org.gradle.test-retry` 1.6.6, off by default —
   `-PtestRetries=N` reruns failed tests; one that passes on a rerun keeps the
   build green and reaches the quality gate's stability dimension as flaky.

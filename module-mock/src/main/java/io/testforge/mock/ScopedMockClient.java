@@ -33,6 +33,7 @@ public class ScopedMockClient {
     private final ScopeMarker marker;
     private final ArtifactSink artifactSink;
     private final boolean failOnUnusedStubs;
+    private final MockSummary summary;
 
     public ScopedMockClient(WireMock wireMock, String scopeJsonPath) {
         this(wireMock, scopeJsonPath, ArtifactSink.NO_OP);
@@ -49,14 +50,21 @@ public class ScopedMockClient {
     /** @param failOnUnusedStubs a scope whose stub was never called fails on close */
     public ScopedMockClient(WireMock wireMock, ScopeMarker marker, ArtifactSink artifactSink,
                             boolean failOnUnusedStubs) {
+        this(wireMock, marker, artifactSink, failOnUnusedStubs, null);
+    }
+
+    /** @param summary counts every closed scope's leftovers for the run; {@code null} for none */
+    public ScopedMockClient(WireMock wireMock, ScopeMarker marker, ArtifactSink artifactSink,
+                            boolean failOnUnusedStubs, MockSummary summary) {
         this.wireMock = wireMock;
         this.marker = marker;
         this.artifactSink = artifactSink != null ? artifactSink : ArtifactSink.NO_OP;
         this.failOnUnusedStubs = failOnUnusedStubs;
+        this.summary = summary;
     }
 
     public MockScope scope(String scopeId) {
-        return new MockScope(wireMock, marker, scopeId, artifactSink, failOnUnusedStubs);
+        return new MockScope(wireMock, marker, scopeId, artifactSink, failOnUnusedStubs, summary);
     }
 
     /**

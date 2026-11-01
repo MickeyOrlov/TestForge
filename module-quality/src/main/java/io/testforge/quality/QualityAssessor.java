@@ -29,8 +29,14 @@ final class QualityAssessor {
                 ModuleDimensions.guarded(QualityDimension.AUTHORIZATION,
                         () -> ModuleDimensions.authorization(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.SECURITY, () -> ModuleDimensions.security(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.RELIABILITY, () -> ModuleDimensions.reliability(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.DB_QUERIES, () -> ModuleDimensions.dbQueries(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.API_COVERAGE,
+                        () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
+                ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
+                        () -> ModuleDimensions.flowCoverage(index, mapper)),
                 ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
-                hygiene(tests, index));
+                ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)));
         QualityStatus overall = QualityStatus.NOT_MEASURED;
         int sum = 0;
         int measured = 0;
@@ -88,7 +94,8 @@ final class QualityAssessor {
                 "100 × (1 − flaky / executed)", facts).withIssues(flaky.stream().map(TestCase::id).toList());
     }
 
-    static QualityDimension hygiene(List<TestCase> tests, RunIndex index) {
+    static QualityDimension hygiene(List<TestCase> tests, RunIndex index,
+                                    com.fasterxml.jackson.databind.ObjectMapper mapper) {
         if (index == null) {
             return QualityDimension.notMeasured(QualityDimension.HYGIENE,
                     "no run index (module-reporting with forge.reporting.artifacts.enabled=true writes one)");
@@ -97,16 +104,29 @@ final class QualityAssessor {
                 .mapToInt(a -> parse(a.metadata().get("leftovers"))).sum();
         int problems = index.reportingProblems().size();
         long skipped = count(tests, Outcome.SKIPPED);
+        ModuleDimensions.MockLeftovers mocks = ModuleDimensions.mockLeftovers(index, mapper);
+        int stubs = mocks.unusedStubs().size();
+        int unmatched = mocks.unmatched().size();
         List<String> facts = new ArrayList<>();
         facts.add(leftovers + " rows tests left behind (module-data leftovers)");
         facts.add(problems + " reporting problems in the run index");
+        if (mocks.measured()) {
+            facts.add(stubs + " stubs never called and " + unmatched + " requests no stub answered, across "
+                    + mocks.scopes() + " mock scopes (module-mock)");
+        }
         facts.add(skipped + " skipped tests (not scored: a growing number is worth a look)");
         index.reportingProblems().stream().limit(LISTED).forEach(p -> facts.add("reporting problem: " + p));
-        boolean clean = leftovers == 0 && problems == 0;
+        mocks.unusedStubs().stream().limit(LISTED).forEach(stub -> facts.add("unused stub: " + stub));
+        mocks.unmatched().stream().limit(LISTED).forEach(request -> facts.add("unmatched request: " + request));
+        List<String> issues = new ArrayList<>();
+        index.reportingProblems().forEach(p -> issues.add("reporting " + p));
+        mocks.unusedStubs().forEach(stub -> issues.add("unused stub " + stub));
+        mocks.unmatched().forEach(request -> issues.add("unmatched request " + request));
+        boolean clean = leftovers == 0 && problems == 0 && stubs == 0 && unmatched == 0;
         return new QualityDimension(QualityDimension.HYGIENE, clean && skipped == 0 ? QualityStatus.PASS
-                : QualityStatus.WARN, Math.max(0, 100 - 5 * leftovers - 10 * problems),
-                "100 − 5 × leftover rows − 10 × reporting problems", facts)
-                .withIssues(index.reportingProblems().stream().map(p -> "reporting " + p).toList());
+                : QualityStatus.WARN, Math.max(0, 100 - 5 * leftovers - 10 * problems - 5 * stubs - 5 * unmatched),
+                "100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests",
+                facts).withIssues(issues);
     }
 
     private static long count(List<TestCase> tests, Outcome outcome) {

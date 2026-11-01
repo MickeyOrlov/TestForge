@@ -23,6 +23,10 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     public static final String AUTHORIZATION = "authorization";
     public static final String EFFICIENCY = "efficiency";
     public static final String SECURITY = "security";
+    public static final String API_COVERAGE = "api-coverage";
+    public static final String RELIABILITY = "reliability";
+    public static final String DB_QUERIES = "db-queries";
+    public static final String FLOW_COVERAGE = "flow-coverage";
 
     public QualityDimension {
         facts = List.copyOf(facts == null ? List.of() : facts);
