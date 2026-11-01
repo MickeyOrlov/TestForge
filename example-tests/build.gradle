@@ -24,6 +24,7 @@ dependencies {
     testImplementation "org.junit.platform:junit-platform-suite"
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")
+    testImplementation project(":module-quality")
     testImplementation project(":module-web")
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"

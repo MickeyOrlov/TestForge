@@ -112,6 +112,12 @@ Request bodies stay out of the explorer until extraction lands. Synthesizing
 one means guessing at business meaning, and a wrong guess against a write
 endpoint is exactly what the safety policy exists to prevent.
 
+## Priority: product quality assessment and security (in progress)
+
+**Modules:** `module-quality` (A1 shipped), `module-security` (planned)
+
+Spec and steps: [docs/quality-security-spec.md](docs/quality-security-spec.md).
+
 ## Future modules
 
 These are useful, but should stay behind the core CI/staging improvements.
