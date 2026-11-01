@@ -30,6 +30,9 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-quality`: the newest-run default skips a run index that holds only
+  `module-quality`'s own report, which the gate's JVM leaves behind — a second
+  gate run judged that instead of the tests.
 - `module-rabbitmq`, found by reviewing it against a real broker: a
   stopped collector kept its consumer alive in Spring's channel cache, so its
   queue stayed and messages kept arriving — it now cancels the consumer and
@@ -155,6 +158,11 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-quality`: `security` dimension (step A4) from `module-security`'s
+  `security-findings.json` — new findings weighted 40 / 20 / 5 / 1 by
+  severity, FAIL on a new critical or high; NOT MEASURED when the security
+  run measured nothing. `forge.quality.run-id` takes a comma-separated list
+  to judge the runs of several JVMs as one.
 - `module-quality`: dimensions from the other modules' reports (step A3) —
   `contracts` (contract guard, contract monitor), `data` (db-contract
   BREAKING / RISKY / UNKNOWN), `robustness` (unaccepted fuzz finding groups),

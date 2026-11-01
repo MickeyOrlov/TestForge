@@ -111,6 +111,45 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void securityScoresTheNewFindingsModuleSecurityReports() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        // the layout of module-security's security-findings.json (format 1)
+        file("artifacts/r/module-security/security-findings.json", """
+                {"formatVersion": 1, "enabled": true, "measured": true, "healthy": false, "findings": [
+                  {"id": "cors-credentials-wildcard GET /orders", "severity": "high", "status": "new"},
+                  {"id": "missing-nosniff GET /orders", "severity": "low", "status": "new"},
+                  {"id": "server-version GET /", "severity": "info", "status": "new"},
+                  {"id": "missing-csp GET /health", "severity": "medium", "status": "accepted"},
+                  {"id": "stack-trace GET /fail", "severity": "medium", "status": "resolved"}],
+                 "coverage": [], "newCounts": {}}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-security", "category": "security",
+                  "name": "security-findings.json", "path": "module-security/security-findings.json"}]}""");
+
+        QualityDimension security = runner().run().dimension(QualityDimension.SECURITY).orElseThrow();
+
+        assertThat(security.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(security.score()).isEqualTo(79);
+        assertThat(security.issues()).containsExactly("cors-credentials-wildcard GET /orders",
+                "missing-nosniff GET /orders");
+        assertThat(security.facts().getFirst()).isEqualTo("new findings: 0 critical, 1 high, 0 medium, 1 low, "
+                + "1 info; 1 accepted, 1 resolved (module-security)");
+    }
+
+    @Test
+    void aSecurityRunThatMeasuredNothingIsNotAPass() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-security/security-findings.json",
+                "{\"measured\": false, \"findings\": [], \"coverage\": []}");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-security", "category": "security",
+                  "name": "security-findings.json", "path": "module-security/security-findings.json"}]}""");
+
+        assertThat(runner().run().dimension(QualityDimension.SECURITY).orElseThrow().status())
+                .isEqualTo(QualityStatus.NOT_MEASURED);
+    }
+
+    @Test
     void aTestMarkedlySlowerThanInTheBaselineIsAnEfficiencyIssue() throws IOException {
         junit("<testcase classname=\"T\" name=\"fast\" time=\"0.2\"/>"
                 + "<testcase classname=\"T\" name=\"slow\" time=\"0.4\"/>"

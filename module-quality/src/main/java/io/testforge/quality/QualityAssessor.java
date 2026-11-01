@@ -27,6 +27,7 @@ final class QualityAssessor {
                 ModuleDimensions.data(index, mapper),
                 ModuleDimensions.robustness(index, mapper),
                 ModuleDimensions.authorization(index, mapper),
+                ModuleDimensions.security(index, mapper),
                 ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
                 hygiene(tests, index));
         QualityStatus overall = QualityStatus.NOT_MEASURED;
