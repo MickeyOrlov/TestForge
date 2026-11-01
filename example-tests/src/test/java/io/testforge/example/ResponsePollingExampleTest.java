@@ -28,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(properties = "forge.wait.poll-interval=20ms")
 class ResponsePollingExampleTest {
 
-    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         server.start();

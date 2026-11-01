@@ -27,7 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
 class LibraryConsumerSmokeTest {
 
     private static final WireMockServer SERVER =
-            new WireMockServer(WireMockConfiguration.options().dynamicPort());
+            new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         SERVER.start();

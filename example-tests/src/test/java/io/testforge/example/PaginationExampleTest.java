@@ -24,7 +24,7 @@ class PaginationExampleTest {
     record Task(String id, String title) {
     }
 
-    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         server.start();

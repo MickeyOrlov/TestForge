@@ -65,7 +65,7 @@ class MockScopeUnmatchedScopingTest {
 
     @BeforeEach
     void start() {
-        server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        server = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
         server.start();
         wireMock = new WireMock(server.port());
     }

@@ -41,7 +41,7 @@ class ApiExplorerExampleTest {
 
     private static final Path OUTPUT_DIR = Path.of("build/api-explorer/example");
 
-    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    static WireMockServer server = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         server.start();

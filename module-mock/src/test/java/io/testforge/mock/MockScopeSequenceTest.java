@@ -27,7 +27,7 @@ class MockScopeSequenceTest {
 
     @BeforeEach
     void start() {
-        server = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        server = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort().bindAddress("127.0.0.1"));
         server.start();
         wireMock = WireMock.create().host("localhost").port(server.port()).build();
         // the environment's happy-path default

@@ -30,7 +30,7 @@ import org.springframework.test.context.DynamicPropertySource;
 })
 class PrewarmExampleTest {
 
-    static WireMockServer pages = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    static WireMockServer pages = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         pages.start();

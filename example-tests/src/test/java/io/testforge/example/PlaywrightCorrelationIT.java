@@ -37,8 +37,8 @@ import org.springframework.test.context.DynamicPropertySource;
 @ExtendWith({PlaywrightPageExtension.class, ScenarioContextExtension.class})
 class PlaywrightCorrelationIT {
 
-    static WireMockServer app = new WireMockServer(WireMockConfiguration.options().dynamicPort());
-    static WireMockServer cdn = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+    static WireMockServer app = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
+    static WireMockServer cdn = new WireMockServer(WireMockConfiguration.options().dynamicPort().bindAddress("127.0.0.1"));
 
     static {
         app.start();
