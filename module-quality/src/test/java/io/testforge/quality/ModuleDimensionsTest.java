@@ -132,6 +132,27 @@ class ModuleDimensionsTest {
     }
 
     @Test
+    void dbQueriesFlagFailedUnboundedAndSlowShapes() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/r/module-db/db-queries.json", """
+                {"formatVersion": 1, "statements": 40, "shapes": [
+                  {"shape": "SELECT * FROM orders WHERE id = ?", "count": 30, "errors": 0, "unboundedWrite": false, "slow": false},
+                  {"shape": "INSERT INTO customers VALUES (?)", "count": 5, "errors": 1, "unboundedWrite": false, "slow": false},
+                  {"shape": "UPDATE orders SET status = ?", "count": 1, "errors": 0, "unboundedWrite": true, "slow": false},
+                  {"shape": "SELECT * FROM report_view", "count": 4, "errors": 0, "unboundedWrite": false, "slow": true}]}""");
+        file("artifacts/r/manifest.json", """
+                {"runId": "r", "artifacts": [{"source": "module-db", "category": "db-queries",
+                  "name": "db-queries.json", "path": "module-db/db-queries.json"}]}""");
+
+        QualityDimension queries = runner().run().dimension(QualityDimension.DB_QUERIES).orElseThrow();
+
+        assertThat(queries.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(queries.score()).isEqualTo(70);
+        assertThat(queries.issues()).containsExactly("failed INSERT INTO customers VALUES (?)",
+                "unbounded UPDATE orders SET status = ?", "slow SELECT * FROM report_view");
+    }
+
+    @Test
     void apiCoverageNamesTheOperationsNoTestCalled() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         file("artifacts/r/module-api-explorer/api-coverage.json", """
