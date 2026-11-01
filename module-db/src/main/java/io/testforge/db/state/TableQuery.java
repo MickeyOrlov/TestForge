@@ -43,7 +43,7 @@ public final class TableQuery {
     TableQuery(DataSource dataSource, String table) {
         this.dataSource = dataSource;
         this.table = identifier(table, "table");
-        this.sqlName = this.table;
+        this.sqlName = SqlNames.name(this.table);
     }
 
     private TableQuery(DataSource dataSource, String table, String sqlName) {
@@ -128,7 +128,8 @@ public final class TableQuery {
         String sql = "SELECT * FROM " + sqlName + (where == null ? "" : " WHERE " + where);
         Map<List<Object>, Map<String, Object>> rows = new LinkedHashMap<>();
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+             PreparedStatement statement = connection.prepareStatement(
+                     SqlNames.resolve(sql, connection.getMetaData()))) {
             for (int i = 0; i < parameters.length; i++) {
                 statement.setObject(i + 1, parameters[i]);
             }
@@ -162,7 +163,22 @@ public final class TableQuery {
     }
 
     /** Values that compare by meaning: {@code 10.0} equals {@code 10.00}, LOB-free scalars only. */
-    private static Object normalize(Object value) {
+    private static Object normalize(Object value) throws SQLException {
+        if (value instanceof java.sql.Array array) {
+            // a driver's array object compares by identity: read twice, an untouched array would "change"
+            try {
+                return normalize(array.getArray());
+            } finally {
+                array.free();
+            }
+        }
+        if (value instanceof Object[] elements) {
+            List<Object> list = new ArrayList<>(elements.length);
+            for (Object element : elements) {
+                list.add(normalize(element));
+            }
+            return java.util.Collections.unmodifiableList(list);
+        }
         if (value instanceof BigDecimal decimal) {
             // 10.00 and 10.0 are one value; plain so a report says 10, not 1E+1
             return new BigDecimal(decimal.stripTrailingZeros().toPlainString());

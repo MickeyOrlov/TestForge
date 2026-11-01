@@ -63,18 +63,18 @@ public final class DbInvariants {
         String[] child = qualified(childColumn);
         String[] parent = qualified(parentColumn);
         rules.add(new Rule("no orphans: every " + childColumn + " exists as " + parentColumn, child[0],
-                "SELECT c.* FROM " + child[0] + " c WHERE c." + child[1] + " IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "
-                        + parent[0] + " p WHERE p." + parent[1] + " = c." + child[1] + ")", new Object[0], "c"));
+                "SELECT c.* FROM " + n(child[0]) + " c WHERE c." + n(child[1]) + " IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "
+                        + n(parent[0]) + " p WHERE p." + n(parent[1]) + " = c." + n(child[1]) + ")", new Object[0], "c"));
         return this;
     }
 
     /** No two rows share these columns (rows with a NULL among them are not compared, as in SQL). */
     public DbInvariants unique(String table, String... columns) {
         requireColumns(columns);
-        String list = String.join(", ", columns);
-        String notNull = String.join(" AND ", Arrays.stream(columns).map(column -> column + " IS NOT NULL").toList());
-        rules.add(new Rule("unique: " + table + "(" + list + ")", table,
-                "SELECT " + list + ", COUNT(*) AS duplicates FROM " + table + " WHERE " + notNull + " %s GROUP BY "
+        String list = String.join(", ", Arrays.stream(columns).map(DbInvariants::n).toList());
+        String notNull = String.join(" AND ", Arrays.stream(columns).map(column -> n(column) + " IS NOT NULL").toList());
+        rules.add(new Rule("unique: " + table + "(" + String.join(", ", columns) + ")", table,
+                "SELECT " + list + ", COUNT(*) AS duplicates FROM " + n(table) + " WHERE " + notNull + " %s GROUP BY "
                         + list + " HAVING COUNT(*) > 1", new Object[0], null).asGrouped());
         return this;
     }
@@ -87,8 +87,9 @@ public final class DbInvariants {
         }
         String marks = String.join(", ", java.util.Collections.nCopies(allowed.length, "?"));
         rules.add(new Rule("allowed values: " + table + "." + column + " in " + Arrays.toString(allowed), table,
-                "SELECT " + column + ", COUNT(*) AS rows_with_it FROM " + table + " WHERE " + column + " IS NOT NULL AND "
-                        + column + " NOT IN (" + marks + ") %s GROUP BY " + column, values(allowed), null).asGrouped());
+                "SELECT " + n(column) + ", COUNT(*) AS rows_with_it FROM " + n(table) + " WHERE " + n(column)
+                        + " IS NOT NULL AND " + n(column) + " NOT IN (" + marks + ") %s GROUP BY " + n(column),
+                values(allowed), null).asGrouped());
         return this;
     }
 
@@ -97,7 +98,7 @@ public final class DbInvariants {
         requireColumns(columns);
         for (String column : columns) {
             rules.add(new Rule("not null: " + table + "." + column, table,
-                    "SELECT * FROM " + table + " WHERE " + column + " IS NULL", new Object[0], null));
+                    "SELECT * FROM " + n(table) + " WHERE " + n(column) + " IS NULL", new Object[0], null));
         }
         return this;
     }
@@ -112,8 +113,8 @@ public final class DbInvariants {
         String[] from = qualified(column);
         String[] to = qualified(matchingColumn);
         rules.add(new Rule("every " + column + " has a " + matchingColumn, from[0],
-                "SELECT c.* FROM " + from[0] + " c WHERE c." + from[1] + " IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "
-                        + to[0] + " p WHERE p." + to[1] + " = c." + from[1] + ")", new Object[0], "c"));
+                "SELECT c.* FROM " + n(from[0]) + " c WHERE c." + n(from[1]) + " IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "
+                        + n(to[0]) + " p WHERE p." + n(to[1]) + " = c." + n(from[1]) + ")", new Object[0], "c"));
         return this;
     }
 
@@ -124,7 +125,7 @@ public final class DbInvariants {
      */
     public DbInvariants totalMatches(String total, String key, String part, String partKey) {
         return aggregate("total matches: " + total + " = sum of " + part, total, key,
-                "COALESCE(SUM(i." + qualified(part)[1] + "), 0)", partKey, "parts_sum");
+                "COALESCE(SUM(i." + n(qualified(part)[1]) + "), 0)", partKey, "parts_sum");
     }
 
     /**
@@ -144,18 +145,19 @@ public final class DbInvariants {
         if (!parent[0].equalsIgnoreCase(parentKey[0])) {
             throw new IllegalArgumentException(stored + " and " + key + " must be columns of one table");
         }
-        String computed = "(SELECT " + expression + " FROM " + child[0] + " i WHERE i." + child[1] + " = c."
-                + parentKey[1] + ")";
+        String computed = "(SELECT " + expression + " FROM " + n(child[0]) + " i WHERE i." + n(child[1]) + " = c."
+                + n(parentKey[1]) + ")";
         rules.add(new Rule(description, parent[0],
-                "SELECT c." + parentKey[1] + ", c." + parent[1] + ", " + computed + " AS " + label + " FROM " + parent[0]
-                        + " c WHERE COALESCE(c." + parent[1] + ", 0) <> " + computed, new Object[0], "c"));
+                "SELECT c." + n(parentKey[1]) + ", c." + n(parent[1]) + ", " + computed + " AS " + label + " FROM "
+                        + n(parent[0]) + " c WHERE COALESCE(c." + n(parent[1]) + ", 0) <> " + computed,
+                new Object[0], "c"));
         return this;
     }
 
     /** {@code condition} is true for every row — {@code holds("orders", "total >= 0")}. */
     public DbInvariants holds(String table, String condition, Object... parameters) {
         rules.add(new Rule("holds: " + table + " where " + condition, table,
-                "SELECT * FROM " + table + " WHERE NOT (" + condition + ")",
+                "SELECT * FROM " + n(table) + " WHERE NOT (" + condition + ")",
                 parameters == null ? new Object[0] : parameters.clone(), null));
         return this;
     }
@@ -239,7 +241,8 @@ public final class DbInvariants {
         }
         int count = 0;
         List<String> samples = new ArrayList<>();
-        try (PreparedStatement statement = connection.prepareStatement(scoped)) {
+        try (PreparedStatement statement = connection.prepareStatement(
+                SqlNames.resolve(scoped, connection.getMetaData()))) {
             for (int i = 0; i < parameters.size(); i++) {
                 statement.setObject(i + 1, parameters.get(i));
             }
@@ -292,6 +295,11 @@ public final class DbInvariants {
         for (String column : columns) {
             TableQuery.identifier(column, "column");
         }
+    }
+
+    /** A table or column name, quoted on the connection the rule runs on. */
+    private static String n(String identifier) {
+        return SqlNames.name(identifier);
     }
 
     private static String key(String table) {

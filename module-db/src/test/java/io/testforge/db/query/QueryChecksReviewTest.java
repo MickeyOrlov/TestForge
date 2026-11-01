@@ -36,6 +36,20 @@ class QueryChecksReviewTest {
     }
 
     @Test
+    void aSelectOverAWritingCteIsTheWrite() {
+        CapturedQueries.Statement moved = sql("WITH moved AS (UPDATE accounts SET active = false RETURNING id) "
+                + "SELECT count(*) FROM moved");
+
+        assertThat(moved.kind()).isEqualTo(CapturedQueries.Kind.UPDATE);
+        assertThat(moved.unboundedWrite()).isTrue();
+        assertThat(moved.unfilteredRead()).isFalse();
+        CapturedQueries.Statement bounded = sql("WITH gone AS MATERIALIZED (DELETE FROM items WHERE order_id = ? "
+                + "RETURNING id) SELECT * FROM gone");
+        assertThat(bounded.kind()).isEqualTo(CapturedQueries.Kind.DELETE);
+        assertThat(bounded.unboundedWrite()).isFalse();
+    }
+
+    @Test
     void aWhereInsideASubqueryDoesNotBoundTheWrite() {
         assertThat(sql("UPDATE orders SET total = (SELECT SUM(amount) FROM items WHERE items.order_id = orders.id)")
                 .unboundedWrite()).isTrue();

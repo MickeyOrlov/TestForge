@@ -22,6 +22,7 @@ public final class CapturedQueries {
     private static final Pattern WHERE = Pattern.compile("(?i)\\bWHERE\\b");
     private static final Pattern LEADING_COMMENTS = Pattern.compile("^(\\s*(/\\*.*?\\*/|--[^\\n]*\\n))+", Pattern.DOTALL);
     private static final Pattern MAIN_KEYWORD = Pattern.compile("(?i)\\b(SELECT|INSERT|UPDATE|DELETE|MERGE)\\b");
+    private static final Pattern CTE_START = Pattern.compile("(?i)\\bAS\\s*(?:NOT\\s+)?(?:MATERIALIZED\\s*)?\\(");
     private static final Pattern BOUNDED_READ = Pattern.compile("(?i)\\b(WHERE|LIMIT|FETCH\\s+(FIRST|NEXT)|TOP)\\b");
     private static final Pattern TABLES = Pattern.compile("(?i)\\b(?:FROM|JOIN)\\s+([\\w.\"`\\[\\]]+)");
 
@@ -67,11 +68,44 @@ public final class CapturedQueries {
          */
         public boolean unboundedWrite() {
             String top = topLevel();
-            Kind kind = kind();
-            if (kind == Kind.UPDATE || kind == Kind.DELETE) {
-                return !WHERE.matcher(top).find();
+            Kind main = mainKind();
+            if ((main == Kind.UPDATE || main == Kind.DELETE) && !WHERE.matcher(top).find()) {
+                return true;
             }
-            return kind == Kind.OTHER && top.strip().toUpperCase(Locale.ROOT).startsWith("TRUNCATE");
+            // PostgreSQL's WITH moved AS (UPDATE … RETURNING …) SELECT: the write is a CTE body
+            for (Statement body : writingCtes()) {
+                if (body.unboundedWrite()) {
+                    return true;
+                }
+            }
+            return main == Kind.OTHER && top.strip().toUpperCase(Locale.ROOT).startsWith("TRUNCATE");
+        }
+
+        /** The bodies of {@code WITH name AS (…)} that write, in order. */
+        private List<Statement> writingCtes() {
+            String text = LEADING_COMMENTS.matcher(withoutLiterals()).replaceFirst("").replaceFirst("^[\\s(]+", "");
+            if (!text.regionMatches(true, 0, "WITH", 0, 4)) {
+                return List.of();
+            }
+            List<Statement> bodies = new ArrayList<>();
+            java.util.regex.Matcher start = CTE_START.matcher(text);
+            int from = 0;
+            while (start.find(from)) {
+                int depth = 1;
+                int end = start.end();
+                while (end < text.length() && depth > 0) {
+                    char c = text.charAt(end++);
+                    depth += c == '(' ? 1 : c == ')' ? -1 : 0;
+                }
+                Statement body = new Statement(dataSource, text.substring(start.end(), Math.max(start.end(), end - 1)),
+                        batch, millis, error, thread, threadId);
+                Kind kind = body.mainKind();
+                if (kind != Kind.SELECT && kind != Kind.OTHER) {
+                    bodies.add(body);
+                }
+                from = end;
+            }
+            return bodies;
         }
 
         /** Literals blanked, leading comments dropped, every parenthesised group removed. */
@@ -100,9 +134,22 @@ public final class CapturedQueries {
         /**
          * From the first keyword, after leading comments and parentheses; for a
          * {@code WITH} statement, from the statement that follows the CTEs — a
-         * {@code WITH … UPDATE} is an update.
+         * {@code WITH … UPDATE} is an update. A {@code SELECT} over a CTE that
+         * writes ({@code WITH moved AS (UPDATE … RETURNING …) SELECT …}) takes
+         * the kind of that first write.
          */
         public Kind kind() {
+            Kind main = mainKind();
+            if (main == Kind.SELECT) {
+                List<Statement> writes = writingCtes();
+                if (!writes.isEmpty()) {
+                    return writes.getFirst().mainKind();
+                }
+            }
+            return main;
+        }
+
+        private Kind mainKind() {
             String text = LEADING_COMMENTS.matcher(withoutLiterals()).replaceFirst("").replaceFirst("^[\\s(]+", "");
             String first = text.split("\\s+", 2)[0].toUpperCase(Locale.ROOT);
             if (first.equals("WITH")) {

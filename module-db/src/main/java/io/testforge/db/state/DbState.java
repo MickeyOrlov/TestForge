@@ -95,7 +95,8 @@ public final class DbState {
             String schema = connection.getSchema();
             String quote = meta.getIdentifierQuoteString();
             List<String> names = new ArrayList<>();
-            try (ResultSet result = meta.getTables(connection.getCatalog(), schema, "%", new String[] {"TABLE"})) {
+            try (ResultSet result = meta.getTables(connection.getCatalog(), pattern(meta, schema), "%",
+                    new String[] {"TABLE"})) {
                 while (result.next()) {
                     names.add(result.getString("TABLE_NAME"));
                 }
@@ -138,12 +139,22 @@ public final class DbState {
     private static String[] columns(DatabaseMetaData meta, String catalog, String schema, String table)
             throws SQLException {
         List<String> columns = new ArrayList<>();
-        try (ResultSet result = meta.getColumns(catalog, schema, table, "%")) {
+        // metadata lookups take LIKE patterns: pg_audit_log would also match pg_auditxlog
+        try (ResultSet result = meta.getColumns(catalog, pattern(meta, schema), pattern(meta, table), "%")) {
             while (result.next()) {
                 columns.add(result.getString("COLUMN_NAME"));
             }
         }
         return columns.toArray(String[]::new);
+    }
+
+    /** {@code name} as a metadata search pattern that matches only itself. */
+    private static String pattern(DatabaseMetaData meta, String name) throws SQLException {
+        String escape = meta.getSearchStringEscape();
+        if (name == null || escape == null || escape.isEmpty()) {
+            return name;
+        }
+        return name.replace(escape, escape + escape).replace("_", escape + "_").replace("%", escape + "%");
     }
 
     /** Rules the data must keep — no orphans, no duplicates, only known values; see {@link DbInvariants}. */

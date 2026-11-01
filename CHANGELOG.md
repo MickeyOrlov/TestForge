@@ -30,6 +30,20 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-db`, found by `PostgresDbChecksIT` (tag `containers`), the table
+  diffs, data rules and query checks run against PostgreSQL 17:
+  - table and column names a test gives are quoted for the database, folded
+    the way it folds unquoted names, so `db.table("order")`, invariants and
+    `into(...)` work on reserved words (`order`, `user`) instead of failing
+    with a syntax error;
+  - an array column (`text[]`) compares by its elements: an untouched one no
+    longer reads as changed on every diff;
+  - `watchSchema()` escapes `_` in metadata lookups, so a table without a
+    primary key is keyed by its own columns, not also by those of a
+    neighbour whose name the pattern matches (`audit_log` / `auditxlog`);
+  - a `SELECT` over a writing CTE (`WITH moved AS (UPDATE … RETURNING …)
+    SELECT …`) is that write: its kind is `UPDATE`/`DELETE`/`INSERT`, and an
+    `UPDATE` or `DELETE` body without a `WHERE` is an unbounded write.
 - `module-db`: query checks read a statement's kind past leading comments
   and parentheses (Hibernate's `use_sql_comments` made every statement
   `OTHER`), treat `WITH … UPDATE` as an update, and judge a write by its own

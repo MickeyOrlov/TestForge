@@ -182,14 +182,18 @@ offline-first.
 
 Target module: `module-db`
 
-- Column type family drift and nullability drift are delivered. Index and
-  foreign-key comparison now exists in `module-db-contract`, but between two
-  database snapshots, not between JPA mappings and the database. Remaining for
-  `SchemaValidator` now also covers index and foreign-key drift against entity
-  mappings, inheritance hierarchies and pluggable naming strategies,
-  reflectively and without ORM internals. Whether the two modules
-  should share internals is a question for after `module-db-contract` has
-  proven itself.
+- Delivered: `SchemaValidator` covers column type family, nullability, index
+  and foreign-key drift against entity mappings, inheritance hierarchies and
+  pluggable naming strategies, reflectively and without ORM internals.
+  `module-db-contract` compares two database snapshots.
+- Delivered ([plan](db-checks-roadmap.md)): row-level diffs, side-effect
+  containment (`watch`, `watchSchema`, `nothingElse`), rollback checks, data
+  invariants with waiting, and "only the test's own data"; and
+  ([plan](db-queries-roadmap.md)) query capture with budgets, N+1, unbounded
+  writes, slow and failed statements. Both run on H2 and, in
+  `containersTest`, on PostgreSQL.
+- Open: whether `module-db` and `module-db-contract` should share schema
+  internals, once `module-db-contract` has proven itself.
 
 ### Better Mock Failure Diagnostics
 

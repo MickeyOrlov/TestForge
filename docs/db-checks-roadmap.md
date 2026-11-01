@@ -88,3 +88,23 @@ so the tag column is checked even when it did not change.
 - **Rules that cannot run.** `assertHoldsWithin` treated a SQL error (a
   misspelled column in `holds(...)`) as "not yet" and waited out the whole
   deadline; it now fails at once with the error.
+
+## Step 7 — the same checks on PostgreSQL
+
+`PostgresDbChecksIT` (tag `containers`) runs diffs, `watchSchema`,
+rollback, invariants and query checks against PostgreSQL 17. It found four
+things H2 hid:
+
+- **Reserved words the test names.** Step 6 quoted discovered tables only;
+  `db.table("order")`, `invariants().within("order", …)` and `into("order")`
+  still sent `order` bare. Every user-given name now goes through
+  `SqlNames`: quoted, folded the way the database folds unquoted names, so
+  quoting changes nothing for an ordinary name.
+- **Arrays.** The driver's `java.sql.Array` compares by identity, so an
+  untouched `text[]` read as changed on every diff. Arrays are read as lists.
+- **LIKE patterns in metadata.** `getColumns("audit_log")` also matched
+  `auditxlog`, and a table without a primary key was keyed by its
+  neighbour's columns too. Names are escaped before the lookup.
+- **Writing CTEs.** `WITH moved AS (UPDATE … RETURNING …) SELECT …` counted
+  as a read. It takes the kind of its first writing CTE, and that body's own
+  `WHERE` decides whether the write is bounded.

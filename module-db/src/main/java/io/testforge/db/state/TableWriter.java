@@ -72,13 +72,14 @@ public final class TableWriter {
         StringJoiner columns = new StringJoiner(", ");
         StringJoiner marks = new StringJoiner(", ");
         row.keySet().forEach(column -> {
-            columns.add(column);
+            columns.add(SqlNames.name(column));
             marks.add("?");
         });
-        String sql = "INSERT INTO " + table + " (" + columns + ") VALUES (" + marks + ")";
+        String sql = "INSERT INTO " + SqlNames.name(table) + " (" + columns + ") VALUES (" + marks + ")";
         Map<String, Object> id = new LinkedHashMap<>();
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement statement = connection.prepareStatement(
+                     SqlNames.resolve(sql, connection.getMetaData()), Statement.RETURN_GENERATED_KEYS)) {
             int index = 1;
             for (Object value : row.values()) {
                 statement.setObject(index++, value);
@@ -121,9 +122,10 @@ public final class TableWriter {
 
     private void delete(Map<String, Object> id) throws SQLException {
         StringJoiner where = new StringJoiner(" AND ");
-        key.forEach(column -> where.add(column + " = ?"));
+        key.forEach(column -> where.add(SqlNames.name(column) + " = ?"));
         try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement("DELETE FROM " + table + " WHERE " + where)) {
+             PreparedStatement statement = connection.prepareStatement(SqlNames.resolve(
+                     "DELETE FROM " + SqlNames.name(table) + " WHERE " + where, connection.getMetaData()))) {
             int index = 1;
             for (String column : key) {
                 statement.setObject(index++, id.get(column));
