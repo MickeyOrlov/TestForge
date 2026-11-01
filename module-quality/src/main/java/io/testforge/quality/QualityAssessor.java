@@ -29,6 +29,8 @@ final class QualityAssessor {
                 ModuleDimensions.guarded(QualityDimension.AUTHORIZATION,
                         () -> ModuleDimensions.authorization(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.SECURITY, () -> ModuleDimensions.security(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.API_COVERAGE,
+                        () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
                 hygiene(tests, index));
         QualityStatus overall = QualityStatus.NOT_MEASURED;

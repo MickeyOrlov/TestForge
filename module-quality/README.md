@@ -20,6 +20,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `authorization` | `100 − 20 × violations` | a role got in, or was shut out, against the access matrix | `module-api-explorer` access matrix |
 | `efficiency` | `100 × (compared − slower) / compared` | never (WARN): a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations + baseline |
 | `security` | `100 − 40 × critical − 20 × high − 5 × medium − 1 × low` (new findings) | a new critical or high finding (WARN on medium/low) | `module-security` `security-findings.json` |
+| `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems` | never (WARN) | run index |
 
 - **Flaky** means failed and passed in the same run: a test listed twice
@@ -43,7 +44,7 @@ NOT MEASURED, not a pass.
 ## How much was measured
 
 `quality.md` says how many dimensions this run could judge — `measured: 5 of
-9 dimensions — not measured: robustness, …` — so a green report built from
+10 dimensions — not measured: robustness, …` — so a green report built from
 two dimensions does not pass for a green product. Make the ones that must be
 there required; the gate then fails while one is NOT MEASURED, naming why:
 

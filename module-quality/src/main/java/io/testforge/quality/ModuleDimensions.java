@@ -239,6 +239,38 @@ final class ModuleDimensions {
     }
 
     /**
+     * Documented operations the suite never called (module-api-explorer's contract guard): the parts of
+     * the API no test looks at. WARN while any is uncalled, FAIL below {@code min-api-coverage}.
+     */
+    static QualityDimension apiCoverage(RunIndex index, ObjectMapper mapper, Double minimum) {
+        List<JsonNode> reports = reports(index, "module-api-explorer", "api-coverage", "api-coverage.json", mapper);
+        if (reports.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.API_COVERAGE,
+                    "no api-coverage.json (module-api-explorer contract guard) in the run");
+        }
+        int documented = 0;
+        int called = 0;
+        List<String> issues = new ArrayList<>();
+        for (JsonNode report : reports) {
+            documented += report.path("documented").asInt();
+            called += report.path("called").size();
+            report.path("uncalled").forEach(operation -> issues.add(operation.asText()));
+        }
+        if (documented == 0) {
+            return QualityDimension.notMeasured(QualityDimension.API_COVERAGE, "no documented operations");
+        }
+        double share = (double) called / documented;
+        List<String> facts = new ArrayList<>();
+        facts.add(called + " of " + documented + " documented operations called by the suite"
+                + (minimum == null ? "" : " (minimum " + Math.round(minimum * 100) + "%)"));
+        list(facts, "never called", issues);
+        QualityStatus status = minimum != null && share < minimum ? QualityStatus.FAIL
+                : issues.isEmpty() ? QualityStatus.PASS : QualityStatus.WARN;
+        return new QualityDimension(QualityDimension.API_COVERAGE, status, (int) Math.round(100 * share),
+                "100 × called / documented operations", facts).withIssues(issues);
+    }
+
+    /**
      * A security run whose coverage is whole: enabled, measured, not marked
      * incomplete, no {@code not_measured} coverage row, and something actually
      * measured (or an explicit {@code complete} flag).
