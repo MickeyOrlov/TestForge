@@ -179,10 +179,14 @@ class ResponseContractCheckerTest {
      */
     @Test
     void aRangeDoesNotCoverABlankOrMalformedContentType() {
+        // REST Assured reports a response without Content-Type as "", never null:
+        // the guard's message must still say so rather than print "got , …"
         assertThat(checkRange("getWildcardAny", 200, "", "{}"))
                 .singleElement()
-                .satisfies(mismatch ->
-                        assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE));
+                .satisfies(mismatch -> {
+                    assertThat(mismatch.kind()).isEqualTo(MismatchKind.UNEXPECTED_CONTENT_TYPE);
+                    assertThat(mismatch.detail()).startsWith("got no content type, document declares");
+                });
 
         assertThat(checkRange("getWildcardAny", 200, "notamediatype", "{}"))
                 .singleElement()
