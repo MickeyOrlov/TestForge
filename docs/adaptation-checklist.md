@@ -47,6 +47,7 @@ and agents alike; the detailed playbook lives in [AGENTS.md](../AGENTS.md).
 - [ ] **module-contract**: encode external payloads as `MessageContract`
       (quick field checks) or `SchemaContract` resources (full JSON Schema)
 - [ ] **module-kafka**: list topics, enable only in broker-reachable profiles
+- [ ] **module-gherkin** (optional): only with feature files — one suite class, glue per module used; otherwise delete it
 - [ ] **module-rabbitmq**: list exchanges in `forge.rabbitmq.bindings`, enable only in broker-reachable profiles; delete the broker module the product does not use
 - [ ] **module-data**: implement `PreparedDataProvider<T>` per expensive
       domain state (drive the product API — typically a module-flow run);

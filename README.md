@@ -101,6 +101,7 @@ flowchart LR
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
 | [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
+| [module-gherkin](module-gherkin) | Optional Cucumber steps over the modules: a scope per scenario, `${variables}`, HTTP steps through `ApiClient` |
 | [module-rabbitmq](module-rabbitmq) | RabbitMQ message probe on a queue of its own (never takes a service's messages); confirmed, mandatory publisher |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Resource usage monitor for JVM memory/CPU diagnostics in CI artifacts |

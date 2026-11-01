@@ -18,6 +18,8 @@ testcontainers = "2.0.5"
 # (EPL-2.0 / GPL-3.0 / LGPL-3.0); the GPL-only terms cover the CLI distributions
 schemacrawler = "17.12.2"
 archunit = "1.4.1"
+# 7.x runs on JUnit 5, which Spring Boot 3.5 manages; 8.x moves to JUnit 6
+cucumber = "7.34.9"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
@@ -35,4 +37,5 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 testcontainers-rabbitmq = { module = "org.testcontainers:testcontainers-rabbitmq", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
+cucumber-bom = { module = "io.cucumber:cucumber-bom", version.ref = "cucumber" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }

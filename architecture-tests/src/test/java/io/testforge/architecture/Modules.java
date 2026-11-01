@@ -29,6 +29,7 @@ final class Modules {
             Map.entry("module-http", "io.testforge.http"),
             Map.entry("module-kafka", "io.testforge.kafka"),
             Map.entry("module-rabbitmq", "io.testforge.rabbitmq"),
+            Map.entry("module-gherkin", "io.testforge.gherkin"),
             Map.entry("module-mobile-appium", "io.testforge.mobile.appium"),
             Map.entry("module-mock", "io.testforge.mock"),
             Map.entry("module-reporting", "io.testforge.reporting"),
@@ -49,6 +50,8 @@ final class Modules {
             Map.entry("module-contract-monitor", Set.of("module-kafka", "module-contract")),
             Map.entry("module-db", Set.of("module-data")),
             Map.entry("module-db-contract", Set.of("module-db")),
+            // step glue per adapter, each module compileOnly
+            Map.entry("module-gherkin", Set.of("module-http")),
             Map.entry("module-state", Set.of("module-flow", "module-data")));
 
     private Modules() {

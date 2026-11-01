@@ -231,6 +231,15 @@ Target module: `module-data`
   per-variant statistics (`pool.stats()`), and `pool-stats.json` in the run
   index. Variants are tag sets; exhaustion is reported once per drain.
 
+### Gherkin Steps
+
+Target module: `module-gherkin` (optional)
+
+- In progress ([plan](gherkin-layer-roadmap.md)): Cucumber steps over the
+  modules for teams that write feature files. Shipped: scenario lifecycle
+  (scope and correlation id per scenario), `${name}` variables, HTTP steps.
+  Next: messages, database and mocks.
+
 ### API Bootstrap Path
 
 Target modules: `module-api-discovery`, `module-api-codegen`,

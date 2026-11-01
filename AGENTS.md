@@ -23,6 +23,7 @@ module-http/   ApiClient — REST Assured spec with scope/correlation/logging fi
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; publisher with confirms
+module-gherkin/ optional Cucumber steps over the modules: scope per scenario, ${vars}, HTTP steps
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
 module-web/    PrewarmRunner — warm key pages once per suite
@@ -199,9 +200,15 @@ must not replace each other. `example-tests` is never published.
    upload `build/appium-artifacts` from mobile CI jobs — it holds the failure
    artifacts and the local node's `appium-node.log`. Screen objects and
    provider-specific clients stay in the adapted project.
-20. **Delete what is not needed.** Unused modules: remove the directory and its
+20. **module-gherkin** (optional): only for a team that writes feature files.
+   One `@Suite` class lists `io.testforge.gherkin.glue`, one step package per
+   module it uses (`io.testforge.gherkin.http`, …) and the project's own
+   steps; exactly one glue class carries `@CucumberContextConfiguration`.
+   Domain steps ("a paid order") are the project's, on module-state/flow.
+   Otherwise delete the module.
+21. **Delete what is not needed.** Unused modules: remove the directory and its
    line in settings.gradle. The build must stay green after deletion.
-21. **Client/DTO artifacts (drift layer 3).** When the product publishes a
+22. **Client/DTO artifacts (drift layer 3).** When the product publishes a
    versioned client or DTO module (OpenAPI-generated stubs, shared event
    types), make the test module depend on it instead of duplicating JSON
    shapes in test code. Keep `SchemaValidator` (DB mappings) and
