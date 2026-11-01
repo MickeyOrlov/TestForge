@@ -21,7 +21,11 @@ final class FuzzFindingsJson {
                  boolean accepted) {
     }
 
-    record Findings(String runId, ApiFuzzOutcome outcome, List<Group> groups, List<String> staleAccepted) {
+    /** Version 1; bumped when a field a reader depends on changes. */
+    static final int FORMAT_VERSION = 1;
+
+    record Findings(int formatVersion, String runId, ApiFuzzOutcome outcome, List<Group> groups,
+                    List<String> staleAccepted) {
     }
 
     private FuzzFindingsJson() {
@@ -36,7 +40,8 @@ final class FuzzFindingsJson {
         try {
             Files.createDirectories(outputDir);
             new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT).writeValue(file.toFile(),
-                    new Findings(report.runId(), report.outcome(), groups, report.staleAcceptedFindings()));
+                    new Findings(FORMAT_VERSION, report.runId(), report.outcome(), groups,
+                            report.staleAcceptedFindings()));
             return file;
         } catch (IOException e) {
             throw new ApiFuzzException("Failed to write " + file, e);

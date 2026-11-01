@@ -20,6 +20,8 @@ final class ModuleDimensions {
 
     static final int LISTED = 10;
     static final String SECURITY_INCOMPLETE = "security measurement incomplete";
+    /** The report layouts this module reads; a report without {@code formatVersion} is version 1. */
+    static final int FORMAT_VERSION = 1;
 
     private ModuleDimensions() {
     }
@@ -297,6 +299,23 @@ final class ModuleDimensions {
                 "100 × (compared − slower) / compared", facts).withIssues(issues);
     }
 
+    /** A report in a layout this module does not know: judged as not measured, never as a zero. */
+    private static final class UnsupportedFormat extends RuntimeException {
+
+        UnsupportedFormat(String message) {
+            super(message);
+        }
+    }
+
+    /** The dimension, or NOT MEASURED naming the report whose {@code formatVersion} is unknown. */
+    static QualityDimension guarded(String name, java.util.function.Supplier<QualityDimension> dimension) {
+        try {
+            return dimension.get();
+        } catch (UnsupportedFormat e) {
+            return QualityDimension.notMeasured(name, e.getMessage());
+        }
+    }
+
     private static List<JsonNode> reports(RunIndex index, String source, String category, ObjectMapper mapper) {
         if (index == null) {
             return List.of();
@@ -311,7 +330,13 @@ final class ModuleDimensions {
                 continue;
             }
             try {
-                reports.add(mapper.readTree(file.get().toFile()));
+                JsonNode report = mapper.readTree(file.get().toFile());
+                int version = report.path("formatVersion").asInt(FORMAT_VERSION);
+                if (version != FORMAT_VERSION) {
+                    throw new UnsupportedFormat(source + "'s " + artifact.name() + " has formatVersion " + version
+                            + "; this module reads " + FORMAT_VERSION + " — update module-quality with it");
+                }
+                reports.add(report);
             } catch (IOException e) {
                 throw new QualityException("Could not read " + source + "'s " + artifact.name() + " at "
                         + file.get(), e);

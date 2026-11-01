@@ -128,6 +128,31 @@ class QualityRunnerTest {
     }
 
     @Test
+    void staleSuitesAreDroppedAndARequiredDimensionMustBeMeasured() throws IOException {
+        junit("TEST-Old.xml", "<testsuite timestamp=\"2026-10-30T10:00:00Z\">"
+                + "<testcase classname=\"Old\" name=\"broken\"><failure message=\"long gone\"/></testcase></testsuite>");
+        junit("TEST-New.xml", "<testsuite timestamp=\"2026-11-01T10:00:00\">"
+                + "<testcase classname=\"New\" name=\"ok\"/></testsuite>");
+        QualityProperties properties = new QualityProperties(true, List.of(dir.resolve("results").toString()),
+                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), 0.02, null, null, null,
+                null, List.of(QualityDimension.FUNCTIONAL, QualityDimension.CONTRACTS),
+                java.time.Instant.parse("2026-10-31T00:00:00Z"));
+        QualityRunner gate = new QualityRunner(properties, new ObjectMapper(), ArtifactSink.NO_OP);
+
+        QualityReport report = gate.run();
+
+        assertThat(report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().facts().getFirst())
+                .isEqualTo("1 tests: 1 passed, 0 failed, 0 skipped");
+        assertThat(report.inputs()).anyMatch(input -> input.endsWith("TEST-Old.xml (dropped: older than "
+                + "2026-10-31T00:00:00Z)"));
+        assertThat(report.measured()).isEqualTo(2);
+        assertThat(Files.readString(Path.of(report.reportMarkdown())))
+                .contains("- measured: 2 of 9 dimensions — not measured: contracts, data, robustness");
+        assertThatThrownBy(gate::assertAcceptable)
+                .hasMessageStartingWith("Required dimensions not measured: contracts (no contract-guard report");
+    }
+
+    @Test
     void anXmlFileWithADoctypeIsNotParsed() throws IOException {
         junit("TEST-evil.xml", "<?xml version=\"1.0\"?><!DOCTYPE t [<!ENTITY x SYSTEM \"file:///etc/passwd\">]>"
                 + "<testsuite><testcase classname=\"E\" name=\"&x;\"/></testsuite>");

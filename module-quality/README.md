@@ -36,7 +36,31 @@ read as JSON from the run index, so deleting a module never breaks this one.
 scores what it reports as `new`, and a security run that measured nothing is
 NOT MEASURED, not a pass.
 
+## How much was measured
+
+`quality.md` says how many dimensions this run could judge — `measured: 5 of
+9 dimensions — not measured: robustness, …` — so a green report built from
+two dimensions does not pass for a green product. Make the ones that must be
+there required; the gate then fails while one is NOT MEASURED, naming why:
+
+```yaml
+forge:
+  quality:
+    required: [functional, contracts, data]
+```
+
+Reports of other modules carry a `formatVersion` (absent means 1). One in a
+layout this module does not know leaves its dimension NOT MEASURED with that
+reason, rather than being read as zero findings.
+
 ## Which run is judged
+
+- JUnit suites older than `forge.quality.results-not-before` are dropped and
+  listed among the inputs — the results of a test task that did not run in
+  this build. The `qualityGate` task sets it to the build's start when the
+  test tasks run in the same build; a separate CI step passes
+  `-PqualityResultsNotBefore=<instant>` (Gradle's `timestamp` is UTC,
+  Surefire's local time is read in the machine's zone).
 
 - By default the newest run index with a manifest — skipping one that holds
   only `module-quality`'s own report, which the gate's JVM leaves behind.

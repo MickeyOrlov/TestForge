@@ -35,7 +35,9 @@ final class QualityReportWriter {
                 .append("- baseline: ").append(report.baselineRunId() == null ? "none — every issue counts as new"
                         : report.baselineRunId()).append('\n')
                 .append("- overall: **").append(report.overall()).append("**")
-                .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")").append("\n\n")
+                .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")").append('\n')
+                .append("- measured: ").append(report.measured()).append(" of ").append(report.dimensions().size())
+                .append(" dimensions").append(notMeasured(report)).append("\n\n")
                 .append("| Dimension | Status | Score | Baseline | New issues | Formula |\n|---|---|---|---|---|---|\n");
         for (QualityDimension dimension : report.dimensions()) {
             QualityDelta delta = dimension.delta();
@@ -59,6 +61,12 @@ final class QualityReportWriter {
         out.append("\n## Inputs\n\n");
         report.inputs().forEach(input -> out.append("- `").append(input).append("`\n"));
         return out.toString();
+    }
+
+    private static String notMeasured(QualityReport report) {
+        java.util.List<String> names = report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.NOT_MEASURED).map(QualityDimension::name).toList();
+        return names.isEmpty() ? "" : " — not measured: " + String.join(", ", names);
     }
 
     private static void list(StringBuilder out, String label, java.util.List<String> issues) {

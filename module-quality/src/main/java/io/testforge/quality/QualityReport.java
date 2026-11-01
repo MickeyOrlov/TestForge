@@ -12,6 +12,8 @@ import java.util.Optional;
  * @param inputs    the files and directories read, so a reader can check the numbers
  * @param baselineRunId the run the comparison is against, {@code null} without a baseline
  */
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({"runId", "baselineRunId", "overall", "meanScore", "measured",
+        "dimensions", "inputs", "reportMarkdown", "reportJson"})
 public record QualityReport(
         String runId,
         String baselineRunId,
@@ -25,6 +27,11 @@ public record QualityReport(
     public QualityReport {
         dimensions = List.copyOf(dimensions);
         inputs = List.copyOf(inputs);
+    }
+
+    /** How many dimensions this run could actually judge, of all of them. */
+    public int measured() {
+        return (int) dimensions.stream().filter(d -> d.status() != QualityStatus.NOT_MEASURED).count();
     }
 
     public Optional<QualityDimension> dimension(String name) {

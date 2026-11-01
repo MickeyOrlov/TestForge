@@ -42,6 +42,8 @@ public class ContractGuardReporter implements SmartLifecycle {
         try {
             List<ContractGuard.Finding> findings = guard.findings();
             Map<String, Object> report = new LinkedHashMap<>();
+            // version 1 of this layout; module-quality reads it and refuses one it does not know
+            report.put("formatVersion", 1);
             report.put("checkedResponses", guard.checkedResponses());
             report.put("distinctFindings", findings.size());
             report.put("findings", findings);
