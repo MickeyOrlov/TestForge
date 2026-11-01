@@ -26,11 +26,14 @@ final class SecurityScanGateway implements AutoCloseable {
     }
   }
 
+  // with "expect", every header java.net.http.HttpClient refuses to set: forwarding one would
+  // throw and mark the whole scan incomplete
   private static final Set<String> DROP =
       Set.of(
           "host",
           "content-length",
           "connection",
+          "expect",
           "transfer-encoding",
           "upgrade",
           "proxy-authorization",
