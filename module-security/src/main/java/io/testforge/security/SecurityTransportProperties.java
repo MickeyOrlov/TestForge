@@ -17,8 +17,10 @@ public record SecurityTransportProperties(
     allowedHosts = List.copyOf(allowedHosts == null ? List.of() : allowedHosts);
     expiryWarningDays = expiryWarningDays == null ? 30 : expiryWarningDays;
     timeout = timeout == null ? Duration.ofSeconds(5) : timeout;
-    probeLegacy = probeLegacy == null ? true : probeLegacy;
-    probeWeakCiphers = probeWeakCiphers == null ? true : probeWeakCiphers;
+    // off by default: Java 21 disables legacy TLS and weak ciphers, so enabled probes are
+    // not_measured there and the gate could never pass; enable on a JDK that still offers them
+    probeLegacy = probeLegacy == null ? false : probeLegacy;
+    probeWeakCiphers = probeWeakCiphers == null ? false : probeWeakCiphers;
     if (expiryWarningDays < 0
         || timeout.isNegative()
         || timeout.toMillis() < 1

@@ -14,6 +14,35 @@ class SecurityArtifactTest {
   }
 
   @Test
+  void archivesAreOpenedAndMediaIsNotText(@TempDir Path dir) throws Exception {
+    String secret = "synthetic-trace-credential";
+    try (var zip = new java.util.zip.ZipOutputStream(Files.newOutputStream(dir.resolve("trace.zip")))) {
+      zip.putNextEntry(new java.util.zip.ZipEntry("trace.network"));
+      zip.write(("Authorization: Bearer " + secret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      zip.closeEntry();
+    }
+    try (var zip = new java.util.zip.ZipOutputStream(Files.newOutputStream(dir.resolve("bundle.zip")))) {
+      zip.putNextEntry(new java.util.zip.ZipEntry("inner.zip"));
+      zip.write(new byte[] {1, 2, 3});
+      zip.closeEntry();
+    }
+    Files.write(dir.resolve("failure.png"), new byte[] {(byte) 0x89, 'P', 'N', 'G'});
+    var secrets = new SecuritySecretRegistry();
+    secrets.register(secret);
+    var collector = new SecurityCollector(100);
+
+    new SecurityArtifactScanner(properties(dir, null, null, null), secrets, collector).scan();
+
+    assertThat(collector.findings())
+        .singleElement()
+        .satisfies(f -> assertThat(f.target()).endsWith("/trace.zip"));
+    assertThat(collector.coverage())
+        .extracting(c -> c.target().replaceAll("^artifact-root-0 ", "") + " " + c.status())
+        .contains("/trace.zip measured", "/bundle.zip not_measured", "/failure.png not_applicable");
+    assertThat(collector.findings().toString()).doesNotContain(secret);
+  }
+
+  @Test
   void plantedSecretsAndPrivateKeysFailBeforeUploadWithoutEchoingTheValue(@TempDir Path dir)
       throws Exception {
     String secret = "synthetic-planted-credential";
