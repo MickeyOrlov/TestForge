@@ -71,6 +71,12 @@ public record QualityBaseline(String runId, Map<String, Entry> dimensions, Map<S
      * {@code "<dimension> <issue>"}, new otherwise.
      */
     static QualityDelta compare(QualityDimension dimension, QualityBaseline baseline, List<String> accepted) {
+        return compare(dimension, baseline, accepted, Map.of(), null);
+    }
+
+    /** As above; an accepted entry whose {@code until} date is before {@code today} no longer lets its issue through. */
+    static QualityDelta compare(QualityDimension dimension, QualityBaseline baseline, List<String> accepted,
+                                Map<String, java.time.LocalDate> acceptedUntil, java.time.LocalDate today) {
         Entry before = baseline == null ? null : baseline.dimensions().get(dimension.name());
         Set<String> known = before == null ? Set.of() : new LinkedHashSet<>(before.issues());
         List<String> fresh = new ArrayList<>();
@@ -79,7 +85,8 @@ public record QualityBaseline(String runId, Map<String, Entry> dimensions, Map<S
         for (String issue : dimension.issues()) {
             if (known.contains(issue)) {
                 knownNow.add(issue);
-            } else if (accepted.contains(dimension.name() + " " + issue)) {
+            } else if (accepted.contains(dimension.name() + " " + issue)
+                    && !expired(acceptedUntil.get(dimension.name() + " " + issue), today)) {
                 acceptedNow.add(issue);
             } else {
                 fresh.add(issue);
@@ -88,5 +95,9 @@ public record QualityBaseline(String runId, Map<String, Entry> dimensions, Map<S
         List<String> resolved = before == null ? List.of() : before.issues().stream()
                 .filter(issue -> !dimension.issues().contains(issue)).toList();
         return new QualityDelta(before == null ? null : before.score(), fresh, acceptedNow, knownNow, resolved);
+    }
+
+    static boolean expired(java.time.LocalDate until, java.time.LocalDate today) {
+        return until != null && today != null && until.isBefore(today);
     }
 }

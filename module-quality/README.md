@@ -99,7 +99,13 @@ forge:
     baseline-file: build/quality/baseline/quality-baseline.json
     accepted:
       - "functional io.acme.OrdersTest.refundsAnOrder()  # ORD-12, fixed in 2.4"
+      - "efficiency GET /reports  # until 2026-12-01, REP-112"
 ```
+
+`until <date>` in the comment makes an acceptance expire: from the day
+after, the issue counts as new again and the report notes it. An accepted
+entry that matches no issue of the run is noted too — delete it once that
+holds, or it will silently cover the next regression.
 
 Without a baseline every issue is new. `run()` and `assertAcceptable()`
 never write one: promoting a run is `qualityRunner.writeBaseline()` in a
@@ -150,6 +156,67 @@ forge:
 
 An entry that cannot be read, or has another `formatVersion`, is skipped
 and listed in the report's inputs, never a failed assessment.
+
+## Who owns it: labels and components
+
+`quality.json`, the history and the metrics carry the run's **labels**:
+`revision`, `branch` and `job` from the CI's own variables (`GITHUB_SHA` /
+`CI_COMMIT_SHA` / `GIT_COMMIT`, `GITHUB_REF_NAME` / `CI_COMMIT_REF_NAME` /
+`GIT_BRANCH` / `BRANCH_NAME`, `GITHUB_RUN_ID` / `CI_JOB_ID` / `BUILD_NUMBER`),
+then `forge.quality.run-labels` on top.
+
+**Components** group issues by owner. Each issue key — a test id, an
+operation (`demo GET /orders/{id}`), a table (`BREAKING COLUMN_REMOVED
+ORDERS.AMOUNT`) — goes to the first component with a matching pattern (`*` is
+any text); what matches none is listed as `(unassigned)`, so a gap in the
+mapping shows. One component per service gives each service its own status.
+
+```yaml
+forge:
+  quality:
+    run-labels:
+      environment: staging
+    components:
+      orders:
+        owner: team-orders
+        match: ["io.acme.orders.*", "* /api/v1/orders*", "*ORDERS*"]
+      billing:
+        owner: team-billing
+        match: ["io.acme.billing.*", "* /api/v1/invoices*"]
+```
+
+A component's status is the worst status of the dimensions it has issues in;
+the report lists its issues and how many are new.
+
+## Gate policy per dimension
+
+`fail-on` fails on a FAIL with a new issue. `forge.quality.gate` adds per
+dimension:
+
+```yaml
+forge:
+  quality:
+    gate:
+      stability: { max-new-issues: 2 }   # a budget: up to 2 new flaky tests pass, the 3rd fails
+      api-coverage: { min-score: 80 }    # below 80 fails, even at WARN
+```
+
+With `max-new-issues` a `fail-on` FAIL passes while its new issues stay within
+the budget, and any status fails beyond it. A NOT MEASURED dimension is not
+judged here — list it in `required`.
+
+## Exports
+
+Beside `quality.md` and `quality.json` in `output-dir`:
+
+- `quality-summary.md` — overall, the dimensions that are not PASS with their
+  first new issues, components with new issues: short enough for a pull
+  request comment;
+- `quality.prom` — OpenMetrics text (`testforge_quality_score`,
+  `testforge_quality_status`, `testforge_quality_issues{kind="new"|"all"}`,
+  `testforge_quality_component_new_issues`, `testforge_quality_run_info` with
+  the labels) for a push gateway or a textfile collector;
+- `quality.schema.json` — JSON Schema of `quality.json` (`formatVersion` 1).
 
 ## Configuration
 
