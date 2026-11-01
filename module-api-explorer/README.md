@@ -153,7 +153,16 @@ forge:
 - `fail` mode throws an `AssertionError` naming the kind and JSON path, e.g.
   `MISSING_REQUIRED_FIELD at $.items[].status`.
 - Paths are matched against the document relative to `forge.http.base-url`; a
-  literal path wins over a templated one.
+  literal path wins over a templated one. Only responses from that base URL
+  are checked: a call the same `ApiClient` sends to another service
+  (`request("payments")`, a downstream mock) is not this document's business.
+- springdoc declares a `*/*` body for every status of a `ResponseEntity`
+  handler, a 404 from `ResponseEntity.notFound().build()` included. Such a
+  response has no `Content-Type`, and the guard reports
+  `UNEXPECTED_CONTENT_TYPE … got no content type`: the document promises a
+  body the service never sends. Declare the bodiless status without content
+  (`@ApiResponse(responseCode = "404", content = @Content)`) rather than
+  accepting the finding.
 
 Start in `record` mode on an existing suite, read the first report, then
 switch the CI profile to `fail`.
