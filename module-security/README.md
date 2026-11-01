@@ -41,6 +41,9 @@ Security score. Each coverage row names a check, target, optional role, status
 
 - High: credential-like response patterns, Luhn-valid card patterns,
   project-forbidden JSON fields, configured untrusted CORS origins allowed.
+  Forbidden fields apply to JSON responses only: an HTML page, text or file
+  is `not_applicable`, while JSON that cannot be parsed whole (cut at
+  `max-body-chars`) is `not_measured` and keeps the gate closed.
 - Medium: missing HTTPS HSTS, missing HTML CSP/frame protection, insecure
   session-cookie attributes, wildcard CORS with credentials, error stack/SQL
   patterns. This CORS combination is a misconfiguration, not proof that a
