@@ -14,6 +14,11 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 |---|---|---|---|
 | `functional` | `100 × passed / (passed + failed)` | any test failed | JUnit XML |
 | `stability` | `100 × (1 − flaky / executed)` | flaky rate above `max-flaky-rate` (WARN below it) | JUnit XML |
+| `contracts` | `100 − 10 × mismatches` | any mismatch | `module-api-explorer` contract guard, `module-contract-monitor` |
+| `data` | `100 − 50 × breaking − 20 × risky − 5 × unknown` | a breaking schema change (WARN on risky/unknown) | `module-db-contract` |
+| `robustness` | `100 − 10 × finding groups` | a fuzz finding group nobody accepted | `module-api-fuzz` `findings.json` |
+| `authorization` | `100 − 20 × violations` | a role got in, or was shut out, against the access matrix | `module-api-explorer` access matrix |
+| `efficiency` | `100 × (compared − slower) / compared` | never (WARN): a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations + baseline |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems` | never (WARN) | run index |
 
 - **Flaky** means failed and passed in the same run: a test listed twice
@@ -23,8 +28,10 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
   and the overall status ignores it. Nothing measured at all fails the gate.
 - **Overall** is the worst measured status; the mean score is for trend lines.
 
-More dimensions (contracts, data, robustness, efficiency, security) follow
-the spec's steps A3–A4.
+A module that is not used leaves its dimension NOT MEASURED with the reason
+("no db-contract report (module-db-contract) in the run"); its reports are
+read as JSON from the run index, so deleting a module never breaks this one.
+The security dimension follows with step A4.
 
 ## Baseline: fail on what is new
 
@@ -63,7 +70,10 @@ forge:
     run-id:                               # default: newest run with a manifest
     output-dir: build/quality
     max-flaky-rate: 0.02
-    fail-on: [functional, stability]
+    fail-on: [functional, stability]     # add contracts, data, robustness, authorization when they run
+    efficiency:
+      slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise
+      min-millis: 1000
 ```
 
 ## Usage

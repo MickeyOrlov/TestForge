@@ -17,11 +17,17 @@ final class QualityAssessor {
     private QualityAssessor() {
     }
 
-    static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, List<String> inputs,
-                                QualityProperties properties) {
+    static QualityReport assess(String runId, List<TestCase> tests, RunIndex index, QualityBaseline baseline,
+                                List<String> inputs, QualityProperties properties,
+                                com.fasterxml.jackson.databind.ObjectMapper mapper) {
         List<QualityDimension> dimensions = List.of(
                 functional(tests, properties),
                 stability(tests, properties),
+                ModuleDimensions.contracts(index, mapper),
+                ModuleDimensions.data(index, mapper),
+                ModuleDimensions.robustness(index, mapper),
+                ModuleDimensions.authorization(index, mapper),
+                ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
                 hygiene(tests, index));
         QualityStatus overall = QualityStatus.NOT_MEASURED;
         int sum = 0;

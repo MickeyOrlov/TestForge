@@ -20,6 +20,9 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
+ *     efficiency:
+ *       slowdown-factor: 2.0              # a test this many times slower than in the baseline…
+ *       min-millis: 1000                  # …and at least this much slower counts
  * </pre>
  *
  * With a baseline the gate fails only on issues the baseline did not have;
@@ -38,7 +41,8 @@ public record QualityProperties(
         Double maxFlakyRate,
         List<String> failOn,
         String baselineFile,
-        List<String> accepted) {
+        List<String> accepted,
+        EfficiencyProperties efficiency) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -66,10 +70,33 @@ public record QualityProperties(
                 .filter(entry -> !entry.isEmpty())
                 .distinct()
                 .toList();
+        if (efficiency == null) {
+            efficiency = new EfficiencyProperties(null, null);
+        }
+    }
+
+    /** When a test counts as slower than in the baseline: both limits at once. */
+    public record EfficiencyProperties(Double slowdownFactor, Long minMillis) {
+
+        public EfficiencyProperties {
+            if (slowdownFactor == null || slowdownFactor < 1) {
+                slowdownFactor = 2.0;
+            }
+            if (minMillis == null || minMillis < 0) {
+                minMillis = 1000L;
+            }
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                null);
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
                              String outputDir, Double maxFlakyRate, List<String> failOn) {
-        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, null, null);
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, null, null, null);
     }
 }

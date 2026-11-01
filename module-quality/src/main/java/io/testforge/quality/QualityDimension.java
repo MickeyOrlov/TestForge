@@ -17,6 +17,11 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     public static final String FUNCTIONAL = "functional";
     public static final String STABILITY = "stability";
     public static final String HYGIENE = "hygiene";
+    public static final String CONTRACTS = "contracts";
+    public static final String DATA = "data";
+    public static final String ROBUSTNESS = "robustness";
+    public static final String AUTHORIZATION = "authorization";
+    public static final String EFFICIENCY = "efficiency";
 
     public QualityDimension {
         facts = List.copyOf(facts == null ? List.of() : facts);

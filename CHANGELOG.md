@@ -155,6 +155,14 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-quality`: dimensions from the other modules' reports (step A3) —
+  `contracts` (contract guard, contract monitor), `data` (db-contract
+  BREAKING / RISKY / UNKNOWN), `robustness` (unaccepted fuzz finding groups),
+  `authorization` (access-matrix violations) and `efficiency` (tests at least
+  2× and 1 s slower than in the baseline). A module that is not used leaves
+  its dimension NOT MEASURED, naming the module.
+- `module-api-fuzz`: `findings.json` next to `report.md` — the finding groups
+  with spec, key, check, operation, occurrences and accepted flag.
 - `module-quality`: baseline comparison (step A2). Each dimension names its
   issues by stable keys; against `quality-baseline.json` they are new,
   accepted (`forge.quality.accepted`), known or resolved, and

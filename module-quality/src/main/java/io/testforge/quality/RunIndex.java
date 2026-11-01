@@ -72,6 +72,18 @@ record RunIndex(String runId, Path manifest, List<Artifact> artifacts, List<Stri
                 List.copyOf(artifacts), List.copyOf(problems));
     }
 
+    /**
+     * Where an artifact's file is: its {@code location} metadata (files kept
+     * outside the run directory), else its path inside the run directory.
+     */
+    Optional<Path> file(Artifact artifact) {
+        String location = artifact.metadata().get("location");
+        Path file = location != null && !location.isBlank() ? Path.of(location)
+                : artifact.path() == null || artifact.path().isBlank() ? null
+                : manifest.getParent().resolve(artifact.path());
+        return file != null && Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+    }
+
     List<Artifact> artifacts(String source, String category) {
         return artifacts.stream().filter(a -> a.source().equals(source) && a.category().equals(category)).toList();
     }
