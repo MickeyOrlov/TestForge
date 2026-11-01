@@ -58,7 +58,8 @@ public class ResponseContractChecker {
         if (mediaType == null) {
             mismatches.add(ContractMismatch.response(MismatchKind.UNEXPECTED_CONTENT_TYPE,
                     "got %s, document declares %s".formatted(
-                            exchange.contentType() == null ? "no content type" : exchange.contentType(),
+                            exchange.contentType() == null || exchange.contentType().isBlank()
+                                    ? "no content type" : exchange.contentType(),
                             String.join(", ", content.keySet()))));
             return List.copyOf(mismatches);
         }

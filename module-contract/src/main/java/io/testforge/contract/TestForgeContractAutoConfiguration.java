@@ -8,7 +8,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-@AutoConfiguration
+// after Spring Boot's Jackson: the mapper below is a fallback for a context
+// without it, never a replacement for the application's own mapper, which a
+// @SpringBootTest's service under test serves its requests with
+@AutoConfiguration(afterName = "org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration")
 @EnableConfigurationProperties(ContractProperties.class)
 public class TestForgeContractAutoConfiguration {
 

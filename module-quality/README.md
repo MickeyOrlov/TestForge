@@ -72,6 +72,12 @@ reason, rather than being read as zero findings.
 
 - By default the newest run index with a manifest — skipping one that holds
   only `module-quality`'s own report, which the gate's JVM leaves behind.
+- The gate's JVM writes a run index of its own, so it must not share the
+  tests' run id: when its context closes it would replace that run's
+  `manifest.json` with its own two reports, and a second gate on the run
+  would judge 3 dimensions instead of 13. A `forge.reporting.artifacts.run-id`
+  set once for the whole CI job (the job id) does exactly that; the
+  `qualityGate` task gives the gate the run id `quality-gate`.
 - A pipeline whose tests ran in several JVMs (`test`, `containersTest`,
   parallel forks) has one run directory each: list them,
   `forge.quality.run-id: "<unit-run>,<containers-run>"`, and they are judged
@@ -230,6 +236,7 @@ forge:
     output-dir: build/quality
     max-flaky-rate: 0.02
     fail-on: [functional, stability]     # add contracts, data, robustness, authorization when they run
+    min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise
       min-millis: 1000
@@ -282,9 +289,11 @@ on, runs the gate with the start instant as `-PqualityResultsNotBefore`,
 saves the history, uploads the report and puts `quality-summary.md` on the
 pull request.
 
-It sets `forge.quality.enabled=true`, the test tasks' JUnit XML directories
-and `build/quality` as the output, is never up to date, and is not part of
-`build`. Results of a test task that did not run in this build still count
+It sets `forge.quality.enabled=true`, the test tasks' JUnit XML directories,
+`build/quality` as the output and a run id of the gate's own, is never up to
+date, and is not part of `build`. Copied into a project, its task paths
+(`:example-tests:test`, `:example-tests:containersTest`) become that project's
+test tasks. Results of a test task that did not run in this build still count
 — a CI workspace starts clean; locally run `clean` first or leave that task
 out of `junit-results`.
 

@@ -7,5 +7,7 @@ dependencies {
     api libs.swagger.parser.v3
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
+    // Spring Boot's own ObjectMapper needs Jackson2ObjectMapperBuilder (*ObjectMapperTest)
+    testImplementation "org.springframework:spring-web"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
