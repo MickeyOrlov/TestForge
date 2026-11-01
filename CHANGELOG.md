@@ -30,6 +30,12 @@ semantic versioning for its git tags.
   split the partitions and each missed part of the messages.
 
 ### Fixed
+- `module-rabbitmq`, found by reviewing it against a real broker: a
+  stopped collector kept its consumer alive in Spring's channel cache, so its
+  queue stayed and messages kept arriving — it now cancels the consumer and
+  closes the channel physically, as the publisher does with its confirm-mode
+  channels; and a String payload that is JSON is sent as `application/json`,
+  which Spring AMQP's Jackson converter requires.
 - `module-db`, found by `PostgresDbChecksIT` (tag `containers`), the table
   diffs, data rules and query checks run against PostgreSQL 17:
   - table and column names a test gives are quoted for the database, folded

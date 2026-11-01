@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.connection.RabbitUtils;
 import org.springframework.context.SmartLifecycle;
 
 /**
@@ -35,6 +36,7 @@ import org.springframework.context.SmartLifecycle;
 public class RabbitCollector implements SmartLifecycle {
 
     private static final Logger log = LoggerFactory.getLogger(RabbitCollector.class);
+    static final String CONSUMER_TAG = "testforge-probe";
 
     private final ConnectionFactory connectionFactory;
     private final RabbitProbeProperties properties;
@@ -69,7 +71,7 @@ public class RabbitCollector implements SmartLifecycle {
                 current = binding;
                 opened.queueBind(queue, binding.exchange(), binding.routingKey());
             }
-            opened.basicConsume(queue, true, "testforge-probe", new Consumer(opened));
+            opened.basicConsume(queue, true, CONSUMER_TAG, new Consumer(opened));
             log.info("RabbitMQ probe reads {} bound to {}", queue, properties.bindings());
         } catch (IOException | RuntimeException e) {
             String reason = current == null ? e.toString()
@@ -106,10 +108,29 @@ public class RabbitCollector implements SmartLifecycle {
         channel = null;
         if (opened != null && opened.isOpen()) {
             try {
-                opened.close();
-            } catch (IOException | java.util.concurrent.TimeoutException | RuntimeException e) {
-                log.debug("RabbitMQ probe channel did not close cleanly", e);
+                // cancelling the only consumer deletes the auto-delete queue now, not when the connection closes
+                opened.basicCancel(CONSUMER_TAG);
+            } catch (IOException | RuntimeException e) {
+                log.debug("RabbitMQ probe consumer did not cancel cleanly", e);
             }
+            closePhysically(opened);
+        }
+    }
+
+    /**
+     * Spring's CachingConnectionFactory returns a closed channel to its cache;
+     * a probe channel — with a consumer, or in confirm mode — must really close.
+     */
+    static void closePhysically(Channel channel) {
+        try {
+            RabbitUtils.setPhysicalCloseRequired(channel, true);
+            if (channel.isOpen()) {
+                channel.close();
+            }
+        } catch (IOException | java.util.concurrent.TimeoutException | RuntimeException e) {
+            log.debug("RabbitMQ probe channel did not close cleanly", e);
+        } finally {
+            RabbitUtils.clearPhysicalCloseRequired();
         }
     }
 

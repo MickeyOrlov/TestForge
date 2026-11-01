@@ -166,6 +166,85 @@ class RabbitMqProbeIT {
         }
     }
 
+    @Autowired
+    org.springframework.amqp.rabbit.connection.ConnectionFactory connectionFactory;
+
+    @Test
+    void aPublishLeavesNoConfirmModeChannelInSpringsCache() {
+        publisher.publish("orders", "order.placed", Map.of("x", 1));
+        publisher.publish("orders", "order.placed", Map.of("x", 2));
+
+        Channel cached = connectionFactory.createConnection().createChannel(false);
+        try {
+            assertThat(((org.springframework.amqp.rabbit.connection.ChannelProxy) cached).isConfirmSelected())
+                    .as("the next user of the cached channel gets it as Spring made it").isFalse();
+        } finally {
+            org.springframework.amqp.rabbit.connection.RabbitUtils.closeChannel(cached);
+        }
+    }
+
+    @Test
+    void aJsonStringIsSentAsJsonSoASpringConsumerCanConvertIt() throws Exception {
+        String orderId = UUID.randomUUID().toString();
+        drain();
+
+        publisher.publish("orders", "order.placed", "{\"orderId\":\"" + orderId + "\"}");
+
+        try (Connection connection = connection(); Channel channel = connection.createChannel()) {
+            GetResponse delivered = await(channel);
+            assertThat(delivered.getProps().getContentType()).isEqualTo("application/json");
+        }
+    }
+
+    @Test
+    void aMissingExchangeFailsThePublishAndTheCollectorKeepsReceiving() {
+        assertThatThrownBy(() -> publisher.publish("no-such-exchange", "x", Map.of("x", 1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Publishing to exchange no-such-exchange with routing key x failed")
+                .hasMessageContaining("NOT_FOUND");
+
+        String orderId = UUID.randomUUID().toString();
+        publisher.publish("orders", "order.placed", Map.of("orderId", orderId));
+        probe.awaitMessage(RabbitMessageFilter.builder().exchange("orders").jsonPathEquals("$.orderId", orderId)
+                .build());
+    }
+
+    @Test
+    void aStoppedCollectorLeavesNoQueueBehind() throws Exception {
+        CachingConnectionFactory factory = new CachingConnectionFactory(rabbit.getHost(), rabbit.getAmqpPort());
+        factory.setUsername(rabbit.getAdminUsername());
+        factory.setPassword(rabbit.getAdminPassword());
+        RabbitCollector own = new RabbitCollector(factory, new RabbitProbeProperties(true,
+                List.of(new RabbitProbeProperties.Binding("orders", null)), 0, null), new RabbitMessageBuffer(10));
+        try {
+            own.start();
+            String queue = own.queue();
+            own.stop();
+
+            try (Connection connection = connection()) {
+                // a 404 closes the channel, so it is not closed again here
+                Channel channel = connection.createChannel();
+                assertThatThrownBy(() -> channel.queueDeclarePassive(queue))
+                        .as("the queue went away with the collector").hasStackTraceContaining("NOT_FOUND");
+            }
+        } finally {
+            factory.destroy();
+        }
+    }
+
+    /** The service queue's next message, polled until it is there. */
+    private static GetResponse await(Channel channel) {
+        return new io.testforge.core.wait.Waiter(new io.testforge.core.wait.WaitProperties(Duration.ofSeconds(5),
+                Duration.ofMillis(50))).await("a message on " + SERVICE_QUEUE,
+                () -> {
+                    try {
+                        return channel.basicGet(SERVICE_QUEUE, true);
+                    } catch (java.io.IOException e) {
+                        throw new java.io.UncheckedIOException(e);
+                    }
+                }, ignored -> true);
+    }
+
     private static void drain() throws Exception {
         try (Connection connection = connection(); Channel channel = connection.createChannel()) {
             channel.queuePurge(SERVICE_QUEUE);
