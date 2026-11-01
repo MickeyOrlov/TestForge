@@ -53,8 +53,8 @@ public class QualityRunner {
         List<String> inputs = new ArrayList<>(properties.junitResults());
         inputs.add(index == null ? properties.artifactsRoot() + " (no run index)" : index.manifest().toString());
         inputs.add(baseline == null ? baselineFile + " (no baseline: every issue is new)" : baselineFile.toString());
-        QualityReport assessed = QualityAssessor.assess(index == null ? null : index.runId(), tests, index, inputs,
-                properties);
+        QualityReport assessed = QualityAssessor.assess(index == null ? null : index.runId(), tests, index, baseline,
+                inputs, properties, mapper);
         QualityReport compared = assessed.withDimensions(baseline == null ? null : baseline.runId(),
                 assessed.dimensions().stream()
                         .map(d -> d.withDelta(QualityBaseline.compare(d, baseline, properties.accepted())))

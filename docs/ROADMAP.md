@@ -241,7 +241,10 @@ Target modules: `module-quality`, `module-security` (planned)
   formulas; `quality.md` / `quality.json`; a gate that fails closed.
 - Shipped (A2): `quality-baseline.json`, new / accepted / known / resolved
   issues per dimension; the gate fails only on new ones.
-- Next: dimensions from the existing modules (A3),
+- Shipped (A3): contracts, data, robustness, authorization and efficiency
+  dimensions from the existing modules' reports; `module-api-fuzz` writes a
+  machine-readable `findings.json` for it.
+- Next:
   then the security block (B1–B5) and its dimension (A4).
 
 ### Gherkin Steps
