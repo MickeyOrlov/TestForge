@@ -17,6 +17,9 @@ semantic versioning for its git tags.
   remain FAIL. Artifact secret leaks cannot be accepted or baseline-promoted.
 
 ### Added
+- `example-tests`: `org.gradle.test-retry` 1.6.6, off by default —
+  `-PtestRetries=N` reruns failed tests; one that passes on a rerun keeps the
+  build green and reaches the quality gate's stability dimension as flaky.
 - `example-tests`: `QualityEndToEndTest` — contract guard, contract monitor,
   db-contract, access matrix, api-fuzz and passive security run with a
   planted defect into one run index; module-quality must find each in its
