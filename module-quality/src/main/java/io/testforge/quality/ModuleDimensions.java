@@ -19,6 +19,7 @@ import java.util.Optional;
 final class ModuleDimensions {
 
     static final int LISTED = 10;
+    static final String SECURITY_INCOMPLETE = "security measurement incomplete";
 
     private ModuleDimensions() {
     }
@@ -182,10 +183,7 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.SECURITY,
                     "no security-findings.json (module-security) in the run");
         }
-        if (reports.stream().noneMatch(report -> report.path("measured").asBoolean())) {
-            return QualityDimension.notMeasured(QualityDimension.SECURITY,
-                    "module-security ran but measured nothing — see its coverage in security.md");
-        }
+        boolean complete = reports.stream().allMatch(ModuleDimensions::completeSecurityRun);
         java.util.Map<String, Integer> bySeverity = new java.util.LinkedHashMap<>();
         for (String severity : List.of("critical", "high", "medium", "low", "info")) {
             bySeverity.put(severity, 0);
@@ -223,11 +221,42 @@ final class ModuleDimensions {
         if (listed.size() > LISTED) {
             facts.add("… and " + (listed.size() - LISTED) + " more");
         }
+        if (!complete) {
+            facts.add("security measurement incomplete — see coverage in security.md");
+            issues.add(SECURITY_INCOMPLETE);
+            if (critical + high == 0) {
+                return new QualityDimension(QualityDimension.SECURITY, QualityStatus.NOT_MEASURED,
+                        null, null, facts).withIssues(issues);
+            }
+        }
         QualityStatus status = critical + high > 0 ? QualityStatus.FAIL
                 : medium + low > 0 ? QualityStatus.WARN : QualityStatus.PASS;
         return new QualityDimension(QualityDimension.SECURITY, status,
                 Math.max(0, 100 - 40 * critical - 20 * high - 5 * medium - low),
                 "100 − 40 × critical − 20 × high − 5 × medium − 1 × low (new findings)", facts).withIssues(issues);
+    }
+
+    /**
+     * A security run whose coverage is whole: enabled, measured, not marked
+     * incomplete, no {@code not_measured} coverage row, and something actually
+     * measured (or an explicit {@code complete} flag).
+     */
+    private static boolean completeSecurityRun(JsonNode report) {
+        if (!report.path("measured").asBoolean() || !report.path("enabled").asBoolean(true)) {
+            return false;
+        }
+        if (report.has("complete") && !report.path("complete").asBoolean()) {
+            return false;
+        }
+        boolean covered = report.has("complete");
+        for (JsonNode row : report.path("coverage")) {
+            String status = row.path("status").asText();
+            if (status.equals("not_measured")) {
+                return false;
+            }
+            covered |= status.equals("measured");
+        }
+        return covered;
     }
 
     /**

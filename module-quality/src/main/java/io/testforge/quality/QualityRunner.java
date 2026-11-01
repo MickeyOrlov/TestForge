@@ -97,6 +97,13 @@ public class QualityRunner {
             throw new QualityException("Nothing to assess: no executed tests in " + properties.junitResults()
                     + " and no run index under " + properties.artifactsRoot() + ". See " + report.reportMarkdown());
         }
+        // an incomplete security run never passes a gate that asked for security, baseline or not
+        boolean securityIncomplete = report.dimension(QualityDimension.SECURITY)
+                .filter(d -> d.issues().contains(ModuleDimensions.SECURITY_INCOMPLETE)).isPresent();
+        if (properties.failOn().contains(QualityDimension.SECURITY) && securityIncomplete) {
+            throw new QualityException("Security measurement incomplete: the security gate needs complete coverage. "
+                    + "See " + report.reportMarkdown());
+        }
         List<QualityDimension> failed = report.dimensions().stream()
                 .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
                 // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails

@@ -47,7 +47,7 @@ class QualityAssessmentExampleTest {
                 """);
         // module-security's findings, in its security-findings.json layout
         write("artifacts/20261101T120000Z-ci-42/module-security/security-findings.json", """
-                {"formatVersion": 1, "measured": true, "findings": [
+                {"formatVersion": 1, "enabled": true, "measured": true, "complete": true, "findings": [
                   {"id": "cookie-missing-httponly POST /login", "severity": "medium", "status": "new"}]}
                 """);
         write("artifacts/20261101T120000Z-ci-42/manifest.json", """

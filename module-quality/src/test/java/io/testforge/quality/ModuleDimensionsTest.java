@@ -1,6 +1,6 @@
 package io.testforge.quality;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.artifact.ArtifactSink;
@@ -19,7 +19,7 @@ class ModuleDimensionsTest {
 
     private QualityRunner runner() {
         return new QualityRunner(new QualityProperties(true, List.of(dir.resolve("results").toString()),
-                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), 0.02, null,
+                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), 0.02, List.of("functional", "stability", "security"),
                 dir.resolve("baseline.json").toString(), List.of(),
                 new QualityProperties.EfficiencyProperties(2.0, 500L)), new ObjectMapper(), ArtifactSink.NO_OP);
     }
@@ -115,7 +115,7 @@ class ModuleDimensionsTest {
         junit("<testcase classname=\"T\" name=\"a\"/>");
         // the layout of module-security's security-findings.json (format 1)
         file("artifacts/r/module-security/security-findings.json", """
-                {"formatVersion": 1, "enabled": true, "measured": true, "healthy": false, "findings": [
+                {"formatVersion": 1, "enabled": true, "measured": true, "complete": true, "healthy": false, "findings": [
                   {"id": "cors-credentials-wildcard GET /orders", "severity": "high", "status": "new"},
                   {"id": "missing-nosniff GET /orders", "severity": "low", "status": "new"},
                   {"id": "server-version GET /", "severity": "info", "status": "new"},
@@ -147,6 +147,40 @@ class ModuleDimensionsTest {
 
         assertThat(runner().run().dimension(QualityDimension.SECURITY).orElseThrow().status())
                 .isEqualTo(QualityStatus.NOT_MEASURED);
+    }
+
+    @Test
+    void incompleteSecurityCannotPassTheSelectedGateEvenAfterBaselinePromotion() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        securityReport("{\"measured\":true,\"complete\":false,\"findings\":[],\"coverage\":[]}");
+        var security = runner().run().dimension(QualityDimension.SECURITY).orElseThrow();
+        assertThat(security.status()).isEqualTo(QualityStatus.NOT_MEASURED);
+        assertThat(security.score()).isNull();
+        runner().writeBaseline();
+        assertThatThrownBy(() -> runner().assertAcceptable()).isInstanceOf(QualityException.class)
+                .hasMessageContaining("incomplete");
+    }
+
+    @Test
+    void coverageGapsCannotHideObservedHighFindings() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        securityReport("""
+                {"measured":true,"complete":true,"findings":[
+                 {"id":"observed-high","severity":"high","status":"new"}],
+                 "coverage":[{"status":"not_measured"}]}""");
+        var security = runner().run().dimension(QualityDimension.SECURITY).orElseThrow();
+        assertThat(security.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(security.score()).isEqualTo(80);
+        assertThat(security.facts()).anyMatch(f -> f.contains("incomplete"));
+        runner().writeBaseline();
+        assertThatThrownBy(() -> runner().assertAcceptable()).isInstanceOf(QualityException.class);
+    }
+
+    private void securityReport(String json) throws IOException {
+        file("artifacts/r/module-security/security-findings.json", json);
+        file("artifacts/r/manifest.json", """
+                {"runId":"r","artifacts":[{"source":"module-security","category":"security",
+                "name":"security-findings.json","path":"module-security/security-findings.json"}]}""");
     }
 
     @Test
