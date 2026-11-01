@@ -6,6 +6,9 @@ Scope: security findings, explicit coverage and gates; passive API response
 checks; subsequent opt-in probes and delegated scans.
 May depend on core, module-http, module-auth and module-api-explorer. No dependency on module-quality/reporting.
 
+Style: like the rest of the repository — 4-space indentation, explicit imports
+(no wildcards), 8-space continuation; google-java-format `--aosp` produces it.
+
 Invariants:
 - Inert by default. Passive checks add no traffic and never replace a response.
 - Never retain observed values in findings, coverage, logs, errors or SARIF.
