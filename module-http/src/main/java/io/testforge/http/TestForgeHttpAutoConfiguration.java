@@ -84,6 +84,14 @@ public class TestForgeHttpAutoConfiguration {
     }
 
     /** forge.wait's defaults when core's auto-configuration provides them, Waiter's own otherwise. */
+    /** Per-operation status classes and latency of the run, for module-quality's reliability dimension. */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.http.summary", name = "enabled", matchIfMissing = true)
+    public HttpTrafficSummary httpTrafficSummary(ObjectProvider<io.testforge.artifact.ArtifactSink> sink) {
+        return new HttpTrafficSummary(sink.getIfAvailable(() -> io.testforge.artifact.ArtifactSink.NO_OP));
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public ResponsePoller responsePoller(ObjectProvider<WaitProperties> waits, Redactor redactor) {
