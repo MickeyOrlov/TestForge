@@ -23,11 +23,12 @@ final class QualityAssessor {
         List<QualityDimension> dimensions = List.of(
                 functional(tests, properties),
                 stability(tests, properties),
-                ModuleDimensions.contracts(index, mapper),
-                ModuleDimensions.data(index, mapper),
-                ModuleDimensions.robustness(index, mapper),
-                ModuleDimensions.authorization(index, mapper),
-                ModuleDimensions.security(index, mapper),
+                ModuleDimensions.guarded(QualityDimension.CONTRACTS, () -> ModuleDimensions.contracts(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.DATA, () -> ModuleDimensions.data(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.ROBUSTNESS, () -> ModuleDimensions.robustness(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.AUTHORIZATION,
+                        () -> ModuleDimensions.authorization(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.SECURITY, () -> ModuleDimensions.security(index, mapper)),
                 ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
                 hygiene(tests, index));
         QualityStatus overall = QualityStatus.NOT_MEASURED;

@@ -44,15 +44,30 @@ final class JunitResults {
     private JunitResults() {
     }
 
+    /** What was read, and the report files left out as older than {@code notBefore}. */
+    record Read(List<TestCase> tests, List<String> stale) {
+    }
+
     static List<TestCase> read(List<Path> roots) {
+        return read(roots, null).tests();
+    }
+
+    /**
+     * @param notBefore suites whose {@code timestamp} is earlier are stale — results of a task that
+     *                  did not run in this build — and are skipped; {@code null} keeps everything
+     */
+    static Read read(List<Path> roots, java.time.Instant notBefore) {
         Map<String, List<Attempt>> attempts = new LinkedHashMap<>();
+        List<String> stale = new ArrayList<>();
         for (Path root : roots) {
             if (!Files.exists(root)) {
                 continue;
             }
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path file : files.filter(f -> f.getFileName().toString().endsWith(".xml")).sorted().toList()) {
-                    read(file, attempts);
+                    if (!read(file, attempts, notBefore)) {
+                        stale.add(file.toString());
+                    }
                 }
             } catch (IOException e) {
                 throw new QualityException("Could not read JUnit results under " + root, e);
@@ -60,7 +75,7 @@ final class JunitResults {
         }
         List<TestCase> tests = new ArrayList<>();
         attempts.forEach((id, all) -> tests.add(merge(all)));
-        return tests;
+        return new Read(tests, List.copyOf(stale));
     }
 
     private record Attempt(String className, String name, Outcome outcome, boolean flakyMarker, String message,
@@ -79,13 +94,20 @@ final class JunitResults {
                 all.getLast().millis());
     }
 
-    private static void read(Path file, Map<String, List<Attempt>> attempts) {
+    /** @return false when the file's suite is older than {@code notBefore} and was skipped */
+    private static boolean read(Path file, Map<String, List<Attempt>> attempts, java.time.Instant notBefore) {
         Document document;
         try (InputStream in = Files.newInputStream(file)) {
             document = parser().parse(in);
         } catch (IOException | SAXException e) {
             // a file that is not a JUnit report (another tool's XML in the same tree) is not an error
-            return;
+            return true;
+        }
+        if (notBefore != null) {
+            java.time.Instant written = timestamp(document.getDocumentElement().getAttribute("timestamp"));
+            if (written != null && written.isBefore(notBefore)) {
+                return false;
+            }
         }
         NodeList cases = document.getElementsByTagName("testcase");
         for (int i = 0; i < cases.getLength(); i++) {
@@ -115,6 +137,23 @@ final class JunitResults {
             }
             attempts.computeIfAbsent(className + "." + name, ignored -> new ArrayList<>())
                     .add(new Attempt(className, name, outcome, flakyMarker, message, millis(testcase)));
+        }
+        return true;
+    }
+
+    /** Gradle writes {@code 2026-11-01T16:55:22.305Z}; Surefire a local time without a zone. */
+    static java.time.Instant timestamp(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return java.time.OffsetDateTime.parse(value).toInstant();
+        } catch (java.time.format.DateTimeParseException e) {
+            try {
+                return java.time.LocalDateTime.parse(value).atZone(java.time.ZoneId.systemDefault()).toInstant();
+            } catch (java.time.format.DateTimeParseException ignored) {
+                return null;
+            }
         }
     }
 

@@ -41,16 +41,19 @@ public class QualityRunner {
         return run(tests());
     }
 
-    private List<JunitResults.TestCase> tests() {
-        return JunitResults.read(properties.junitResults().stream().map(Path::of).toList());
+    private JunitResults.Read tests() {
+        return JunitResults.read(properties.junitResults().stream().map(Path::of).toList(),
+                properties.resultsNotBefore());
     }
 
-    private QualityReport run(List<JunitResults.TestCase> tests) {
+    private QualityReport run(JunitResults.Read read) {
+        List<JunitResults.TestCase> tests = read.tests();
         Path artifacts = Path.of(properties.artifactsRoot());
         RunIndex index = RunIndex.find(artifacts, properties.runId(), mapper).orElse(null);
         Path baselineFile = Path.of(properties.baselineFile());
         QualityBaseline baseline = QualityBaseline.read(baselineFile, mapper).orElse(null);
         List<String> inputs = new ArrayList<>(properties.junitResults());
+        read.stale().forEach(file -> inputs.add(file + " (dropped: older than " + properties.resultsNotBefore() + ")"));
         inputs.add(index == null ? properties.artifactsRoot() + " (no run index)" : index.manifest().toString());
         inputs.add(baseline == null ? baselineFile + " (no baseline: every issue is new)" : baselineFile.toString());
         QualityReport assessed = QualityAssessor.assess(index == null ? null : index.runId(), tests, index, baseline,
@@ -74,9 +77,9 @@ public class QualityRunner {
      * the check.
      */
     public QualityReport writeBaseline() {
-        List<JunitResults.TestCase> tests = tests();
-        QualityReport report = run(tests);
-        QualityBaseline.of(report, tests).write(Path.of(properties.baselineFile()), mapper);
+        JunitResults.Read read = tests();
+        QualityReport report = run(read);
+        QualityBaseline.of(report, read.tests()).write(Path.of(properties.baselineFile()), mapper);
         return report;
     }
 
@@ -96,6 +99,14 @@ public class QualityRunner {
         if (report.overall() == QualityStatus.NOT_MEASURED) {
             throw new QualityException("Nothing to assess: no executed tests in " + properties.junitResults()
                     + " and no run index under " + properties.artifactsRoot() + ". See " + report.reportMarkdown());
+        }
+        List<QualityDimension> missing = report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.NOT_MEASURED && properties.required().contains(d.name()))
+                .toList();
+        if (!missing.isEmpty()) {
+            throw new QualityException("Required dimensions not measured: " + missing.stream()
+                    .map(d -> d.name() + " (" + d.facts().getFirst() + ")").collect(Collectors.joining("; "))
+                    + ". See " + report.reportMarkdown());
         }
         // an incomplete security run never passes a gate that asked for security, baseline or not
         boolean securityIncomplete = report.dimension(QualityDimension.SECURITY)

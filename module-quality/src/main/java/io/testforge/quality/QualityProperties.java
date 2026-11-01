@@ -23,6 +23,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     efficiency:
  *       slowdown-factor: 2.0              # a test this many times slower than in the baseline…
  *       min-millis: 1000                  # …and at least this much slower counts
+ *     required: [functional, contracts]   # the gate fails while one of these is NOT MEASURED
+ *     results-not-before: 2026-11-01T12:00:00Z  # JUnit suites older than this are stale, dropped
  * </pre>
  *
  * With a baseline the gate fails only on issues the baseline did not have;
@@ -42,7 +44,9 @@ public record QualityProperties(
         List<String> failOn,
         String baselineFile,
         List<String> accepted,
-        EfficiencyProperties efficiency) {
+        EfficiencyProperties efficiency,
+        List<String> required,
+        java.time.Instant resultsNotBefore) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -73,6 +77,14 @@ public record QualityProperties(
         if (efficiency == null) {
             efficiency = new EfficiencyProperties(null, null);
         }
+        required = required == null ? List.of() : List.copyOf(required);
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, null, null);
     }
 
     /** When a test counts as slower than in the baseline: both limits at once. */

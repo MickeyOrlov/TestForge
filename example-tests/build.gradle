@@ -82,6 +82,8 @@ tasks.register("containersTest", Test) {
 //   ./gradlew :example-tests:test :example-tests:containersTest :example-tests:qualityGate
 //   -PqualityRunIds=<run>,<run>   run indexes of the test JVMs (default: the newest)
 //   -PqualityBaseline=<file>      the accepted run's quality-baseline.json
+//   -PqualityResultsNotBefore=<instant>  drop JUnit results older than this (default: this build's
+//                                        start, when the test tasks run in the same build)
 tasks.register("qualityGate", Test) {
     description = "Judges the finished test run and fails on new quality issues (module-quality)"
     group = "verification"
@@ -97,6 +99,19 @@ tasks.register("qualityGate", Test) {
     systemProperty "forge.quality.enabled", "true"
     systemProperty "forge.quality.junit-results", results.join(",")
     systemProperty "forge.quality.output-dir", layout.buildDirectory.dir("quality").get().asFile.absolutePath
+    // results older than this build belong to a test task that did not run in it — known only when the
+    // test tasks are in the same build; a separate CI step passes -PqualityResultsNotBefore=<instant>
+    def buildStarted = java.time.Instant.now().toString()
+    def gate = it
+    gradle.taskGraph.whenReady { graph ->
+        def notBefore = providers.gradleProperty("qualityResultsNotBefore").getOrNull()
+        if (notBefore == null && [":example-tests:test", ":example-tests:containersTest"].any { graph.hasTask(it) }) {
+            notBefore = buildStarted
+        }
+        if (notBefore != null) {
+            gate.systemProperty "forge.quality.results-not-before", notBefore
+        }
+    }
     if (providers.gradleProperty("qualityRunIds").isPresent()) {
         systemProperty "forge.quality.run-id", providers.gradleProperty("qualityRunIds").get()
     }

@@ -12,6 +12,13 @@ semantic versioning for its git tags.
   remain FAIL. Artifact secret leaks cannot be accepted or baseline-promoted.
 
 ### Added
+- `module-quality`: how much was measured — `measured: N of 9 dimensions`
+  in the report and `forge.quality.required` dimensions that fail the gate
+  while NOT MEASURED; `forge.quality.results-not-before` drops stale JUnit
+  suites (the `qualityGate` task sets it when the test tasks run in the same
+  build); a module report with an unknown `formatVersion` is NOT MEASURED
+  instead of read as zero. `module-api-fuzz` `findings.json` and
+  `module-api-explorer` `contract-guard.json` now carry `formatVersion: 1`.
 - `module-security` B3: digest-pinned Docker ZAP delegation through an
   allowlisted, read-only, rate/request/time-limited loopback gateway. Sanitized
   OpenAPI input, explicit-page baseline mode, value-free normalized findings,
