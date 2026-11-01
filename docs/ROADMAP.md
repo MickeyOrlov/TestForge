@@ -231,6 +231,17 @@ Target module: `module-data`
   per-variant statistics (`pool.stats()`), and `pool-stats.json` in the run
   index. Variants are tag sets; exhaustion is reported once per drain.
 
+### Product Quality Assessment And Security
+
+Target modules: `module-quality`, `module-security` (planned)
+
+- Spec: [quality-security-spec.md](quality-security-spec.md). Part A first.
+- Shipped (A1): `module-quality` reads a finished run's JUnit XML and run
+  index and scores functional, stability and hygiene dimensions with printed
+  formulas; `quality.md` / `quality.json`; a gate that fails closed.
+- Next: baseline and deltas (A2), dimensions from the existing modules (A3),
+  then the security block (B1–B5) and its dimension (A4).
+
 ### Gherkin Steps
 
 Target module: `module-gherkin` (optional)

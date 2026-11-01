@@ -33,6 +33,7 @@ COPY module-http/build.gradle module-http/build.gradle
 COPY module-kafka/build.gradle module-kafka/build.gradle
 COPY module-rabbitmq/build.gradle module-rabbitmq/build.gradle
 COPY module-gherkin/build.gradle module-gherkin/build.gradle
+COPY module-quality/build.gradle module-quality/build.gradle
 COPY module-mock/build.gradle module-mock/build.gradle
 COPY module-reporting/build.gradle module-reporting/build.gradle
 COPY module-web/build.gradle module-web/build.gradle
