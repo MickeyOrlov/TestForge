@@ -61,6 +61,34 @@ class MessageStepsTest {
     }
 
     @Test
+    void withScopeMessagesAnotherScenariosMessageNoLongerCounts() {
+        KafkaMessageBuffer buffer = new KafkaMessageBuffer(10);
+        buffer.append(new KafkaMessage("orders.events", 0, 1, "o-9", "{\"status\":\"PAID\"}", Instant.EPOCH,
+                Map.of("X-Test-Scope", "someone-else")));
+        ScenarioContext.put(io.testforge.core.context.ScenarioKeys.TEST_SCOPE, "bdd-mine");
+        KafkaPublisher publisher = new KafkaPublisher(null, mapper,
+                new io.testforge.kafka.KafkaProbeProperties.PublishProperties("X-Test-Scope", null, null, null));
+        StaticListableBeanFactory beans = new StaticListableBeanFactory();
+        beans.addBean("publisher", publisher);
+
+        // without it, the other scenario's PAID event satisfies the step
+        new KafkaSteps(new KafkaProbe(buffer, waiter, mapper), beans.getBeanProvider(KafkaPublisher.class), variables,
+                mapper, properties).arrives("orders.events", "$.status", "PAID");
+
+        KafkaSteps scoped = new KafkaSteps(new KafkaProbe(buffer, waiter, mapper),
+                beans.getBeanProvider(KafkaPublisher.class), variables, mapper,
+                new GherkinProperties(null, null, null, Duration.ofMillis(100), true));
+        assertThatThrownBy(() -> scoped.arrives("orders.events", "$.status", "PAID"))
+                .isInstanceOf(ConditionTimeoutException.class).hasMessageContaining("failed: header X-Test-Scope");
+
+        KafkaSteps unconfigured = new KafkaSteps(new KafkaProbe(buffer, waiter, mapper),
+                new StaticListableBeanFactory().getBeanProvider(KafkaPublisher.class), variables, mapper,
+                new GherkinProperties(null, null, null, Duration.ofMillis(100), true));
+        assertThatThrownBy(() -> unconfigured.arrives("orders.events", "$.status", "PAID"))
+                .hasMessageContaining("forge.gherkin.scope-messages=true needs forge.kafka.publish.scope-header");
+    }
+
+    @Test
     void kafkaPublishingWithoutABrokerSaysWhatIsMissing() {
         KafkaSteps steps = new KafkaSteps(new KafkaProbe(new KafkaMessageBuffer(1), waiter, mapper),
                 new StaticListableBeanFactory().getBeanProvider(KafkaPublisher.class), variables, mapper, properties);
