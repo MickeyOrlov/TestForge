@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
+  every module on the classpath and fails when a module replaces Spring Boot's
+  `ObjectMapper` or one the service declares, rewrites the request bodies the
+  service receives, or takes the place of its `RestClient.Builder`. The suite
+  now runs with `spring-boot-starter-web`, as an adapted project does.
 - `docs/examples/quality-gate.github-actions.yml`: the quality gate job for
   an adapted project — history cache, run index, gate, artifacts, the
   summary as a pull request comment.
