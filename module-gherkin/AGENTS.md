@@ -19,11 +19,16 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Step classes use constructor injection; cucumber-spring creates them per
   scenario, so their fields are scenario state.
 - Failure messages name the request and what differed, never a body.
+- Every step works with scenarios in parallel: no static mutable state, all
+  scenario state in the step instance or `ScenarioContext`. `parallel.feature`
+  in example-tests runs with parallelism 4 and must stay green.
+- Message steps match by the criteria given, plus the scope header only with
+  `forge.gherkin.scope-messages`; never assume the system propagates it.
 - Generic vocabulary only; domain steps belong to the adapted project.
 
 ## Tests
 
-Own: `ScenarioVariablesTest`, `MessageStepsTest`, `DbAndMockStepsTest`. Examples: `GherkinExampleSuite` (`features/orders.feature`, `payments.feature` on an embedded Kafka broker, `stock.feature` with mock and database steps) and `GherkinRabbitSuite` (`features-containers/payments-rabbitmq.feature`, tag `containers`).
+Own: `ScenarioVariablesTest`, `MessageStepsTest`, `DbAndMockStepsTest`, `ScenarioDiagnosticsTest` (a failing scenario through the Cucumber engine). Examples: `GherkinExampleSuite` (`features/orders.feature`, `payments.feature` on an embedded Kafka broker, `stock.feature` with mock and database steps) and `GherkinRabbitSuite` (`features-containers/payments-rabbitmq.feature`, tag `containers`).
 
 ## Before you finish
 

@@ -26,5 +26,8 @@ dependencies {
     testImplementation project(":module-mock")
     testImplementation "org.springframework:spring-jdbc"
     testRuntimeOnly "com.h2database:h2"
+    // a failing scenario run through the Cucumber engine (ScenarioDiagnosticsTest)
+    testImplementation "io.cucumber:cucumber-junit-platform-engine"
+    testImplementation "org.junit.platform:junit-platform-testkit"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
