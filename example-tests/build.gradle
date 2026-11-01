@@ -16,6 +16,7 @@ dependencies {
     testImplementation project(":module-http")
     testImplementation project(":module-auth")
     testImplementation project(":module-kafka")
+    testImplementation project(":module-rabbitmq")
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")
     testImplementation project(":module-web")
@@ -37,6 +38,7 @@ dependencies {
     // container-backed tests (tag "containers", excluded from default build)
     testImplementation "org.springframework.boot:spring-boot-testcontainers"
     testImplementation libs.testcontainers.postgresql
+    testImplementation libs.testcontainers.rabbitmq
     testImplementation libs.testcontainers.junit.jupiter
     testRuntimeOnly "org.postgresql:postgresql"
 

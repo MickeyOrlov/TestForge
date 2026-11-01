@@ -32,6 +32,7 @@ appium = { module = "io.appium:java-client", version.ref = "appium" }
 allure-java-commons = { module = "io.qameta.allure:allure-java-commons", version.ref = "allure" }
 allure-junit5 = { module = "io.qameta.allure:allure-junit5", version.ref = "allure" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-rabbitmq = { module = "org.testcontainers:testcontainers-rabbitmq", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
