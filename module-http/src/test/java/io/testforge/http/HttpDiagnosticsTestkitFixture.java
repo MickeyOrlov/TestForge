@@ -56,6 +56,8 @@ class HttpDiagnosticsTestkitFixture {
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("forge.http.base-url", () -> "http://127.0.0.1:" + port);
         registry.add("forge.http.diagnostics.last", () -> "2");
+        // the sink's directory is a placeholder: a run summary would land in the source tree
+        registry.add("forge.http.summary.enabled", () -> "false");
     }
 
     @Autowired
