@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `docs/examples/quality-gate.github-actions.yml`: the quality gate job for
+  an adapted project — history cache, run index, gate, artifacts, the
+  summary as a pull request comment.
+- `architecture-tests`: no `ArtifactSink.directoryFor` outside `core` and
+  `module-reporting`; run files come from `ArtifactSink.newFile`.
 - Local structural reviews for business-security policies: per-case OpenAPI/schema/
   Link impact, value-free snapshots, input/capture/cleanup preflight, explicit
   review promotion and VALID/REVIEW_REQUIRED/INVALID JSON/Markdown assessments.

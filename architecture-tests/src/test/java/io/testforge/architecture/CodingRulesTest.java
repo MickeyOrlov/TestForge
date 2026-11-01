@@ -36,6 +36,16 @@ class CodingRulesTest {
     }
 
     @Test
+    void runFilesComeFromNewFileNotAFixedNameInTheSharedDirectory() {
+        noClasses().that().resideOutsideOfPackages("io.testforge.artifact..", "io.testforge.reporting..")
+                .should().callMethod("io.testforge.artifact.ArtifactSink", "directoryFor", "java.lang.String")
+                .because("every Spring context of a test JVM writes into the same run directory: a file under a "
+                        + "fixed name keeps only the context that closed last — take it from "
+                        + "ArtifactSink.newFile(source, name)")
+                .check(CLASSES);
+    }
+
+    @Test
     void noStandardStreams() {
         GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS.check(CLASSES);
     }

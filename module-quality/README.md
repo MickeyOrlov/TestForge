@@ -275,6 +275,13 @@ results:
 `-PqualityRevision=<commit>` names the commit when the CI exposes none of
 `GITHUB_SHA`, `CI_COMMIT_SHA`, `GIT_COMMIT`.
 
+For GitHub Actions the whole job is in
+[docs/examples/quality-gate.github-actions.yml](../docs/examples/quality-gate.github-actions.yml):
+it restores the history from the cache, runs the tests with the run index
+on, runs the gate with the start instant as `-PqualityResultsNotBefore`,
+saves the history, uploads the report and puts `quality-summary.md` on the
+pull request.
+
 It sets `forge.quality.enabled=true`, the test tasks' JUnit XML directories
 and `build/quality` as the output, is never up to date, and is not part of
 `build`. Results of a test task that did not run in this build still count
