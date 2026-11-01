@@ -35,6 +35,8 @@ dependencies {
 
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation "org.springframework.boot:spring-boot-starter-data-jpa"
+    // an adapted project starts its service under test next to the modules (ApplicationIsolationTest)
+    testImplementation "org.springframework.boot:spring-boot-starter-web"
     testImplementation libs.rest.assured
 
     testRuntimeOnly "com.h2database:h2"
@@ -116,6 +118,9 @@ tasks.register("qualityGate", Test) {
         it.get().reports.junitXml.outputLocation.get().asFile.absolutePath
     }
     systemProperty "forge.quality.enabled", "true"
+    // the gate's own JVM writes a run index too: under the tests' run id (one CI job id for both
+    // steps) it would replace that run's manifest.json with its own two reports when it closes
+    systemProperty "forge.reporting.artifacts.run-id", "quality-gate"
     systemProperty "forge.quality.junit-results", results.join(",")
     systemProperty "forge.quality.output-dir", layout.buildDirectory.dir("quality").get().asFile.absolutePath
     // results older than this build belong to a test task that did not run in it — known only when the

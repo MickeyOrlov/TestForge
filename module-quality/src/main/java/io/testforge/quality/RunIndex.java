@@ -106,14 +106,22 @@ record RunIndex(String runId, Path manifest, List<Artifact> artifacts, List<Stri
     }
 
     /**
-     * Where an artifact's file is: its {@code location} metadata (files kept
-     * outside the run directory), else its path inside its run directory.
+     * Where an artifact's file is: its path inside its run directory, else its
+     * {@code location} metadata (files kept outside the run directory). The
+     * run's own copy wins: {@code location} is relative to the producer's
+     * working directory, so a run judged from anywhere else — downloaded from
+     * another job, copied — would otherwise be read from another run's file,
+     * or from nothing.
      */
     Optional<Path> file(Artifact artifact) {
+        if (artifact.path() != null && !artifact.path().isBlank()) {
+            Path inRun = artifact.runDir().resolve(artifact.path()).normalize();
+            if (inRun.startsWith(artifact.runDir().normalize()) && Files.isRegularFile(inRun)) {
+                return Optional.of(inRun);
+            }
+        }
         String location = artifact.metadata().get("location");
-        Path file = location != null && !location.isBlank() ? Path.of(location)
-                : artifact.path() == null || artifact.path().isBlank() ? null
-                : artifact.runDir().resolve(artifact.path());
+        Path file = location != null && !location.isBlank() ? Path.of(location) : null;
         return file != null && Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
     }
 

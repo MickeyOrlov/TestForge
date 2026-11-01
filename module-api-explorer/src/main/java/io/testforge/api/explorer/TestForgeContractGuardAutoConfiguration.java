@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 /**
  * Inert unless {@code forge.contract-guard.enabled=true}. Independent of
@@ -30,8 +31,10 @@ public class TestForgeContractGuardAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ContractGuardFilter contractGuardFilter(ContractGuard guard, ContractGuardProperties properties) {
-        return new ContractGuardFilter(guard, properties.mode());
+    public ContractGuardFilter contractGuardFilter(ContractGuard guard, ContractGuardProperties properties,
+                                                   Environment environment) {
+        // read as a plain property, as module-http's scope filter reads module-mock's
+        return new ContractGuardFilter(guard, properties.mode(), environment.getProperty("forge.http.base-url"));
     }
 
     @Bean

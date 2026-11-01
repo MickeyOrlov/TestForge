@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.filter.Filter;
 import io.testforge.core.wait.WaitProperties;
 import io.testforge.core.wait.Waiter;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -49,7 +50,13 @@ public class TestForgeHttpAutoConfiguration {
     public ScenarioScopeFilter scenarioScopeFilter(HttpProperties properties, Environment environment) {
         String jsonPath = properties.scope().jsonPath();
         if (jsonPath == null || jsonPath.isBlank()) {
-            jsonPath = environment.getProperty("forge.mock.scope-json-path", "$.testScope");
+            // a mock scoped by a header, query parameter or cookie has no JSON path:
+            // writing its default into the body would only reshape the payload the
+            // system under test receives
+            boolean bodyless = Stream.of("forge.mock.scope-header", "forge.mock.scope-query-param",
+                    "forge.mock.scope-cookie").map(environment::getProperty)
+                    .anyMatch(value -> value != null && !value.isBlank());
+            jsonPath = bodyless ? null : environment.getProperty("forge.mock.scope-json-path", "$.testScope");
         }
         // same single-source rule for the header form: a mock matching on a header
         // and a client writing it must name the same header

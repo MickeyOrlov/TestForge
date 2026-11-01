@@ -7,6 +7,11 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
+  every module on the classpath and fails when a module replaces Spring Boot's
+  `ObjectMapper` or one the service declares, rewrites the request bodies the
+  service receives, or takes the place of its `RestClient.Builder`. The suite
+  now runs with `spring-boot-starter-web`, as an adapted project does.
 - `docs/examples/quality-gate.github-actions.yml`: the quality gate job for
   an adapted project — history cache, run index, gate, artifacts, the
   summary as a pull request comment.
@@ -25,6 +30,29 @@ semantic versioning for its git tags.
   and published-library wiring. Generation never earns security coverage.
 
 ### Fixed
+- `module-api-discovery`, `module-contract`: their fallback `ObjectMapper`
+  replaced Spring Boot's, so a service under test started by
+  `@SpringBootTest` served requests with a plain mapper (unknown properties
+  fatal, `spring.jackson.*` ignored). Both auto-configurations now run after
+  `JacksonAutoConfiguration`. Found by the 1.3 dogfood.
+- `module-http`: a mock scoped by a header, query parameter or cookie has no
+  JSON path, so the scope filter no longer writes `$.testScope` into every
+  JSON body the system under test receives.
+- Contract guard: only responses from `forge.http.base-url` are checked; a
+  call to another service of the same `ApiClient` was reported as
+  `UNDOCUMENTED_OPERATION`. A response without `Content-Type` now reads
+  `got no content type` instead of `got , …`.
+- `module-quality`: a run's summaries are read from its own directory before
+  the producer's cwd-relative `location`, so a run judged elsewhere (copied,
+  downloaded from another job) is no longer judged from another run's files
+  or left NOT MEASURED.
+- `example-tests` `qualityGate`: the gate's JVM gets the run id
+  `quality-gate`; under the tests' run id it replaced their `manifest.json`
+  with its own reports. README: why the gate must not share the run id.
+- Docs: `module-gherkin` setup as a published library (Cucumber BOM for Maven,
+  JUnit Platform 1.14 under Spring Boot's dependency-management plugin);
+  `module-reporting` lists the run summaries; `module-quality` documents
+  `min-api-coverage`; the contract guard and springdoc's `*/*` bodies.
 - `module-reporting` README: a fixed `run-id` reused without `clean` keeps the
   earlier build's files in the run directory (the index stays right); read
   the run through the manifest, or use one run id per build. Found by

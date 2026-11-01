@@ -263,3 +263,14 @@ The Markdown index is meant to be opened first after a red CI run:
 | `module-mobile-appium` | `mobile-failure` | `screenshot.png`, `page-source.xml` of a failed test |
 | `module-http` | `failed-test-http` | the failed test's last HTTP exchanges, redacted (`HttpDiagnosticsExtension`) |
 | `module-api-explorer` | `contract-guard` | `contract-guard.json`: contract findings of ordinary tests |
+| `module-api-explorer` | `api-coverage` | `api-coverage.json` / `.md`: documented operations the suite called and did not |
+| `module-http` | `http-summary` | `http-summary.json`: requests, status classes, latency per operation |
+| `module-db` | `db-queries` | `db-queries.json`: statements by shape, failed / unbounded / slow (`forge.db.queries.enabled`) |
+| `module-mock` | `mock-summary` | `mock-summary.json`: unused stubs, scoped requests no stub answered |
+| `module-flow` | `flow-coverage` | `flow-coverage.json` / `.md`: declared transitions taken and not |
+
+The run summaries (the last five rows) are one file per Spring context under
+the same name (`http-summary.json`, `http-summary-2.json`, …); `module-quality`
+merges them. Each also carries a `location` relative to the producer's working
+directory; read a run from its own directory, which stays right when the run
+is copied or downloaded elsewhere.

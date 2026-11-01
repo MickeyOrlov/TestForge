@@ -110,6 +110,44 @@ class ModuleDimensionsTest {
         assertThat(report.overall()).as("NOT MEASURED never drags the overall down or up").isEqualTo(QualityStatus.PASS);
     }
 
+    /**
+     * Producers register run files with a cwd-relative {@code location} as well
+     * as their run-relative {@code path}. A run judged elsewhere — downloaded
+     * from another job, copied, or read with another working directory — must
+     * be read from its own directory, not from wherever the producer's JVM
+     * wrote it (another run's file, or nothing).
+     */
+    @Test
+    void aRunReadFromAnotherDirectoryIsJudgedFromItsOwnFiles() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/moved/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 4, "status": {"2xx": 3, "5xx": 1}, "transportErrors": 0}]}""");
+        // where the producer's JVM wrote it: still on disk here, with another run's numbers
+        Path original = file("ci-workspace/build/testforge-artifacts/moved/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 9, "status": {"2xx": 9}, "transportErrors": 0}]}""");
+        file("artifacts/moved/module-mock/mock-summary.json", """
+                {"formatVersion": 1, "scopes": 1, "unusedStubs": [{"stub": "GET /stock → 200", "scopes": 1}],
+                 "unmatchedRequests": []}""");
+        file("artifacts/moved/manifest.json", """
+                {"runId": "moved", "artifacts": [
+                  {"source": "module-http", "category": "http-summary", "name": "http-summary.json",
+                   "path": "module-http/http-summary.json", "metadata": {"location": "%s"}},
+                  {"source": "module-mock", "category": "mock-summary", "name": "mock-summary.json",
+                   "path": "module-mock/mock-summary.json",
+                   "metadata": {"location": "build/testforge-artifacts/moved/module-mock/mock-summary.json"}}]}"""
+                .formatted(original.toString().replace('\\', '/')));
+
+        QualityReport report = runner().run();
+
+        QualityDimension reliability = report.dimension(QualityDimension.RELIABILITY).orElseThrow();
+        assertThat(reliability.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(reliability.score()).isEqualTo(75);
+        assertThat(report.dimension(QualityDimension.HYGIENE).orElseThrow().issues())
+                .containsExactly("unused stub GET /stock → 200");
+    }
+
     @Test
     void reliabilityCountsServerErrorsEvenWhenTheTestsPassed() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
