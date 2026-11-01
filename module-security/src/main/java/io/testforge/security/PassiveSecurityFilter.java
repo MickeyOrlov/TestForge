@@ -17,7 +17,7 @@ public class PassiveSecurityFilter implements OrderedFilter {
 
   @Override
   public int getOrder() {
-    return 5;
+    return 20;
   }
 
   @Override
@@ -44,6 +44,13 @@ public class PassiveSecurityFilter implements OrderedFilter {
           response.statusCode(),
           headers,
           response.asString());
+      String note = ctxNote(context);
+      collector.covered(
+          "passive-response",
+          SecurityTargets.endpoint(request.getMethod(), request.getURI()),
+          note,
+          "measured",
+          null);
     } catch (RuntimeException e) {
       collector.covered(
           "passive",
@@ -53,5 +60,12 @@ public class PassiveSecurityFilter implements OrderedFilter {
           "response inspection failed");
     }
     return response;
+  }
+
+  private static String ctxNote(FilterContext context) {
+    String note = context.getValue(io.testforge.core.context.RequestAttributes.AUTH);
+    if (note == null) return null;
+    int detail = note.indexOf(" (");
+    return SecurityTargets.field(detail < 0 ? note : note.substring(0, detail));
   }
 }

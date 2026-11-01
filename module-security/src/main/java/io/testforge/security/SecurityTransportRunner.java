@@ -43,6 +43,7 @@ public class SecurityTransportRunner {
     URI target = new SecurityTargetPolicy(properties.allowedHosts()).require(url);
     if (target.getQuery() != null)
       throw new IllegalArgumentException("transport targets must not contain query credentials");
+    collector.observedBlock("transport");
     String label =
         target.getScheme()
             + "://"

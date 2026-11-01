@@ -7,6 +7,7 @@ public record SecurityReport(
     int formatVersion,
     boolean enabled,
     boolean measured,
+    boolean complete,
     boolean healthy,
     List<SecurityFinding> findings,
     List<SecurityCoverage> coverage,
@@ -14,6 +15,6 @@ public record SecurityReport(
   public SecurityReport {
     findings = List.copyOf(findings);
     coverage = List.copyOf(coverage);
-    newCounts = Map.copyOf(newCounts);
+    newCounts = java.util.Collections.unmodifiableMap(new java.util.TreeMap<>(newCounts));
   }
 }

@@ -29,12 +29,13 @@ incomplete assessments. `writeBaseline()` is explicit and is the only method
 that updates the baseline. A finding already in the explicitly promoted baseline
 is accepted; additional accepted finding IDs require a reason.
 
-The JSON contract (formatVersion 1) has `enabled`, `measured`, `healthy`,
+The JSON contract (formatVersion 1) has `enabled`, `measured`, `complete`, `healthy`,
 `findings`, `coverage`, and `newCounts` by lowercase severity. Findings have
 `id`, `check`, `severity`, `target`, `evidence`, `owasp`, `status` and `reason`.
 Statuses are new/accepted/resolved. Part A can read this report without a Java
 module dependency. Missing or unmeasured evidence must not become a perfect
-Security score. Each coverage row names a check, target, optional role, status
+Security score. `measured` means some evidence exists; `complete` requires all
+enabled blocks to execute and no incomplete coverage. Each coverage row names a check, target, optional role, status
 (measured/not_measured/not_applicable) and reason.
 
 ## Rules and fixed severities
@@ -165,3 +166,88 @@ not the whole workstation; include every artifact/log destination in roots.
 Artifact leaks always block assertClean and SecurityRunner.assertAcceptable,
 even with an accepted ID or an empty fail-on list. Do not upload on a gate error.
 Examples: SecurityTransportExampleTest and SecurityArtifactExampleTest.
+
+## B3: scoped OWASP ZAP delegation (Docker)
+
+The scanner is a separate opt-in CI job. The image must already exist locally;
+it is pinned by digest and is never downloaded implicitly.
+
+```yaml
+forge:
+  security:
+    active:
+      enabled: true
+      test-environment: true
+      allowed-hosts: [api.staging.example.test:8443]
+      role: security-reader                # optional configured module-auth role
+      mode: api                            # or baseline for configured pages only
+      rules: [40003, 40012]                 # reviewed CRLF / reflected-XSS only
+      max-requests-per-second: 10           # hard maximum 20
+      max-requests: 1000                    # hard maximum 10000
+      max-response-bytes: 2097152
+      time-budget: 20m                     # maximum 1h; startup/cleanup bounded separately
+```
+
+Pass a parsed OpenAPI 3.0 document from the existing discovery parser to
+`SecurityActiveRunner.scan(document, targetBaseUrl)`. Only its GET/HEAD/OPTIONS
+operations are imported. Document-supplied servers/authentication callbacks,
+remote references, examples and defaults cannot select scanner targets.
+Active payloads are limited to query parameters; request-body, path, header,
+cookie and script input vectors are disabled in this initial policy. Input
+documents/plans are limited to 8 MiB. No synthesized product source or
+third fuzzer is introduced.
+
+ZAP talks only to a random-path loopback reverse gateway. The gateway fixes the
+upstream origin, checks declared paths/methods, strips inherited credentials and
+method-override headers/parameters, injects the configured role in memory,
+enforces request/rate/body/time limits and refuses cross-origin redirects.
+HTTPS upstream uses normal JDK certificate validation. No credential goes into
+Docker arguments, generated plans, public reports or scanner configuration.
+The initial active policy disables all other active rules; DoS, time-based,
+SQL/DML, persistent-XSS and other unreviewed rules cannot be enabled by config. HTTP method scope does not prove
+business harmlessness: the project must select disposable routes whose GET
+operations have no business side effects.
+This is deliberately narrower than a full ZAP API scan or a pentest.
+
+`mode: baseline` omits active scanning. `baselinePages(paths, target)` checks
+only the project's explicit read-only pages; there is no web crawling.
+Both modes collect ZAP's passive findings. The framework does not run against
+production or infer permission from an OpenAPI servers entry: enabled,
+test-environment and an exact host allowlist are required before startup.
+
+The Docker container has a read-only root filesystem, temporary writable
+storage, no added capabilities, bounded CPU/PIDs/RAM and a 512 MiB JVM heap.
+No Docker ports are published. Docker Desktop reaches host loopback through
+host.docker.internal; Linux uses host networking with a loopback-only listener.
+This transport setup is not a claim of a general network sandbox for an
+arbitrary/untrusted container image: use only the reviewed pinned scanner.
+
+Raw scanner responses/console content never become run artifacts. A bounded
+raw JSON report is consumed through a private temporary file and removed;
+the container is removed even on error. The shared JSON/Markdown/SARIF report
+retains only rule IDs, severity, structural route and fixed descriptions.
+Failures expose phase/exit code, not raw scanner output. Failed startup,
+timeouts, invalid evidence, cleanup failure, blocked unsafe methods, in-scope failures/budgets and missing
+successful route controls remain incomplete coverage and cannot pass the gate.
+
+Out-of-scope read requests are still refused and listed as not_applicable
+scope exclusions; they are not silently dropped and do not expand the target.
+
+ZAP coverage means the configured policy completed on successfully visited
+routes, not that every possible attack/payload was exercised. Baseline resolution
+requires the same pinned scanner, policy, mode and role plus complete route
+coverage; their non-secret configuration is identified by a policy fingerprint.
+Changing to a weaker policy cannot resolve earlier findings.
+
+Real container acceptance (owned local sample only):
+
+```bash
+./gradlew :example-tests:securityScanTest
+```
+
+This separate Jupiter task avoids unrelated empty tagged Cucumber suites in the
+general containers task. It stays out of the default offline build. See
+SecurityZapIT; focused fake-engine tests cover policy refusal and report privacy.
+
+Artifact scanning matches raw text/known credential patterns; it is not OCR,
+archive decryption or a general DLP classifier for screenshots/documents.

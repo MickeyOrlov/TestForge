@@ -22,3 +22,12 @@ Update README/examples/CHANGELOG with behavior changes. Keep the module removabl
 B4: never weaken global JDK TLS settings or treat a locally-disabled algorithm
 as server rejection. B5: no following symlinks, unbounded reads or secret values
 in diagnostics; leaks block upload even when ordinary findings are accepted.
+
+B3: delegate through the loopback read-only gateway, never document servers.
+Only reviewed rules and pinned images; startup/timeouts/cleanup failures are
+incomplete. Never persist raw console/report evidence or put credentials in
+process arguments/plans. Read SecurityActiveTest and SecurityZapIT before edits.
+Run :example-tests:securityScanTest for actual scanner/transport changes.
+Aggregate reports expose measured and complete separately; an enabled but
+unexecuted block cannot be hidden by other measurements. A4 consumes this
+contract and remains part of module-quality.

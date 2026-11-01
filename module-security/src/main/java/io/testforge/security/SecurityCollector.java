@@ -7,6 +7,16 @@ public class SecurityCollector {
   private final int limit;
   private final Map<String, SecurityFinding> findings = new TreeMap<>();
   private final Map<String, SecurityCoverage> coverage = new TreeMap<>();
+  private final Set<String> observedBlocks = new HashSet<>();
+
+  public synchronized void observedBlock(String block) {
+    observedBlocks.add(block);
+  }
+
+  public synchronized boolean observed(String block) {
+    return observedBlocks.contains(block);
+  }
+
   private boolean overflow;
 
   public SecurityCollector(int limit) {

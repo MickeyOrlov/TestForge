@@ -28,6 +28,7 @@ public class SecurityArtifactScanner {
   }
 
   public void scan() {
+    collector.observedBlock("artifacts-scan");
     if (!properties.enabled())
       throw new IllegalStateException("forge.security.artifacts-scan.enabled must be true");
     long[] bytes = {0};

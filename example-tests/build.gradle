@@ -99,3 +99,18 @@ tasks.register("liveApiTest", Test) {
     }
     shouldRunAfter tasks.named("test")
 }
+
+// ZAP acceptance uses Jupiter only; unrelated Cucumber suites have no security
+// container scenarios and must not be discovered as empty tagged suites here.
+tasks.register("securityScanTest", Test) {
+    description = "Runs the pinned ZAP container against an owned local sample"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeEngines "junit-jupiter"
+        includeTags "containers"
+    }
+    filter { includeTestsMatching "*SecurityZapIT*" }
+    shouldRunAfter tasks.named("test")
+}
