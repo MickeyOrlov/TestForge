@@ -23,7 +23,11 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems` | never (WARN) | run index |
 
 - **Flaky** means failed and passed in the same run: a test listed twice
-  (Gradle's test-retry) or with `<flakyFailure>` (Surefire's rerun). It
+  (Gradle's test-retry) or with `<flakyFailure>` (Surefire's rerun). Without
+  reruns there is nothing to see: `example-tests` applies
+  `org.gradle.test-retry`, off by default — `-PtestRetries=1` reruns a failed
+  test, the build stays green when the rerun passes, and the gate reports
+  the test as flaky. It
   counts as passed for `functional` and as flaky for `stability`.
 - **NOT MEASURED** is never a pass: a dimension without its input says so,
   and the overall status ignores it. Nothing measured at all fails the gate.

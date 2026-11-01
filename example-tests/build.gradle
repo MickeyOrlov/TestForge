@@ -1,3 +1,8 @@
+plugins {
+    // -PtestRetries=N reruns a failed test; one that passes on a rerun is reported flaky (module-quality)
+    id "org.gradle.test-retry" version "1.6.6"
+}
+
 dependencies {
     testImplementation platform(libs.spring.boot.dependencies)
 
@@ -56,6 +61,18 @@ dependencies {
     // UI/mobile module examples
     testImplementation project(":module-web-playwright")
     testImplementation project(":module-mobile-appium")
+}
+
+// off unless asked for: a rerun hides a failure from the build, so it must also reach the quality gate,
+// which counts a test that failed and then passed as flaky. The build stays green on such a test.
+def testRetries = providers.gradleProperty("testRetries").map { it as int }.orElse(0)
+tasks.withType(Test).configureEach {
+    if (name != "qualityGate") {
+        retry {
+            maxRetries = testRetries
+            failOnPassedAfterRetry = false
+        }
+    }
 }
 
 // container/browser tests need Docker/a browser binary — keep the default build offline
