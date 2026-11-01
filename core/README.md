@@ -30,6 +30,13 @@ or more modules need it.
   ```
 
   Polls are never spaced wider than half the deadline.
+- **`io.testforge.core.messaging`** — what every broker adapter shares:
+  `BrokerMessage` (channel, key, value, headers, position), a bounded
+  `MessageBuffer` with watermarks, `MessageCriteria` (key, value fragments,
+  headers, JSON paths) and `MessageProbe` (await, exactly one, none within a
+  window; a timeout names the closest messages and failed criteria, never a
+  payload). Tests use the adapters (`KafkaProbe`); this is for writing a new
+  one. See [docs/messaging-layer-roadmap.md](../docs/messaging-layer-roadmap.md).
 
 ## Configuration
 

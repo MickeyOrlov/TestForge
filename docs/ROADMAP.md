@@ -213,8 +213,10 @@ Target module: `module-mock`
 
 Target modules: `module-kafka`, possible future `module-messaging`
 
-- Extract broker-neutral probe/buffer/filter concepts only if a second broker
-  adapter is actually added.
+- In progress ([plan](messaging-layer-roadmap.md)): RabbitMQ as the second
+  adapter. Step 1 shipped: the broker-neutral probe, buffer and criteria live
+  in `core` (`io.testforge.core.messaging`) and `module-kafka` is rebuilt on
+  them without an API change.
 - Keep Kafka as the first concrete implementation.
 - Preserve separation between message collection and contract validation.
 

@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `core`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Shared primitives only: `ScenarioContext`/`ContextKey`, `Waiter`, `StateSnapshot`/`StateDiff`, `JsonPath`, and the `ArtifactSink` seam (`io.testforge.artifact`).
+**Scope:** Shared primitives only: `ScenarioContext`/`ContextKey`, `Waiter`, `StateSnapshot`/`StateDiff`, `JsonPath`, the broker-neutral messaging types (`io.testforge.core.messaging`, used by every broker adapter), and the `ArtifactSink` seam (`io.testforge.artifact`).
 
 **May depend on:** Nothing in TestForge. Every other module may depend on `core`.
 
@@ -24,7 +24,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `ArtifactSinkTest`, `TestArtifactTest`, `WaiterTest`, `ScenarioContextTest`, `JsonPathTest`. Example: `WaiterTimeoutExampleTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
+Own: `ArtifactSinkTest`, `TestArtifactTest`, `WaiterTest`, `ScenarioContextTest`, `JsonPathTest`, `MessageProbeTest`. Example: `WaiterTimeoutExampleTest`. Examples: `ScenarioContextCleanupTest`, `StateDiffTest`.
 
 ## Before you finish
 

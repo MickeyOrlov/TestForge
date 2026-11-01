@@ -5,7 +5,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **Scope:** `KafkaMessageBuffer`, `KafkaProbe` (await, exactly one, none within a window), `KafkaMessageFilter`, `KafkaPublisher`, `KafkaDiagnosticsExtension`, optional `KafkaPollingCollector`. Plan: [docs/kafka-layer-roadmap.md](../docs/kafka-layer-roadmap.md).
 
-**May depend on:** `core` only. Never add a dependency on `module-contract`; they compose in the test.
+**May depend on:** `core` only. Buffer, criteria and waiting are `core`'s broker-neutral `io.testforge.core.messaging`; this module adds what is Kafka (records, collector, publisher, diagnostics) and keeps its public names. Plan: [docs/messaging-layer-roadmap.md](../docs/messaging-layer-roadmap.md). Never add a dependency on `module-contract`; they compose in the test.
 
 ## Invariants (do not break)
 
