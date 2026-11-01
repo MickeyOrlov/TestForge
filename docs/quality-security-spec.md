@@ -87,7 +87,8 @@ Each dimension produces **a status** (PASS / WARN / FAIL / NOT MEASURED),
 | Contract conformance | 100 − 10 per new mismatch, floor 0 | a new BREAKING contract change or mismatch |
 | Data compatibility | 100 for SAFE only; −20 per RISKY, −50 per BREAKING | any BREAKING schema change |
 | Robustness | 100 − 10 per new fuzz finding group | new finding groups above `max-new-fuzz-findings` |
-| Efficiency | share of tests within query and latency budgets | a budget broken by a test that was within it in the baseline |
+| Authorization | 100 − 20 × access-matrix violations | any violation |
+| Efficiency | 100 × (compared − slower) / compared, a test slower when ≥ 2× **and** ≥ 1 s slower than in the baseline (query budgets and HTTP latency publish no files to read) | never fails; WARN only |
 | Security | from Part B: 100 − weighted new findings (critical 40, high 20, medium 5, low 1) | any new critical or high finding |
 | Test hygiene | 100 − 5 × leftover rows − 10 × run-index reporting problems (skipped tests listed, not scored) | never fails; WARN only |
 
@@ -274,13 +275,13 @@ CHANGELOG, and a review step at the end of each part.
 | Step | Deliverable | Acceptance |
 |---|---|---|
 | A1 | `module-quality`: read manifest + JUnit XML, dimensions functional, stability, test hygiene; `quality.md` / `quality.json` — **shipped** | an example run produces a report whose numbers match the run by hand |
-| A2 | Baseline, deltas, `assertAcceptable()`, `accepted` list | a regression fails, an accepted one does not, a new baseline only on purpose |
-| A3 | Dimensions from existing modules: contracts, data, robustness, efficiency | each dimension NOT MEASURED when its module is absent |
+| A2 | Baseline, deltas, `assertAcceptable()`, `accepted` list — **shipped** | a regression fails, an accepted one does not, a new baseline only on purpose |
+| A3 | Dimensions from existing modules: contracts, data, robustness, authorization, efficiency — **shipped** | each dimension NOT MEASURED when its module is absent |
 | B1 | `module-security` passive checks on `ApiClient` responses + findings model + `security.md` / JSON / SARIF | WireMock example with a bad header, a wildcard CORS and a leaked token; all found, no value printed |
 | B2 | Auth tests: unauthenticated, token tampering, BOLA/IDOR read, function-level | example with a deliberately broken endpoint per check |
 | B3 | ZAP delegation with safety policy and allowlist | refuses a host not in the allowlist; containers test against a sample app |
 | B4 + B5 | TLS checks; artifact secret scan | a planted secret in an artifact fails the run |
-| A4 | Security dimension wired into Part A; review of both parts | one `quality.md` shows all dimensions including security |
+| A4 | Security dimension wired into Part A; review of Part A — **shipped** | one `quality.md` shows all dimensions including security |
 
 ## 7. Open questions
 
@@ -291,3 +292,17 @@ CHANGELOG, and a review step at the end of each part.
 3. ~~**Order**~~ — decided: Part A first.
 4. **Severity of B1 checks** — fixed in the module, or overridable per
    project?
+
+## 8. Part A — what the review found
+
+Part A was checked end to end against the real reports the example suite
+leaves behind (access matrix, fuzz findings, contract monitor, db-contract,
+141 JUnit results): every field it reads exists, and the deliberate defects
+in those examples surface in the right dimensions. Two gaps were fixed:
+
+- **The gate could judge itself.** With reporting on, the gate's own JVM
+  leaves a run index holding only `module-quality`'s report; the next gate
+  run took it as "the newest run". Such runs are now skipped.
+- **One pipeline, several JVMs.** `test`, `containersTest` and parallel forks
+  each write a run directory; only one was read. `run-id` now takes a list
+  and merges them, resolving each file against its own run directory.

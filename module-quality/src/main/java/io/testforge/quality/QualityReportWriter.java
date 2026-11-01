@@ -32,20 +32,40 @@ final class QualityReportWriter {
     static String render(QualityReport report) {
         StringBuilder out = new StringBuilder("# Quality assessment\n\n")
                 .append("- run: ").append(report.runId() == null ? "(no run index)" : report.runId()).append('\n')
+                .append("- baseline: ").append(report.baselineRunId() == null ? "none — every issue counts as new"
+                        : report.baselineRunId()).append('\n')
                 .append("- overall: **").append(report.overall()).append("**")
                 .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")").append("\n\n")
-                .append("| Dimension | Status | Score | Formula |\n|---|---|---|---|\n");
+                .append("| Dimension | Status | Score | Baseline | New issues | Formula |\n|---|---|---|---|---|---|\n");
         for (QualityDimension dimension : report.dimensions()) {
+            QualityDelta delta = dimension.delta();
             out.append("| ").append(dimension.name()).append(" | ").append(dimension.status()).append(" | ")
                     .append(dimension.score() == null ? "—" : dimension.score()).append(" | ")
+                    .append(delta == null || delta.baselineScore() == null ? "—" : delta.baselineScore()).append(" | ")
+                    .append(dimension.newIssues().size()).append(" | ")
                     .append(dimension.formula() == null ? "—" : "`" + dimension.formula() + "`").append(" |\n");
         }
         for (QualityDimension dimension : report.dimensions()) {
             out.append("\n## ").append(dimension.name()).append(" — ").append(dimension.status()).append("\n\n");
             dimension.facts().forEach(fact -> out.append("- ").append(fact).append('\n'));
+            QualityDelta delta = dimension.delta();
+            if (delta != null) {
+                list(out, "new", delta.newIssues());
+                list(out, "accepted", delta.acceptedIssues());
+                list(out, "known since the baseline", delta.knownIssues());
+                list(out, "resolved since the baseline", delta.resolvedIssues());
+            }
         }
         out.append("\n## Inputs\n\n");
         report.inputs().forEach(input -> out.append("- `").append(input).append("`\n"));
         return out.toString();
+    }
+
+    private static void list(StringBuilder out, String label, java.util.List<String> issues) {
+        if (!issues.isEmpty()) {
+            out.append("- ").append(label).append(" (").append(issues.size()).append("): ")
+                    .append(issues.stream().map(i -> "`" + i + "`").collect(java.util.stream.Collectors.joining(", ")))
+                    .append('\n');
+        }
     }
 }

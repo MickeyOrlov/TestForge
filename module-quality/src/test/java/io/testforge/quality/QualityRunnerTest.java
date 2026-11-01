@@ -18,8 +18,13 @@ class QualityRunnerTest {
     Path dir;
 
     private QualityRunner runner(boolean enabled, double maxFlakyRate) {
+        return runner(enabled, maxFlakyRate, List.of());
+    }
+
+    private QualityRunner runner(boolean enabled, double maxFlakyRate, List<String> accepted) {
         return new QualityRunner(new QualityProperties(enabled, List.of(dir.resolve("results").toString()),
-                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), maxFlakyRate, null),
+                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), maxFlakyRate, null,
+                dir.resolve("baseline/quality-baseline.json").toString(), accepted),
                 new ObjectMapper(), ArtifactSink.NO_OP);
     }
 
@@ -68,7 +73,7 @@ class QualityRunnerTest {
                 .isEqualTo(QualityStatus.NOT_MEASURED);
         assertThat(report.overall()).isEqualTo(QualityStatus.FAIL);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
-                .contains("| functional | FAIL | 75 | `100 × passed / (passed + failed)` |");
+                .contains("| functional | FAIL | 75 | — | 1 | `100 × passed / (passed + failed)` |");
         assertThat(new ObjectMapper().readTree(Path.of(report.reportJson()).toFile()).path("overall").asText())
                 .isEqualTo("FAIL");
     }
@@ -94,6 +99,35 @@ class QualityRunnerTest {
     }
 
     @Test
+    void anEarlierQualityChecksOwnRunIsNeverTheRunJudged() throws IOException {
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"));
+        manifest("20261101-1000-tests", "{\"runId\":\"20261101-1000-tests\",\"artifacts\":[{\"source\":"
+                + "\"module-data\",\"category\":\"leftovers\",\"metadata\":{\"leftovers\":\"2\"}}]}");
+        // the gate's own JVM, run a minute later: only module-quality's report in it
+        manifest("20261101-1001-gate", "{\"runId\":\"20261101-1001-gate\",\"artifacts\":[{\"source\":"
+                + "\"module-quality\",\"category\":\"quality\",\"name\":\"quality.md\"}]}");
+
+        assertThat(runner(false, 0.02).run().runId()).isEqualTo("20261101-1000-tests");
+    }
+
+    @Test
+    void runsOfSeveralJvmsAreJudgedTogether() throws IOException {
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"));
+        manifest("unit", "{\"runId\":\"unit\",\"artifacts\":[{\"source\":\"module-data\","
+                + "\"category\":\"leftovers\",\"metadata\":{\"leftovers\":\"1\"}}]}");
+        manifest("containers", "{\"runId\":\"containers\",\"reportingProblems\":[\"disk full\"],"
+                + "\"artifacts\":[]}");
+
+        QualityReport report = new QualityRunner(new QualityProperties(false, List.of(dir.resolve("results").toString()),
+                dir.resolve("artifacts").toString(), "unit, containers", dir.resolve("quality").toString(), 0.02,
+                null), new ObjectMapper(), ArtifactSink.NO_OP).run();
+
+        assertThat(report.runId()).isEqualTo("unit,containers");
+        assertThat(report.dimension(QualityDimension.HYGIENE).orElseThrow().facts())
+                .contains("1 rows tests left behind (module-data leftovers)", "reporting problem: disk full");
+    }
+
+    @Test
     void anXmlFileWithADoctypeIsNotParsed() throws IOException {
         junit("TEST-evil.xml", "<?xml version=\"1.0\"?><!DOCTYPE t [<!ENTITY x SYSTEM \"file:///etc/passwd\">]>"
                 + "<testsuite><testcase classname=\"E\" name=\"&x;\"/></testsuite>");
@@ -114,6 +148,41 @@ class QualityRunnerTest {
                 + "<testcase classname=\"A\" name=\"broken\"><error message=\"NPE\"/></testcase>"));
 
         assertThatThrownBy(() -> runner(true, 0.02).assertAcceptable())
-                .hasMessageStartingWith("Quality gate failed on functional (2 tests: 1 passed, 1 failed, 0 skipped)");
+                .hasMessageStartingWith("Quality gate failed on functional (2 tests: 1 passed, 1 failed, 0 skipped, "
+                        + "new: A.broken)");
+    }
+
+    @Test
+    void withABaselineOnlyANewIssueFailsTheGate() throws IOException {
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"
+                + "<testcase classname=\"A\" name=\"known\"><failure message=\"old bug\"/></testcase>"
+                + "<testcase classname=\"A\" name=\"fixed\"><failure message=\"fixed soon\"/></testcase>"));
+        runner(true, 0.02).run();
+        assertThat(dir.resolve("baseline/quality-baseline.json")).as("run() never writes a baseline").doesNotExist();
+        runner(true, 0.02).writeBaseline();
+
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"/>"
+                + "<testcase classname=\"A\" name=\"known\"><failure message=\"old bug\"/></testcase>"
+                + "<testcase classname=\"A\" name=\"fixed\"/>"));
+        QualityReport known = runner(true, 0.02).assertAcceptable();
+        assertThat(known.dimension(QualityDimension.FUNCTIONAL).orElseThrow().delta()).satisfies(delta -> {
+            assertThat(delta.baselineScore()).isEqualTo(33);
+            assertThat(delta.knownIssues()).containsExactly("A.known");
+            assertThat(delta.resolvedIssues()).containsExactly("A.fixed");
+            assertThat(delta.newIssues()).isEmpty();
+        });
+
+        junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"><error message=\"NPE\"/></testcase>"
+                + "<testcase classname=\"A\" name=\"known\"><failure message=\"old bug\"/></testcase>"));
+        assertThatThrownBy(() -> runner(true, 0.02).assertAcceptable())
+                .hasMessageContaining("new: A.ok)");
+        QualityReport accepted = runner(true, 0.02,
+                List.of("functional   A.ok  # ORD-12, fixed in the next release")).assertAcceptable();
+        assertThat(accepted.dimension(QualityDimension.FUNCTIONAL).orElseThrow().delta().acceptedIssues())
+                .containsExactly("A.ok");
+        assertThat(Files.readString(Path.of(accepted.reportMarkdown())))
+                .contains("| functional | FAIL | 0 | 33 | 0 |")
+                .contains("- accepted (1): `A.ok`")
+                .contains("- known since the baseline (1): `A.known`");
     }
 }

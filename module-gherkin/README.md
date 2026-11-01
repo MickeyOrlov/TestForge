@@ -26,8 +26,35 @@ JUnit-first; a project that does not use Gherkin deletes this module.
 | `Then the response field "$.note" contains "late"` | |
 | `Then I remember the response field "$.id" as "orderId"` | |
 
-Steps for Kafka, RabbitMQ, the database and mocks follow
-([plan](../docs/gherkin-layer-roadmap.md)).
+- **`io.testforge.gherkin.glue.VariableSteps`** — values for this run:
+
+| Step | |
+|---|---|
+| `Given I remember a unique value as "orderId"` | `orderId-1a2b3c4d5e6f`, unique per run |
+| `Given I remember "${orderId}-line-1" as "lineId"` | |
+| `Then the remembered "status" is "PAID"` | for a value a step remembered |
+
+- **`io.testforge.gherkin.kafka.KafkaSteps`** — over `KafkaProbe` / `KafkaPublisher`:
+
+| Step | |
+|---|---|
+| `When I publish a Kafka message to "orders.commands" with key "${orderId}":` + doc string | with the scenario's scope and correlation headers |
+| `Then a Kafka message arrives on "orders.events" with key "${orderId}"` | |
+| `Then a Kafka message arrives on "orders.events" where "$.orderId" is "${orderId}"` | |
+| `Then exactly one Kafka message arrives on "orders.events" where …` | watches `forge.gherkin.settle` for a duplicate |
+| `Then no Kafka message arrives on "orders.events" where …` | watches `forge.gherkin.settle` |
+| `Then I remember the Kafka message field "$.paymentId" as "paymentId"` | from the last awaited message |
+
+- **`io.testforge.gherkin.rabbitmq.RabbitSteps`** — the same over `RabbitProbe` /
+  `RabbitPublisher`: `I publish a RabbitMQ message to exchange "orders" with
+  routing key "order.pay":`, `a RabbitMQ message arrives on exchange
+  "payments" with routing key "payment.captured"` / `where "$.orderId" is …`,
+  `exactly one …`, `no RabbitMQ message arrives on exchange …`,
+  `I remember the RabbitMQ message field … as …`.
+
+A timeout names the closest messages by position and failed criteria, as
+the probes do; no step prints a message body. Steps for the database and
+mocks follow ([plan](../docs/gherkin-layer-roadmap.md)).
 
 ## Setup
 
@@ -61,7 +88,13 @@ forge:
     scope-per-scenario: true        # default
     scope-prefix: bdd
     correlation-per-scenario: true  # default
+    settle: 2s                      # "exactly one" / "no message" watch this long
 ```
+
+Feature files that need a container carry the Gherkin tag `@containers`;
+the JUnit Platform sees it as the tag `containers`, so the default build
+skips them and a `containersTest` task runs them. Give their suite
+`@Suite(failIfNoTests = false)` — one of the two tasks always filters it empty.
 
 ## The project's own steps
 

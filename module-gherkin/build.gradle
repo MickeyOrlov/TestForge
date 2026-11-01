@@ -11,10 +11,14 @@ dependencies {
 
     // glue per adapter: a project lists only the step packages whose module it has
     compileOnly project(":module-http")
+    compileOnly project(":module-kafka")
+    compileOnly project(":module-rabbitmq")
 }
 
 dependencies {
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation project(":module-http")
+    testImplementation project(":module-kafka")
+    testImplementation project(":module-rabbitmq")
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
