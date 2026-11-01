@@ -26,6 +26,12 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   own report; listed runs (`run-id: a,b`) merge, each artifact resolved
   against its own run directory.
 - Reports carry test names and first lines of failure messages only.
+- `quality.md`, `quality.json`, `quality-summary.md` and `quality.prom` are
+  rendered from the same `QualityReport`; a field `quality.json` gains goes
+  into `quality.schema.json` in the same change (`QualityExportTest` fails
+  otherwise), and removing or redefining one bumps `QualityReport.FORMAT_VERSION`.
+- Labels come from a fixed list of CI variables and `run-labels`, never from
+  the whole environment: it holds secrets.
 - Another module's output is read from the run index by `source` /
   `category` and its file's JSON fields; a missing report is NOT MEASURED with
   the module that would produce it named. A field rename in a producer is a

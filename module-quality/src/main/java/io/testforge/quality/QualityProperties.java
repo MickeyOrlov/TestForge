@@ -34,7 +34,19 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *       keep: 30                          # entries kept in dir; the oldest beyond it are dropped
  *       min-runs: 3                       # runs a test needs in the window before its median counts
  *       revision:                         # the commit tested; default GITHUB_SHA, CI_COMMIT_SHA, GIT_COMMIT
+ *     run-labels:                         # added to quality.json, history and metrics (branch, job, revision
+ *       environment: staging              #   come from the CI's own variables)
+ *     components:                         # issues by owner: the first component whose pattern matches the key
+ *       orders:
+ *         owner: team-orders
+ *         match: ["io.acme.orders.*", "* /api/v1/orders*", "*ORDERS*"]
+ *     gate:                               # per dimension, on top of fail-on
+ *       stability: { max-new-issues: 2 }  # a budget: fail-on fails only beyond it
+ *       api-coverage: { min-score: 80 }   # fails below the score, whatever the status
  * </pre>
+ *
+ * An accepted entry may expire: {@code "functional X  # until 2026-12-01, ORD-12"} counts as new
+ * from that day on.
  *
  * With a baseline the gate fails only on issues the baseline did not have;
  * {@code accepted} lets a known issue through without a new baseline.
@@ -57,7 +69,11 @@ public record QualityProperties(
         List<String> required,
         java.time.Instant resultsNotBefore,
         Double minApiCoverage,
-        HistoryProperties history) {
+        HistoryProperties history,
+        java.util.Map<String, String> runLabels,
+        java.util.Map<String, ComponentProperties> components,
+        java.util.Map<String, GateProperties> gate,
+        java.util.Map<String, java.time.LocalDate> acceptedUntil) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -80,6 +96,18 @@ public record QualityProperties(
         if (baselineFile == null || baselineFile.isBlank()) {
             baselineFile = "build/quality/baseline/quality-baseline.json";
         }
+        java.util.Map<String, java.time.LocalDate> until = new java.util.LinkedHashMap<>(
+                acceptedUntil == null ? java.util.Map.of() : acceptedUntil);
+        if (accepted != null) {
+            for (String entry : accepted) {
+                String[] parts = entry == null ? new String[] {""} : entry.split(" #", 2);
+                java.util.regex.Matcher date = parts.length < 2 ? null : UNTIL.matcher(parts[1]);
+                if (date != null && date.find()) {
+                    until.put(parts[0].strip().replaceAll("\\s+", " "), java.time.LocalDate.parse(date.group(1)));
+                }
+            }
+        }
+        acceptedUntil = java.util.Map.copyOf(until);
         accepted = accepted == null ? List.of() : accepted.stream()
                 .map(entry -> entry == null ? "" : entry.split(" #", 2)[0].strip().replaceAll("\\s+", " "))
                 .filter(entry -> !entry.isEmpty())
@@ -95,6 +123,38 @@ public record QualityProperties(
         if (history == null) {
             history = new HistoryProperties(null, null, null, null, null);
         }
+        runLabels = runLabels == null ? java.util.Map.of() : java.util.Map.copyOf(runLabels);
+        // binding keeps the declared order; the first matching component wins
+        components = components == null ? java.util.Map.of()
+                : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(components));
+        gate = gate == null ? java.util.Map.of() : java.util.Map.copyOf(gate);
+    }
+
+    private static final java.util.regex.Pattern UNTIL =
+            java.util.regex.Pattern.compile("\\buntil\\s+(\\d{4}-\\d{2}-\\d{2})");
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, null, null, null, null);
+    }
+
+    /** Who owns the issues whose key matches one of {@code match} ({@code *} is any text). */
+    public record ComponentProperties(String owner, List<String> match) {
+
+        public ComponentProperties {
+            match = match == null ? List.of() : List.copyOf(match);
+        }
+    }
+
+    /**
+     * A dimension's own gate: fail below {@code minScore}; with {@code maxNewIssues}, a
+     * {@code fail-on} FAIL passes while its new issues stay within the budget, and any status
+     * fails beyond it.
+     */
+    public record GateProperties(Integer minScore, Integer maxNewIssues) {
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
