@@ -255,7 +255,8 @@ Target module: `module-gherkin` (optional)
 - In progress ([plan](gherkin-layer-roadmap.md)): Cucumber steps over the
   modules for teams that write feature files. Shipped: scenario lifecycle
   (scope and correlation id per scenario), `${name}` variables, HTTP steps.
-  Next: messages, database and mocks.
+  Shipped too: Kafka and RabbitMQ steps (publish, await, exactly one, none)
+  and run-unique variables. Next: database and mocks.
 
 ### API Bootstrap Path
 

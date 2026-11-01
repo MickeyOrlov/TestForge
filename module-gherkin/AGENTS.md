@@ -3,7 +3,7 @@
 Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 `module-gherkin`; how to *use* it lives in [README.md](README.md).
 
-**Scope:** Cucumber glue over the TestForge modules — scenario lifecycle (`glue`), `ScenarioVariables`, and one step package per module (`http` so far). Plan: [docs/gherkin-layer-roadmap.md](../docs/gherkin-layer-roadmap.md).
+**Scope:** Cucumber glue over the TestForge modules — scenario lifecycle (`glue`), `ScenarioVariables`, and one step package per module (`http`, `kafka`, `rabbitmq`). Plan: [docs/gherkin-layer-roadmap.md](../docs/gherkin-layer-roadmap.md).
 
 **May depend on:** `core`; every other module only `compileOnly`, each listed in `Modules.ALLOWED_DEPENDENCIES`. Nothing outside this module depends on Cucumber.
 
@@ -23,7 +23,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Tests
 
-Own: `ScenarioVariablesTest`. Example: `GherkinExampleSuite` running `features/orders.feature` with `OrderServiceSteps`.
+Own: `ScenarioVariablesTest`, `MessageStepsTest`. Examples: `GherkinExampleSuite` (`features/orders.feature`, `payments.feature` on an embedded Kafka broker) and `GherkinRabbitSuite` (`features-containers/payments-rabbitmq.feature`, tag `containers`).
 
 ## Before you finish
 
