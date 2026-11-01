@@ -155,6 +155,13 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `module-gherkin` (optional): Cucumber steps over the TestForge modules for
+  teams that write feature files. Every scenario opens with a cleared
+  `ScenarioContext`, its own scope and correlation id; `ScenarioVariables`
+  carries `${name}` values between steps; `io.testforge.gherkin.http` sends
+  requests through `ApiClient` and checks status and JSON fields. Each
+  module's steps are a glue package of their own, the module `compileOnly`
+  ([plan](docs/gherkin-layer-roadmap.md)).
 - `module-rabbitmq`: `RabbitDiagnosticsExtension` — a failed test writes
   `module-rabbitmq/<test>.md` to the run index: what it published and what
   arrived while it ran, scoped to the scenario, bodies only with

@@ -17,6 +17,11 @@ dependencies {
     testImplementation project(":module-auth")
     testImplementation project(":module-kafka")
     testImplementation project(":module-rabbitmq")
+    testImplementation project(":module-gherkin")
+    // feature files run as a JUnit Platform suite (GherkinExampleSuite)
+    testImplementation platform(libs.cucumber.bom)
+    testImplementation "io.cucumber:cucumber-junit-platform-engine"
+    testImplementation "org.junit.platform:junit-platform-suite"
     testImplementation project(":module-mock")
     testImplementation project(":module-reporting")
     testImplementation project(":module-web")

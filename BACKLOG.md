@@ -116,8 +116,9 @@ endpoint is exactly what the safety policy exists to prevent.
 
 These are useful, but should stay behind the core CI/staging improvements.
 
-- `module-gherkin`: reusable Cucumber/Gherkin fragments for organizations that
-  already standardize on feature files.
+- `module-gherkin` (in progress, [plan](docs/gherkin-layer-roadmap.md)):
+  optional Cucumber steps for organizations that standardize on feature
+  files. Step 1 shipped: scenario lifecycle, variables, HTTP steps.
 - `module-api-fuzz`: continuous fuzzing orchestration via `st fuzz` (currently
   delegates schema-aware generation to `st run`, but continuous execution is
   deferred).
