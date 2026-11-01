@@ -25,11 +25,13 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 - Another module's output is read from the run index by `source` /
   `category` and its file's JSON fields; a missing report is NOT MEASURED with
   the module that would produce it named. A field rename in a producer is a
-  change to `ModuleDimensions` and its test in the same PR.
+  change to `ModuleDimensions` and its test in the same PR. Each dimension
+  reads its producer's report by file name, never every JSON of a category:
+  producers also register files of other layouts.
 
 ## Tests
 
-Own: `QualityRunnerTest`, `ModuleDimensionsTest`. Example: `QualityAssessmentExampleTest`.
+Own: `QualityRunnerTest`, `ModuleDimensionsTest`. End to end: `QualityEndToEndTest` in example-tests runs every producer with a planted defect into one run index and expects each in its dimension — keep it green when a producer changes what it writes. Example: `QualityAssessmentExampleTest`.
 
 ## Before you finish
 
