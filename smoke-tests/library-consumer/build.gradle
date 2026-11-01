@@ -45,6 +45,7 @@ def testforgeGroup = providers.gradleProperty("testforgeGroup")
 dependencies {
     testImplementation "${testforgeGroup}:module-http:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-auth:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-security:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-discovery:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-codegen:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-explorer:${testforgeVersion}"
