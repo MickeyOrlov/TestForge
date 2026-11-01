@@ -158,6 +158,10 @@ semantic versioning for its git tags.
   instead of publishing an empty artifact over the real one.
 
 ### Added
+- `example-tests`: a `qualityGate` task — the quality gate as a CI step,
+  after `test` / `containersTest`, pointed at their JUnit results, with
+  `-PqualityRunIds` and `-PqualityBaseline`; `QualityGateTest` (tag
+  `quality-gate`) is excluded from `test`.
 - `module-gherkin`: `forge.gherkin.scope-messages` limits message steps to
   messages carrying the scenario's scope header — without it a step could be
   satisfied by another scenario's event; `KafkaScenarioDiagnostics` /
