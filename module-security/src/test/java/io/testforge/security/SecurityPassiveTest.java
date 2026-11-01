@@ -13,6 +13,39 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class SecurityPassiveTest {
   @Test
+  void anEnabledButUnexecutedBlockCannotBeHiddenByOtherMeasurements() {
+    new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(TestForgeSecurityAutoConfiguration.class))
+        .withPropertyValues(
+            "forge.security.passive.enabled=true",
+            "forge.security.transport.enabled=true",
+            "forge.security.output-dir=build/missing-block-test")
+        .run(
+            c -> {
+              new PassiveSecurityChecks(
+                      c.getBean(SecurityProperties.class).passive(),
+                      c.getBean(SecurityCollector.class))
+                  .inspect(
+                      "GET",
+                      "http://localhost/health",
+                      false,
+                      null,
+                      200,
+                      Map.of("X-Content-Type-Options", List.of("nosniff")),
+                      "{}");
+              SecurityReport report = c.getBean(SecurityRunner.class).run();
+              assertThat(report.measured()).isTrue();
+              assertThat(report.complete()).isFalse();
+              assertThat(report.healthy()).isFalse();
+              assertThat(report.coverage())
+                  .anyMatch(
+                      row ->
+                          row.check().equals("block-transport")
+                              && row.status().equals("not_measured"));
+            });
+  }
+
+  @Test
   void applicabilitySecretsAndDuplicatesAreHandledWithoutStoringValues() throws Exception {
     var collector = new SecurityCollector(1000);
     var checks =

@@ -49,6 +49,16 @@ public class SecurityAuthRunner {
             new RequestValueResolver(explorer.parameters(), new SchemaValueFactory()),
             explorer.bodies());
     for (var op : new OperationSelector().select(specId, document)) {
+      if (!READ.contains(op.method())
+          && !(properties.writeChecks() && properties.allowUnsafeMethods())) {
+        collector.covered(
+            "unauthenticated",
+            safe(op.method(), op.pathTemplate()),
+            "anonymous",
+            "not_applicable",
+            "write probes were not requested; both write switches are required");
+        continue;
+      }
       var requirements =
           op.operation().getSecurity() == null
               ? document.getSecurity()
@@ -290,6 +300,7 @@ public class SecurityAuthRunner {
   }
 
   private void requireEnabled() {
+    collector.observedBlock("auth");
     if (!properties.enabled())
       throw new IllegalStateException("forge.security.auth.enabled must be true");
   }

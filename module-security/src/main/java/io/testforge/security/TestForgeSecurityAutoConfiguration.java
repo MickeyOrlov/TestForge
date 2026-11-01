@@ -17,9 +17,28 @@ import org.springframework.context.annotation.Bean;
   SecurityProperties.class,
   SecurityAuthProperties.class,
   SecurityTransportProperties.class,
-  SecurityArtifactProperties.class
+  SecurityArtifactProperties.class,
+  SecurityActiveProperties.class
 })
 public class TestForgeSecurityAutoConfiguration {
+  @Bean
+  @ConditionalOnMissingBean
+  public ZapEngine zapEngine() {
+    return new DockerZapEngine();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  @ConditionalOnProperty(prefix = "forge.security.active", name = "enabled", havingValue = "true")
+  public SecurityActiveRunner securityActiveRunner(
+      SecurityActiveProperties p,
+      SecurityCollector c,
+      ZapEngine engine,
+      ObjectProvider<io.testforge.auth.TokenProvider> tokens,
+      ObjectProvider<io.testforge.auth.AuthProperties> auth) {
+    return new SecurityActiveRunner(p, c, engine, tokens.getIfAvailable(), auth.getIfAvailable());
+  }
+
   @Bean
   @ConditionalOnMissingBean
   @ConditionalOnProperty(
@@ -117,16 +136,16 @@ public class TestForgeSecurityAutoConfiguration {
       SecurityCollector c,
       ObjectProvider<ArtifactSink> sink,
       org.springframework.core.env.Environment environment) {
-    return new SecurityRunner(
-        p,
-        c,
-        sink.getIfAvailable(() -> ArtifactSink.NO_OP),
+    java.util.function.Supplier<java.util.Set<String>> blocks =
         () ->
-            java.util.List.of("auth", "transport", "artifacts-scan", "active").stream()
-                .anyMatch(
+            java.util.List.of("passive", "auth", "transport", "artifacts-scan", "active").stream()
+                .filter(
                     block ->
                         environment.getProperty(
-                            "forge.security." + block + ".enabled", Boolean.class, false)));
+                            "forge.security." + block + ".enabled", Boolean.class, false))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    return new SecurityRunner(
+        p, c, sink.getIfAvailable(() -> ArtifactSink.NO_OP), () -> !blocks.get().isEmpty(), blocks);
   }
 
   @Bean

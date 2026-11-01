@@ -7,6 +7,15 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-security` B3: digest-pinned Docker ZAP delegation through an
+  allowlisted, read-only, rate/request/time-limited loopback gateway. Sanitized
+  OpenAPI input, explicit-page baseline mode, value-free normalized findings,
+  private scanner evidence cleanup and separate real-container acceptance.
+- Security reports distinguish measured/complete and account for enabled but
+  unexecuted blocks; ZAP findings resolve only under the same completed policy.
+
+
+### Added
 - `module-security` B4/B5: allowlisted, bounded JDK TLS/redirect assessment and
   explicit pre-upload artifact secret scanning. Local TLS algorithm limits
   remain unmeasured; symlinks/read/size limits are visible. Known credentials

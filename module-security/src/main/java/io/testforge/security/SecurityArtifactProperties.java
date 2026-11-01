@@ -9,6 +9,13 @@ public record SecurityArtifactProperties(
   public SecurityArtifactProperties {
     enabled = Boolean.TRUE.equals(enabled);
     roots = List.copyOf(roots == null ? List.of("build/testforge-artifacts") : roots);
+    for (String root : roots) {
+      try {
+        java.nio.file.Path.of(root);
+      } catch (RuntimeException e) {
+        throw new IllegalArgumentException("artifact roots contain an invalid path");
+      }
+    }
     maxFileBytes = maxFileBytes == null ? 8L * 1024 * 1024 : maxFileBytes;
     maxTotalBytes = maxTotalBytes == null ? 64L * 1024 * 1024 : maxTotalBytes;
     maxFiles = maxFiles == null ? 10000 : maxFiles;

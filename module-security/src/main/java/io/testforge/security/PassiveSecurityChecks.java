@@ -43,6 +43,7 @@ public class PassiveSecurityChecks {
       int status,
       Map<String, List<String>> responseHeaders,
       String body) {
+    collector.observedBlock("passive");
     String target = SecurityTargets.endpoint(method, uri);
     Map<String, List<String>> h = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     h.putAll(responseHeaders);

@@ -12,6 +12,7 @@ public class SecurityRunner {
   private final SecurityCollector collector;
   private final ArtifactSink sink;
   private final java.util.function.BooleanSupplier additionalEnabled;
+  private final java.util.function.Supplier<Set<String>> requestedBlocks;
   private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
   public SecurityRunner(
@@ -24,6 +25,16 @@ public class SecurityRunner {
       SecurityCollector collector,
       ArtifactSink sink,
       java.util.function.BooleanSupplier additionalEnabled) {
+    this(properties, collector, sink, additionalEnabled, Set::of);
+  }
+
+  public SecurityRunner(
+      SecurityProperties properties,
+      SecurityCollector collector,
+      ArtifactSink sink,
+      java.util.function.BooleanSupplier additionalEnabled,
+      java.util.function.Supplier<Set<String>> requestedBlocks) {
+    this.requestedBlocks = requestedBlocks;
     this.additionalEnabled = additionalEnabled;
     this.properties = properties;
     this.collector = collector;
@@ -40,12 +51,14 @@ public class SecurityRunner {
       accepted.put(text.substring(0, sep), text.substring(sep + 3));
     }
     List<SecurityFinding> previous = List.of();
+    List<SecurityCoverage> previousCoverage = List.of();
     if (properties.baselineFile() != null && Files.exists(Path.of(properties.baselineFile()))) {
       try {
         SecurityReport baseline =
             mapper.readValue(Path.of(properties.baselineFile()).toFile(), SecurityReport.class);
         if (baseline.formatVersion() != 1)
           throw new IllegalArgumentException("unsupported security baseline format");
+        previousCoverage = baseline.coverage();
         previous =
             baseline.findings().stream().filter(f -> !f.status().equals("resolved")).toList();
       } catch (IOException e) {
@@ -64,6 +77,15 @@ public class SecurityRunner {
                   : f);
     }
     List<SecurityCoverage> coverage = new ArrayList<>(collector.coverage());
+    for (String block : requestedBlocks.get())
+      if (!collector.observed(block))
+        coverage.add(
+            new SecurityCoverage(
+                "block-" + block,
+                "run",
+                null,
+                "not_measured",
+                "enabled security block was not executed"));
     boolean complete = coverage.stream().noneMatch(c -> c.status().equals("not_measured"));
     for (SecurityFinding f : previous)
       if (!current.contains(f.id())) {
@@ -76,6 +98,23 @@ public class SecurityRunner {
                                 && (f.target().equals(c.target())
                                     || f.target().startsWith(c.target() + " "))
                                 && c.status().equals("measured"));
+        if (f.check().startsWith("zap-")) {
+          var priorChecks = previousCoverage;
+          checked =
+              complete
+                  && coverage.stream()
+                      .anyMatch(
+                          c ->
+                              c.check().startsWith("zap-policy-")
+                                  && c.target().equals(f.target())
+                                  && c.status().equals("measured")
+                                  && priorChecks.stream()
+                                      .anyMatch(
+                                          old ->
+                                              old.check().equals(c.check())
+                                                  && old.target().equals(c.target())
+                                                  && old.status().equals("measured")));
+        }
         if (checked)
           findings.add(
               new SecurityFinding(
@@ -97,7 +136,20 @@ public class SecurityRunner {
                   "baseline finding was not rechecked completely"));
       }
     findings.sort(
-        Comparator.comparing(SecurityFinding::severity).thenComparing(SecurityFinding::id));
+        Comparator.comparing(SecurityFinding::severity)
+            .thenComparingInt(
+                f ->
+                    switch (f.status()) {
+                      case "new" -> 0;
+                      case "accepted" -> 1;
+                      default -> 2;
+                    })
+            .thenComparing(SecurityFinding::id));
+    coverage.sort(
+        Comparator.comparing(SecurityCoverage::check)
+            .thenComparing(SecurityCoverage::target)
+            .thenComparing(c -> Objects.toString(c.role(), ""))
+            .thenComparing(SecurityCoverage::status));
     boolean measured = coverage.stream().anyMatch(c -> c.status().equals("measured"));
     Map<String, Long> counts = new TreeMap<>();
     for (Severity severity : Severity.values())
@@ -114,7 +166,17 @@ public class SecurityRunner {
                 .noneMatch(
                     f -> f.status().equals("new") && properties.failOn().contains(f.severity()));
     SecurityReport report =
-        new SecurityReport(1, enabled, measured, healthy, findings, coverage, counts);
+        new SecurityReport(
+            1,
+            enabled,
+            measured,
+            enabled
+                && measured
+                && coverage.stream().noneMatch(c -> c.status().equals("not_measured")),
+            healthy,
+            findings,
+            coverage,
+            counts);
     if (enabled) write(report);
     return report;
   }
@@ -187,13 +249,15 @@ public class SecurityRunner {
     StringBuilder s = new StringBuilder("# Security assessment\n\n");
     s.append("Measured: ")
         .append(r.measured())
+        .append("; complete: ")
+        .append(r.complete())
         .append("; healthy: ")
         .append(r.healthy())
         .append("\n\n");
     s.append(
         "## Findings\n\n"
-            + "| severity | status | check | target | evidence |\n"
-            + "|---|---|---|---|---|\n");
+            + "| severity | status | check | target | evidence | OWASP | accepted reason |\n"
+            + "|---|---|---|---|---|---|---|\n");
     r.findings()
         .forEach(
             f ->
@@ -207,6 +271,11 @@ public class SecurityRunner {
                     .append(cell(f.target()))
                     .append(" | ")
                     .append(cell(f.evidence()))
+                    .append(" | [")
+                    .append(cell(f.owasp()))
+                    .append("](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)")
+                    .append(" | ")
+                    .append(cell(f.reason()))
                     .append(" |\n"));
     s.append(
         "\n## Coverage\n\n| check | target | role | status | reason |\n|---|---|---|---|---|\n");
