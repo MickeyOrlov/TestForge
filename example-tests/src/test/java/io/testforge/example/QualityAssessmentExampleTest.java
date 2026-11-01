@@ -54,6 +54,7 @@ class QualityAssessmentExampleTest {
         registry.add("forge.quality.junit-results", () -> RUN.resolve("results").toString());
         registry.add("forge.quality.artifacts-root", () -> RUN.resolve("artifacts").toString());
         registry.add("forge.quality.output-dir", () -> RUN.resolve("quality").toString());
+        registry.add("forge.quality.baseline-file", () -> RUN.resolve("baseline/quality-baseline.json").toString());
         // one flaky test in three is above any sane limit; 50% keeps this example at WARN
         registry.add("forge.quality.max-flaky-rate", () -> "0.5");
     }
@@ -81,14 +82,31 @@ class QualityAssessmentExampleTest {
                 .extracting(QualityDimension::status).isEqualTo(QualityStatus.WARN);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("- overall: **FAIL**")
-                .contains("| stability | WARN | 67 | `100 × (1 − flaky / executed)` |");
+                .contains("| stability | WARN | 67 | — | 1 | `100 × (1 − flaky / executed)` |");
     }
 
     @Test
     void theGateNamesWhatFailed() {
         assertThatThrownBy(() -> quality.assertAcceptable())
                 .isInstanceOf(QualityException.class)
-                .hasMessageStartingWith("Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped)");
+                .hasMessageStartingWith("Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped, "
+                        + "new: io.acme.OrdersTest.refundsAnOrder())");
+    }
+
+    @Test
+    void aKnownFailureIsAcceptedOnceTheTeamHasDecided() throws IOException {
+        // a reviewed change promotes this run: its failing test is now known, not new
+        quality.writeBaseline();
+        try {
+            QualityReport report = quality.assertAcceptable();
+
+            assertThat(report.baselineRunId()).isEqualTo("20261101T120000Z-ci-42");
+            assertThat(report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().delta().knownIssues())
+                    .containsExactly("io.acme.OrdersTest.refundsAnOrder()");
+        } finally {
+            // the other examples judge this run without a baseline
+            Files.deleteIfExists(RUN.resolve("baseline/quality-baseline.json"));
+        }
     }
 
     private static void write(String relative, String content) throws IOException {

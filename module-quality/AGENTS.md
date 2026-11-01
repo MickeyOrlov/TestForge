@@ -10,6 +10,9 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 ## Invariants (do not break)
 
 - Read-only: the assessment never re-runs a test or changes an input file.
+- The baseline changes only through `writeBaseline()`; `run()` and
+  `assertAcceptable()` never write it. Issue keys are stable across runs
+  (test ids, finding keys), never counters or timestamps.
 - Every score is a formula over counted facts, printed with the score; a new
   dimension documents its formula in the README table.
 - NOT MEASURED is never a pass; the gate fails closed when disabled or when

@@ -274,7 +274,7 @@ CHANGELOG, and a review step at the end of each part.
 | Step | Deliverable | Acceptance |
 |---|---|---|
 | A1 | `module-quality`: read manifest + JUnit XML, dimensions functional, stability, test hygiene; `quality.md` / `quality.json` — **shipped** | an example run produces a report whose numbers match the run by hand |
-| A2 | Baseline, deltas, `assertAcceptable()`, `accepted` list | a regression fails, an accepted one does not, a new baseline only on purpose |
+| A2 | Baseline, deltas, `assertAcceptable()`, `accepted` list — **shipped** | a regression fails, an accepted one does not, a new baseline only on purpose |
 | A3 | Dimensions from existing modules: contracts, data, robustness, efficiency | each dimension NOT MEASURED when its module is absent |
 | B1 | `module-security` passive checks on `ApiClient` responses + findings model + `security.md` / JSON / SARIF | WireMock example with a bad header, a wildcard CORS and a leaked token; all found, no value printed |
 | B2 | Auth tests: unauthenticated, token tampering, BOLA/IDOR read, function-level | example with a deliberately broken endpoint per check |
