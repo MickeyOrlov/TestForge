@@ -397,6 +397,12 @@ summary's first line `### Quality gate: PASS · overall FAIL`, and
 `testforge_quality_gate_passed` in `quality.prom`. A score is never 100 while
 something failed: 252 of 253 is 99.
 
+Each dimension's part in the gate is a column of the tables and
+`gate.dimensions` in `quality.json`: **enforced** (`fail-on`, `required` or a
+`gate` limit), **dry-run**, or **report only** — a FAIL there is information
+and fails nothing. A gate failure names what is new first, the sample after
+it: `contracts (2 new: api GET /oops …, … — 26 API responses checked …)`.
+
 Beside `quality.md` and `quality.json` in `output-dir`:
 
 - `quality-summary.md` — overall, the dimensions that are not PASS with their

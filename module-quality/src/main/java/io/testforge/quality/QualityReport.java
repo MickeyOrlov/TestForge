@@ -38,12 +38,26 @@ public record QualityReport(
      * @param verdict  PASS or FAIL
      * @param failures what fails it, one line each; empty on PASS
      * @param dryRun   what would fail it on the dimensions whose gate is a dry run
+     * @param dimensions each dimension's part in it: {@value #ENFORCED} ({@code fail-on}, {@code required}
+     *                 or a limit), {@value #DRY_RUN}, or {@value #REPORT_ONLY} — a FAIL there fails nothing
      */
-    public record Gate(QualityStatus verdict, List<String> failures, List<String> dryRun) {
+    public record Gate(QualityStatus verdict, List<String> failures, List<String> dryRun,
+                       java.util.Map<String, String> dimensions) {
+
+        public static final String ENFORCED = "enforced";
+        public static final String DRY_RUN = "dry-run";
+        public static final String REPORT_ONLY = "report only";
 
         public Gate {
             failures = List.copyOf(failures);
             dryRun = List.copyOf(dryRun);
+            dimensions = dimensions == null ? java.util.Map.of()
+                    : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(dimensions));
+        }
+
+        /** {@code report only} for a dimension the gate does not know. */
+        public String role(String dimension) {
+            return dimensions.getOrDefault(dimension, REPORT_ONLY);
         }
     }
 

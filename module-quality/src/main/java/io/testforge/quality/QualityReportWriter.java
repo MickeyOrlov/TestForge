@@ -67,10 +67,12 @@ final class QualityReportWriter {
         }
         report.notes().forEach(note -> out.append("- note: ").append(note).append('\n'));
         out.append('\n')
-                .append("| Dimension | Status | Score | Baseline | New issues | Formula |\n|---|---|---|---|---|---|\n");
+                .append("| Dimension | Status | Gate | Score | Baseline | New issues | Formula |\n")
+                .append("|---|---|---|---|---|---|---|\n");
         for (QualityDimension dimension : report.dimensions()) {
             QualityDelta delta = dimension.delta();
             out.append("| ").append(dimension.name()).append(" | ").append(dimension.status()).append(" | ")
+                    .append(role(report, dimension)).append(" | ")
                     .append(dimension.score() == null ? "—" : dimension.score()).append(" | ")
                     .append(delta == null || delta.baselineScore() == null ? "—" : delta.baselineScore()).append(" | ")
                     .append(dimension.newIssues().size()).append(" | ")
@@ -124,10 +126,11 @@ final class QualityReportWriter {
         if (attention.isEmpty()) {
             out.append("Every measured dimension passed.\n");
         } else {
-            out.append("| Dimension | Status | Score | New issues |\n|---|---|---|---|\n");
+            out.append("| Dimension | Status | Gate | Score | New issues |\n|---|---|---|---|---|\n");
             for (QualityDimension dimension : attention) {
                 List<String> fresh = dimension.newIssues();
                 out.append("| ").append(dimension.name()).append(" | ").append(dimension.status()).append(" | ")
+                        .append(role(report, dimension)).append(" | ")
                         .append(dimension.score()).append(" | ")
                         .append(fresh.stream().limit(SUMMARY_ISSUES).map(i -> "`" + i.replace("|", "\\|") + "`")
                                 .collect(java.util.stream.Collectors.joining(", ")))
@@ -209,6 +212,11 @@ final class QualityReportWriter {
                     .append('\n'));
         }
         return out.append("# EOF\n").toString();
+    }
+
+    /** The dimension's part in the gate, or {@code —} before the gate is judged. */
+    private static String role(QualityReport report, QualityDimension dimension) {
+        return report.gate() == null ? "—" : report.gate().role(dimension.name());
     }
 
     /** {@code - gate: **FAIL** — why; why} for quality.md and the summary; empty before the gate is judged. */

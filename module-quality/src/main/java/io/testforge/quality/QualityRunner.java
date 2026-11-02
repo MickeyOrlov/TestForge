@@ -238,7 +238,7 @@ public class QualityRunner {
         }
         breaches.stream().filter(b -> !dryRun(b.dimension())).forEach(b -> failures.add(b.note()));
         return new QualityReport.Gate(failures.isEmpty() ? QualityStatus.PASS : QualityStatus.FAIL, failures,
-                breaches.stream().filter(b -> dryRun(b.dimension())).map(Breach::note).toList());
+                breaches.stream().filter(b -> dryRun(b.dimension())).map(Breach::note).toList(), roles(report));
     }
 
     /**
@@ -326,10 +326,31 @@ public class QualityRunner {
         return failures;
     }
 
+    /**
+     * {@code contracts (2 new: a, b — 26 API responses checked …)}: what is wrong first, the dimension's
+     * first fact — often the size of the sample — after it. A FAIL without issue keys gives the fact alone.
+     */
     private static String describe(QualityDimension dimension) {
         List<String> fresh = dimension.newIssues();
-        String issues = fresh.isEmpty() ? "" : ", new: " + String.join(", ",
-                fresh.subList(0, Math.min(5, fresh.size()))) + (fresh.size() > 5 ? " (+" + (fresh.size() - 5) + ")" : "");
-        return dimension.name() + " (" + dimension.facts().getFirst() + issues + ")";
+        if (fresh.isEmpty()) {
+            return dimension.name() + " (" + dimension.facts().getFirst() + ")";
+        }
+        return dimension.name() + " (" + fresh.size() + " new: " + String.join(", ",
+                fresh.subList(0, Math.min(5, fresh.size()))) + (fresh.size() > 5 ? " (+" + (fresh.size() - 5) + ")" : "")
+                + " — " + dimension.facts().getFirst() + ")";
+    }
+
+    /** {@code enforced}, {@code dry-run} or {@code report only}: what each dimension can do to the gate. */
+    private java.util.Map<String, String> roles(QualityReport report) {
+        java.util.Map<String, String> roles = new java.util.LinkedHashMap<>();
+        for (QualityDimension dimension : report.dimensions()) {
+            String name = dimension.name();
+            QualityProperties.GateProperties gate = properties.gate().get(name);
+            boolean enforced = properties.failOn().contains(name) || properties.required().contains(name)
+                    || gate != null && (gate.minScore() != null || gate.maxNewIssues() != null);
+            roles.put(name, dryRun(name) ? QualityReport.Gate.DRY_RUN
+                    : enforced ? QualityReport.Gate.ENFORCED : QualityReport.Gate.REPORT_ONLY);
+        }
+        return roles;
     }
 }

@@ -64,7 +64,7 @@ class QualityCliTest {
         assertThat(err()).contains("quality gate: FAIL");
         JsonNode json = new ObjectMapper().readTree(dir.resolve("out/quality.json").toFile());
         assertThat(json.path("gate").path("verdict").asText()).isEqualTo("FAIL");
-        assertThat(json.path("gate").path("failures").get(0).asText()).startsWith("functional (2 tests: 1 passed");
+        assertThat(json.path("gate").path("failures").get(0).asText()).startsWith("functional (1 new: io.acme.T.pays — 2 tests: 1 passed");
 
         assertThat(cli("baseline", "--config", config.toString())).isEqualTo(QualityCli.PASS);
         assertThat(dir.resolve("baseline.json")).exists();

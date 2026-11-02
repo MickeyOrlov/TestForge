@@ -15,7 +15,10 @@ semantic versioning for its git tags.
   baseline after it.
 - `module-quality`: `quality-summary.md` starts with the gate's verdict
   (`### Quality gate: PASS · overall FAIL`); a score is never 100 while
-  anything failed.
+  anything failed. The tables gain a Gate column (`enforced` / `dry-run` /
+  `report only`), and a gate failure reads `functional (1 new: X — 3 tests:
+  …)`: what is new first. `functional`'s hint speaks of `min-tests` only when
+  too few tests ran.
 - `module-quality`: `quality.prom` leaves `revision`, `job` and `run_id` out
   of `testforge_quality_run_info` — one series per run — unless
   `forge.quality.metrics.run-ids: true`.

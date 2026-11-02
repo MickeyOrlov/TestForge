@@ -18,7 +18,12 @@
       "properties": {
         "verdict": { "enum": ["PASS", "FAIL"] },
         "failures": { "type": "array", "items": { "type": "string" } },
-        "dryRun": { "type": "array", "items": { "type": "string" }, "description": "What would fail on dry-run dimensions." }
+        "dryRun": { "type": "array", "items": { "type": "string" }, "description": "What would fail on dry-run dimensions." },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": { "enum": ["enforced", "dry-run", "report only"] },
+          "description": "Each dimension's part in the gate; a FAIL on a report-only dimension fails nothing."
+        }
       }
     },
     "labels": {
