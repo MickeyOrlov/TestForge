@@ -44,7 +44,9 @@ final class JunitResults {
     /**
      * @param millis      the last attempt's duration, from the report's {@code time} (seconds)
      * @param error       the failure was not an assertion: the test or its environment threw
-     * @param fingerprint the failure's {@link #fingerprint(String, String)}; {@code null} without a type or trace
+     * @param fingerprint the failure's {@link #fingerprint(String, String)}; {@code null} without a type or trace.
+     *                    Attempts that failed differently (retries) join theirs with {@code ,}, so no single
+     *                    quarantined fingerprint matches them
      */
     record TestCase(String className, String name, Outcome outcome, boolean flaky, String message, long millis,
                     boolean error, String fingerprint) {
@@ -103,8 +105,9 @@ final class JunitResults {
         return new Read(tests, List.copyOf(stale));
     }
 
+    /** @param fingerprints one per failed attempt in the element, {@code "none"} where it had none */
     private record Attempt(String className, String name, Outcome outcome, boolean flakyMarker, String message,
-                           long millis, boolean error, String fingerprint) {
+                           long millis, boolean error, List<String> fingerprints) {
     }
 
     private static TestCase merge(List<Attempt> all) {
@@ -115,10 +118,12 @@ final class JunitResults {
         Outcome outcome = passed ? Outcome.PASSED : failed ? Outcome.FAILED : Outcome.SKIPPED;
         String message = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker())
                 .map(Attempt::message).filter(m -> m != null && !m.isBlank()).findFirst().orElse(null);
-        Attempt failing = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker()).findFirst()
-                .orElse(first);
+        List<Attempt> failing = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker()).toList();
+        List<String> fingerprints = failing.stream().flatMap(a -> a.fingerprints().stream()).distinct().toList();
+        String fingerprint = fingerprints.isEmpty() || fingerprints.equals(List.of("none")) ? null
+                : String.join(",", fingerprints);
         return new TestCase(first.className(), first.name(), outcome, passed && (failed || marked), message,
-                all.getLast().millis(), failing.error(), failing.fingerprint());
+                all.getLast().millis(), failing.stream().anyMatch(Attempt::error), fingerprint);
     }
 
     /** @return false when the file's suite is older than {@code notBefore} and was skipped */
@@ -145,7 +150,8 @@ final class JunitResults {
             boolean flakyMarker = false;
             String message = null;
             boolean error = false;
-            String fingerprint = null;
+            // every failed attempt in this element: Surefire's reruns sit inside one <testcase>
+            List<String> fingerprints = new ArrayList<>();
             for (Node child = testcase.getFirstChild(); child != null; child = child.getNextSibling()) {
                 if (!(child instanceof Element element)) {
                     continue;
@@ -155,18 +161,16 @@ final class JunitResults {
                         outcome = Outcome.FAILED;
                         message = firstLine(element);
                         String type = type(element);
-                        error = "error".equals(element.getTagName()) || type != null && !assertion(type);
-                        fingerprint = fingerprint(type, element.getTextContent());
+                        error |= "error".equals(element.getTagName()) || type != null && !assertion(type);
+                        fingerprints.add(attemptFingerprint(type, element));
                     }
                     case "skipped" -> outcome = outcome == Outcome.FAILED ? outcome : Outcome.SKIPPED;
                     case "flakyFailure", "flakyError", "rerunFailure", "rerunError" -> {
                         flakyMarker = true;
-                        if (message == null) {
-                            message = firstLine(element);
-                            String type = type(element);
-                            error = element.getTagName().endsWith("Error") || type != null && !assertion(type);
-                            fingerprint = fingerprint(type, element.getTextContent());
-                        }
+                        message = message == null ? firstLine(element) : message;
+                        String type = type(element);
+                        error |= element.getTagName().endsWith("Error") || type != null && !assertion(type);
+                        fingerprints.add(attemptFingerprint(type, element));
                     }
                     default -> {
                     }
@@ -174,7 +178,7 @@ final class JunitResults {
             }
             attempts.computeIfAbsent(className + "." + name, ignored -> new ArrayList<>())
                     .add(new Attempt(className, name, outcome, flakyMarker, message, millis(testcase), error,
-                            fingerprint));
+                            fingerprints));
         }
         return true;
     }
@@ -212,6 +216,11 @@ final class JunitResults {
                 .orElse("");
         String candidate = first.split(":", 2)[0].strip();
         return candidate.matches("[\\w$]+(\\.[\\w$]+)+") ? candidate : null;
+    }
+
+    private static String attemptFingerprint(String type, Element element) {
+        String fingerprint = fingerprint(type, element.getTextContent());
+        return fingerprint == null ? "none" : fingerprint;
     }
 
     /** A failed check rather than a thrown exception. */

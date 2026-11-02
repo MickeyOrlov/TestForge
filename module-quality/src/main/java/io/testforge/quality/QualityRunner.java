@@ -268,8 +268,15 @@ public class QualityRunner {
             breaches.add(new Breach(QualityDimension.SECURITY, Breach.Kind.SECURITY_INCOMPLETE,
                     QualityDimension.SECURITY));
         }
+        // too few executed tests is not a failure anyone can accept or budget for: it fails on its own
+        report.dimension(QualityDimension.FUNCTIONAL)
+                .filter(d -> properties.failOn().contains(d.name())
+                        && d.issues().contains(QualityAssessor.TOO_FEW_TESTS))
+                .ifPresent(d -> breaches.add(new Breach(d.name(), Breach.Kind.FAILED,
+                        d.name() + " (" + d.facts().getFirst() + ")")));
         report.dimensions().stream()
                 .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
+                .filter(d -> !d.issues().contains(QualityAssessor.TOO_FEW_TESTS))
                 // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails
                 .filter(d -> d.issues().isEmpty() || !d.newIssues().isEmpty())
                 // a budget lets a FAIL through while its new issues stay within it

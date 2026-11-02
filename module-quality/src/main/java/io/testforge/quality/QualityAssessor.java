@@ -13,6 +13,11 @@ import java.util.Locale;
 final class QualityAssessor {
 
     static final int LISTED = 10;
+    /**
+     * The {@code functional} issue of a run that executed fewer than {@code min-tests}: the gate
+     * fails on it whatever the baseline, {@code accepted} or a budget say.
+     */
+    static final String TOO_FEW_TESTS = "min-tests not reached";
 
     private QualityAssessor() {
     }
@@ -115,7 +120,9 @@ final class QualityAssessor {
                 failed > 0 || tooFew ? QualityStatus.FAIL : QualityStatus.PASS,
                 passed + failed == 0 ? 0 : Math.round(100f * passed / (passed + failed)),
                 "100 × passed / (passed + failed)", facts)
-                .withIssues(tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id).toList());
+                .withIssues(java.util.stream.Stream.concat(tooFew ? java.util.stream.Stream.of(TOO_FEW_TESTS)
+                                : java.util.stream.Stream.empty(),
+                        tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id)).toList());
     }
 
     static QualityDimension stability(List<TestCase> tests, QualityProperties properties) {

@@ -30,6 +30,26 @@ class QualityQuarantineTest {
                 dir.resolve("baseline.json").toString(), accepted), new ObjectMapper(), ArtifactSink.NO_OP, today);
     }
 
+    private QualityRunner runner(List<String> accepted, Integer minTests,
+                                 java.util.Map<String, QualityProperties.GateProperties> gate) {
+        return new QualityRunner(new QualityProperties(true, List.of(dir.resolve("results").toString()),
+                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), 0.5, null,
+                dir.resolve("baseline.json").toString(), accepted, null, null, null, null, null, null, null, gate,
+                null, minTests), new ObjectMapper(), ArtifactSink.NO_OP, today);
+    }
+
+    private void cases(String cases) throws IOException {
+        Path path = dir.resolve("results/TEST-s.xml");
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, "<testsuite name=\"s\">" + cases + "</testsuite>");
+    }
+
+    private static String pinOf(QualityReport report) {
+        return report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().facts().stream()
+                .filter(f -> f.startsWith("failed: io.acme.PayTest.pays")).findFirst().orElseThrow()
+                .replaceAll(".*\\[fingerprint ([\\w,]+)]$", "$1");
+    }
+
     private void junit(String gatewayFailure) throws IOException {
         Path path = dir.resolve("results/TEST-s.xml");
         Files.createDirectories(path.getParent());
@@ -102,5 +122,60 @@ class QualityQuarantineTest {
         assertThat(report.notes()).noneMatch(note -> note.startsWith("accepted but not seen"));
         assertThatThrownBy(() -> runner(accepted).assertAcceptable())
                 .hasMessageContaining("new: io.acme.PayTest.pays");
+    }
+
+    @Test
+    void tooFewTestsFailTheGateWhateverTheBaselineOrAcceptedSay() throws IOException {
+        cases("<testcase classname=\"io.acme.PayTest\" name=\"pays\"><failure message=\"x\"/></testcase>");
+        List<String> accepted = List.of("functional io.acme.PayTest.pays  # ORD-1");
+        runner(accepted, 10, java.util.Map.of()).writeBaseline();
+
+        assertThatThrownBy(() -> runner(accepted, 10, java.util.Map.of()).assertAcceptable())
+                .hasMessageStartingWith("Quality gate failed on functional (1 tests executed, fewer than min-tests 10");
+        assertThatThrownBy(() -> runner(accepted, 10, java.util.Map.of(QualityDimension.FUNCTIONAL,
+                new QualityProperties.GateProperties(null, 5))).assertAcceptable())
+                .as("a budget does not cover it either").hasMessageContaining("fewer than min-tests 10");
+        QualityReport dryRun = runner(accepted, 10, java.util.Map.of(QualityDimension.FUNCTIONAL,
+                new QualityProperties.GateProperties(null, null, true))).assertAcceptable();
+        assertThat(dryRun.notes()).anyMatch(note -> note.startsWith("dry run — the gate would fail on functional "
+                + "(1 tests executed, fewer than min-tests 10"));
+    }
+
+    @Test
+    void aPinnedFingerprintStillCountsWhenTheBaselineHasTheTest() throws IOException {
+        junit(timeout(12));
+        String fingerprint = pinOf(runner(null).run());
+        List<String> accepted = List.of("functional io.acme.PayTest.pays @" + fingerprint + "  # QUAR-7",
+                "functional io.acme.PayTest.refunds  # ORD-12");
+        runner(accepted).writeBaseline();
+        assertThatCode(() -> runner(accepted).assertAcceptable()).doesNotThrowAnyException();
+
+        junit(timeout(12).replace("java.net.ConnectException", "java.lang.IllegalStateException"));
+        assertThatThrownBy(() -> runner(accepted).assertAcceptable())
+                .as("the baseline knew the test, not this failure").hasMessageContaining("new: io.acme.PayTest.pays");
+    }
+
+    @Test
+    void everyFailedAttemptMustMatchThePinnedFingerprint() throws IOException {
+        String attempt = "<testcase classname=\"io.acme.PayTest\" name=\"pays\">%s</testcase>";
+        cases(attempt.formatted(timeout(12)));
+        String fingerprint = pinOf(runner(null).run());
+        List<String> accepted = List.of("functional io.acme.PayTest.pays @" + fingerprint + "  # QUAR-7");
+        String other = timeout(12).replace("java.net.ConnectException", "java.lang.IllegalStateException");
+
+        // Gradle test-retry: the same test twice, the retry failing differently
+        cases(attempt.formatted(timeout(12)) + attempt.formatted(other));
+        QualityReport retried = runner(accepted).run();
+        assertThat(pinOf(retried)).startsWith(fingerprint + ",").hasSize(25);
+        assertThatThrownBy(() -> runner(accepted).assertAcceptable()).hasMessageContaining("new: io.acme.PayTest.pays");
+
+        // Surefire: the rerun inside the same element
+        cases(attempt.formatted(timeout(12) + other.replace("<error", "<rerunError").replace("</error>",
+                "</rerunError>")));
+        assertThatThrownBy(() -> runner(accepted).assertAcceptable()).hasMessageContaining("new: io.acme.PayTest.pays");
+
+        cases(attempt.formatted(timeout(12)) + attempt.formatted(timeout(30)));
+        assertThatCode(() -> runner(accepted).assertAcceptable()).as("both attempts failed the same way")
+                .doesNotThrowAnyException();
     }
 }

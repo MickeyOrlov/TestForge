@@ -49,7 +49,8 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
   fewer tests executed — none at all included — so a filter or task that
   selected the wrong tests does not pass for a green run. The first fact
   names the count; it fails the gate while `functional` is in `fail-on` (the
-  default).
+  default) — whatever the baseline, `accepted` or a `max-new-issues` budget
+  say about the tests that did fail. Only `dry-run` turns it into a note.
 - **How to fix**: a FAIL or WARN dimension carries a `hint` — what to do
   about it, next to the facts that say what is wrong — in `quality.json`,
   `quality.md` and `quality-summary.md`.
@@ -189,7 +190,11 @@ after, the issue counts as new again and the report notes it.
 (`functional` only): `@<fingerprint>` after the test id, copied from its
 `failed:` fact. The test keeps running; the gate lets it through only while
 it fails the same way, and a different failure — another exception, another
-place — is new, with a note naming both fingerprints:
+place — is new, with a note naming both fingerprints. The pin outranks the
+baseline: a test the baseline already had is still new once it fails
+differently. Every failed attempt counts — a retry (Gradle's second
+`<testcase>`, Surefire's `<rerunFailure>`) that fails differently gives the
+test both fingerprints, `a1…,b2…`, and no single pin matches it:
 
 ```yaml
 forge:
