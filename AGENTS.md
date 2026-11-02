@@ -19,6 +19,7 @@ module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator, DbS
 module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
+module-load/   Thin local k6 adapter: explicit runs, native thresholds, bounded process lifecycle and evidence
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
 module-security/ opt-in passive/auth/ZAP/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
@@ -154,6 +155,7 @@ must not replace each other. `example-tests` is never published.
    paste. Redaction follows `forge.http.logging.redact-*`; extend it before the
    first run uploads artifacts.
 12. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build. Read the first `report.md`, copy what the team accepts into `forge.api-fuzz.accepted-findings`, then turn `fail-on-findings` on: it fails on new findings only.
+12a. **module-load**: install the pinned k6 binary separately, enable `forge.load.enabled` only in a load profile, set a trusted local script and explicit `base-url`, then call `LoadRunner.assertHealthy()` from a dedicated job. Scripts use native k6 options/thresholds and the documented `handleSummary` hook. No load runs in the default build; `:module-load:k6Test` verifies the adapter against an owned loopback server. Optional `forge.load.prometheus.*` feeds the provisioned `infra/load` stack; `:example-tests:loadTest` requires an explicit target, and `:module-load:observabilityTest` verifies the full metrics path. For optional API research → load orchestration, use `:example-tests:apiLoadTest` and `tools/api-load/README.md`: inputs and producer reports are files; the upstream generator prepares a native client; module-load still depends only on core.
 13. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the

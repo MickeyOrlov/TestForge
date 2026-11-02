@@ -1,0 +1,11 @@
+{
+  "name": "testforge-api-load-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test prepare.test.mjs" },
+  "dependencies": {
+    "@grafana/openapi-to-k6": "0.4.1",
+    "yaml": "2.9.1"
+  }
+}

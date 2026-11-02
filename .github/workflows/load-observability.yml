@@ -1,0 +1,66 @@
+name: Load observability acceptance
+
+# A manual, bounded check of the adapter against its own loopback fixture.
+# Never runs a load scenario against a shared target on push/PR/schedule.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned k6 and verify its checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/testforge-k6"
+          cd "$RUNNER_TEMP/testforge-k6"
+          curl --fail --location --retry 3 --output k6-v2.3.0-linux-amd64.tar.gz https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz
+          curl --fail --location --retry 3 --output checksums.txt https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-checksums.txt
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf k6-v2.3.0-linux-amd64.tar.gz
+      - name: Start Prometheus and Grafana
+        run: |
+          docker compose -p testforge-load-ci -f infra/load/compose.yml up -d
+          curl --fail --retry 30 --retry-connrefused --retry-delay 1 --retry-max-time 90 http://127.0.0.1:9090/-/ready
+          curl --fail --retry 30 --retry-connrefused --retry-delay 1 --retry-max-time 90 http://127.0.0.1:3000/api/health
+      - name: Verify native k6, remote write and all dashboard queries
+        run: ./gradlew :module-load:test :module-load:k6Test :module-load:observabilityTest -Pk6Executable="$RUNNER_TEMP/testforge-k6/k6-v2.3.0-linux-amd64/k6"
+      - name: Verify the project-level API research to load workflow
+        run: |
+          npm ci --prefix tools/api-load --ignore-scripts --no-audit --no-fund
+          npm test --prefix tools/api-load
+          python3 tools/api-load/acceptance.py --k6 "$RUNNER_TEMP/testforge-k6/k6-v2.3.0-linux-amd64/k6" --prometheus http://127.0.0.1:9090
+      - name: Save service diagnostics
+        if: always()
+        run: |
+          mkdir -p build/load-observability
+          docker compose -p testforge-load-ci -f infra/load/compose.yml logs --no-color > build/load-observability/services.log
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-observability
+          path: |
+            module-load/build/load-observability/
+            module-load/build/reports/tests/
+            module-load/build/test-results/
+            build/load-observability/
+            build/api-load-acceptance/
+          if-no-files-found: ignore
+      - name: Stop the acceptance stack
+        if: always()
+        run: docker compose -p testforge-load-ci -f infra/load/compose.yml down --volumes
