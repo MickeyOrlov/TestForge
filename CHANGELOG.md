@@ -8,6 +8,18 @@ semantic versioning for its git tags.
 
 ### Changed
 - `module-load`: preserve evidence when private summary cleanup fails; native threshold failures take precedence over dropped iterations. HTML and Prometheus run-ID labels are opt-in. Preserve mixed-case Windows environment paths and clean up observed descendants after normal exit. Generator output is discarded without a capture limit, and Python acceptance checks remain active under optimization.
+- `module-quality`: `reliability`, `efficiency` and history name API operations
+  as `api-coverage.json` documents them — `<spec> <METHOD> <template>` instead
+  of the URL path (`GET /petclinic/api/owners/{n}` → `petclinic GET
+  /owners/{ownerId}`). The first run after the upgrade reports those issues
+  as new and the old keys as resolved; operation medians restart. Promote a
+  baseline after it.
+- `module-quality`: `quality-summary.md` starts with the gate's verdict
+  (`### Quality gate: PASS · overall FAIL`); a score is never 100 while
+  anything failed. The tables gain a Gate column (`enforced` / `dry-run` /
+  `report only`), and a gate failure reads `functional (1 new: X — 3 tests:
+  …)`: what is new first. `functional`'s hint speaks of `min-tests` only when
+  too few tests ran.
 - `module-quality`: `quality.prom` leaves `revision`, `job` and `run_id` out
   of `testforge_quality_run_info` — one series per run — unless
   `forge.quality.metrics.run-ids: true`.
@@ -38,6 +50,16 @@ semantic versioning for its git tags.
   `--json-report` (`forge.quality.diff-coverage.report`, `min-score`,
   `min-lines`): covered over measured changed lines, files with uncovered
   lines as issues; a diff with too few measured lines is NOT MEASURED.
+- `module-quality`: `testforge-quality check|baseline` — the gate as a
+  command over the same `forge.quality` YAML, exit codes 0 pass / 1 fail /
+  2 cannot judge / 64 usage (`./gradlew :module-quality:installDist`).
+- `module-quality`: `robustness` reads Web Fuzzing Commons reports
+  (`forge.quality.robustness.reports`, EvoMaster's `report.json`): one issue
+  per operation and WFC fault category, with the generated test as evidence.
+- `module-quality`: `gate` (verdict, failures, dry run) in `quality.json`,
+  `quality.md`, the summary and `quality.prom`.
+- `module-quality`: PIT, diff-cover and WFC reports older than
+  `results-not-before` are NOT MEASURED instead of judged as this build's.
 - `module-quality`: `forge.quality.codeowners` gives issues no component
   matched to the CODEOWNERS owners of the file they point at (test or
   mutated class, changed file).

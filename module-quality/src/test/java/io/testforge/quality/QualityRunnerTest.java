@@ -74,7 +74,7 @@ class QualityRunnerTest {
                 .isEqualTo(QualityStatus.NOT_MEASURED);
         assertThat(report.overall()).isEqualTo(QualityStatus.FAIL);
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
-                .contains("| functional | FAIL | 75 | — | 1 | `100 × passed / (passed + failed)` |");
+                .contains("| functional | FAIL | enforced | 75 | — | 1 | `100 × passed / (passed + failed)` |");
         assertThat(new ObjectMapper().readTree(Path.of(report.reportJson()).toFile()).path("overall").asText())
                 .isEqualTo("FAIL");
     }
@@ -175,8 +175,8 @@ class QualityRunnerTest {
                 + "<testcase classname=\"A\" name=\"broken\"><error message=\"NPE\"/></testcase>"));
 
         assertThatThrownBy(() -> runner(true, 0.02).assertAcceptable())
-                .hasMessageStartingWith("Quality gate failed on functional (2 tests: 1 passed, 1 failed, 0 skipped, "
-                        + "new: A.broken)");
+                .hasMessageStartingWith("Quality gate failed on functional (1 new: A.broken — 2 tests: 1 passed, "
+                        + "1 failed, 0 skipped)");
     }
 
     @Test
@@ -202,13 +202,13 @@ class QualityRunnerTest {
         junit("TEST-A.xml", suite("<testcase classname=\"A\" name=\"ok\"><error message=\"NPE\"/></testcase>"
                 + "<testcase classname=\"A\" name=\"known\"><failure message=\"old bug\"/></testcase>"));
         assertThatThrownBy(() -> runner(true, 0.02).assertAcceptable())
-                .hasMessageContaining("new: A.ok)");
+                .hasMessageContaining("1 new: A.ok — ");
         QualityReport accepted = runner(true, 0.02,
                 List.of("functional   A.ok  # ORD-12, fixed in the next release")).assertAcceptable();
         assertThat(accepted.dimension(QualityDimension.FUNCTIONAL).orElseThrow().delta().acceptedIssues())
                 .containsExactly("A.ok");
         assertThat(Files.readString(Path.of(accepted.reportMarkdown())))
-                .contains("| functional | FAIL | 0 | 33 | 0 |")
+                .contains("| functional | FAIL | enforced | 0 | 33 | 0 |")
                 .contains("- accepted (1): `A.ok`")
                 .contains("- known since the baseline (1): `A.known`");
     }

@@ -54,8 +54,7 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     /** What to do about a dimension that is not PASS, by dimension; facts say what, this says how. */
     private static final java.util.Map<String, String> HINTS = java.util.Map.ofEntries(
             java.util.Map.entry(FUNCTIONAL, "Read each failed test's diagnostics in the run index and fix the product "
-                    + "or the test, or accept a known failure in forge.quality.accepted with a ticket and `until`. "
-                    + "Too few executed tests means a filter or task selected the wrong ones."),
+                    + "or the test, or accept a known failure in forge.quality.accepted with a ticket and `until`."),
             java.util.Map.entry(STABILITY, "A flaky test passed and failed on the same code: fix the race, shared "
                     + "state or fixed wait it depends on. A rerun hides it, it does not fix it."),
             java.util.Map.entry(CONTRACTS, "The API or an event differs from its contract: fix the producer, or "
@@ -88,7 +87,15 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     /** How to act on a FAIL or WARN; {@code null} for PASS, NOT MEASURED or a dimension without one. */
     @com.fasterxml.jackson.annotation.JsonProperty("hint")
     public String hint() {
-        return status == QualityStatus.FAIL || status == QualityStatus.WARN ? HINTS.get(name) : null;
+        if (status != QualityStatus.FAIL && status != QualityStatus.WARN) {
+            return null;
+        }
+        if (issues.contains(QualityAssessor.TOO_FEW_TESTS)) {
+            return "Fewer tests ran than min-tests: a filter, a tag or a task selected the wrong ones — check what "
+                    + "the test step ran before reading the failures."
+                    + (issues.size() > 1 ? " " + HINTS.get(name) : "");
+        }
+        return HINTS.get(name);
     }
 
     /** The issues the gate fails on: new and not accepted. */
