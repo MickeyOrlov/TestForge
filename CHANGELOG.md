@@ -14,6 +14,11 @@ semantic versioning for its git tags.
   `functional` while fewer tests executed, none included; each FAIL or WARN
   dimension carries a `hint` on how to act on it (`quality.json`,
   `quality.md`, `quality-summary.md`).
+- `module-quality`: failures are counted as assertion or error (the test or
+  its environment threw), each with a fingerprint over the exception type
+  and the first frames outside test libraries; an accepted entry
+  `functional <test> @<fingerprint>` quarantines a test only while it fails
+  that way, and a different failure is new.
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

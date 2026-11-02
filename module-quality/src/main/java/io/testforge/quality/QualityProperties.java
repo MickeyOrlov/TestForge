@@ -21,6 +21,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
+ *       - "functional io.acme.PayTest.pays @1a2b3c4d5e6f  # QUAR-7, until 2026-12-01"  # only that failure
  *     efficiency:
  *       slowdown-factor: 2.0              # a test this many times slower than in the baseline…
  *       min-millis: 1000                  # …and at least this much slower counts

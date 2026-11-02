@@ -26,6 +26,14 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
+- **Failures** are counted as **assertion** (a check failed: `AssertionError`,
+  opentest4j, AssertJ) or **error** (anything else thrown — usually the test
+  or its environment: `[error]` after the test). Each carries a
+  **fingerprint**, 12 hex digits over the exception type and the first three
+  stack frames outside test libraries, without line numbers. Neither the
+  trace nor its frames go into a report. Grouping failures into named
+  categories is Allure's job (`categories.json`); this module does not
+  repeat it.
 - **Flaky** means failed and passed in the same run: a test listed twice
   (Gradle's test-retry) or with `<flakyFailure>` (Surefire's rerun). Without
   reruns there is nothing to see: `example-tests` applies
@@ -117,7 +125,20 @@ forge:
 ```
 
 `until <date>` in the comment makes an acceptance expire: from the day
-after, the issue counts as new again and the report notes it. An accepted
+after, the issue counts as new again and the report notes it.
+
+**Quarantine** is an accepted failing test pinned to its fingerprint
+(`functional` only): `@<fingerprint>` after the test id, copied from its
+`failed:` fact. The test keeps running; the gate lets it through only while
+it fails the same way, and a different failure — another exception, another
+place — is new, with a note naming both fingerprints:
+
+```yaml
+forge:
+  quality:
+    accepted:
+      - "functional io.acme.PayTest.pays @1a2b3c4d5e6f  # QUAR-7 sandbox timeouts, until 2026-11-30"
+``` An accepted
 entry that matches no issue of the run is noted too — delete it once that
 holds, or it will silently cover the next regression.
 

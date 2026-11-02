@@ -96,8 +96,15 @@ final class QualityAssessor {
         }
         facts.add((passed + failed + skipped) + " tests: " + passed + " passed, " + failed + " failed, "
                 + skipped + " skipped");
+        long errors = tests.stream().filter(t -> t.outcome() == Outcome.FAILED && t.error()).count();
+        if (failed > 0) {
+            facts.add("failures: " + (failed - errors) + " assertion (a check failed), " + errors
+                    + " error (the test or its environment threw)");
+        }
         tests.stream().filter(t -> t.outcome() == Outcome.FAILED).limit(LISTED)
-                .forEach(t -> facts.add("failed: " + t.id() + (t.message() == null ? "" : " — " + t.message())));
+                .forEach(t -> facts.add("failed: " + t.id() + (t.message() == null ? "" : " — " + t.message())
+                        + (t.error() ? " [error]" : "")
+                        + (t.fingerprint() == null ? "" : " [fingerprint " + t.fingerprint() + "]")));
         if (failed > LISTED) {
             facts.add("… and " + (failed - LISTED) + " more failed");
         }

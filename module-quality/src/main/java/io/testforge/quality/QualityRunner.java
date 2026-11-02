@@ -84,12 +84,16 @@ public class QualityRunner {
         QualityReport assessed = QualityAssessor.assess(runId, tests, index, baseline, inputs, properties, mapper,
                 history, revision);
         java.time.LocalDate today = java.time.LocalDate.now(clock);
+        Map<String, String> fingerprints = new java.util.HashMap<>();
+        tests.stream().filter(t -> t.outcome() == JunitResults.Outcome.FAILED && t.fingerprint() != null)
+                .forEach(t -> fingerprints.put(t.id(), t.fingerprint()));
         QualityReport compared = assessed.withDimensions(baseline == null ? null : baseline.runId(),
                 assessed.dimensions().stream()
                         .map(d -> d.withDelta(QualityBaseline.compare(d, baseline, properties.accepted(),
-                                properties.acceptedUntil(), today)))
+                                properties.acceptedUntil(), today,
+                                QualityDimension.FUNCTIONAL.equals(d.name()) ? fingerprints : Map.of())))
                         .toList());
-        List<String> notes = new ArrayList<>(acceptedNotes(compared, today));
+        List<String> notes = new ArrayList<>(acceptedNotes(compared, today, fingerprints));
         notes.addAll(HistoryDimensions.baselineNotes(compared, history, baseline != null, STEADY_RUNS));
         breaches(compared).stream().filter(b -> dryRun(b.dimension()))
                 .forEach(b -> notes.add("dry run — the gate would fail on " + b.note()));
@@ -118,16 +122,24 @@ public class QualityRunner {
      * Accepted entries that stopped letting their issue through (expired) or no longer match an
      * issue of this run — candidates to delete from {@code forge.quality.accepted}.
      */
-    private List<String> acceptedNotes(QualityReport report, java.time.LocalDate today) {
+    private List<String> acceptedNotes(QualityReport report, java.time.LocalDate today,
+                                       Map<String, String> fingerprints) {
         java.util.Set<String> present = new java.util.HashSet<>();
         report.dimensions().forEach(d -> d.issues().forEach(issue -> present.add(d.name() + " " + issue)));
         List<String> notes = new ArrayList<>();
         for (String entry : properties.accepted()) {
+            String key = QualityBaseline.acceptedKey(entry);
+            String pinned = QualityBaseline.acceptedFingerprint(entry);
             java.time.LocalDate until = properties.acceptedUntil().get(entry);
-            if (QualityBaseline.expired(until, today) && present.contains(entry)) {
-                notes.add("accepted until " + until + ", expired — counted as new: " + entry);
-            } else if (!present.contains(entry)) {
-                notes.add("accepted but not seen in this run — delete it once that holds: " + entry);
+            String failedWith = key.startsWith(QualityDimension.FUNCTIONAL + " ")
+                    ? fingerprints.get(key.substring(QualityDimension.FUNCTIONAL.length() + 1)) : null;
+            if (QualityBaseline.expired(until, today) && present.contains(key)) {
+                notes.add("accepted until " + until + ", expired — counted as new: " + key);
+            } else if (pinned != null && present.contains(key) && !pinned.equals(failedWith)) {
+                notes.add("accepted for fingerprint " + pinned + ", failed "
+                        + (failedWith == null ? "without one" : "with " + failedWith) + " — counted as new: " + key);
+            } else if (!present.contains(key)) {
+                notes.add("accepted but not seen in this run — delete it once that holds: " + key);
             }
         }
         return notes;
