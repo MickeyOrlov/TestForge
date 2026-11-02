@@ -141,3 +141,10 @@ requires it.
 - `module-flow`: keep state-machine setup small and deterministic.
 - `module-web`: keep prewarm focused; browser testing belongs in
   `module-web-playwright`.
+
+## Internal three-layer security audit aggregator (experimental)
+
+Ordered plan: [docs/security-audit-roadmap.md](docs/security-audit-roadmap.md).
+Local stages 1-2 cover profile planning and import/aggregation of existing
+security-v1 assessments. Engine execution is a future stage. Keep it removable and
+compose established scanners rather than growing a custom attack engine.

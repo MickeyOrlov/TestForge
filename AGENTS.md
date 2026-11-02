@@ -20,6 +20,7 @@ module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
+module-security-audit/ internal three-layer aggregator: profile/plan, security-v1 reports and trusted process/CLI foundation; no scanner adapters
 module-security/ opt-in passive/auth/ZAP/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
@@ -336,3 +337,8 @@ reviewing a module. Adapting a fresh clone follows
 Security adoption: enable `forge.security.passive.enabled`, then call
 `SecurityRunner.assertAcceptable()` after API tests and before artifact upload.
 Read module-security/README.md for applicability and coverage limits.
+
+Security audit adoption: add module-security-audit for private system profiles and
+explicit plan generation. Enable forge.security-audit.enabled, parse a JSON profile
+with SecurityAuditProfiles, then call SecurityAuditPlanner.plan. Plans are not
+measured security evidence. Ordered implementation: docs/security-audit-roadmap.md.

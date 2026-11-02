@@ -301,3 +301,17 @@ automation architecture.
 `module-security` collects opt-in passive API findings with explicit coverage,
 accepted findings and Markdown/JSON/SARIF reports. Active probes remain separate
 opt-ins; see module-security/README.md and security-implementation-notes.md.
+
+## Experimental: internal security audit aggregator
+
+Plan: [security-audit-roadmap.md](security-audit-roadmap.md).
+module-security-audit implements private JSON profiles, a declaration planner and import/aggregation
+of existing security-v1 assessments with explicit coverage and JSON/Markdown
+reports. It launches no engines; imported verdicts are not independent execution
+attestations. Executor, scanner adapters and operational pilot remain subsequent
+ordered stages.
+
+The audit process foundation now includes explicit trusted adapters and plan/run
+CLI with private I/O, cancellation and observed-child cleanup. No real scanners
+are bundled and no OS/network sandbox is claimed. See the staged plan before
+using any external engine.

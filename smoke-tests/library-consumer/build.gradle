@@ -46,6 +46,7 @@ dependencies {
     testImplementation "${testforgeGroup}:module-http:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-auth:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-security:${testforgeVersion}"
+    testImplementation "${testforgeGroup}:module-security-audit:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-discovery:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-codegen:${testforgeVersion}"
     testImplementation "${testforgeGroup}:module-api-explorer:${testforgeVersion}"
@@ -67,4 +68,29 @@ test {
         events "passed", "skipped", "failed"
         exceptionFormat = "full"
     }
+}
+
+// Prove the audit file-contract bridge does not require the original security/http/auth modules.
+configurations {
+    securityAuditStandalone {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+dependencies {
+    securityAuditStandalone platform("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}")
+    securityAuditStandalone "${testforgeGroup}:module-security-audit:${testforgeVersion}"
+    securityAuditStandalone "org.springframework.boot:spring-boot-starter-test:${libs.versions.spring.boot.get()}"
+    securityAuditStandalone "org.junit.platform:junit-platform-launcher"
+}
+tasks.register("securityAuditStandaloneTest", Test) {
+    group = "verification"
+    description = "Audit profile/import/report API from published JARs without other TestForge modules"
+    dependsOn tasks.named("testClasses")
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = files(sourceSets.test.output, configurations.securityAuditStandalone)
+    include "**/PublishedSecurityAuditSmokeTest.class"
+    useJUnitPlatform()
+    systemProperty "audit.standalone", "true"
+    testLogging { events "passed", "failed"; exceptionFormat = "full" }
 }

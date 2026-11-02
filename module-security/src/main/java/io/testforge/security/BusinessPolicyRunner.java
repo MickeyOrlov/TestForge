@@ -293,9 +293,10 @@ public class BusinessPolicyRunner {
         for (var test : suite.cases()) {
             if (test.steps().size() + test.cleanup().size() > business.maxSteps())
                 throw new BusinessSecurityException("policy case exceeds max-steps");
-            planned += test.steps().size() + test.cleanup().size();
+            planned += BusinessSecurityValidator.plannedRequests(test);
             for (var step : BusinessContractSnapshotter.steps(test)) {
-                if (step.captures().size() > business.maxSteps()
+                if (step.invariants().size() > business.maxSteps()
+                        || step.captures().size() > business.maxSteps()
                         || step.assertions().size() > properties.maxSchemaNodes()
                         || step.request().pathParameters().size()
                                         + step.request().queryParameters().size()

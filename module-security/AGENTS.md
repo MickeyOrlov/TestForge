@@ -62,3 +62,23 @@ limits. Required guard + business execution must both be observed. Preflight
 failure must precede HTTP and produce incomplete coverage, never a finding that
 can be baseline-accepted. Keep dependency-level impact and explicit file promotion.
 Tests: BusinessPolicyTest, BusinessPolicyValidityExampleTest, published consumer.
+
+Business invariants/paging: typed BusinessInvariant AST, exact bounded evaluator
+and BusinessResponseReader. No scripts, implicit numeric coercion or cursor URL
+navigation. Controls require meaningful response-backed membership; probes cannot
+use constant-only invariants. Aggregation and evaluation must remain bounded;
+partial list evidence is incomplete, observed violations remain findings. Rule
+resolution requires exact step/phase/actor coverage, never parent-case coverage.
+Preserve old Step constructors/JSON and empty-feature review shapes. Tests:
+BusinessInvariantTest, BusinessPaginationTest, BusinessEffectsExampleTest and
+published business-security consumer. No source/dependency edge changes needed.
+
+Idempotency: optional BusinessIdempotency metadata uses only two explicit header
+names and earlier case-local string bindings. Never broaden to arbitrary headers
+or inherit global HTTP retries/headers. Credential placement conflicts must fail
+before any HTTP/token fetch. REPLAY identity includes header and binding alias;
+keys cannot enter structural snapshots, findings, URIs or hashes. Preserve both
+old Step constructors and absent-feature snapshot shapes. Policy preflight must
+check header declaration and binding availability. Tests: BusinessIdempotencyTest,
+BusinessIdempotencyExampleTest and published consumer. Sequential results never
+claim concurrent-race, key-expiry or durable-delivery coverage.

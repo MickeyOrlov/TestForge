@@ -2,6 +2,8 @@ package io.testforge.smoke;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.sun.net.httpserver.HttpServer;
 
 import io.swagger.v3.oas.models.OpenAPI;
@@ -10,6 +12,8 @@ import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
 import io.testforge.api.explorer.PreparedRequest;
 import io.testforge.http.TestForgeHttpAutoConfiguration;
+import io.testforge.security.BusinessIdempotency;
+import io.testforge.security.BusinessInvariant;
 import io.testforge.security.BusinessPolicyReport;
 import io.testforge.security.BusinessPolicyRunner;
 import io.testforge.security.BusinessScenarioGenerator;
@@ -33,6 +37,28 @@ import java.util.Set;
 
 /** Published JARs only: new policy records, transitive Swagger types, configuration and gate. */
 class PublishedBusinessSecuritySmokeTest {
+    @Test
+    void publishedIdempotencyStepsRetainTheirExplicitBindingAcrossJson() throws Exception {
+        var step =
+                new BusinessSecuritySuite.Step(
+                        "repeat",
+                        BusinessSecuritySuite.Phase.PROBE,
+                        "anonymous",
+                        new PreparedRequest(
+                                "POST", "/pay", Map.of(), Map.of(), "{}", "application/json"),
+                        Set.of(200),
+                        List.of(),
+                        Map.of(),
+                        List.of(),
+                        null,
+                        new BusinessIdempotency("Idempotency-Key", "key"));
+        var mapper = new ObjectMapper();
+        assertThat(
+                        mapper.readValue(
+                                mapper.writeValueAsBytes(step), BusinessSecuritySuite.Step.class))
+                .isEqualTo(step);
+    }
+
     @Test
     void aPublishedBusinessPolicyCanRunWithoutAuthOrReportingModulesEnabled(@TempDir Path dir)
             throws Exception {
@@ -69,6 +95,23 @@ class PublishedBusinessSecuritySmokeTest {
                                     new BusinessSecuritySuite.Assertion(
                                             "/secret", BusinessSecuritySuite.Match.ABSENT, null)),
                             Map.of());
+            probe =
+                    new BusinessSecuritySuite.Step(
+                            probe.id(),
+                            probe.phase(),
+                            probe.role(),
+                            probe.request(),
+                            probe.statuses(),
+                            probe.assertions(),
+                            probe.captures(),
+                            List.of(
+                                    new BusinessInvariant(
+                                            "message",
+                                            BusinessInvariant.Compare.JSON_EQUALS,
+                                            BusinessInvariant.Value.response("/message"),
+                                            BusinessInvariant.Value.literal(
+                                                    TextNode.valueOf("sample")))),
+                            null);
             var test =
                     new BusinessSecuritySuite.Case(
                             "no-secret",

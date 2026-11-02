@@ -38,7 +38,12 @@ public class BusinessSecurityRunner implements AutoCloseable {
     private final BusinessSecurityExchange exchange;
     private final BusinessSecurityValidator validator;
     private final BusinessPolicyRunner policies;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper =
+            new ObjectMapper()
+                    .enable(
+                            com.fasterxml.jackson.databind.DeserializationFeature
+                                    .USE_BIG_DECIMAL_FOR_FLOATS);
+    private final BusinessInvariantEvaluator invariantEvaluator = new BusinessInvariantEvaluator();
 
     public BusinessSecurityRunner(
             BusinessSecurityProperties properties,
@@ -133,7 +138,12 @@ public class BusinessSecurityRunner implements AutoCloseable {
                 throw new BusinessSecurityException("duplicate business case id");
             requireCell(operationKeys, suite, test.method(), test.path(), test.role(), test.kind());
             validator.validateCase(suite, test, operationKeys, inputs.keySet());
-            planned += test.steps().size() + test.cleanup().size();
+            for (var step : BusinessContractSnapshotter.steps(test)) {
+                exchange.requireIdempotencyHeader(step.idempotency());
+                if (step.pagination() != null)
+                    exchange.requireCursorParameter(step.pagination().parameter());
+            }
+            planned += BusinessSecurityValidator.plannedRequests(test);
             cases.computeIfAbsent(
                             key(test.method(), test.path(), test.role(), test.kind()),
                             ignored -> new ArrayList<>())
@@ -245,19 +255,36 @@ public class BusinessSecurityRunner implements AutoCloseable {
             Budget budget) {
         try {
             PreparedRequest request = resolve(step.request(), bindings);
-            Duration remaining = budget.next();
-            var response = exchange.send(request, step.role(), remaining);
-            int status = response.statusCode();
-            if (status == 429 || status >= 500) return false;
-            if (!step.statuses().contains(status)) {
-                if (step.phase() != Phase.PROBE || status < 200 || status >= 300) return false;
-                finding(
-                        suite,
-                        test,
-                        "business probe accepted a request outside the declared policy");
+            String idempotencyKey = null;
+            if (step.idempotency() != null) {
+                JsonNode key = bindings.get(step.idempotency().binding());
+                if (key == null
+                        || !key.isTextual()
+                        || !key.textValue().matches("[\\x21-\\x7e]{1,256}")) return false;
+                idempotencyKey = key.textValue();
             }
-            if (step.assertions().isEmpty() && step.captures().isEmpty()) return true;
-            JsonNode body = mapper.readTree(response.body());
+            final String key = idempotencyKey;
+            JsonNode body =
+                    new BusinessResponseReader(mapper, properties.maxBodyBytes())
+                            .read(
+                                    step,
+                                    request,
+                                    page ->
+                                            exchange.send(
+                                                    page,
+                                                    step.role(),
+                                                    budget.next(),
+                                                    step.idempotency(),
+                                                    key),
+                                    () ->
+                                            finding(
+                                                    suite,
+                                                    test,
+                                                    "business probe accepted a request outside the"
+                                                            + " declared policy"),
+                                    page ->
+                                            evaluateInvariants(
+                                                    suite, test, step, page, bindings, true));
             if (body == null) return false;
             for (var assertion : step.assertions()) {
                 JsonNode actual = body.at(assertion.pointer());
@@ -267,7 +294,12 @@ public class BusinessSecurityRunner implements AutoCloseable {
                             case PRESENT -> !actual.isMissingNode();
                             case EQUALS ->
                                     !actual.isMissingNode()
-                                            && actual.equals(bind(assertion.expected(), bindings));
+                                            && actual.equals(
+                                                    mapper.readTree(
+                                                            mapper.writeValueAsBytes(
+                                                                    bind(
+                                                                            assertion.expected(),
+                                                                            bindings))));
                         };
                 if (!matches) {
                     if (step.phase() == Phase.CONTROL) return false;
@@ -277,6 +309,7 @@ public class BusinessSecurityRunner implements AutoCloseable {
                             "declared business field or persisted-state invariant was violated");
                 }
             }
+            if (!evaluateInvariants(suite, test, step, body, bindings, false)) return false;
             long bindingBytes = 0;
             for (JsonNode value : bindings.values())
                 bindingBytes += value.toString().getBytes(StandardCharsets.UTF_8).length;
@@ -294,6 +327,53 @@ public class BusinessSecurityRunner implements AutoCloseable {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private boolean evaluateInvariants(
+            BusinessSecuritySuite suite,
+            BusinessSecuritySuite.Case test,
+            Step step,
+            JsonNode body,
+            Map<String, JsonNode> bindings,
+            boolean pageLocal) {
+        for (var invariant : step.invariants()) {
+            if (pageLocal && invariant.compare() != BusinessInvariant.Compare.ALL_EQUAL) continue;
+            var outcome = invariantEvaluator.evaluate(invariant, body, bindings);
+            String target =
+                    target(suite, test)
+                            + " step "
+                            + step.id()
+                            + " phase "
+                            + step.phase().name()
+                            + " "
+                            + BusinessSecurityPlanner.safe(
+                                    step.request().method(), step.request().pathTemplate())
+                            + " actor "
+                            + step.role()
+                            + " invariant "
+                            + invariant.id();
+            if (outcome == BusinessInvariantEvaluator.Outcome.INCOMPLETE
+                    || outcome == BusinessInvariantEvaluator.Outcome.FAIL
+                            && step.phase() == Phase.CONTROL) {
+                collector.covered(
+                        check(test.kind()),
+                        target,
+                        step.role(),
+                        "not_measured",
+                        "invariant operands or positive control could not be established");
+                return false;
+            }
+            if (!pageLocal)
+                collector.covered(check(test.kind()), target, step.role(), "measured", null);
+            if (outcome == BusinessInvariantEvaluator.Outcome.FAIL)
+                collector.finding(
+                        check(test.kind()),
+                        Severity.HIGH,
+                        target,
+                        "declared business invariant was violated",
+                        test.kind() == Kind.COLLECTION_ACCESS ? "API1:2023" : "API6:2023");
+        }
+        return true;
     }
 
     private PreparedRequest resolve(PreparedRequest request, Map<String, JsonNode> bindings)
@@ -375,8 +455,8 @@ public class BusinessSecurityRunner implements AutoCloseable {
                 evidence,
                 switch (test.kind()) {
                     case PROPERTY_READ, PROPERTY_WRITE -> "API3:2023";
-                    case OBJECT_ACCESS, TENANT_ACCESS -> "API1:2023";
-                    case TRANSITION, REPLAY -> "API6:2023";
+                    case OBJECT_ACCESS, TENANT_ACCESS, COLLECTION_ACCESS -> "API1:2023";
+                    case TRANSITION, REPLAY, BUSINESS_INVARIANT -> "API6:2023";
                 });
     }
 

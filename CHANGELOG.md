@@ -7,6 +7,30 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- Explicit audit adapter/process foundation and file-output plan/run CLI: private
+  cwd/environment, stdin credentials, bounded output/preparation, shared timeout,
+  cancellation, observed-child cleanup and execution receipts. No scanner adapters
+  or OS/network sandbox are bundled; missing engines remain incomplete.
+- Security audit result envelope reuses existing security-findings v1: bounded
+  imports with target aliases, native TESTFORGE provenance, partial/missing/version
+  coverage, private JSON/Markdown reports and a versioned schema. Baselines and
+  severity policy remain upstream; a standalone published consumer needs no
+  module-security/http dependency. No scanner execution added.
+- Experimental module-security-audit foundation: strict bounded private system
+  profiles, deterministic three-layer asset/engine plans and explicit blocked,
+  disabled and unsupported cells. Planning does not launch scanners or measure
+  security. Includes an ordered aggregator roadmap and published-JAR example.
+- Explicit case-local idempotency keys for business writes, header-aware replay
+  identity, credential-collision protection and structural policy preflight.
+  Secure/broken sequential payment/refund, conflict and rejection examples prove
+  persisted effects rather than accepting HTTP status alone.
+- Typed business invariants for exact decimal calculations, cross-resource
+  deltas, order totals and refund limits; response-backed list isolation with
+  bounded cursor pagination, positive membership controls and explicit incomplete
+  evidence. Rule-specific baseline resolution and structural review support.
+  Includes secure/broken local payment, stock, refund and list examples.
+
+### Added
 - Local structural reviews for business-security policies: per-case OpenAPI/schema/
   Link impact, value-free snapshots, input/capture/cleanup preflight, explicit
   review promotion and VALID/REVIEW_REQUIRED/INVALID JSON/Markdown assessments.

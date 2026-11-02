@@ -1,0 +1,18 @@
+{
+  "id":"shop",
+  "environment":"TEST",
+  "allowedHosts":["api.internal","registry.internal","db.internal"],
+  "assets":[
+    {"id":"api","layer":"APPLICATION","kind":"URL","location":"https://api.internal","openApi":"/private/specs/shop.json","credentialRef":"customer"},
+    {"id":"image","layer":"SERVICES","kind":"IMAGE","location":"registry.internal/shop@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    {"id":"database","layer":"NETWORK","kind":"HOST","location":"db.internal","ports":[5432]},
+    {"id":"tls","layer":"NETWORK","kind":"URL","location":"https://api.internal"}
+  ],
+  "engines":[
+    {"engine":"ZAP","enabled":true,"version":"2.16.1"},
+    {"engine":"TRIVY","enabled":true,"version":"0.58.0"},
+    {"engine":"NMAP","enabled":true,"version":"7.95"},
+    {"engine":"TESTSSL","enabled":true,"version":"3.2.0"}
+  ],
+  "budget":{"maxRequests":500,"timeoutSeconds":600,"maxConcurrent":2}
+}

@@ -91,7 +91,7 @@ final class BusinessPolicyPreflight {
                         "CASE_SCOPE",
                         "case lies outside declared roles or check kinds");
             cells.add(cell(test.method() + " " + test.path(), test.role(), test.kind()));
-            planned += test.steps().size() + test.cleanup().size();
+            planned += BusinessSecurityValidator.plannedRequests(test);
             try {
                 new BusinessSecurityValidator(business, roles::contains, request -> {})
                         .validateCase(suite, test, operations.keySet(), inputs);
@@ -99,16 +99,27 @@ final class BusinessPolicyPreflight {
                 add(test.id(), null, Status.INVALID, "CASE_STRUCTURE", e.getMessage());
             }
             Set<String> available = new HashSet<>(inputs), cleanupAvailable = new HashSet<>(inputs);
+            Map<String, Origin> origins = new java.util.HashMap<>();
             boolean probed = false;
             for (Step step : test.steps()) {
-                step(test, step, available, false);
+                step(test, step, available, false, origins);
                 if (step.phase() == Phase.PROBE) probed = true;
                 if (!probed && step.phase() == Phase.CONTROL)
                     cleanupAvailable.addAll(step.captures().keySet());
                 available.addAll(step.captures().keySet());
+                JsonNode source =
+                        snapshot.operations()
+                                .get(
+                                        step.request().method().toUpperCase(java.util.Locale.ROOT)
+                                                + " "
+                                                + step.request().pathTemplate());
+                step.captures()
+                        .forEach(
+                                (alias, pointer) ->
+                                        origins.put(alias, new Origin(step, source, pointer)));
             }
             for (Step step : test.cleanup()) {
-                step(test, step, cleanupAvailable, true);
+                step(test, step, cleanupAvailable, true, origins);
                 // Every cleanup is attempted even when an earlier cleanup failed: do not rely on
                 // its captures.
             }
@@ -158,7 +169,11 @@ final class BusinessPolicyPreflight {
     }
 
     private void step(
-            BusinessSecuritySuite.Case test, Step step, Set<String> available, boolean cleanup) {
+            BusinessSecuritySuite.Case test,
+            Step step,
+            Set<String> available,
+            boolean cleanup,
+            Map<String, Origin> origins) {
         String key =
                 step.request().method().toUpperCase(java.util.Locale.ROOT)
                         + " "
@@ -222,6 +237,17 @@ final class BusinessPolicyPreflight {
                                     "required query parameter is not bound",
                                     "query." + name);
                     }
+                    case "header" -> {
+                        if (step.idempotency() == null
+                                || !name.equalsIgnoreCase(step.idempotency().header()))
+                            add(
+                                    test.id(),
+                                    step.id(),
+                                    Status.REVIEW_REQUIRED,
+                                    "PARAMETER_PLACEMENT",
+                                    "required header needs project credential-placement"
+                                            + " validation");
+                    }
                     default ->
                             add(
                                     test.id(),
@@ -232,6 +258,39 @@ final class BusinessPolicyPreflight {
                                             + " validation");
                 }
             }
+        if (step.idempotency() != null) {
+            boolean declared = false;
+            for (var parameter : operation.path("parameters"))
+                if (parameter.path("in").asText().equals("header")
+                        && parameter
+                                .path("name")
+                                .asText()
+                                .equalsIgnoreCase(step.idempotency().header())) {
+                    declared = true;
+                    JsonNode schema = parameter.path("schema");
+                    if (!schema.path("type").asText().equals("string"))
+                        add(
+                                test.id(),
+                                step.id(),
+                                Status.REVIEW_REQUIRED,
+                                "IDEMPOTENCY_HEADER_SCHEMA",
+                                "idempotency header needs an explicit string schema");
+                }
+            if (!declared)
+                add(
+                        test.id(),
+                        step.id(),
+                        Status.INVALID,
+                        "IDEMPOTENCY_HEADER_UNDECLARED",
+                        "idempotency header is absent from the operation contract");
+            refs(
+                    mapper.getNodeFactory().textNode("${" + step.idempotency().binding() + "}"),
+                    test.id(),
+                    step.id(),
+                    available,
+                    cleanup,
+                    0);
+        }
         if (step.request().body() != null
                 && Set.of("GET", "HEAD", "OPTIONS")
                         .contains(step.request().method().toUpperCase(java.util.Locale.ROOT)))
@@ -326,6 +385,48 @@ final class BusinessPolicyPreflight {
                             "body template must be JSON");
                 }
         }
+        if (step.pagination() != null) {
+            pointer(test.id(), step, operation, step.pagination().items(), false);
+            pointer(test.id(), step, operation, step.pagination().next(), false);
+            if (!step.request().queryParameters().containsKey(step.pagination().parameter())) {
+                boolean declared = false;
+                for (var p : operation.path("parameters"))
+                    declared |=
+                            p.path("in").asText().equals("query")
+                                    && p.path("name")
+                                            .asText()
+                                            .equals(step.pagination().parameter());
+                if (!declared)
+                    add(
+                            test.id(),
+                            step.id(),
+                            Status.REVIEW_REQUIRED,
+                            "CURSOR_PARAMETER_UNDECLARED",
+                            "pagination query parameter is absent from the contract");
+            }
+        }
+        for (var invariant : step.invariants()) {
+            operand(
+                    test.id(),
+                    step,
+                    operation,
+                    invariant.actual(),
+                    available,
+                    cleanup,
+                    origins,
+                    null,
+                    0);
+            operand(
+                    test.id(),
+                    step,
+                    operation,
+                    invariant.expected(),
+                    available,
+                    cleanup,
+                    origins,
+                    null,
+                    0);
+        }
         for (var assertion : step.assertions()) {
             refs(assertion.expected(), test.id(), step.id(), available, cleanup, 0);
             pointer(
@@ -338,6 +439,108 @@ final class BusinessPolicyPreflight {
         step.captures()
                 .values()
                 .forEach(pointer -> pointer(test.id(), step, operation, pointer, false));
+    }
+
+    private record Origin(Step step, JsonNode operation, String pointer) {}
+
+    private Origin origin(
+            BusinessInvariant.Value value,
+            Step step,
+            JsonNode operation,
+            Map<String, Origin> origins) {
+        if (value.source() == BusinessInvariant.Source.RESPONSE)
+            return new Origin(step, operation, value.pointer());
+        if (value.source() == BusinessInvariant.Source.BINDING
+                && origins.containsKey(value.binding())) {
+            var parent = origins.get(value.binding());
+            return new Origin(
+                    parent.step(), parent.operation(), parent.pointer() + value.pointer());
+        }
+        return null;
+    }
+
+    private Origin elementOrigin(
+            BusinessInvariant.Value value,
+            Step step,
+            JsonNode operation,
+            Map<String, Origin> origins,
+            Origin row) {
+        if (value.source() == BusinessInvariant.Source.PROJECT) {
+            var parent = elementOrigin(value.args().getFirst(), step, operation, origins, row);
+            return parent == null
+                    ? null
+                    : new Origin(
+                            parent.step(), parent.operation(), parent.pointer() + value.pointer());
+        }
+        Origin array =
+                value.source() == BusinessInvariant.Source.ITEM && row != null
+                        ? new Origin(row.step(), row.operation(), row.pointer() + value.pointer())
+                        : origin(value, step, operation, origins);
+        return array == null
+                ? null
+                : new Origin(array.step(), array.operation(), array.pointer() + "/0");
+    }
+
+    private void operand(
+            String caseId,
+            Step step,
+            JsonNode operation,
+            BusinessInvariant.Value value,
+            Set<String> available,
+            boolean cleanup,
+            Map<String, Origin> origins,
+            Origin row,
+            int depth) {
+        if (depth > 32) {
+            add(
+                    caseId,
+                    step.id(),
+                    Status.INVALID,
+                    "INVARIANT_DEPTH",
+                    "invariant expression exceeds depth");
+            return;
+        }
+        if (value.source() == BusinessInvariant.Source.BINDING
+                && !available.contains(value.binding()))
+            add(
+                    caseId,
+                    step.id(),
+                    Status.INVALID,
+                    cleanup ? "CLEANUP_BINDING" : "BINDING_UNAVAILABLE",
+                    "invariant binding is not available at this step",
+                    value.binding());
+        Origin source = origin(value, step, operation, origins);
+        if (source != null && source.operation() != null)
+            pointer(caseId, source.step(), source.operation(), source.pointer(), false);
+        if (value.source() == BusinessInvariant.Source.ITEM
+                && row != null
+                && row.operation() != null)
+            pointer(caseId, row.step(), row.operation(), row.pointer() + value.pointer(), false);
+        if (value.source() == BusinessInvariant.Source.PROJECT) {
+            var array = elementOrigin(value.args().getFirst(), step, operation, origins, row);
+            if (array != null && array.operation() != null)
+                pointer(
+                        caseId,
+                        array.step(),
+                        array.operation(),
+                        array.pointer() + value.pointer(),
+                        false);
+        }
+        for (int i = 0; i < value.args().size(); i++) {
+            Origin nested = row;
+            if (value.source() == BusinessInvariant.Source.SUM && i == 1)
+                nested = elementOrigin(value.args().getFirst(), step, operation, origins, row);
+            operand(
+                    caseId,
+                    step,
+                    operation,
+                    value.args().get(i),
+                    available,
+                    cleanup,
+                    origins,
+                    nested,
+                    depth + 1);
+        }
     }
 
     private void refs(
