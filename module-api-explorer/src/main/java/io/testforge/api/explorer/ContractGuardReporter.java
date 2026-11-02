@@ -47,7 +47,7 @@ public class ContractGuardReporter implements SmartLifecycle {
             report.put("checkedResponses", guard.checkedResponses());
             report.put("distinctFindings", findings.size());
             report.put("findings", findings);
-            Path file = sink.directoryFor(SOURCE).resolve("contract-guard.json");
+            Path file = sink.newFile(SOURCE, "contract-guard.json");
             Files.createDirectories(file.getParent());
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), report);
             sink.registerFile(SOURCE, "contract-guard", "contract-guard.json", file, "application/json",
@@ -78,7 +78,7 @@ public class ContractGuardReporter implements SmartLifecycle {
         out.append("\n## Called\n\n");
         coverage.called().forEach((operation, count) ->
                 out.append("- `").append(operation).append("` ").append(count).append('×').append('\n'));
-        Path file = sink.directoryFor(SOURCE).resolve("api-coverage.md");
+        Path file = sink.newFile(SOURCE, "api-coverage.md");
         Files.createDirectories(file.getParent());
         Files.writeString(file, out.toString(), java.nio.charset.StandardCharsets.UTF_8);
         Map<String, String> metadata = Map.of("healthy", "true", "uncalled",
@@ -90,7 +90,7 @@ public class ContractGuardReporter implements SmartLifecycle {
         json.put("documented", coverage.documented());
         json.put("called", coverage.called());
         json.put("uncalled", coverage.uncalled());
-        Path data = sink.directoryFor(SOURCE).resolve("api-coverage.json");
+        Path data = sink.newFile(SOURCE, "api-coverage.json");
         new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(data.toFile(), json);
         sink.registerFile(SOURCE, "api-coverage", "api-coverage.json", data, "application/json", metadata);
     }

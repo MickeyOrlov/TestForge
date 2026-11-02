@@ -103,7 +103,7 @@ public class DbQuerySummary implements SmartLifecycle {
             return;
         }
         try {
-            Path file = sink.directoryFor(SOURCE).resolve(FILE);
+            Path file = sink.newFile(SOURCE, FILE);
             Files.createDirectories(file.getParent());
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), json);
             sink.registerFile(SOURCE, "db-queries", FILE, file, "application/json",

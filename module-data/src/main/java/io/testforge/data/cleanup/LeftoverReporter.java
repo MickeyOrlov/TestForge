@@ -55,7 +55,7 @@ public class LeftoverReporter implements SmartLifecycle {
             report.put("runTag", DataIsolation.runTag());
             report.put("count", leftovers.size());
             report.put("leftovers", leftovers.stream().map(LeftoverReporter::entry).toList());
-            Path file = sink.directoryFor(SOURCE).resolve(FILE);
+            Path file = sink.newFile(SOURCE, FILE);
             Files.createDirectories(file.getParent());
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), report);
             sink.registerFile(SOURCE, "leftovers", FILE, file, "application/json",

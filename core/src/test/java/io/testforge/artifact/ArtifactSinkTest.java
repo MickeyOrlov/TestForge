@@ -2,6 +2,7 @@ package io.testforge.artifact;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,5 +67,56 @@ class ArtifactSinkTest {
             assertThat(result.file()).isNotNull();
             assertThat(result.createdAt()).isNotNull();
         });
+    }
+
+    @Test
+    void newFileNeverHandsOutAPathAnotherContextAlreadyHas(@org.junit.jupiter.api.io.TempDir Path run) {
+        ArtifactSink sink = new ArtifactSink() {
+            @Override
+            public Path directoryFor(String source) {
+                return run.resolve(source);
+            }
+
+            @Override
+            public void register(TestArtifact artifact) {
+            }
+
+            @Override
+            public TestArtifact write(String source, String category, String name, String mediaType, String content) {
+                return null;
+            }
+        };
+
+        Path first = sink.newFile("module-http", "http-summary.json");
+        Path second = sink.newFile("module-http", "http-summary.json");
+        Path third = sink.newFile("module-http", "http-summary.json");
+        Path bare = sink.newFile("module-http", "README");
+
+        assertThat(first).isEqualTo(run.resolve("module-http/http-summary.json")).exists();
+        assertThat(second.getFileName()).hasToString("http-summary-2.json");
+        assertThat(third.getFileName()).hasToString("http-summary-3.json");
+        assertThat(bare.getFileName()).hasToString("README");
+        assertThat(Files.isRegularFile(second)).isTrue();
+    }
+
+    @Test
+    void newFileNeverThrowsWhenTheDirectoryCannotBeHad() {
+        ArtifactSink broken = new ArtifactSink() {
+            @Override
+            public Path directoryFor(String source) {
+                throw new IllegalStateException("no run");
+            }
+
+            @Override
+            public void register(TestArtifact artifact) {
+            }
+
+            @Override
+            public TestArtifact write(String source, String category, String name, String mediaType, String content) {
+                return null;
+            }
+        };
+
+        assertThatNoException().isThrownBy(() -> broken.newFile("x", "a.json"));
     }
 }

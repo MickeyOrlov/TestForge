@@ -45,7 +45,7 @@ final class QualityAssessor {
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
-                byHistory != null ? byHistory : ModuleDimensions.efficiency(tests, baseline, properties.efficiency()),
+                byHistory != null ? byHistory : efficiencyWithoutHistory(tests, baseline, properties, history),
                 ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)))
                 .map(dimension -> HistoryDimensions.trend(dimension, history))
                 .toList();
@@ -64,6 +64,18 @@ final class QualityAssessor {
         }
         return new QualityReport(runId, null, overall, measured == 0 ? null : Math.round((float) sum / measured),
                 dimensions, inputs, null, null);
+    }
+
+    /** The baseline comparison; while a configured history is still filling, NOT MEASURED says how far it is. */
+    private static QualityDimension efficiencyWithoutHistory(List<TestCase> tests, QualityBaseline baseline,
+                                                             QualityProperties properties, QualityHistory history) {
+        QualityDimension byBaseline = ModuleDimensions.efficiency(tests, baseline, properties.efficiency());
+        if (byBaseline.status() != QualityStatus.NOT_MEASURED || !properties.history().enabled()) {
+            return byBaseline;
+        }
+        return QualityDimension.notMeasured(QualityDimension.EFFICIENCY, "the history holds "
+                + history.entries().size() + " earlier runs, a test needs " + properties.history().minRuns()
+                + " before its median counts; no baseline with test durations either");
     }
 
     static QualityDimension functional(List<TestCase> tests, QualityProperties properties) {

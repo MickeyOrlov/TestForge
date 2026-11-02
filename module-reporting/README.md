@@ -151,6 +151,16 @@ Separate JVMs (Gradle `maxParallelForks > 1`) generate separate runs. A fixed
 index then holds only the last JVM's artifacts: leave it unset there, or
 include the fork in it.
 
+A fixed `run-id` reused by the next build without `clean` reopens the same
+directory. The index stays right — `manifest.json` lists only what this run
+registered — but the earlier run's files are still on disk, and this run's
+run-wide summaries take the next free name (`http-summary-2.json`, …). Read
+the run through `manifest.json` / `summary.md`, never by listing the
+directory, or give each build its own `run-id` (the CI job id). Since 1.3
+more modules write there by default (`module-http`, `module-mock`,
+`module-flow`, contract guard): a test that asserts a module's directory is
+absent from the run depends on the previous build.
+
 ## Reading Failed Runs in CI Without Allure
 
 Allure is entirely optional. In standard CI environments (GitHub Actions, GitLab CI, Jenkins):
@@ -253,3 +263,14 @@ The Markdown index is meant to be opened first after a red CI run:
 | `module-mobile-appium` | `mobile-failure` | `screenshot.png`, `page-source.xml` of a failed test |
 | `module-http` | `failed-test-http` | the failed test's last HTTP exchanges, redacted (`HttpDiagnosticsExtension`) |
 | `module-api-explorer` | `contract-guard` | `contract-guard.json`: contract findings of ordinary tests |
+| `module-api-explorer` | `api-coverage` | `api-coverage.json` / `.md`: documented operations the suite called and did not |
+| `module-http` | `http-summary` | `http-summary.json`: requests, status classes, latency per operation |
+| `module-db` | `db-queries` | `db-queries.json`: statements by shape, failed / unbounded / slow (`forge.db.queries.enabled`) |
+| `module-mock` | `mock-summary` | `mock-summary.json`: unused stubs, scoped requests no stub answered |
+| `module-flow` | `flow-coverage` | `flow-coverage.json` / `.md`: declared transitions taken and not |
+
+The run summaries (the last five rows) are one file per Spring context under
+the same name (`http-summary.json`, `http-summary-2.json`, …); `module-quality`
+merges them. Each also carries a `location` relative to the producer's working
+directory; read a run from its own directory, which stays right when the run
+is copied or downloaded elsewhere.

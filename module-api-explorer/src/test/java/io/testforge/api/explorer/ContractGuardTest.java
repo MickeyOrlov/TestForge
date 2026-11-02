@@ -145,6 +145,38 @@ class ContractGuardTest {
         });
     }
 
+    /**
+     * The document describes the API at {@code forge.http.base-url}. A call the
+     * same ApiClient sends to another service ({@code request("payments")}, a
+     * downstream mock) is not an undocumented operation of this API.
+     */
+    @Test
+    void callsToAnotherServiceAreNotJudgedAgainstThisDocument() throws IOException {
+        HttpServer payments = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        payments.createContext("/", exchange -> {
+            byte[] bytes = "{}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        payments.start();
+        try {
+            runner("forge.http.services.payments.base-url=http://127.0.0.1:" + payments.getAddress().getPort())
+                    .run(context -> {
+                        ApiClient api = context.getBean(ApiClient.class);
+                        api.request("payments").get("/payments/p-1").then().statusCode(200);
+                        api.request().get("/tasks").then().statusCode(200);
+
+                        ContractGuard guard = context.getBean(ContractGuard.class);
+                        assertThat(guard.findings()).isEmpty();
+                        assertThat(guard.checkedResponses()).isEqualTo(1);
+                    });
+        } finally {
+            payments.stop(0);
+        }
+    }
+
     @Test
     void failModeFailsTheCallThatReturnedADriftedResponse() {
         runner("forge.contract-guard.mode=fail").run(context -> {

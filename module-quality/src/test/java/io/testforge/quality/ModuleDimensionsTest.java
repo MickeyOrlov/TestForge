@@ -110,6 +110,44 @@ class ModuleDimensionsTest {
         assertThat(report.overall()).as("NOT MEASURED never drags the overall down or up").isEqualTo(QualityStatus.PASS);
     }
 
+    /**
+     * Producers register run files with a cwd-relative {@code location} as well
+     * as their run-relative {@code path}. A run judged elsewhere — downloaded
+     * from another job, copied, or read with another working directory — must
+     * be read from its own directory, not from wherever the producer's JVM
+     * wrote it (another run's file, or nothing).
+     */
+    @Test
+    void aRunReadFromAnotherDirectoryIsJudgedFromItsOwnFiles() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        file("artifacts/moved/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 4, "status": {"2xx": 3, "5xx": 1}, "transportErrors": 0}]}""");
+        // where the producer's JVM wrote it: still on disk here, with another run's numbers
+        Path original = file("ci-workspace/build/testforge-artifacts/moved/module-http/http-summary.json", """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 9, "status": {"2xx": 9}, "transportErrors": 0}]}""");
+        file("artifacts/moved/module-mock/mock-summary.json", """
+                {"formatVersion": 1, "scopes": 1, "unusedStubs": [{"stub": "GET /stock → 200", "scopes": 1}],
+                 "unmatchedRequests": []}""");
+        file("artifacts/moved/manifest.json", """
+                {"runId": "moved", "artifacts": [
+                  {"source": "module-http", "category": "http-summary", "name": "http-summary.json",
+                   "path": "module-http/http-summary.json", "metadata": {"location": "%s"}},
+                  {"source": "module-mock", "category": "mock-summary", "name": "mock-summary.json",
+                   "path": "module-mock/mock-summary.json",
+                   "metadata": {"location": "build/testforge-artifacts/moved/module-mock/mock-summary.json"}}]}"""
+                .formatted(original.toString().replace('\\', '/')));
+
+        QualityReport report = runner().run();
+
+        QualityDimension reliability = report.dimension(QualityDimension.RELIABILITY).orElseThrow();
+        assertThat(reliability.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(reliability.score()).isEqualTo(75);
+        assertThat(report.dimension(QualityDimension.HYGIENE).orElseThrow().issues())
+                .containsExactly("unused stub GET /stock → 200");
+    }
+
     @Test
     void reliabilityCountsServerErrorsEvenWhenTheTestsPassed() throws IOException {
         junit("<testcase classname=\"T\" name=\"a\"/>");
@@ -150,6 +188,62 @@ class ModuleDimensionsTest {
         assertThat(queries.score()).isEqualTo(70);
         assertThat(queries.issues()).containsExactly("failed INSERT INTO customers VALUES (?)",
                 "unbounded UPDATE orders SET status = ?", "slow SELECT * FROM report_view");
+    }
+
+    @Test
+    void summariesOfSeveralContextsInOneRunAreMergedNotRepeated() throws IOException {
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        // two Spring contexts of the test JVM, each with its own summary file under the one name
+        for (String suffix : List.of("", "-2")) {
+            file("artifacts/r/module-http/http-summary" + suffix + ".json", """
+                    {"formatVersion": 1, "operations": [
+                      {"operation": "GET /orders/{n}", "requests": 10, "status": {"2xx": 9, "5xx": 1}, "transportErrors": 0},
+                      {"operation": "GET /health", "requests": 5, "status": {"2xx": 5}, "transportErrors": 0}]}""");
+            file("artifacts/r/module-api-explorer/api-coverage" + suffix + ".json", suffix.isEmpty()
+                    ? "{\"formatVersion\": 1, \"documented\": 3, \"called\": {\"demo GET /a\": 1},"
+                            + " \"uncalled\": [\"demo GET /b\", \"demo GET /c\"]}"
+                    : "{\"formatVersion\": 1, \"documented\": 3, \"called\": {\"demo GET /b\": 2},"
+                            + " \"uncalled\": [\"demo GET /a\", \"demo GET /c\"]}");
+            file("artifacts/r/module-flow/flow-coverage" + suffix + ".json", suffix.isEmpty()
+                    ? "{\"formatVersion\": 1, \"flows\": [{\"flow\": \"refund\", \"declared\": 2,"
+                            + " \"transitions\": [\"A -> B\", \"A -> C\"], \"taken\": [\"A -> B\", \"X -> Y\"],"
+                            + " \"uncovered\": [\"A -> C\"]}]}"
+                    : "{\"formatVersion\": 1, \"flows\": [{\"flow\": \"refund\", \"declared\": 2,"
+                            + " \"transitions\": [\"A -> B\", \"A -> C\"], \"taken\": [\"A -> C\"],"
+                            + " \"uncovered\": [\"A -> B\"]}]}");
+            file("artifacts/r/module-db/db-queries" + suffix + ".json", """
+                    {"formatVersion": 1, "statements": 3, "shapes": [
+                      {"shape": "UPDATE t SET x = ?", "count": 3, "errors": 0, "unboundedWrite": true, "slow": false}]}""");
+        }
+        StringBuilder artifacts = new StringBuilder();
+        for (String suffix : List.of("", "-2")) {
+            artifacts.append(artifacts.isEmpty() ? "" : ",").append("""
+                    {"source": "module-http", "category": "http-summary", "name": "http-summary.json",
+                     "path": "module-http/http-summary%1$s.json"},
+                    {"source": "module-api-explorer", "category": "api-coverage", "name": "api-coverage.json",
+                     "path": "module-api-explorer/api-coverage%1$s.json"},
+                    {"source": "module-flow", "category": "flow-coverage", "name": "flow-coverage.json",
+                     "path": "module-flow/flow-coverage%1$s.json"},
+                    {"source": "module-db", "category": "db-queries", "name": "db-queries.json",
+                     "path": "module-db/db-queries%1$s.json"}""".formatted(suffix));
+        }
+        file("artifacts/r/manifest.json", "{\"runId\": \"r\", \"artifacts\": [" + artifacts + "]}");
+
+        QualityReport report = runner().run();
+
+        QualityDimension reliability = report.dimension(QualityDimension.RELIABILITY).orElseThrow();
+        assertThat(reliability.issues()).containsExactly("GET /orders/{n}");
+        assertThat(reliability.facts()).contains("server error: GET /orders/{n} 2 of 20 requests answered 5xx or "
+                + "failed in transport");
+        assertThat(reliability.score()).isEqualTo(93);
+        QualityDimension coverage = report.dimension(QualityDimension.API_COVERAGE).orElseThrow();
+        assertThat(coverage.issues()).as("a and b were each called by one context").containsExactly("demo GET /c");
+        assertThat(coverage.facts().getFirst()).startsWith("2 of 3 documented operations");
+        QualityDimension flows = report.dimension(QualityDimension.FLOW_COVERAGE).orElseThrow();
+        assertThat(flows.status()).as("each context took the branch the other did not").isEqualTo(QualityStatus.PASS);
+        assertThat(flows.facts().getFirst()).isEqualTo("2 of 2 declared transitions taken across 1 flows");
+        assertThat(report.dimension(QualityDimension.DB_QUERIES).orElseThrow().issues())
+                .containsExactly("unbounded UPDATE t SET x = ?");
     }
 
     @Test

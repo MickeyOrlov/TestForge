@@ -55,6 +55,42 @@ public interface ArtifactSink {
     Path directoryFor(String source);
 
     /**
+     * A path in {@code directoryFor(source)} that no one has written yet: {@code name}, else
+     * {@code name-2}, {@code name-3}, … — created empty, so two callers never get the same one.
+     * Every Spring context of a test JVM writes into the same run directory, and a run-wide
+     * summary written under a fixed name keeps only the context that closed last. Never throws:
+     * when the directory cannot be written it answers {@code name}, and the producer's own write
+     * fails where it is caught anyway.
+     *
+     * @param source producing module id
+     * @param name   the file name the summary is known by
+     */
+    default Path newFile(String source, String name) {
+        Path directory;
+        try {
+            directory = directoryFor(source);
+        } catch (RuntimeException e) {
+            return Path.of(System.getProperty("java.io.tmpdir"), "testforge-noop", name);
+        }
+        int dot = name.lastIndexOf('.');
+        String base = dot <= 0 ? name : name.substring(0, dot);
+        String extension = dot <= 0 ? "" : name.substring(dot);
+        try {
+            java.nio.file.Files.createDirectories(directory);
+            for (int i = 1; i <= 10_000; i++) {
+                try {
+                    return java.nio.file.Files.createFile(directory.resolve(i == 1 ? name : base + "-" + i + extension));
+                } catch (java.nio.file.FileAlreadyExistsException taken) {
+                    // another context's summary: try the next number
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            // best-effort by contract
+        }
+        return directory.resolve(name);
+    }
+
+    /**
      * Describes a file the producer already wrote.
      *
      * @param artifact the artifact descriptor to register

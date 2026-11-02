@@ -1,0 +1,118 @@
+# The quality gate of an adapted project, for GitHub Actions. TestForge does not
+# run it: copy it to .github/workflows/quality.yml and replace `example-tests`
+# with the test module of the project (its build.gradle carries the
+# `qualityGate` task — copy that from example-tests too).
+#
+# What it does, in order:
+#   1. restores the quality history of the last runs (a cache, no database);
+#   2. runs the tests with the run index on, so every module's summary lands in it;
+#   3. judges the run: `qualityGate` fails on new FAILs in `fail-on`, the gate policy,
+#      or nothing measured — the step that decides whether the job is green;
+#   4. saves the history with this run's entry, uploads the report and the run index,
+#      and puts quality-summary.md on the pull request.
+#
+# The commit comes from GITHUB_SHA, the branch from GITHUB_REF_NAME and the job
+# from GITHUB_RUN_ID: module-quality reads those itself.
+
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write # the summary comment; drop it, and the comment step, for read-only tokens
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.console=plain
+  TEST_MODULE: example-tests
+  HISTORY_DIR: ${{ github.workspace }}/build/quality-history
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The newest history of this branch, else of main: a pull request starts from main's runs.
+      # A cache entry is immutable, so every run saves a new key and restores the newest by prefix.
+      - name: Restore quality history
+        uses: actions/cache/restore@v4
+        with:
+          path: build/quality-history
+          key: quality-history-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            quality-history-${{ github.head_ref || github.ref_name }}-
+            quality-history-main-
+
+      # Results older than this belong to another run; the gate is a separate Gradle call,
+      # so it is told the instant instead of guessing it.
+      - name: Mark the start of the run
+        id: start
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      # A failing test does not stop the job here: the gate judges it — against the baseline
+      # and the accepted list — and fails the job when it is new. A build that compiles no
+      # test leaves no results, and the gate fails closed on "nothing measured".
+      - name: Run the tests
+        continue-on-error: true
+        env:
+          FORGE_REPORTING_ARTIFACTS_ENABLED: "true"
+          FORGE_DB_QUERIES_ENABLED: "true"
+        run: ./gradlew ":${TEST_MODULE}:test" --continue
+
+      - name: Quality gate
+        run: >-
+          ./gradlew ":${TEST_MODULE}:qualityGate"
+          -PqualityHistory="${HISTORY_DIR}"
+          -PqualityResultsNotBefore="${{ steps.start.outputs.at }}"
+        # with an accepted baseline checked in: -PqualityBaseline=ci/quality-baseline.json
+
+      - name: Save quality history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: build/quality-history
+          key: quality-history-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}
+
+      - name: Upload the quality report and the run index
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: |
+            ${{ env.TEST_MODULE }}/build/quality/
+            ${{ env.TEST_MODULE }}/build/testforge-artifacts/
+            ${{ env.TEST_MODULE }}/build/test-results/
+          if-no-files-found: ignore
+
+      # One comment per pull request, edited on every run. A pull request from a fork gets a
+      # read-only token: the step then fails quietly instead of failing the job.
+      - name: Put the summary on the pull request
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SUMMARY: ${{ env.TEST_MODULE }}/build/quality/quality-summary.md
+        run: |
+          test -f "$SUMMARY" || exit 0
+          gh pr comment "$PR" --edit-last --body-file "$SUMMARY" || gh pr comment "$PR" --body-file "$SUMMARY"
+
+      # quality.prom is OpenMetrics text: push it to a gateway or a textfile collector here
+      # if the team keeps a dashboard, e.g.
+      #   curl --data-binary @"${TEST_MODULE}/build/quality/quality.prom" "$PUSHGATEWAY/metrics/job/quality"

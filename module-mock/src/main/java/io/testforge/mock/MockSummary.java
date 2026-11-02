@@ -99,7 +99,7 @@ public class MockSummary implements SmartLifecycle {
             return;
         }
         try {
-            Path file = sink.directoryFor(SOURCE).resolve(FILE);
+            Path file = sink.newFile(SOURCE, FILE);
             Files.createDirectories(file.getParent());
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(file.toFile(), summary);
             sink.registerFile(SOURCE, "mock-summary", FILE, file, "application/json",

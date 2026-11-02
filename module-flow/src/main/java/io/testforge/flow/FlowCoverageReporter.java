@@ -45,12 +45,12 @@ public class FlowCoverageReporter implements SmartLifecycle {
         }
         try {
             long uncovered = coverage.entries().stream().mapToLong(entry -> entry.uncovered().size()).sum();
-            Path file = sink.directoryFor(SOURCE).resolve("flow-coverage.md");
+            Path file = sink.newFile(SOURCE, "flow-coverage.md");
             Files.createDirectories(file.getParent());
             Files.writeString(file, coverage.render(), StandardCharsets.UTF_8);
             sink.registerFile(SOURCE, "flow-coverage", "flow-coverage.md", file, "text/markdown",
                     Map.of("healthy", "true", "uncovered", String.valueOf(uncovered)));
-            Path json = file.resolveSibling(JSON);
+            Path json = sink.newFile(SOURCE, JSON);
             new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(json.toFile(), json());
             sink.registerFile(SOURCE, "flow-coverage", JSON, json, "application/json",
                     Map.of("uncovered", String.valueOf(uncovered)));
@@ -67,6 +67,7 @@ public class FlowCoverageReporter implements SmartLifecycle {
             flow.put("flow", entry.flow());
             flow.put("runs", entry.runs());
             flow.put("declared", entry.declared().size());
+            flow.put("transitions", List.copyOf(entry.declared()));
             flow.put("taken", List.copyOf(entry.taken()));
             flow.put("uncovered", List.copyOf(entry.uncovered()));
             flows.add(flow);

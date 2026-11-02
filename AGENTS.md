@@ -199,6 +199,9 @@ must not replace each other. `example-tests` is never published.
    cache between runs (and the commit in `GITHUB_SHA` / `CI_COMMIT_SHA` /
    `GIT_COMMIT` or `history.revision`): flakiness on unchanged code and
    durations against their own median need the last runs, not one.
+   [docs/examples/quality-gate.github-actions.yml](docs/examples/quality-gate.github-actions.yml)
+   is the whole job for GitHub Actions: history cache, run index, gate,
+   artifacts and the summary on the pull request.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
    run: a page "ended at" a sign-in URL warmed the login wall, not the page.
@@ -256,6 +259,8 @@ that the rule is stale. What is enforced:
   in `Modules.ALLOWED_DEPENDENCIES` (a new edge is a deliberate edit there).
 - No `Thread.sleep`/`TimeUnit.sleep`, no Lombok, no `System.out`/`System.err`, no
   `java.util.logging`, no field injection in production code.
+- No `ArtifactSink.directoryFor` outside `core` and `module-reporting`: run files
+  come from `ArtifactSink.newFile` (see Known sharp edges).
 - Every module has exactly the shape a new module must ship: a
   `TestForge*AutoConfiguration` listed in its `AutoConfiguration.imports`, `*Properties`
   records bound under `forge.*`, a README, and an example or own test.
@@ -332,6 +337,12 @@ reviewing a module. Adapting a fresh clone follows
   runner compiles them into `<spec>/classes` to prove they build
   (`forge.api-codegen.compile`), but does not put them on any source set.
 - `module-api-fuzz`: `--include-method` alone does not stop the coverage phase from emitting unspecified methods. TestForge also generates a config file to enforce the safety policy.
+- Every Spring context of a test JVM writes into the same run directory. A
+  producer that writes a run-wide summary when its context closes takes the
+  file from `ArtifactSink.newFile(source, name)` (`name`, `name-2`, …), never
+  `directoryFor(source).resolve(name)`: under a fixed name the context that
+  closes last overwrites the others, and module-quality judges a fraction of
+  the run. Readers merge the files registered under that name.
 - Artifact reporting (`forge.reporting.artifacts.enabled`) and resource usage monitoring (`forge.reporting.resource-monitor.enabled`) are disabled by default (`false`); set `forge.reporting.artifacts.enabled=true` in CI profiles to generate run manifests and summaries. When `module-reporting` is absent or disabled, `ArtifactSink.NO_OP` is active, so producer calls succeed silently without collecting artifacts into a run directory.
 
 Security adoption: enable `forge.security.passive.enabled`, then call

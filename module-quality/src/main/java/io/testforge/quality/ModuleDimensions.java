@@ -15,6 +15,10 @@ import java.util.Optional;
  * is optional: without its report the dimension is NOT MEASURED and says
  * which module would measure it. Reports are read as JSON — no module class
  * is touched, so deleting a module never breaks this one.
+ *
+ * <p>A run-wide summary comes once per Spring context of the test JVM ({@code http-summary.json},
+ * {@code http-summary-2.json}, …, all registered under the one name): each dimension merges them —
+ * per operation, statement shape, flow — so an issue counts once however many contexts saw it.
  */
 final class ModuleDimensions {
 
@@ -60,6 +64,7 @@ final class ModuleDimensions {
         if (!monitors.isEmpty()) {
             facts.add(cases + " event contract cases checked");
         }
+        issues = new ArrayList<>(new java.util.LinkedHashSet<>(issues));
         facts.add(issues.size() + " contract mismatches");
         list(facts, "mismatch", issues);
         return new QualityDimension(QualityDimension.CONTRACTS, issues.isEmpty() ? QualityStatus.PASS
@@ -263,23 +268,28 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.RELIABILITY,
                     "no http-summary.json (module-http) in the run");
         }
+        java.util.Map<String, long[]> operations = new java.util.TreeMap<>();
+        for (JsonNode report : reports) {
+            for (JsonNode operation : report.path("operations")) {
+                long[] counts = operations.computeIfAbsent(operation.path("operation").asText(), k -> new long[2]);
+                counts[0] += operation.path("requests").asLong();
+                counts[1] += operation.path("status").path("5xx").asLong() + operation.path("transportErrors").asLong();
+            }
+        }
         long requests = 0;
         long failed = 0;
         List<String> issues = new ArrayList<>();
         List<String> facts = new ArrayList<>();
-        for (JsonNode report : reports) {
-            for (JsonNode operation : report.path("operations")) {
-                long count = operation.path("requests").asLong();
-                long errors = operation.path("status").path("5xx").asLong() + operation.path("transportErrors").asLong();
-                requests += count;
-                failed += errors;
-                if (errors > 0) {
-                    String name = operation.path("operation").asText();
-                    issues.add(name);
-                    if (issues.size() <= LISTED) {
-                        facts.add("server error: " + name + " " + errors + " of " + count
-                                + " requests answered 5xx or failed in transport");
-                    }
+        for (java.util.Map.Entry<String, long[]> operation : operations.entrySet()) {
+            long count = operation.getValue()[0];
+            long errors = operation.getValue()[1];
+            requests += count;
+            failed += errors;
+            if (errors > 0) {
+                issues.add(operation.getKey());
+                if (issues.size() <= LISTED) {
+                    facts.add("server error: " + operation.getKey() + " " + errors + " of " + count
+                            + " requests answered 5xx or failed in transport");
                 }
             }
         }
@@ -304,29 +314,34 @@ final class ModuleDimensions {
                     "no db-queries.json (module-db with forge.db.queries.enabled=true) in the run");
         }
         long statements = 0;
-        int shapes = 0;
-        boolean failing = false;
-        List<String> issues = new ArrayList<>();
+        // per shape: failed, unbounded, slow — in any context
+        java.util.Map<String, boolean[]> shapes = new java.util.LinkedHashMap<>();
         for (JsonNode report : reports) {
             statements += report.path("statements").asLong();
             for (JsonNode shape : report.path("shapes")) {
-                shapes++;
-                String sql = shape.path("shape").asText();
-                if (shape.path("errors").asLong() > 0) {
-                    issues.add("failed " + sql);
-                    failing = true;
-                }
-                if (shape.path("unboundedWrite").asBoolean()) {
-                    issues.add("unbounded " + sql);
-                    failing = true;
-                }
-                if (shape.path("slow").asBoolean()) {
-                    issues.add("slow " + sql);
-                }
+                boolean[] flags = shapes.computeIfAbsent(shape.path("shape").asText(), k -> new boolean[3]);
+                flags[0] |= shape.path("errors").asLong() > 0;
+                flags[1] |= shape.path("unboundedWrite").asBoolean();
+                flags[2] |= shape.path("slow").asBoolean();
             }
         }
+        boolean failing = false;
+        List<String> issues = new ArrayList<>();
+        for (java.util.Map.Entry<String, boolean[]> shape : shapes.entrySet()) {
+            boolean[] flags = shape.getValue();
+            if (flags[0]) {
+                issues.add("failed " + shape.getKey());
+            }
+            if (flags[1]) {
+                issues.add("unbounded " + shape.getKey());
+            }
+            if (flags[2]) {
+                issues.add("slow " + shape.getKey());
+            }
+            failing |= flags[0] || flags[1];
+        }
         List<String> facts = new ArrayList<>();
-        facts.add(statements + " statements in " + shapes + " shapes, " + issues.size() + " flagged");
+        facts.add(statements + " statements in " + shapes.size() + " shapes, " + issues.size() + " flagged");
         list(facts, "statement", issues);
         return new QualityDimension(QualityDimension.DB_QUERIES, failing ? QualityStatus.FAIL
                 : issues.isEmpty() ? QualityStatus.PASS : QualityStatus.WARN, Math.max(0, 100 - 10 * issues.size()),
@@ -343,14 +358,19 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.API_COVERAGE,
                     "no api-coverage.json (module-api-explorer contract guard) in the run");
         }
-        int documented = 0;
-        int called = 0;
-        List<String> issues = new ArrayList<>();
+        // one context's uncalled operation may be another's called one: a union, not a sum
+        java.util.Set<String> operations = new java.util.LinkedHashSet<>();
+        java.util.Set<String> calledSomewhere = new java.util.LinkedHashSet<>();
         for (JsonNode report : reports) {
-            documented += report.path("documented").asInt();
-            called += report.path("called").size();
-            report.path("uncalled").forEach(operation -> issues.add(operation.asText()));
+            report.path("called").fieldNames().forEachRemaining(operation -> {
+                operations.add(operation);
+                calledSomewhere.add(operation);
+            });
+            report.path("uncalled").forEach(operation -> operations.add(operation.asText()));
         }
+        int documented = operations.size();
+        int called = calledSomewhere.size();
+        List<String> issues = operations.stream().filter(operation -> !calledSomewhere.contains(operation)).toList();
         if (documented == 0) {
             return QualityDimension.notMeasured(QualityDimension.API_COVERAGE, "no documented operations");
         }
@@ -375,19 +395,36 @@ final class ModuleDimensions {
             return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
                     "no flow-coverage.json (module-flow) in the run");
         }
-        int declared = 0;
-        int flows = 0;
-        List<String> issues = new ArrayList<>();
+        // per flow across contexts: a transition one context took is covered
+        java.util.Map<String, java.util.Set<String>> declaredByFlow = new java.util.TreeMap<>();
+        java.util.Map<String, java.util.Set<String>> takenByFlow = new java.util.TreeMap<>();
         for (JsonNode report : reports) {
             for (JsonNode flow : report.path("flows")) {
                 if (flow.path("declared").asInt() == 0) {
                     continue;
                 }
-                flows++;
-                declared += flow.path("declared").asInt();
                 String name = flow.path("flow").asText();
-                flow.path("uncovered").forEach(edge -> issues.add("flow " + name + " " + edge.asText()));
+                java.util.Set<String> declared = declaredByFlow.computeIfAbsent(name, k -> new java.util.TreeSet<>());
+                java.util.Set<String> taken = takenByFlow.computeIfAbsent(name, k -> new java.util.TreeSet<>());
+                // the declared transitions themselves; a report without them still names the untaken ones
+                flow.path("transitions").forEach(edge -> declared.add(edge.asText()));
+                flow.path("uncovered").forEach(edge -> declared.add(edge.asText()));
+                flow.path("taken").forEach(edge -> taken.add(edge.asText()));
+                if (!flow.has("transitions")) {
+                    // an early layout: taken ∪ uncovered is the declared set, near enough
+                    flow.path("taken").forEach(edge -> declared.add(edge.asText()));
+                }
             }
+        }
+        int declared = 0;
+        int flows = declaredByFlow.size();
+        List<String> issues = new ArrayList<>();
+        declaredByFlow.forEach((name, edges) -> {
+            edges.stream().filter(edge -> !takenByFlow.get(name).contains(edge))
+                    .forEach(edge -> issues.add("flow " + name + " " + edge));
+        });
+        for (java.util.Set<String> edges : declaredByFlow.values()) {
+            declared += edges.size();
         }
         if (declared == 0) {
             return QualityDimension.notMeasured(QualityDimension.FLOW_COVERAGE,
@@ -416,7 +453,8 @@ final class ModuleDimensions {
             report.path("unusedStubs").forEach(stub -> unused.add(stub.path("stub").asText()));
             report.path("unmatchedRequests").forEach(request -> unmatched.add(request.path("request").asText()));
         }
-        return new MockLeftovers(!reports.isEmpty(), scopes, unused, unmatched);
+        return new MockLeftovers(!reports.isEmpty(), scopes, List.copyOf(new java.util.LinkedHashSet<>(unused)),
+                List.copyOf(new java.util.LinkedHashSet<>(unmatched)));
     }
 
     /**
