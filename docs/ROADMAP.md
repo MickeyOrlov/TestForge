@@ -70,6 +70,7 @@ surface is still expected to evolve.
 
 | Module | Status note |
 |---|---|
+| `module-load` | Local adapter over k6 OSS (2.3.0): explicit load job, native thresholds, aggregate evidence, project-selectable validity rules, optional HTML and provisioned Prometheus/Grafana. Optional project-level API research workflow delegates client generation to Grafana openapi-to-k6 without production dependency edges. Distributed execution deferred. See [README](../module-load/README.md). |
 | `module-api-codegen` | OpenAPI-first Java records and typed `ApiClient` skeletons, compiled right after generation so a document Java cannot take fails the run that wrote it. Writes build-owned sources and reports but does not provide a Gradle plugin, runtime probing, enum classes, or polymorphic model generation. Plan: [codegen-layer-roadmap.md](codegen-layer-roadmap.md). |
 | `module-api-explorer` | Runs an OpenAPI document against a live environment and reports runtime contract drift per operation. V1 is stateless and safe-by-default: no request bodies, no value extraction between calls, no fuzzing. |
 | `module-quality` | Judges a finished run from its JUnit XML and run index: 15 dimensions with printed formulas, baseline (new / accepted / known / resolved, expiring acceptance), run history (flakiness on the same revision, durations against their median, trends), components and owners, per-dimension gate policy; `quality.md` / `quality.json` with a JSON Schema, a PR summary and OpenMetrics. Plan: [quality-security-spec.md](quality-security-spec.md). |

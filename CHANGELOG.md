@@ -7,6 +7,7 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Changed
+- `module-load`: preserve evidence when private summary cleanup fails; native threshold failures take precedence over dropped iterations. HTML and Prometheus run-ID labels are opt-in. Preserve mixed-case Windows environment paths and clean up observed descendants after normal exit. Generator output is discarded without a capture limit, and Python acceptance checks remain active under optimization.
 - `module-quality`: `reliability`, `efficiency` and history name API operations
   as `api-coverage.json` documents them — `<spec> <METHOD> <template>` instead
   of the URL path (`GET /petclinic/api/owners/{n}` → `petclinic GET
@@ -24,6 +25,7 @@ semantic versioning for its git tags.
   `forge.quality.metrics.run-ids: true`.
 
 ### Added
+- `module-load`: opt-in local k6 OSS adapter with version preflight, native thresholds, configurable HTTP/threshold/dropped-iteration validity rules, timeout/cancellation cleanup, bounded output, aggregate evidence and optional HTML. Optional Prometheus remote write uses native histograms, excludes URL/name system tags and makes per-run labels explicit opt-in; a pinned Compose stack provisions Grafana, with direct report links to the selected time range. Dedicated `loadTest`, native acceptance and observability tasks stay outside the default build; a manual CI workflow verifies the whole local path. Optional project-level API research → load tasks exchange snapshots/reports, delegate TypeScript client generation to Grafana openapi-to-k6 and run a portable native scenario; module-load gains no producer dependency.
 - `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
   would fail the gate for that dimension (`fail-on`, `required`, its limits)
   as a note in `quality.md` and `quality-summary.md` and fails nothing, so a

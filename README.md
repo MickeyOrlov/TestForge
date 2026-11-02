@@ -99,6 +99,7 @@ flowchart LR
 | [module-db-contract](module-db-contract) | Schema snapshots, bounded diff, and a BREAKING/RISKY/NON_BREAKING/UNKNOWN compatibility gate for CI |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
+| [module-load](module-load) | Opt-in k6 OSS runner: native thresholds, process lifecycle, JSON/Markdown/HTML, optional [Prometheus/Grafana](infra/load) and optional [API → load composition](tools/api-load) |
 | [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
 | [module-quality](module-quality) | Judges a finished run: 15 dimensions with printed formulas (tests, contracts, data, security, reliability, coverage, …), baseline and run history, components and owners, a gate; `quality.md` / `.json`, a PR summary, OpenMetrics |

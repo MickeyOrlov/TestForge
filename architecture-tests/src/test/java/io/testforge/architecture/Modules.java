@@ -28,6 +28,7 @@ final class Modules {
             Map.entry("module-db-contract", "io.testforge.db.contract"),
             Map.entry("module-flow", "io.testforge.flow"),
             Map.entry("module-http", "io.testforge.http"),
+            Map.entry("module-load", "io.testforge.load"),
             Map.entry("module-kafka", "io.testforge.kafka"),
             Map.entry("module-rabbitmq", "io.testforge.rabbitmq"),
             Map.entry("module-gherkin", "io.testforge.gherkin"),

@@ -1,0 +1,429 @@
+{
+  "uid": "testforge-load",
+  "title": "TestForge load",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "tags": [
+    "testforge",
+    "k6"
+  ],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "project",
+        "label": "project",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "testforge-prometheus"
+        },
+        "query": "label_values(k6_http_reqs_total, project)",
+        "definition": "label_values(k6_http_reqs_total, project)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "environment",
+        "label": "environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "testforge-prometheus"
+        },
+        "query": "label_values(k6_http_reqs_total{project=~\"$project\"}, environment)",
+        "definition": "label_values(k6_http_reqs_total{project=~\"$project\"}, environment)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "run_id",
+        "label": "run_id",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "testforge-prometheus"
+        },
+        "query": "label_values(k6_http_reqs_total{project=~\"$project\",environment=~\"$environment\"}, run_id)",
+        "definition": "label_values(k6_http_reqs_total{project=~\"$project\",environment=~\"$environment\"}, run_id)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(k6_http_reqs_total{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__rate_interval]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "Requests / second",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP p95 (native histogram)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_duration_seconds{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__rate_interval])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "HTTP p95 (native histogram)",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP p99 (native histogram)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum(rate(k6_http_req_duration_seconds{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__rate_interval])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "HTTP p99 (native histogram)",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "HTTP error ratio (worst series)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(k6_http_req_failed_rate{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "HTTP error ratio (worst series)",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Virtual users (active / capacity)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "axisSoftMax": 5
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(k6_vus{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "Active VUs",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum(k6_vus_max{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "VU capacity",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Active is the instantaneous sampled gauge; capacity is the provisioned VU pool."
+    },
+    {
+      "id": 6,
+      "title": "Dropped iterations / second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "axisSoftMax": 1
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(k6_dropped_iterations_total{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__rate_interval])) or on() (0 * sum(rate(k6_http_reqs_total{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__rate_interval])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "Dropped iterations / second",
+          "range": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "k6 omits the series when nothing was dropped. Show zero only when this run has measured HTTP traffic."
+    },
+    {
+      "id": 7,
+      "title": "Requests (run cumulative)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(max_over_time(k6_http_reqs_total{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__range]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "Requests in selected window",
+          "range": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Completed iterations (run cumulative)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "testforge-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(max_over_time(k6_iterations_total{project=~\"$project\",environment=~\"$environment\",run_id=~\"$run_id\"}[$__range]))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "testforge-prometheus"
+          },
+          "legendFormat": "Completed iterations in selected window",
+          "range": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    }
+  ],
+  "description": "Native k6 metrics. Histograms aggregate before quantiles. Select project/environment/run_id. Error ratio shows the worst series, not an average across workers."
+}

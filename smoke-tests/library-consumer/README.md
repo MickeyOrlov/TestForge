@@ -17,6 +17,10 @@ the published JARs, call WireMock through `ApiClient`, verify the generated
 correlation header, build an OpenAPI endpoint/shape report, and generate Java
 records plus a typed API client from a classpath specification.
 
+`PublishedLoadSmokeTest` also resolves `module-load` from Maven, verifies that it is
+inert by default and that its auto-configuration respects a consumer-supplied process
+bean. No k6 binary is needed for this consumer test.
+
 The same build can verify GitHub Packages after a release:
 
 ```bash

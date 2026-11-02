@@ -1,0 +1,113 @@
+// Composition root: production modules stay independent. All stages below are explicit opt-in tasks.
+def target = providers.gradleProperty("loadBaseUrl").orElse(providers.environmentVariable("TESTFORGE_LOAD_BASE_URL"))
+def runRoot = rootProject.file(providers.gradleProperty("apiLoadRunDir")
+        .orElse("build/api-load/" + UUID.randomUUID()).get())
+def requireTarget = {
+    if (!target.isPresent() || target.get().isBlank()) {
+        throw new GradleException("Select the load target with -PloadBaseUrl=... or TESTFORGE_LOAD_BASE_URL")
+    }
+    try {
+        def uri = new URI(target.get())
+        if (!(uri.scheme in ["http", "https"]) || !uri.host || uri.userInfo || uri.query || uri.fragment) {
+            throw new IllegalArgumentException()
+        }
+    } catch (Exception ignored) {
+        throw new GradleException("Load research target must be HTTP(S), without credentials, query or fragment")
+    }
+}
+
+tasks.register("apiLoadTools", Exec) {
+    description = "Installs the locked upstream OpenAPI-to-k6 generator; never part of build"
+    workingDir rootProject.file("tools/api-load")
+    commandLine "npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"
+    inputs.files rootProject.file("tools/api-load/package.json"), rootProject.file("tools/api-load/package-lock.json")
+    outputs.dir rootProject.file("tools/api-load/node_modules")
+}
+
+tasks.register("apiLoadInputs", Exec) {
+    description = "Snapshots the local bundled OpenAPI document, operation selection and native scenario assets"
+    dependsOn tasks.named("apiLoadTools")
+    workingDir rootProject.projectDir
+    doFirst { requireTarget(); runRoot.parentFile.mkdirs() }
+    commandLine "node", rootProject.file("tools/api-load/prepare.mjs"), "snapshot",
+            "--spec", rootProject.file(providers.gradleProperty("apiLoadSpec").orElse("docs/examples/api-load/openapi.json").get()),
+            "--selection", rootProject.file(providers.gradleProperty("apiLoadOperations").orElse("docs/examples/api-load/operations.json").get()),
+            "--scenario", rootProject.file(providers.gradleProperty("apiLoadScenarioDir").orElse("docs/examples/api-load/scenario").get()),
+            "--allow-writes", providers.gradleProperty("apiLoadAllowWrites").orElse("false").get(),
+            "--run", runRoot
+    outputs.upToDateWhen { false }
+}
+
+tasks.register("apiLoadResearch", Test) {
+    description = "Studies the selected API snapshot against the explicit target and writes discovery/exploration artifacts"
+    dependsOn tasks.named("apiLoadInputs")
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags "api-load-research"; includeEngines "junit-jupiter" }
+    filter { includeTestsMatching "*ApiLoadResearchTest" }
+    reports.junitXml.outputLocation = new File(runRoot, "verification/research-junit")
+    reports.html.outputLocation = new File(runRoot, "verification/research-html")
+    systemProperty "testforge.api-load.run-dir", runRoot.absolutePath
+    doFirst { requireTarget(); systemProperty "testforge.api-load.target", target.get() }
+    outputs.upToDateWhen { false }
+}
+
+tasks.register("prepareApiLoadScenario", Exec) {
+    description = "Validates research artifacts and invokes Grafana openapi-to-k6; never creates load traffic"
+    dependsOn tasks.named("apiLoadResearch")
+    workingDir rootProject.projectDir
+    commandLine "node", rootProject.file("tools/api-load/prepare.mjs"), "prepare", "--run", runRoot
+    doFirst { environment "TESTFORGE_API_LOAD_TARGET", target.get() }
+    outputs.upToDateWhen { false }
+}
+
+def configureLoad = { Test job, boolean researched ->
+    job.group = "verification"
+    job.testClassesDirs = sourceSets.test.output.classesDirs
+    job.classpath = sourceSets.test.runtimeClasspath
+    job.useJUnitPlatform { includeTags "load"; includeEngines "junit-jupiter" }
+    job.filter { includeTestsMatching "*LoadEnvironmentTest" }
+    def requireHttp = providers.gradleProperty("loadRequireHttp").orElse("true").get().toBoolean()
+    job.doFirst {
+        if (researched || requireHttp) requireTarget()
+        job.systemProperty "forge.load.base-url", target.orElse("").get()
+    }
+    job.systemProperty "forge.load.command", providers.gradleProperty("k6Executable").orElse("k6").get()
+    job.systemProperty "forge.load.expected-version", providers.gradleProperty("loadExpectedVersion").orElse("2.3.0").get()
+    job.systemProperty "forge.load.script", researched ? new File(runRoot, "prepared/scenario.ts").absolutePath
+            : rootProject.file(providers.gradleProperty("loadScript").orElse("docs/examples/load-api.js").get()).absolutePath
+    job.systemProperty "forge.load.output-dir", rootProject.file(providers.gradleProperty("loadOutputDir")
+            .orElse(researched ? new File(runRoot, "load").absolutePath : "build/load").get()).absolutePath
+    job.systemProperty "forge.load.timeout", providers.gradleProperty("loadTimeout").orElse("15m").get()
+    job.systemProperty "forge.load.html-report", providers.gradleProperty("loadHtmlReport").orElse("false").get()
+    job.systemProperty "forge.load.environment.[LOAD_RATE]", providers.gradleProperty("loadRate").orElse("2").get()
+    job.systemProperty "forge.load.environment.[LOAD_DURATION]", providers.gradleProperty("loadDuration").orElse("10s").get()
+    job.systemProperty "forge.load.environment.[LOAD_ITERATIONS]", providers.gradleProperty("loadIterations").orElse("").get()
+    job.systemProperty "forge.load.policy.require-http", String.valueOf(requireHttp)
+    job.systemProperty "forge.load.policy.require-thresholds", providers.gradleProperty("loadRequireThresholds").orElse("true").get()
+    job.systemProperty "forge.load.policy.fail-on-dropped-iterations", providers.gradleProperty("loadFailOnDroppedIterations").orElse("true").get()
+    job.systemProperty "forge.load.prometheus.enabled", providers.gradleProperty("loadPrometheusEnabled").orElse("false").get()
+    job.systemProperty "forge.load.prometheus.run-ids", providers.gradleProperty("loadPrometheusRunIds").orElse("false").get()
+    def prometheus = providers.gradleProperty("loadPrometheusUrl").orElse("http://127.0.0.1:9090").get()
+    job.systemProperty "forge.load.prometheus.remote-write-url", providers.gradleProperty("loadRemoteWriteUrl")
+            .orElse(prometheus.replaceAll('/+$', '') + "/api/v1/write").get()
+    job.systemProperty "forge.load.prometheus.grafana-url", providers.gradleProperty("loadGrafanaUrl").orElse("http://127.0.0.1:3000").get()
+    job.systemProperty "forge.load.prometheus.project", providers.gradleProperty("loadProject").orElse("testforge").get()
+    job.systemProperty "forge.load.prometheus.environment", providers.gradleProperty("loadEnvironment").orElse("local").get()
+    if (researched) job.systemProperty "testforge.api-load.prepared-dir", new File(runRoot, "prepared").absolutePath
+    job.outputs.upToDateWhen { false }
+    job.shouldRunAfter tasks.named("test")
+}
+
+tasks.register("loadTest", Test) {
+    description = "Runs a native k6 scenario against an explicitly selected load environment"
+    configureLoad(it, false)
+}
+
+tasks.register("apiLoadTest", Test) {
+    description = "Researches an API, prepares an upstream-generated client and runs a project-owned native k6 scenario"
+    dependsOn tasks.named("prepareApiLoadScenario")
+    configureLoad(it, true)
+    reports.junitXml.outputLocation = new File(runRoot, "verification/load-junit")
+    reports.html.outputLocation = new File(runRoot, "verification/load-html")
+}
