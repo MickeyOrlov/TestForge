@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,8 +24,9 @@ class PrometheusOutputTest {
         LoadProcess process = (command, cwd, env, timeout) -> {
             if (command.contains("version")) return new LoadProcess.Result(0, false, "k6 v2.3.0 (fixture)");
             assertThat(command).containsSequence("--out", "experimental-prometheus-rw");
-            assertThat(command).containsSequence("--system-tags",
-                    "proto,status,method,tls_version,scenario,expected_response,error_code");
+            assertThat(command).containsSequence("--system-tags", LoadRunner.SYSTEM_TAGS);
+            assertThat(List.of(LoadRunner.SYSTEM_TAGS.split(","))).as("bounded tags thresholds filter on stay")
+                    .contains("group", "check", "scenario", "status").doesNotContain("url", "name", "error");
             assertThat(command.toString()).doesNotContain("bearer-secret", "metrics.example.test");
             assertThat(env).containsEntry("K6_PROMETHEUS_RW_BEARER_TOKEN", "bearer-secret")
                     .containsEntry("K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM", "true")

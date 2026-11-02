@@ -27,6 +27,50 @@ class LoadRunnerTest {
              "root_group": {"name": "a-secret-that-must-not-be-published"}}
             """;
 
+    // a threshold on a sub-metric no sample reached, as k6's legacy summary writes it: zeros, and "ok"
+    static final String EMPTY_FILTER = """
+            {"metrics": {
+              "iterations": {"type": "counter", "values": {"count": 3}},
+              "http_reqs": {"type": "counter", "values": {"count": 6, "rate": 2.5}},
+              "http_req_duration": {"type": "trend", "values": {"p(95)": 25.0, "min": 3, "max": 30, "avg": 9},
+                "thresholds": {"p(95)<500": {"ok": true}}},
+              "http_req_duration{name:typo}": {"type": "trend",
+                "values": {"p(95)": 0, "min": 0, "max": 0, "avg": 0, "med": 0, "p(90)": 0},
+                "thresholds": {"p(95)<500": {"ok": true}}},
+              "checks{check:never}": {"type": "rate", "values": {"rate": 0, "passes": 0, "fails": 0},
+                "thresholds": {"rate==1": {"ok": true}}},
+              "hits{kind:none}": {"type": "counter", "values": {"count": 0, "rate": 0},
+                "thresholds": {"count<5": {"ok": true}}},
+              "http_req_failed": {"type": "rate", "values": {"rate": 0, "passes": 0, "fails": 6}},
+              "dropped_iterations": {"type": "counter", "values": {"count": 0}}}}
+            """;
+
+    @Test void aThresholdNoSampleReachedIsNotAPassedSlo() throws IOException {
+        Path file = dir.resolve("empty-filter.json");
+        Files.writeString(file, EMPTY_FILTER);
+
+        LoadReport.Metrics metrics = K6Summary.read(file, new LoadPolicyProperties(null, null, null));
+        assertThat(metrics.thresholds()).isEqualTo(4);
+        assertThat(metrics.failedThresholds()).isZero();
+        assertThat(metrics.emptyThresholds()).as("the empty trend and rate; a counter's 0 is a value").isEqualTo(2);
+
+        LoadProcess process = (command, cwd, env, timeout) -> {
+            if (command.contains("version")) return new LoadProcess.Result(0, false, "k6 v2.3.0 (fixture)");
+            Files.writeString(Path.of(env.get("TESTFORGE_LOAD_SUMMARY")), EMPTY_FILTER);
+            return new LoadProcess.Result(0, false, "");
+        };
+        LoadReport report = new LoadRunner(properties(true, false), process, null).run();
+        assertThat(report.outcome()).isEqualTo(LoadReport.Outcome.INVALID_RESULT);
+        assertThat(report.detail()).startsWith("2 native thresholds saw no sample");
+
+        LoadProperties allowed = properties(true, false);
+        allowed = new LoadProperties(true, allowed.command(), null, allowed.script(), allowed.baseUrl(),
+                allowed.outputDir(), allowed.timeout(), Map.of(), false, null,
+                new LoadPolicyProperties(null, null, null, false));
+        assertThat(new LoadRunner(allowed, process, null).run().outcome()).as("opted out")
+                .isEqualTo(LoadReport.Outcome.PASSED);
+    }
+
     private LoadProperties properties(boolean enabled, boolean html) throws IOException {
         Path script = dir.resolve("scenario with spaces.js");
         Files.writeString(script, "export default function () {}\n");

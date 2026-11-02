@@ -22,6 +22,14 @@ import java.util.regex.Pattern;
 /** Thin adapter over a local k6 process. Never schedules users, requests, retries or thresholds. */
 public final class LoadRunner {
     private static final String SOURCE = "module-load";
+    /**
+     * k6's default system tags without the unbounded ones: {@code url}, {@code name} (it defaults to the
+     * URL; a {@code name} the script sets is kept) and {@code error} (free text). {@code group} and
+     * {@code check} stay — the script names them, and without them a threshold such as
+     * {@code checks{check:…}} would see no sample and pass.
+     */
+    static final String SYSTEM_TAGS =
+            "proto,subproto,status,method,group,check,error_code,tls_version,scenario,service,expected_response";
     private static final Pattern VERSION = Pattern.compile("(?m)^k6 v(\\d+\\.\\d+\\.\\d+)(?:\\s|$)");
     private final LoadProperties properties;
     private final LoadProcess process;
@@ -82,8 +90,7 @@ public final class LoadRunner {
                         directory.resolve("k6-config.json").toAbsolutePath().toString()));
                 if (properties.prometheus().enabled()) {
                     command.addAll(List.of("--out", "experimental-prometheus-rw"));
-                    // Native name defaults to the full URL too; omitting url alone is insufficient.
-                    command.addAll(List.of("--system-tags", "proto,status,method,tls_version,scenario,expected_response,error_code"));
+                    command.addAll(List.of("--system-tags", SYSTEM_TAGS));
                 }
                 command.add(script.toString());
                 LoadProcess.Result result = process.run(command, script.getParent(), environment, properties.timeout());
@@ -100,6 +107,11 @@ public final class LoadRunner {
                             outcome = LoadReport.Outcome.THRESHOLDS_FAILED;
                             detail = "Native k6 thresholds failed" + (metrics.droppedIterations() > 0
                                     ? "; k6 also dropped iterations; the requested workload was not fully delivered" : "");
+                        } else if (properties.policy().failOnEmptyThresholds() && metrics.emptyThresholds() > 0) {
+                            outcome = LoadReport.Outcome.INVALID_RESULT;
+                            detail = metrics.emptyThresholds() + " native thresholds saw no sample — a tag filter "
+                                    + "matches nothing (a typo, or a tag the run does not record) — and k6 counts "
+                                    + "them as passed";
                         } else if (properties.policy().failOnDroppedIterations() && metrics.droppedIterations() > 0) {
                             outcome = LoadReport.Outcome.INVALID_RESULT;
                             detail = "k6 dropped iterations; the requested workload was not fully delivered";

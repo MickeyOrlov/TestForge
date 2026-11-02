@@ -54,11 +54,18 @@ forge:
       require-http: true
       require-thresholds: true
       fail-on-dropped-iterations: true
+      fail-on-empty-thresholds: true    # a threshold no sample reached is not a pass
 ```
 
 Set `require-http: false` for a native non-HTTP scenario; base-url may then be omitted.
 The generic report records zero measured HTTP requests/RPS and absent HTTP latency/error
 rate in that case. Other protocol-specific metrics remain in native k6 outputs.
+`fail-on-empty-thresholds` (default `true`) catches the same trap anywhere: a threshold
+on a sub-metric no sample reached — a typo in a tag filter, a tag the run does not
+record — is INVALID_RESULT, because k6 itself reports it as passed (a trend without
+samples reads 0, so `p(95)<500` holds). A trend counts as empty when its min, max
+and average are all 0, a rate when it has no passes and no fails.
+
 `require-thresholds: false` permits exploratory scripts without native thresholds;
 `fail-on-dropped-iterations: false` retains dropped counts without invalidating an
 exploratory run. Missing/malformed summaries, zero completed iterations and execution
@@ -103,11 +110,14 @@ or explicitly opt into run IDs. Window totals over reused/reset counters are not
 per-run counts; use the native report or opt into run IDs for that purpose.
 Credentials stay in the child environment. Each local invocation gets its own report
 UUID and a Grafana link with its time range in `report.md`/`report.json`.
-When remote write is enabled, the runner explicitly limits native system tags to
-`proto,status,method,tls_version,scenario,expected_response,error_code`. It excludes
-both `url` and `name` (k6's default name is a URL), plus free-text error/group/check
-tags. Thresholds using excluded system tags must be adapted or run without remote
-write. Custom tags and scenario names remain trusted script inputs: keep their values
+When remote write is enabled, the runner limits native system tags to k6's
+defaults without the unbounded ones:
+`proto,subproto,status,method,group,check,error_code,tls_version,scenario,service,expected_response`.
+It leaves out `url`, `name` (k6's default name is the URL; a `name` the script sets
+in `tags` is kept) and the free-text `error`. `group` and `check` stay: the script
+names them, and without them a threshold such as `checks{check:…}` or
+`http_req_duration{group:::login}` would receive no sample — and k6 counts a
+threshold without samples as passed. Custom tags and scenario names remain trusted script inputs: keep their values
 bounded and free of credentials. Native load thresholds remain the gate; optional telemetry
 availability is verified separately by `observabilityTest`.
 
