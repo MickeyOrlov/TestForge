@@ -43,6 +43,26 @@ Config lives under the `forge.*` prefix; properties classes are records named
 `*Properties`. One Spring profile per test environment
 (`application-<environment>.yml`).
 
+## Toolbox rule (read before writing any new capability)
+
+TestForge is a toolbox of proven open-source tools with TestForge handles, not
+a set of home-made ones — see "A toolbox, not a home-made hammer" in the
+README and the inventory in [docs/toolbox.md](docs/toolbox.md).
+
+- **Search first.** Before implementing a capability, find the established tool
+  for it (docs/toolbox.md, then the ecosystem). If one exists, the module is an
+  adapter: configuration, safety policy, process or library wiring, evidence
+  in the run index. It never re-implements the tool.
+- **Own code needs a written reason.** Build it only when no tool does the job
+  or none fits the constraints (offline, no server, license); record why, as
+  [docs/api-fuzz-prototype-analysis.md](docs/api-fuzz-prototype-analysis.md)
+  did when the home-made fuzzer gave way to Schemathesis.
+- **Rare tools stay out of the way.** Opt-in, excluded from `./gradlew build`'s
+  traffic, no dependency forced on modules that do not use them, NOT MEASURED
+  when absent.
+- **Keep the inventory true.** A change that adds, replaces or removes a tool
+  updates its row in docs/toolbox.md in the same commit.
+
 ## Build & verify
 
 ```bash

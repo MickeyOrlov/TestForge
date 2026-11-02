@@ -27,6 +27,26 @@ of starting from an empty directory.
 5. **Agent-friendly**: Adaptation notes live in [AGENTS.md](AGENTS.md) and the
    module READMEs.
 
+## A toolbox, not a home-made hammer
+
+TestForge is assembled the way a good household toolbox is: the screwdriver and
+the hammer you reach for every day, and the two pipe wrenches you need once a
+year when a pipe leaks — ready, findable, and in the way of nothing until then.
+Every tool in it is a proven open-source one; TestForge supplies the handle.
+
+1. **A proven tool, never a home-made one.** k6, Schemathesis, PIT, diff-cover,
+   EvoMaster, WireMock, Playwright, Appium — TestForge adds configuration,
+   safety (nothing reaches a shared environment by accident) and evidence in
+   one place. Its own code is the glue no tool provides.
+2. **A rare tool costs nothing while it lies there.** Opt-in, off the default
+   build, no traffic, no heavy dependency; unused, it reports NOT MEASURED
+   rather than a pass.
+3. **Every tool comes out the same way.** One command or one module, results in
+   the run index, judged together by `testforge-quality`.
+4. **Every tool has a card.** [docs/toolbox.md](docs/toolbox.md) lists the
+   situations, the tool for each, where it lives here — and the compartments
+   still empty.
+
 ## Architecture
 
 A deliberately thin core plus optional modules. Modules plug in through Spring
