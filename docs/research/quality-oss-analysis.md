@@ -1,102 +1,105 @@
-# Модуль качества против рынка: выжимка и план
+# The quality module against the market: summary and plan
 
-Источники: отчёт Gemini Deep Research «Обзор систем оценки качества ПО»
-(59 стр., ноябрь 2026; запрос — [quality-oss-analysis-prompt.md](quality-oss-analysis-prompt.md))
-и заметка о метриках уровня Staff Quality (defect escape rate, CFR,
-mutation score). Цифры и ссылки — из отчёта, отдельно не перепроверялись.
+Sources: a Gemini Deep Research report, "Overview of software quality
+assessment systems" (59 pages, November 2026; the request is
+[quality-oss-analysis-prompt.md](quality-oss-analysis-prompt.md)), and a note on
+Staff-Quality-level metrics (defect escape rate, CFR, mutation score). Figures
+and links come from the report and were not checked separately.
 
-## 1. Что рынок подтверждает: у нас уже есть
+## 1. What the market confirms: we already have it
 
-| Идея рынка | Где на рынке | В `module-quality` |
+| Market idea | Where in the market | In `module-quality` |
 |---|---|---|
-| История без сервера в файлах CI | Allure 3 `history.jsonl`, Qodana SARIF baseline | `forge.quality.history.dir`, `run-<id>.json`, окно и ротация |
-| Гейт только по новому | SonarQube New Code, Codecov patch | baseline: new / accepted / known / resolved |
-| Принятие риска со сроком | DefectDojo risk acceptance | `accepted` с `until <date>`, неиспользованная запись видна |
-| Пустой прогон не зелёный | Allure 3 `minTestsCount`, Backstage Tech Insights | NOT MEASURED ≠ PASS, `required`, fail-closed |
-| Жёсткое вето | Keptn `key_sli` | `fail-on` |
-| Устойчивая статистика вместо порогов | Kayenta, Lighthouse CI median | median + k×MAD, поправка на темп машины, `min-runs` |
-| Владельцы и компоненты | Codecov Components, Trunk + CODEOWNERS | `components` с glob и owner |
-| Пороги и бюджеты на измерение | Codecov `target`, Allure `maxFailures` | `gate.<dim>.min-score`, `max-new-issues` |
-| Выход без UI | Allure `quality-gate.json`, jacoco-report PR comment | `quality.json` + schema, `quality-summary.md`, `quality.prom` |
-| Flaky по одной ревизии | Develocity, DeFlaker (идея «код не менялся») | `stability` по `revision` |
+| History without a server, in CI files | Allure 3 `history.jsonl`, Qodana SARIF baseline | `forge.quality.history.dir`, `run-<id>.json`, window and rotation |
+| Gate on what is new only | SonarQube New Code, Codecov patch | baseline: new / accepted / known / resolved |
+| Risk acceptance with an expiry | DefectDojo risk acceptance | `accepted` with `until <date>`; an unused entry is reported |
+| An empty run is not green | Allure 3 `minTestsCount`, Backstage Tech Insights | NOT MEASURED ≠ PASS, `required`, fail-closed |
+| A hard veto | Keptn `key_sli` | `fail-on` |
+| Robust statistics instead of thresholds | Kayenta, Lighthouse CI median | median + k×MAD, the machine's pace divided out, `min-runs` |
+| Owners and components | Codecov Components, Trunk + CODEOWNERS | `components` with globs and an owner |
+| Per-dimension thresholds and budgets | Codecov `target`, Allure `maxFailures` | `gate.<dim>.min-score`, `max-new-issues` |
+| Output without a UI | Allure `quality-gate.json`, jacoco-report PR comment | `quality.json` + schema, `quality-summary.md`, `quality.prom` |
+| Flaky on one revision | Develocity, DeFlaker (the "code did not change" idea) | `stability` by `revision` |
 
-Вывод: архитектура (читать артефакты прогона, формулы, fail-closed, файлы
-вместо БД) совпадает с тем, куда движется рынок (тренд 4 отчёта). Менять
-основу не нужно — нужно закрыть пробелы ниже.
+Conclusion: the architecture (read a run's artifacts, formulas, fail-closed,
+files instead of a database) matches where the market is going (trend 4 of
+the report). The foundation needs no change — the gaps below do.
 
-## 2. Пробелы, которые стоит закрыть
+## 2. Gaps worth closing
 
-Отсортировано по ценности к размеру. Все пункты совместимы с инвариантами
-модуля (только `core`, чтение файлов, формула над фактами, без БД).
+Ordered by value for size. Every item fits the module's invariants (`core`
+only, reading files, a formula over facts, no database).
 
-| # | Идея | Источник | Что меняется у нас | Размер |
+| # | Idea | Source | What changes here | Size |
 |---|---|---|---|---|
-| 1 | **Dry-run для правил гейта** | Argo Rollouts `dryRun` | `gate.<dim>.dry-run: true` — в отчёте «would fail», билд не падает. Безопасное включение новых `fail-on` | S |
-| 2 | **Подсказка «как исправить»** у каждого issue | Tech Insights `solution`, Sonar MCP | поле `hint` у измерения/issue в `quality.json` и summary; полезно и людям, и агентам | S |
-| 3 | **Минимум выполненных тестов** | Allure 3 `minTestsCount` | `forge.quality.min-tests`: `functional` FAIL, если выполнено меньше (опечатка в фильтре ≠ зелёный прогон) | S |
-| 4 | **Assertion vs broken + категории падений** | Allure categories, ReportPortal pattern analysis | JUnit `<failure>` vs `<error>` уже различимы в XML; разделить в фактах `functional` на product / test-or-env, плюс упорядоченные правила `categories` (тип исключения, regex по первой строке) | S |
-| 5 | **Карантин с отпечатком падения** | Trunk failure fingerprinting, DefectDojo | расширить `accepted`: `fingerprint` = хэш типа исключения + нормализованных верхних фреймов; совпал — accepted, другой — new. Тест продолжает выполняться. Реализует «quarantined» из спеки §3.2 | M |
-| 6 | **Сравнение только с зелёными прогонами** | Keptn `include_result_with_score: pass` | p95 операций в `efficiency` сейчас берётся из всех записей истории; брать только записи без FAIL | S |
-| 7 | **Авто-реабилитация flaky и счётчик переключений** | Allure `stabilizationPeriod`, ReportPortal «switches N of M» | в фактах `stability`: «переключений N из M»; тест, прошедший K раз подряд после flaky, помечается стабилизировавшимся (информация, не issue) | S |
-| 8 | **Mutation score (PIT/Stryker)** | PIT `mutations.xml`, Stryker `thresholds.break` | новое измерение `mutation`: `100 × killed / (killed + survived)` по отчёту PIT; FAIL ниже `min-mutation-score`; PIT запускает проект сам, мы только читаем | M |
-| 9 | **Diff coverage** | diff-cover, diff-coverage-gradle, Codecov patch | новое измерение `diff-coverage`: JaCoCo XML ∩ `git diff` к merge-base; маленький diff — NOT MEASURED с причиной, а не тихий PASS (антипаттерн 7 Sonar) | M |
-| 10 | **Компоненты из CODEOWNERS** | Trunk, Codecov | `components.from-codeowners: true` — меньше ручной конфигурации | S |
-| 11 | **Кардинальность `quality.prom`** | антипаттерн 8 отчёта | `testforge_quality_run_info` несёт `revision` / `job` как метки — для push gateway это бесконечный рост рядов. Документировать или вынести в опцию | S |
+| 1 | **Dry run for gate rules** | Argo Rollouts `dryRun` | `gate.<dim>.dry-run: true` — "would fail" in the report, the build does not fail. A safe way to turn on a new `fail-on` | S |
+| 2 | **A "how to fix" hint** on each issue | Tech Insights `solution`, Sonar MCP | a `hint` on the dimension / issue in `quality.json` and the summary; useful to people and agents alike | S |
+| 3 | **A minimum of executed tests** | Allure 3 `minTestsCount` | `forge.quality.min-tests`: `functional` FAILs when fewer ran (a typo in a filter is not a green run) | S |
+| 4 | **Assertion vs broken, failure categories** | Allure categories, ReportPortal pattern analysis | JUnit `<failure>` and `<error>` are already distinct in the XML; split `functional`'s facts into product / test-or-environment, plus ordered `categories` rules (exception type, regex on the first line) | S |
+| 5 | **Quarantine with a failure fingerprint** | Trunk failure fingerprinting, DefectDojo | extend `accepted`: `fingerprint` = hash of the exception type and normalised top frames; the same — accepted, another — new. The test keeps running. Implements the "quarantined" of spec §3.2 | M |
+| 6 | **Compare with green runs only** | Keptn `include_result_with_score: pass` | operation p95 in `efficiency` comes from every history entry; take entries without a FAIL only | S |
+| 7 | **Flaky rehabilitation and a switch counter** | Allure `stabilizationPeriod`, ReportPortal "switches N of M" | in `stability`'s facts: "switched N of M"; a test that passed K times in a row after being flaky is marked stabilized (information, not an issue) | S |
+| 8 | **Mutation score (PIT / Stryker)** | PIT `mutations.xml`, Stryker `thresholds.break` | a new `mutation` dimension: `100 × killed / (killed + survived)` from PIT's report; FAIL below `min-mutation-score`; the project runs PIT, we only read | M |
+| 9 | **Diff coverage** | diff-cover, diff-coverage-gradle, Codecov patch | a new `diff-coverage` dimension: JaCoCo XML ∩ `git diff` against the merge base; a small diff is NOT MEASURED with the reason, not a silent PASS (Sonar antipattern 7) | M |
+| 10 | **Components from CODEOWNERS** | Trunk, Codecov | `components.from-codeowners: true` — less configuration by hand | S |
+| 11 | **`quality.prom` cardinality** | antipattern 8 of the report | `testforge_quality_run_info` carries `revision` / `job` as labels — unbounded series growth for a push gateway. Document it or make it an option | S |
 
-### 2.1 Что из «Staff Quality» сюда относится
+### 2.1 What of "Staff Quality" belongs here
 
-Метрики из заметки делятся на две группы:
+The note's metrics fall into two groups:
 
-- **Сила самих проверок** — mutation score / test strength, diff coverage,
-  flaky rate < 1–2 %, карантин с владельцем и сроком. Это наш слой: пункты
-  5, 7, 8, 9 выше. Порог `max-flaky-rate: 0.02` уже совпадает с ориентиром.
-- **Продакшен-исходы** — defect escape rate, DRE, change failure rate,
-  crash-free sessions, SLO под реальным трафиком. Тестовый прогон их не
-  видит. Вариант на будущее: опциональный вход `release-health.json`
-  (факты, которые CI/инцидент-система кладёт рядом) и измерение, которое
-  только читает их. До этого — вне скоупа, как SAST/SCA в спеке §5.
+- **The strength of the checks themselves** — mutation score / test strength,
+  diff coverage, a flaky rate under 1–2 %, quarantine with an owner and an
+  expiry. This is our layer: items 5, 7, 8, 9 above. The `max-flaky-rate: 0.02`
+  threshold already matches the benchmark.
+- **Production outcomes** — defect escape rate, DRE, change failure rate,
+  crash-free sessions, SLOs under real traffic. A test run does not see them.
+  An option for later: an optional `release-health.json` input (facts a CI or
+  incident system leaves next to it) and a dimension that only reads it. Out
+  of scope until then, like SAST/SCA in spec §5.
 
-## 3. Что сознательно не берём
+## 3. What we deliberately leave out
 
-| Идея | Почему нет |
+| Idea | Why not |
 |---|---|
-| Взвешенный общий балл Keptn (warn = 50 %, веса) решает гейт | Спека: «No single magic number decides a release». Overall — худший статус. Веса допустимы разве что для линии тренда |
-| Mann-Whitney U для длительностей | Нужно ~50 точек на тест; при окне 10 прогонов статус почти всегда NODATA. MAD + `min-runs` даёт то же без ложной строгости |
-| ML-триаж (ReportPortal auto-analysis), предсказание flaky по коду | Непрозрачно; отчёт сам приводит антипаттерн 6 (тиражирование ошибочной разметки) и работы 2026 г. о непереносимости |
-| Перезапуск новых тестов N раз в PR (Datadog new flaky gate) | `module-quality` никогда не перезапускает тесты. Можно как отдельную Gradle-задачу в `example-tests`, результат читается как обычный JUnit XML |
-| DeFlaker (per-test coverage ∩ diff) | Требует per-test инструментации JaCoCo — L, отдельный модуль. Вернуться после `diff-coverage` |
-| Свой CEL/Rego-движок правил | Сегодня хватает YAML-порогов; движок выражений — новая зависимость и DSL (против «keep stable») |
-| SARIF для quality-issues | SARIF про места в коде; у `security` он уже есть. Для тестовых issues ценности мало |
-| OpenTelemetry-спаны CI/CD | Спецификация в RC; вернуться после стабилизации. `quality.prom` уже закрывает метрики |
+| Keptn's weighted total score (warn = 50 %, weights) deciding the gate | The spec: "No single magic number decides a release". Overall is the worst status. Weights are acceptable for a trend line at most |
+| Mann-Whitney U for durations | Needs ~50 points per test; with a window of 10 runs the status is almost always NODATA. MAD + `min-runs` gives the same without false rigour |
+| ML triage (ReportPortal auto-analysis), predicting flakiness from code | Opaque; the report itself cites antipattern 6 (replicating a wrong first labelling) and 2026 papers on poor transfer |
+| Rerunning new tests N times in a PR (Datadog new flaky gate) | `module-quality` never reruns a test. Possible as a separate Gradle task in `example-tests`, its result read as ordinary JUnit XML |
+| DeFlaker (per-test coverage ∩ diff) | Needs per-test JaCoCo instrumentation — L, a module of its own. Revisit after `diff-coverage` |
+| An own CEL / Rego rule engine | YAML thresholds suffice today; an expression engine is a new dependency and a DSL (against "keep stable") |
+| SARIF for quality issues | SARIF is about places in code; `security` already writes it. Little value for test issues |
+| OpenTelemetry CI/CD spans | The specification is a release candidate; revisit once stable. `quality.prom` already covers metrics |
 
-## 4. Ответы на открытые вопросы спеки (§7)
+## 4. Answers to the spec's open questions (§7)
 
-1. **Переопределять веса формул?** Нет. Рынок, где веса настраиваемы
-   (Keptn, Scorecard), всё равно держит их фиксированными и
-   документированными; настраиваются **пороги** (`min-score`,
-   `max-new-issues`, будущие `min-mutation-score`, `min-diff-coverage`) и
-   **режим** (`fail-on`, `dry-run`). Так формула остаётся воспроизводимой.
-4. **Severity проверок безопасности — фиксировано или переопределяемо?**
-   Фиксировано в модуле, переопределение — через `accepted` со сроком
-   (модель DefectDojo), а не через смену severity.
+1. **Override formula weights?** No. Where the market makes weights
+   configurable (Keptn, Scorecard) it still keeps them fixed and documented;
+   what is configurable is **thresholds** (`min-score`, `max-new-issues`, and
+   later `min-mutation-score`, `min-diff-coverage`) and **mode** (`fail-on`,
+   `dry-run`). That keeps a formula reproducible.
+4. **Severity of security checks — fixed or overridable?** Fixed in the
+   module; overriding goes through `accepted` with an expiry (DefectDojo's
+   model), not through changing a severity.
 
-## 5. Предлагаемые шаги
+## 5. Proposed steps
 
-Формат как в спеке §6; по одному PR на шаг.
+In the format of spec §6; one PR per step.
 
 | Step | Deliverable | Acceptance |
 |---|---|---|
-| A5 | Гейт: `dry-run` по измерению, `min-tests`, `hint` у измерений (пункты 1–3) — **сделано** | правило в dry-run печатает «would fail» и не роняет гейт; 0 тестов при `min-tests: 1` — FAIL |
-| ~~A6~~ | Свои `categories` — **отменено**: это категории Allure Report, а Allure в TestForge уже подключается опционально. Разделение assertion / error переехало в A7 | — |
-| A7 | Падения assertion vs error в фактах `functional` + карантин с отпечатком (пункты 4–5) — **сделано** | тот же стектрейс — accepted; другой тип исключения в том же тесте — new, гейт падает; истёкший `until` — new |
-| A8 | История: только зелёные прогоны для p95, «switches N of M», стабилизация (пункты 6–7) — **сделано** | красный прогон в истории не сдвигает медиану; тест после 5 зелёных подряд помечен стабилизировавшимся |
-| A9 | Измерение `mutation` из PIT `mutations.xml` (пункт 8) — **сделано** | пример с выжившим мутантом; формула считается руками; без отчёта — NOT MEASURED |
-| A10 | Измерение `diff-coverage` — **адаптер**: читает отчёт, который уже посчитал diff-cover / diff-coverage-gradle (JaCoCo ∩ git diff), а не пересчитывает его сам (пункт 9) — **сделано**, формат diff-cover сверен с его `report_generator.py` | непокрытая изменённая строка видна с файлом и номером; маленький diff — NOT MEASURED с причиной |
-| A11 | CODEOWNERS для компонентов, кардинальность `quality.prom` (пункты 10–11) — **сделано** | компоненты собираются из CODEOWNERS; `run_info` без `revision` по умолчанию |
+| A5 | Gate: per-dimension `dry-run`, `min-tests`, a `hint` on dimensions (items 1–3) — **done** | a dry-run rule prints "would fail" and does not fail the gate; 0 tests with `min-tests: 1` — FAIL |
+| ~~A6~~ | Own `categories` — **dropped**: these are Allure Report's categories, and Allure is already an optional part of TestForge. The assertion / error split moved to A7 | — |
+| A7 | Assertion vs error failures in `functional`'s facts + quarantine by fingerprint (items 4–5) — **done** | the same stack trace — accepted; another exception type in the same test — new, the gate fails; an expired `until` — new |
+| A8 | History: green runs only for p95, "switches N of M", stabilization (items 6–7) — **done** | a red run in the history does not shift the median; a test after 5 green runs in a row is marked stabilized |
+| A9 | `mutation` dimension from PIT's `mutations.xml` (item 8) — **done** | an example with a surviving mutant; the formula checks out by hand; no report — NOT MEASURED |
+| A10 | `diff-coverage` dimension — **an adapter**: reads the report diff-cover / diff-coverage-gradle already computed (JaCoCo ∩ git diff) rather than computing it again (item 9) — **done**, diff-cover's layout checked against its `report_generator.py` | an uncovered changed line is shown with its file and number; a small diff is NOT MEASURED with the reason |
+| A11 | CODEOWNERS for components, `quality.prom` cardinality (items 10–11) — **done** | components come from CODEOWNERS; `run_info` without `revision` by default |
 
-Правило отбора — «Compose, do not reimplement» из спеки: считаем сами
-только то, чего нет в готовом отчёте; остальное читаем как вход.
+The selection rule is the spec's "Compose, do not reimplement": compute only
+what no existing report already has; read the rest as an input.
 
-A5–A8 — улучшения существующего, без новых входов. A9–A10 — новые
-измерения «силы тестов», то, чего сейчас не хватает для аргумента уровня
-Staff Quality.
+A5–A8 improve what exists, with no new inputs. A9–A10 are new "strength of
+the tests" dimensions — what was missing for a Staff-Quality-level argument.
+The field test on a real application that followed is
+[quality-dogfood-petclinic.md](quality-dogfood-petclinic.md).
