@@ -25,6 +25,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
 | `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
+| `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--json-report` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
 - **Failures** are counted as **assertion** (a check failed: `AssertionError`,
@@ -87,6 +88,35 @@ forge:
       reports: [build/reports/pitest]
       min-score: 0.6       # FAIL below 60 % detected
 ```
+
+## Diff coverage: the lines this change touched
+
+A gate on overall coverage blocks every small fix in legacy code, or lets
+coverage creep down a little per pull request. The lines a change touched
+are what it can be held to. Intersecting `git diff` with a coverage report
+is [diff-cover](https://github.com/Bachmann1234/diff_cover)'s job;
+`diff-coverage` reads its JSON report:
+
+```bash
+diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
+    --compare-branch=origin/main --json-report build/reports/diff-coverage.json
+```
+
+```yaml
+forge:
+  quality:
+    diff-coverage:
+      report: build/reports/diff-coverage.json
+      min-score: 0.8     # FAIL below 80 % of measured changed lines covered
+      min-lines: 5       # fewer: NOT MEASURED, not a pass
+```
+
+- diff-cover calls a change without measured lines 100 % covered; here it
+  is NOT MEASURED, as is one below `min-lines`, with the count in the fact.
+- Facts name each file with its uncovered lines (`lines 12-14, 20`);
+  issues are the files — a line number moves with every edit, the file
+  does not. A diff is per pull request: run this with `fail-on` and
+  `min-score`, not against a baseline.
 
 ## How much was measured
 
@@ -323,6 +353,10 @@ forge:
     mutation:
       reports: [build/reports/pitest, target/pit-reports]  # PIT mutations.xml, searched recursively
       min-score:                         # optional, 0..1: mutation FAILs below this share (default: WARN only)
+    diff-coverage:
+      report: build/reports/diff-coverage.json  # diff-cover --json-report
+      min-score:                         # optional, 0..1: diff-coverage FAILs below this share
+      min-lines: 1                       # fewer measured changed lines: NOT MEASURED
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise

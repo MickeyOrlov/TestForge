@@ -27,6 +27,10 @@ semantic versioning for its git tags.
   (`forge.quality.mutation.reports`, `min-score`): detected over all
   mutants, test strength in the facts, surviving mutants as issues by
   method and mutator.
+- `module-quality`: a `diff-coverage` dimension from diff-cover's
+  `--json-report` (`forge.quality.diff-coverage.report`, `min-score`,
+  `min-lines`): covered over measured changed lines, files with uncovered
+  lines as issues; a diff with too few measured lines is NOT MEASURED.
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

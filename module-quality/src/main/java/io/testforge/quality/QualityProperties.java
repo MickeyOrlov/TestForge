@@ -21,6 +21,10 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     mutation:                           # PIT's mutations.xml, found under these paths
  *       reports: [build/reports/pitest]
  *       min-score: 0.6                    # mutation FAILs below this share of detected mutants
+ *     diff-coverage:                      # diff-cover's --json-report over JaCoCo XML and git diff
+ *       report: build/reports/diff-coverage.json
+ *       min-score: 0.8                    # diff-coverage FAILs below this share of changed lines covered
+ *       min-lines: 5                      # fewer measured changed lines: NOT MEASURED, not a silent pass
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
@@ -81,7 +85,8 @@ public record QualityProperties(
         java.util.Map<String, GateProperties> gate,
         java.util.Map<String, java.time.LocalDate> acceptedUntil,
         Integer minTests,
-        MutationProperties mutation) {
+        MutationProperties mutation,
+        DiffCoverageProperties diffCoverage) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -142,6 +147,43 @@ public record QualityProperties(
         if (mutation == null) {
             mutation = new MutationProperties(null, null);
         }
+        if (diffCoverage == null) {
+            diffCoverage = new DiffCoverageProperties(null, null, null);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, null);
+    }
+
+    /**
+     * diff-cover's JSON report ({@code --json-report}): changed lines against the coverage report it
+     * was given (JaCoCo XML). {@code minScore} is the share below which {@code diff-coverage} FAILs;
+     * with fewer than {@code minLines} measured changed lines it is NOT MEASURED rather than a pass.
+     */
+    public record DiffCoverageProperties(String report, Double minScore, Integer minLines) {
+
+        public DiffCoverageProperties {
+            if (report == null || report.isBlank()) {
+                report = "build/reports/diff-coverage.json";
+            }
+            if (minScore != null && (minScore < 0 || minScore > 1)) {
+                throw new IllegalArgumentException("forge.quality.diff-coverage.min-score is a share between 0 and 1");
+            }
+            if (minLines == null || minLines < 1) {
+                minLines = 1;
+            }
+        }
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
@@ -154,7 +196,7 @@ public record QualityProperties(
                              java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
                 efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
-                acceptedUntil, minTests, null);
+                acceptedUntil, minTests, null, null);
     }
 
     /**
