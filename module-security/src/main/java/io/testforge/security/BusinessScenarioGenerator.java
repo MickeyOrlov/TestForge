@@ -69,6 +69,8 @@ public class BusinessScenarioGenerator {
 
     private Draft draft(BusinessScenarioGraph graph, BusinessScenarioSeed seed) {
         List<Need> needs = new ArrayList<>();
+        if (seed.kind() == Kind.COLLECTION_ACCESS && !seed.ownerRole().equals(seed.actorRole()))
+            return blocked(seed, "collection-membership-control-needs-actor-role");
         if (!graph.operations.containsKey(seed.setup())
                 || !graph.operations.containsKey(seed.probe())
                 || seed.via().size() > properties.maxChain())
@@ -192,6 +194,27 @@ public class BusinessScenarioGenerator {
                             "assertions",
                             "before",
                             "declare-persisted-state-invariants-after-probe"));
+        if (seed.kind() == Kind.BUSINESS_INVARIANT)
+            needs.add(
+                    new Need(
+                            "probe",
+                            "invariants",
+                            null,
+                            "declare-typed-business-effect-invariants"));
+        if (seed.kind() == Kind.COLLECTION_ACCESS) {
+            needs.add(
+                    new Need(
+                            "owner-control",
+                            "invariants",
+                            null,
+                            "declare-actor-owned-item-membership-control"));
+            needs.add(
+                    new Need(
+                            "probe",
+                            "invariants",
+                            null,
+                            "declare-all-items-isolation-and-bounded-pagination"));
+        }
         needs.add(
                 new Need(
                         "suite",

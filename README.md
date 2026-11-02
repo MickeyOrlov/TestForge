@@ -101,6 +101,7 @@ flowchart LR
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
 | [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
+| [module-security-audit](module-security-audit) | Internal three-layer audit aggregator foundation: profiles/plans, security-v1 reports and explicit trusted process adapters/CLI; no scanner adapters bundled |
 | [module-quality](module-quality) | Judges a finished run: 13 dimensions with printed formulas (tests, contracts, data, security, reliability, coverage, …), baseline and run history, components and owners, a gate; `quality.md` / `.json`, a PR summary, OpenMetrics |
 | [module-gherkin](module-gherkin) | Optional Cucumber steps over the modules: a scope per scenario, `${variables}`, HTTP steps through `ApiClient` |
 | [module-rabbitmq](module-rabbitmq) | RabbitMQ message probe on a queue of its own (never takes a service's messages); confirmed, mandatory publisher |
@@ -332,7 +333,7 @@ Project philosophy, module maturity, completed work, and planned scope live in
 
 Release history is in [CHANGELOG.md](CHANGELOG.md).
 
-Business security policies, linked OpenAPI scenario drafts, structural policy reviews, coverage and declared field/owner/tenant/state/replay checks are documented in [module-security](module-security/README.md).
+Business security policies, linked OpenAPI scenario drafts, structural policy reviews, typed business invariants/list isolation, coverage and declared field/owner/tenant/state/replay checks are documented in [module-security](module-security/README.md).
 
 ## License
 

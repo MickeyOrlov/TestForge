@@ -1,0 +1,25 @@
+{
+  "$schema":"http://json-schema.org/draft-07/schema#",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["formatVersion","isolation","attempts","assessment"],
+  "properties":{
+    "formatVersion":{"const":1},
+    "isolation":{"const":"PRIVATE_IO_NO_OS_SANDBOX"},
+    "attempts":{"type":"array","maxItems":7000,"items":{
+      "type":"object","additionalProperties":false,
+      "required":["asset","engine","outcome","started","exitCode","durationMillis","outputBytes","cleanupComplete"],
+      "properties":{
+        "asset":{"type":"string","pattern":"^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"},
+        "engine":{"enum":["ZAP","SCHEMATHESIS","TRIVY","NUCLEI","NMAP","TESTSSL","TESTFORGE"]},
+        "outcome":{"enum":["SUCCESS","ADAPTER_MISSING","VERSION_MISMATCH","PREREQUISITE_FAILED","ADAPTER_FAILED","START_FAILED","TIMED_OUT","CANCELLED","OUTPUT_LIMIT","PROCESS_LIMIT","NONZERO_EXIT","INVALID_OUTPUT","SECRET_LEAK","CLEANUP_FAILED","BUDGET_EXHAUSTED"]},
+        "started":{"type":"boolean"},
+        "exitCode":{"type":["integer","null"]},
+        "durationMillis":{"type":"integer","minimum":0},
+        "outputBytes":{"type":"integer","minimum":0},
+        "cleanupComplete":{"type":"boolean"}
+      }
+    }},
+    "assessment":{"$ref":"security-audit.schema.json"}
+  }
+}

@@ -416,3 +416,34 @@ See [policy validity](../docs/business-policy-validity.md) for configuration,
 limits, report locations and the explicit review workflow. Expected literal
 values and enum/constraint contents are not retained or fingerprinted: changes
 to those business rules require a new policy version and project review.
+
+## Business effects and list isolation
+
+Steps now accept typed `invariants` and bounded cursor `pagination`. New
+BUSINESS_INVARIANT cases reconcile order totals, account/stock changes and refund
+limits using exact decimal expressions over responses and earlier captures.
+COLLECTION_ACCESS cases require an owned-item positive control and per-item
+isolation checks across the complete bounded result, including search filters.
+
+Incomplete pagination cannot pass; a foreign row already observed remains a
+finding. Each rule has its own step/phase/actor coverage identity and cannot be
+resolved merely by re-running its parent case. All values stay in memory;
+reports retain only fixed evidence and structural aliases. Rules are explicit
+project policy, not inferred permissions or financial semantics.
+
+See [business invariants](../docs/business-invariants.md) for syntax, decimal/work
+bounds, paging semantics and review behavior. Existing policies and constructors
+remain compatible. The new local examples include intentionally broken payment,
+refund, stock and paginated-list APIs.
+
+### Idempotency and rejected-operation effects
+
+Steps can place a case-local key with optional
+`BusinessIdempotency("Idempotency-Key", "payment-key")`. REPLAY requires the same
+request, actor, header and binding alias as the preceding successful control.
+Use typed persisted-state invariants to prove a repeat did not apply a second
+payment/refund and a rejected/conflicting operation left state unchanged.
+Headers are explicitly bounded/allowlisted and cannot replace credentials; key
+values and hashes never enter artifacts. Existing constructors and JSON remain
+valid. See [business-idempotency.md](../docs/business-idempotency.md) and
+BusinessIdempotencyExampleTest for sequential scenarios and coverage limits.
