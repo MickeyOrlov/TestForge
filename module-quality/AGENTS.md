@@ -21,6 +21,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   dimension documents its formula in the README table.
 - NOT MEASURED is never a pass; the gate fails closed when disabled or when
   nothing was measured.
+- `run()` and `assertAcceptable()` judge the gate from the same breaches
+  (`QualityRunner.breaches`): a dry-run dimension's breaches become report
+  notes, every other one fails. A new gate rule goes into `breaches`, never
+  into `assertAcceptable` alone. A new dimension gets a hint in
+  `QualityDimension.HINTS`.
 - XML is parsed with DTDs disallowed and secure processing on.
 - The newest-run default never picks a run holding only `module-quality`'s
   own report; listed runs (`run-id: a,b`) merge, each artifact resolved

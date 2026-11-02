@@ -70,6 +70,9 @@ final class QualityReportWriter {
         for (QualityDimension dimension : report.dimensions()) {
             out.append("\n## ").append(dimension.name()).append(" — ").append(dimension.status()).append("\n\n");
             dimension.facts().forEach(fact -> out.append("- ").append(fact).append('\n'));
+            if (dimension.hint() != null) {
+                out.append("- how to fix: ").append(dimension.hint()).append('\n');
+            }
             QualityDelta delta = dimension.delta();
             if (delta != null) {
                 list(out, "new", delta.newIssues());
@@ -121,6 +124,14 @@ final class QualityReportWriter {
                         .append(fresh.size() > SUMMARY_ISSUES ? " (+" + (fresh.size() - SUMMARY_ISSUES) + ")" : "")
                         .append(" |\n");
             }
+            out.append('\n');
+            attention.stream().filter(d -> d.hint() != null).forEach(d -> out.append("- **").append(d.name())
+                    .append("**: ").append(d.hint()).append('\n'));
+        }
+        report.notes().stream().filter(note -> note.startsWith("dry run"))
+                .forEach(note -> out.append("\n- ").append(note));
+        if (report.notes().stream().anyMatch(note -> note.startsWith("dry run"))) {
+            out.append('\n');
         }
         report.components().stream().filter(c -> c.newIssues() > 0).forEach(c -> out.append("\n- **")
                 .append(c.name()).append("**").append(c.owner() == null ? "" : " (" + c.owner() + ")").append(": ")

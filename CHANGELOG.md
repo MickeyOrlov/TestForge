@@ -7,6 +7,13 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
+  would fail the gate for that dimension (`fail-on`, `required`, its limits)
+  as a note in `quality.md` and `quality-summary.md` and fails nothing, so a
+  rule can be watched before it is enforced; `forge.quality.min-tests` FAILs
+  `functional` while fewer tests executed, none included; each FAIL or WARN
+  dimension carries a `hint` on how to act on it (`quality.json`,
+  `quality.md`, `quality-summary.md`).
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

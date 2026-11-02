@@ -35,6 +35,14 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
   counts as passed for `functional` and as flaky for `stability`.
 - **NOT MEASURED** is never a pass: a dimension without its input says so,
   and the overall status ignores it. Nothing measured at all fails the gate.
+- **min-tests**: with `forge.quality.min-tests` set, `functional` FAILs while
+  fewer tests executed — none at all included — so a filter or task that
+  selected the wrong tests does not pass for a green run. The first fact
+  names the count; it fails the gate while `functional` is in `fail-on` (the
+  default).
+- **How to fix**: a FAIL or WARN dimension carries a `hint` — what to do
+  about it, next to the facts that say what is wrong — in `quality.json`,
+  `quality.md` and `quality-summary.md`.
 - **Overall** is the worst measured status; the mean score is for trend lines.
 
 A module that is not used leaves its dimension NOT MEASURED with the reason
@@ -211,6 +219,24 @@ With `max-new-issues` a `fail-on` FAIL passes while its new issues stay within
 the budget, and any status fails beyond it. A NOT MEASURED dimension is not
 judged here — list it in `required`.
 
+### Dry run: watch a rule before enforcing it
+
+```yaml
+forge:
+  quality:
+    fail-on: [functional, stability, contracts]
+    required: [contracts]
+    gate:
+      contracts: { dry-run: true, min-score: 90 }
+```
+
+Nothing the gate would fail on for a dry-run dimension — `fail-on`,
+`required`, `min-score`, `max-new-issues`, an incomplete security run —
+fails it. The report notes each instead (`dry run — the gate would fail on
+contracts (…)`), in `quality.md` and in `quality-summary.md`, so a team sees
+on its pull requests how often the rule would have fired. Remove `dry-run`
+once it fires only on real regressions. Other dimensions stay enforced.
+
 ## Exports
 
 Beside `quality.md` and `quality.json` in `output-dir`:
@@ -236,6 +262,7 @@ forge:
     output-dir: build/quality
     max-flaky-rate: 0.02
     fail-on: [functional, stability]     # add contracts, data, robustness, authorization when they run
+    min-tests:                           # optional: functional FAILs while fewer tests executed
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise

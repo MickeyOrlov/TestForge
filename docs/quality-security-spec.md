@@ -283,6 +283,7 @@ CHANGELOG, and a review step at the end of each part.
 | B3 | ZAP delegation with safety policy and allowlist | refuses a host not in the allowlist; containers test against a sample app |
 | B4 + B5 | TLS checks; artifact secret scan | a planted secret in an artifact fails the run |
 | A4 | Security dimension wired into Part A; review of Part A — **shipped** | one `quality.md` shows all dimensions including security |
+| A5 | Gate: per-dimension `dry-run`, `min-tests`, a `hint` on every FAIL / WARN dimension ([market review](research/quality-oss-analysis.md)) — **shipped** | a dry-run rule notes "would fail" and passes; 0 executed tests with `min-tests: 1` FAIL |
 
 ## 7. Open questions
 

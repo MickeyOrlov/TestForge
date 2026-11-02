@@ -82,11 +82,18 @@ final class QualityAssessor {
         long passed = count(tests, Outcome.PASSED);
         long failed = count(tests, Outcome.FAILED);
         long skipped = count(tests, Outcome.SKIPPED);
-        if (passed + failed == 0) {
+        Integer minTests = properties.minTests();
+        // too few executed tests is a filter or task that selected the wrong ones, not a green run
+        boolean tooFew = minTests != null && passed + failed < minTests;
+        if (passed + failed == 0 && !tooFew) {
             return QualityDimension.notMeasured(QualityDimension.FUNCTIONAL,
                     "no executed tests in " + properties.junitResults());
         }
         List<String> facts = new ArrayList<>();
+        if (tooFew) {
+            facts.add((passed + failed) + " tests executed, fewer than min-tests " + minTests + " (in "
+                    + properties.junitResults() + ")");
+        }
         facts.add((passed + failed + skipped) + " tests: " + passed + " passed, " + failed + " failed, "
                 + skipped + " skipped");
         tests.stream().filter(t -> t.outcome() == Outcome.FAILED).limit(LISTED)
@@ -94,8 +101,10 @@ final class QualityAssessor {
         if (failed > LISTED) {
             facts.add("… and " + (failed - LISTED) + " more failed");
         }
-        return new QualityDimension(QualityDimension.FUNCTIONAL, failed > 0 ? QualityStatus.FAIL : QualityStatus.PASS,
-                Math.round(100f * passed / (passed + failed)), "100 × passed / (passed + failed)", facts)
+        return new QualityDimension(QualityDimension.FUNCTIONAL,
+                failed > 0 || tooFew ? QualityStatus.FAIL : QualityStatus.PASS,
+                passed + failed == 0 ? 0 : Math.round(100f * passed / (passed + failed)),
+                "100 × passed / (passed + failed)", facts)
                 .withIssues(tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id).toList());
     }
 

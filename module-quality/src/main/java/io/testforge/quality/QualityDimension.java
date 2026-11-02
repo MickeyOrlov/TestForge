@@ -49,6 +49,42 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
         return new QualityDimension(name, status, score, formula, facts, issues, comparison);
     }
 
+    /** What to do about a dimension that is not PASS, by dimension; facts say what, this says how. */
+    private static final java.util.Map<String, String> HINTS = java.util.Map.ofEntries(
+            java.util.Map.entry(FUNCTIONAL, "Read each failed test's diagnostics in the run index and fix the product "
+                    + "or the test, or accept a known failure in forge.quality.accepted with a ticket and `until`. "
+                    + "Too few executed tests means a filter or task selected the wrong ones."),
+            java.util.Map.entry(STABILITY, "A flaky test passed and failed on the same code: fix the race, shared "
+                    + "state or fixed wait it depends on. A rerun hides it, it does not fix it."),
+            java.util.Map.entry(CONTRACTS, "The API or an event differs from its contract: fix the producer, or "
+                    + "change the contract in a reviewed change."),
+            java.util.Map.entry(DATA, "A schema change breaks or risks existing readers: expand, migrate, then "
+                    + "contract in a later release."),
+            java.util.Map.entry(ROBUSTNESS, "Reproduce each finding group from the fuzz findings.json and fix it, "
+                    + "or accept it in the fuzz module's accepted findings with a reason."),
+            java.util.Map.entry(AUTHORIZATION, "A role got in or was shut out against the access matrix: fix the "
+                    + "endpoint's check, or the matrix in a reviewed change if the rule changed."),
+            java.util.Map.entry(EFFICIENCY, "Compare the slower tests and operations with their history and profile "
+                    + "the change that slowed them; a new expected speed goes into a reviewed baseline."),
+            java.util.Map.entry(SECURITY, "Fix new critical and high findings first; accept one only in "
+                    + "module-security's accepted list with a reason and a date."),
+            java.util.Map.entry(RELIABILITY, "An operation answered 5xx or failed in transport: read its request in "
+                    + "the HTTP log. A server error is a defect even where the test expected it."),
+            java.util.Map.entry(DB_QUERIES, "Read the flagged statement shapes in db-queries.json: add the missing "
+                    + "WHERE or index, or stop swallowing the failing statement."),
+            java.util.Map.entry(API_COVERAGE, "Call each uncalled documented operation from a test, or remove it "
+                    + "from the spec if it is gone."),
+            java.util.Map.entry(FLOW_COVERAGE, "Add a test that takes each untaken declared transition, or drop the "
+                    + "transition from the flow if it cannot happen."),
+            java.util.Map.entry(HYGIENE, "Delete leftover rows, remove unused stubs and match unmatched requests: "
+                    + "they hide what a test really depends on."));
+
+    /** How to act on a FAIL or WARN; {@code null} for PASS, NOT MEASURED or a dimension without one. */
+    @com.fasterxml.jackson.annotation.JsonProperty("hint")
+    public String hint() {
+        return status == QualityStatus.FAIL || status == QualityStatus.WARN ? HINTS.get(name) : null;
+    }
+
     /** The issues the gate fails on: new and not accepted. */
     public List<String> newIssues() {
         return delta == null ? issues : delta.newIssues();

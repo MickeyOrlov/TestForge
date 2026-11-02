@@ -91,6 +91,8 @@ public class QualityRunner {
                         .toList());
         List<String> notes = new ArrayList<>(acceptedNotes(compared, today));
         notes.addAll(HistoryDimensions.baselineNotes(compared, history, baseline != null, STEADY_RUNS));
+        breaches(compared).stream().filter(b -> dryRun(b.dimension()))
+                .forEach(b -> notes.add("dry run — the gate would fail on " + b.note()));
         compared = compared.withNotes(notes).withLabels(labels(revision))
                 .withComponents(QualityComponents.assign(compared.dimensions(), properties.components()));
         QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper);
@@ -179,7 +181,8 @@ public class QualityRunner {
     /**
      * {@link #run()}, then fails when a {@code fail-on} dimension FAILed with
      * an issue that is new — not in the baseline, not accepted — or nothing
-     * could be measured. Fails closed while
+     * could be measured. A dimension whose {@code gate} entry is a dry run never fails it: the
+     * report notes what would have. Fails closed while
      * {@code forge.quality.enabled} is false: a gate job that forgot it is
      * told, not silently green.
      */
@@ -193,35 +196,73 @@ public class QualityRunner {
             throw new QualityException("Nothing to assess: no executed tests in " + properties.junitResults()
                     + " and no run index under " + properties.artifactsRoot() + ". See " + report.reportMarkdown());
         }
-        List<QualityDimension> missing = report.dimensions().stream()
-                .filter(d -> d.status() == QualityStatus.NOT_MEASURED && properties.required().contains(d.name()))
-                .toList();
+        List<Breach> enforced = breaches(report).stream().filter(b -> !dryRun(b.dimension())).toList();
+        List<String> missing = reasons(enforced, Breach.Kind.REQUIRED);
         if (!missing.isEmpty()) {
-            throw new QualityException("Required dimensions not measured: " + missing.stream()
-                    .map(d -> d.name() + " (" + d.facts().getFirst() + ")").collect(Collectors.joining("; "))
+            throw new QualityException("Required dimensions not measured: " + String.join("; ", missing)
                     + ". See " + report.reportMarkdown());
         }
-        // an incomplete security run never passes a gate that asked for security, baseline or not
-        boolean securityIncomplete = report.dimension(QualityDimension.SECURITY)
-                .filter(d -> d.issues().contains(ModuleDimensions.SECURITY_INCOMPLETE)).isPresent();
-        if (properties.failOn().contains(QualityDimension.SECURITY) && securityIncomplete) {
+        if (!reasons(enforced, Breach.Kind.SECURITY_INCOMPLETE).isEmpty()) {
             throw new QualityException("Security measurement incomplete: the security gate needs complete coverage. "
                     + "See " + report.reportMarkdown());
         }
-        List<String> failed = new ArrayList<>(report.dimensions().stream()
-                .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
-                // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails
-                .filter(d -> d.issues().isEmpty() || !d.newIssues().isEmpty())
-                // a budget lets a FAIL through while its new issues stay within it
-                .filter(d -> d.issues().isEmpty() || !withinBudget(d))
-                .map(QualityRunner::describe)
-                .toList());
-        failed.addAll(policyFailures(report));
+        List<String> failed = reasons(enforced, Breach.Kind.FAILED);
         if (!failed.isEmpty()) {
             throw new QualityException("Quality gate failed on " + String.join("; ", failed) + ". See "
                     + report.reportMarkdown());
         }
         return report;
+    }
+
+    /**
+     * One reason the gate fails, and the dimension it belongs to: a {@code required} dimension not
+     * measured, an incomplete security run under {@code fail-on}, or a FAIL / limit breach.
+     */
+    private record Breach(String dimension, Kind kind, String reason) {
+
+        enum Kind { REQUIRED, SECURITY_INCOMPLETE, FAILED }
+
+        String note() {
+            return switch (kind) {
+                case REQUIRED -> reason + ", required but not measured";
+                case SECURITY_INCOMPLETE -> reason + ": measurement incomplete";
+                case FAILED -> reason;
+            };
+        }
+    }
+
+    private static List<String> reasons(List<Breach> breaches, Breach.Kind kind) {
+        return breaches.stream().filter(b -> b.kind() == kind).map(Breach::reason).toList();
+    }
+
+    private boolean dryRun(String dimension) {
+        QualityProperties.GateProperties gate = properties.gate().get(dimension);
+        return gate != null && gate.dryRun();
+    }
+
+    /** Everything the gate fails on, dry run or not — except a run where nothing was measured at all. */
+    private List<Breach> breaches(QualityReport report) {
+        List<Breach> breaches = new ArrayList<>();
+        report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.NOT_MEASURED && properties.required().contains(d.name()))
+                .forEach(d -> breaches.add(new Breach(d.name(), Breach.Kind.REQUIRED,
+                        d.name() + " (" + d.facts().getFirst() + ")")));
+        // an incomplete security run never passes a gate that asked for security, baseline or not
+        boolean securityIncomplete = report.dimension(QualityDimension.SECURITY)
+                .filter(d -> d.issues().contains(ModuleDimensions.SECURITY_INCOMPLETE)).isPresent();
+        if (properties.failOn().contains(QualityDimension.SECURITY) && securityIncomplete) {
+            breaches.add(new Breach(QualityDimension.SECURITY, Breach.Kind.SECURITY_INCOMPLETE,
+                    QualityDimension.SECURITY));
+        }
+        report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.FAIL && properties.failOn().contains(d.name()))
+                // a FAIL with no issue key (a rate over its limit) cannot be "known": it fails
+                .filter(d -> d.issues().isEmpty() || !d.newIssues().isEmpty())
+                // a budget lets a FAIL through while its new issues stay within it
+                .filter(d -> d.issues().isEmpty() || !withinBudget(d))
+                .forEach(d -> breaches.add(new Breach(d.name(), Breach.Kind.FAILED, describe(d))));
+        breaches.addAll(policyFailures(report));
+        return breaches;
     }
 
     private boolean withinBudget(QualityDimension dimension) {
@@ -233,18 +274,19 @@ public class QualityRunner {
      * {@code forge.quality.gate}: a score below {@code min-score} or new issues beyond
      * {@code max-new-issues}, whatever the status. A NOT MEASURED dimension is left to {@code required}.
      */
-    private List<String> policyFailures(QualityReport report) {
-        List<String> failures = new ArrayList<>();
+    private List<Breach> policyFailures(QualityReport report) {
+        List<Breach> failures = new ArrayList<>();
         properties.gate().forEach((name, gate) -> report.dimension(name)
                 .filter(d -> d.status() != QualityStatus.NOT_MEASURED)
                 .ifPresent(d -> {
                     if (gate.minScore() != null && d.score() < gate.minScore()) {
-                        failures.add(name + " (score " + d.score() + " below the gate's " + gate.minScore() + ")");
+                        failures.add(new Breach(name, Breach.Kind.FAILED,
+                                name + " (score " + d.score() + " below the gate's " + gate.minScore() + ")"));
                     }
                     if (gate.maxNewIssues() != null && d.newIssues().size() > gate.maxNewIssues()
                             && !(d.status() == QualityStatus.FAIL && properties.failOn().contains(name))) {
-                        failures.add(name + " (" + d.newIssues().size() + " new issues, budget "
-                                + gate.maxNewIssues() + ")");
+                        failures.add(new Breach(name, Breach.Kind.FAILED, name + " (" + d.newIssues().size()
+                                + " new issues, budget " + gate.maxNewIssues() + ")"));
                     }
                 }));
         return failures;

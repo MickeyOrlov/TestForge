@@ -34,6 +34,7 @@
         "status": { "$ref": "#/$defs/status" },
         "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
         "formula": { "type": ["string", "null"] },
+        "hint": { "type": ["string", "null"], "description": "How to act on a FAIL or WARN; null otherwise." },
         "facts": { "type": "array", "items": { "type": "string" } },
         "issues": { "$ref": "#/$defs/issues" },
         "delta": {

@@ -17,6 +17,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     output-dir: build/quality
  *     max-flaky-rate: 0.02                # stability FAILs above it
  *     fail-on: [functional, stability]    # dimensions whose FAIL fails the gate
+ *     min-tests: 25                       # functional FAILs while fewer tests executed
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
@@ -43,6 +44,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     gate:                               # per dimension, on top of fail-on
  *       stability: { max-new-issues: 2 }  # a budget: fail-on fails only beyond it
  *       api-coverage: { min-score: 80 }   # fails below the score, whatever the status
+ *       contracts: { dry-run: true }      # reports what would fail the gate, fails nothing
  * </pre>
  *
  * An accepted entry may expire: {@code "functional X  # until 2026-12-01, ORD-12"} counts as new
@@ -73,7 +75,8 @@ public record QualityProperties(
         java.util.Map<String, String> runLabels,
         java.util.Map<String, ComponentProperties> components,
         java.util.Map<String, GateProperties> gate,
-        java.util.Map<String, java.time.LocalDate> acceptedUntil) {
+        java.util.Map<String, java.time.LocalDate> acceptedUntil,
+        Integer minTests) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -128,6 +131,22 @@ public record QualityProperties(
         components = components == null ? java.util.Map.of()
                 : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(components));
         gate = gate == null ? java.util.Map.of() : java.util.Map.copyOf(gate);
+        if (minTests != null && minTests < 1) {
+            throw new IllegalArgumentException("forge.quality.min-tests is at least 1");
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, null);
     }
 
     private static final java.util.regex.Pattern UNTIL =
@@ -138,7 +157,7 @@ public record QualityProperties(
                              List<String> accepted, EfficiencyProperties efficiency, List<String> required,
                              java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
-                efficiency, required, resultsNotBefore, minApiCoverage, history, null, null, null, null);
+                efficiency, required, resultsNotBefore, minApiCoverage, history, null, null, null, null, null);
     }
 
     /** Who owns the issues whose key matches one of {@code match} ({@code *} is any text). */
@@ -152,9 +171,15 @@ public record QualityProperties(
     /**
      * A dimension's own gate: fail below {@code minScore}; with {@code maxNewIssues}, a
      * {@code fail-on} FAIL passes while its new issues stay within the budget, and any status
-     * fails beyond it.
+     * fails beyond it. With {@code dryRun} nothing the gate would fail on for this dimension —
+     * {@code fail-on}, {@code required}, these limits — fails it: the report notes it instead,
+     * so a rule can be watched before it is enforced.
      */
-    public record GateProperties(Integer minScore, Integer maxNewIssues) {
+    public record GateProperties(Integer minScore, Integer maxNewIssues, boolean dryRun) {
+
+        public GateProperties(Integer minScore, Integer maxNewIssues) {
+            this(minScore, maxNewIssues, false);
+        }
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
