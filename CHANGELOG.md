@@ -23,6 +23,10 @@ semantic versioning for its git tags.
   runs judged FAIL, and `stability` lists tests that keep switching between
   passing and failing and earlier flaky tests that passed the last 5 runs
   (facts only, no issue).
+- `module-quality`: a `mutation` dimension from PIT's `mutations.xml`
+  (`forge.quality.mutation.reports`, `min-score`): detected over all
+  mutants, test strength in the facts, surviving mutants as issues by
+  method and mutator.
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

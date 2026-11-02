@@ -27,6 +27,7 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     public static final String RELIABILITY = "reliability";
     public static final String DB_QUERIES = "db-queries";
     public static final String FLOW_COVERAGE = "flow-coverage";
+    public static final String MUTATION = "mutation";
 
     public QualityDimension {
         facts = List.copyOf(facts == null ? List.of() : facts);
@@ -76,6 +77,8 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
                     + "from the spec if it is gone."),
             java.util.Map.entry(FLOW_COVERAGE, "Add a test that takes each untaken declared transition, or drop the "
                     + "transition from the flow if it cannot happen."),
+            java.util.Map.entry(MUTATION, "Each surviving mutant is a change no test noticed: add the assertion "
+                    + "that tells the two apart, starting with the classes this change touched."),
             java.util.Map.entry(HYGIENE, "Delete leftover rows, remove unused stubs and match unmatched requests: "
                     + "they hide what a test really depends on."));
 

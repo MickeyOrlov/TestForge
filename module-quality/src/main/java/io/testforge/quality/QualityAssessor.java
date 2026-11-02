@@ -45,6 +45,7 @@ final class QualityAssessor {
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.MUTATION, () -> MutationDimension.of(properties.mutation())),
                 byHistory != null ? byHistory : efficiencyWithoutHistory(tests, baseline, properties, history),
                 ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)))
                 .map(dimension -> HistoryDimensions.trend(dimension, history))

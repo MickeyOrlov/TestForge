@@ -286,6 +286,7 @@ CHANGELOG, and a review step at the end of each part.
 | A5 | Gate: per-dimension `dry-run`, `min-tests`, a `hint` on every FAIL / WARN dimension ([market review](research/quality-oss-analysis.md)) — **shipped** | a dry-run rule notes "would fail" and passes; 0 executed tests with `min-tests: 1` FAIL |
 | A7 | Failures as assertion / error with a fingerprint; quarantine = an accepted test pinned to its fingerprint (the "quarantined" of §3.2) — **shipped** | the same failure on moved lines is accepted; another exception in that test is new and fails the gate |
 | A8 | History: operation p95 medians from runs not judged FAIL; switching and stabilized tests listed in `stability` — **shipped** | failed runs do not hide a slow operation; a test passing 5 runs after a flaky one is listed as stabilized, without an issue |
+| A9 | `mutation` dimension read from PIT's `mutations.xml` — **shipped** | a surviving mutant is an issue without its line; the score is computed by hand from the report; no report, NOT MEASURED |
 
 ## 7. Open questions
 

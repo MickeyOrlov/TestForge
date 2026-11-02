@@ -266,7 +266,7 @@ final class JunitResults {
     }
 
     /** No DTDs, no external entities: a report is data, never a fetch. */
-    private static DocumentBuilder parser() {
+    static DocumentBuilder parser() {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);

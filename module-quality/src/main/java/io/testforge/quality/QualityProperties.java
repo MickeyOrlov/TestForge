@@ -18,6 +18,9 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     max-flaky-rate: 0.02                # stability FAILs above it
  *     fail-on: [functional, stability]    # dimensions whose FAIL fails the gate
  *     min-tests: 25                       # functional FAILs while fewer tests executed
+ *     mutation:                           # PIT's mutations.xml, found under these paths
+ *       reports: [build/reports/pitest]
+ *       min-score: 0.6                    # mutation FAILs below this share of detected mutants
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
@@ -77,7 +80,8 @@ public record QualityProperties(
         java.util.Map<String, ComponentProperties> components,
         java.util.Map<String, GateProperties> gate,
         java.util.Map<String, java.time.LocalDate> acceptedUntil,
-        Integer minTests) {
+        Integer minTests,
+        MutationProperties mutation) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -135,6 +139,37 @@ public record QualityProperties(
         if (minTests != null && minTests < 1) {
             throw new IllegalArgumentException("forge.quality.min-tests is at least 1");
         }
+        if (mutation == null) {
+            mutation = new MutationProperties(null, null);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, null);
+    }
+
+    /**
+     * Where PIT left {@code mutations.xml} (searched recursively, several merge — one per module)
+     * and the share of detected mutants below which {@code mutation} FAILs.
+     */
+    public record MutationProperties(List<String> reports, Double minScore) {
+
+        public MutationProperties {
+            reports = reports == null || reports.isEmpty() ? List.of("build/reports/pitest", "target/pit-reports")
+                    : List.copyOf(reports);
+            if (minScore != null && (minScore < 0 || minScore > 1)) {
+                throw new IllegalArgumentException("forge.quality.mutation.min-score is a share between 0 and 1");
+            }
+        }
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
@@ -147,7 +182,7 @@ public record QualityProperties(
                              java.util.Map<String, java.time.LocalDate> acceptedUntil) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
                 efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
-                acceptedUntil, null);
+                acceptedUntil, null, null);
     }
 
     private static final java.util.regex.Pattern UNTIL =

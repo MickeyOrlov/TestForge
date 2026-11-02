@@ -24,6 +24,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `db-queries` | `100 − 10 × flagged statement shapes` | a statement failed (swallowed or not) or wrote every row of a table; WARN on one over `forge.db.queries.slow-millis` | `module-db` `db-queries.json` |
 | `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
+| `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
 - **Failures** are counted as **assertion** (a check failed: `AssertionError`,
@@ -59,6 +60,33 @@ read as JSON from the run index, so deleting a module never breaks this one.
 `module-security` keeps its own accepted list and baseline; `security`
 scores what it reports as `new`, and a security run that measured nothing is
 NOT MEASURED, not a pass.
+
+## Mutation: how strong the tests are
+
+Line coverage says a line ran; it does not say a test would notice it
+change. PIT changes the code (a `>=` to a `>`, a return value to `null`)
+and reruns the tests: a mutant no test fails on **survived**. `mutation`
+reads what PIT wrote — the mutation engine stays PIT's — from
+`mutations.xml` under `forge.quality.mutation.reports` (default
+`build/reports/pitest`, `target/pit-reports`, searched recursively; one
+per module, merged).
+
+- Detected: KILLED, TIMED_OUT, MEMORY_ERROR, RUN_ERROR, as PIT counts them;
+  NON_VIABLE mutants never compiled and are left out.
+- Facts give the test strength too: detected among mutants a test covered.
+- Issues are surviving mutants by method and mutator, without the line —
+  it moves with every edit above it — so the baseline holds across edits.
+- Run PIT incrementally on what the change touched (`withHistory`,
+  `targetClasses` from the diff); a full run on every pull request is slow
+  and 100 % is never the target: equivalent mutants cannot be killed.
+
+```yaml
+forge:
+  quality:
+    mutation:
+      reports: [build/reports/pitest]
+      min-score: 0.6       # FAIL below 60 % detected
+```
 
 ## How much was measured
 
@@ -292,6 +320,9 @@ forge:
     max-flaky-rate: 0.02
     fail-on: [functional, stability]     # add contracts, data, robustness, authorization when they run
     min-tests:                           # optional: functional FAILs while fewer tests executed
+    mutation:
+      reports: [build/reports/pitest, target/pit-reports]  # PIT mutations.xml, searched recursively
+      min-score:                         # optional, 0..1: mutation FAILs below this share (default: WARN only)
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise
