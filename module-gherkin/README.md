@@ -11,7 +11,7 @@ JUnit-first; a project that does not use Gherkin deletes this module.
 - **`io.testforge.gherkin.glue.ScenarioHooks`** — every scenario starts with an
   empty `ScenarioContext`, a scope of its own (`bdd-1a2b3c4d`) and a
   correlation id, both logged to the scenario.
-- **`ScenarioVariables`** — `I remember the response field "$.id" as
+- **`io.testforge.gherkin.ScenarioVariables`** — `I remember the response field "$.id" as
   "orderId"`, then `"/orders/${orderId}"` in any later step.
 - **`io.testforge.gherkin.http.HttpSteps`** — requests through `ApiClient`
   (base URL, scope and correlation headers, auth, redacted logging):
@@ -49,7 +49,7 @@ JUnit-first; a project that does not use Gherkin deletes this module.
   `RabbitPublisher`: `I publish a RabbitMQ message to exchange "orders" with
   routing key "order.pay":`, `a RabbitMQ message arrives on exchange
   "payments" with routing key "payment.captured"` / `where "$.orderId" is …`,
-  `exactly one …`, `no RabbitMQ message arrives on exchange …`,
+  `exactly one …`, `no RabbitMQ message arrives on exchange "…" where "…" is "…"`,
   `I remember the RabbitMQ message field … as …`.
 
 A timeout names the closest messages by position and failed criteria, as
@@ -101,10 +101,27 @@ test, scoped and without bodies by default.
 ## Setup
 
 ```groovy
-testImplementation project(":module-gherkin")
+testImplementation "io.testforge:module-gherkin:1.3.0-SNAPSHOT"   // project(":module-gherkin") inside TestForge
 testImplementation "io.cucumber:cucumber-junit-platform-engine"
 testImplementation "org.junit.platform:junit-platform-suite"
 ```
+
+The Cucumber version comes with the module: its Gradle metadata carries
+`io.cucumber:cucumber-bom`, so the engine above needs none. A Maven build does
+not inherit a dependency's imported BOM — import `io.cucumber:cucumber-bom`
+(the version in the module's POM) in its own `<dependencyManagement>`.
+
+This Cucumber needs JUnit Platform 1.14 (Jupiter 5.14). Spring Boot 3.5
+manages 5.12, and the `io.spring.dependency-management` plugin enforces it:
+the engine then fails discovery with `NoClassDefFoundError:
+org/junit/platform/engine/support/discovery/DiscoveryIssueReporter`. Raise
+Boot's property in that build:
+
+```groovy
+ext["junit-jupiter.version"] = "5.14.2"
+```
+
+A build that imports Boot as `platform(...)` resolves 1.14 on its own.
 
 One suite class runs the feature files on the JUnit Platform; its glue lists
 `io.testforge.gherkin.glue`, one package per TestForge module the project

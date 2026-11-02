@@ -71,7 +71,9 @@ Header maps need the bracket syntax shown above — Spring's relaxed binding
 would otherwise rewrite `X-Tenant` into a canonical lower-case form.
 
 `scope.json-path` deliberately has no separate default: when unset it reads
-`forge.mock.scope-json-path`. The two values describe the same field, and a
+`forge.mock.scope-json-path` — and when the mock matches on a header, query
+parameter or cookie instead (`forge.mock.scope-header`, …), there is no JSON
+path and bodies are sent as the test wrote them. The two values describe the same field, and a
 project that has to keep them in sync by hand eventually will not.
 
 ## Usage
