@@ -24,10 +24,20 @@ final class DiffCoverageDimension {
     }
 
     static QualityDimension of(QualityProperties.DiffCoverageProperties properties, ObjectMapper mapper) {
+        return of(properties, mapper, null);
+    }
+
+    /** As above; a report older than {@code notBefore} is an earlier build's and leaves it NOT MEASURED. */
+    static QualityDimension of(QualityProperties.DiffCoverageProperties properties, ObjectMapper mapper,
+                               java.time.Instant notBefore) {
         Path file = Path.of(properties.report());
         if (!Files.isRegularFile(file)) {
             return QualityDimension.notMeasured(QualityDimension.DIFF_COVERAGE, "no diff-cover report at " + file
-                    + " (diff-cover <jacoco.xml> --compare-branch=origin/main --json-report " + file + ")");
+                    + " (diff-cover <jacoco.xml> --compare-branch=origin/main --format json:" + file + ")");
+        }
+        String stale = InputFreshness.stale(file, notBefore);
+        if (stale != null) {
+            return QualityDimension.notMeasured(QualityDimension.DIFF_COVERAGE, stale);
         }
         JsonNode report;
         try {
@@ -49,8 +59,9 @@ final class DiffCoverageDimension {
         List<String> issues = new ArrayList<>();
         List<String> facts = new ArrayList<>();
         double share = (double) (measured - uncovered) / measured;
+        String coverage = report.path("report_name").asText("");
         facts.add(measured + " changed lines with coverage in " + diff + ": " + (measured - uncovered) + " covered, "
-                + uncovered + " not (" + report.path("report_name").asText("coverage report") + ")");
+                + uncovered + " not" + (coverage.isEmpty() || coverage.equals("XML") ? "" : " (" + coverage + ")"));
         report.path("src_stats").properties().forEach(source -> {
             List<Integer> lines = new ArrayList<>();
             source.getValue().path("violation_lines").forEach(line -> lines.add(line.asInt()));

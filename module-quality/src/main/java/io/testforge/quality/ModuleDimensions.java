@@ -120,11 +120,23 @@ final class ModuleDimensions {
 
     /** Fuzz finding groups nobody accepted (module-api-fuzz). */
     static QualityDimension robustness(RunIndex index, ObjectMapper mapper) {
+        return robustness(index, mapper, List.of(), null);
+    }
+
+    /**
+     * Fuzz finding groups nobody accepted: module-api-fuzz's, and the faults of Web Fuzzing Commons
+     * reports ({@code report.json} of EvoMaster and other WFC fuzzers) — one group per operation and
+     * fault category. A configured WFC report that is missing or older than {@code notBefore} leaves
+     * the dimension NOT MEASURED: a fuzzer that did not run this time found nothing.
+     */
+    static QualityDimension robustness(RunIndex index, ObjectMapper mapper, List<String> wfcReports,
+                                       java.time.Instant notBefore) {
         List<JsonNode> reports = reports(index, "module-api-fuzz", "api-fuzz", "findings.json", mapper).stream()
                 .filter(report -> report.has("groups")).toList();
-        if (reports.isEmpty()) {
+        if (reports.isEmpty() && wfcReports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.ROBUSTNESS,
-                    "no api-fuzz findings.json (module-api-fuzz) in the run");
+                    "no api-fuzz findings.json (module-api-fuzz) in the run and no WFC report configured "
+                            + "(forge.quality.robustness.reports)");
         }
         List<String> issues = new ArrayList<>();
         int accepted = 0;
@@ -143,8 +155,19 @@ final class ModuleDimensions {
                 }
             }
         }
-        facts.add(issues.size() + " finding groups not accepted, " + accepted + " accepted in the fuzz run");
-        list(facts, "finding", issues);
+        if (!reports.isEmpty()) {
+            facts.add(issues.size() + " finding groups not accepted, " + accepted + " accepted in the fuzz run");
+            list(facts, "finding", issues);
+        }
+        if (!wfcReports.isEmpty()) {
+            WebFuzzingReports.Read wfc = WebFuzzingReports.read(wfcReports, notBefore, operations(index, mapper),
+                    mapper);
+            if (wfc.unusable() != null) {
+                return QualityDimension.notMeasured(QualityDimension.ROBUSTNESS, wfc.unusable());
+            }
+            facts.addAll(wfc.facts());
+            issues.addAll(wfc.groups());
+        }
         return new QualityDimension(QualityDimension.ROBUSTNESS, issues.isEmpty() ? QualityStatus.PASS
                 : QualityStatus.FAIL, Math.max(0, 100 - 10 * issues.size()), "100 − 10 × finding groups", facts)
                 .withIssues(issues);
@@ -244,13 +267,27 @@ final class ModuleDimensions {
     }
 
     /** Each API operation's p95 in this run (module-http's traffic summary); empty without one. */
+    /**
+     * The documented operations of the run ({@code api-coverage.json}, called and uncalled), so every
+     * dimension names an operation the same way; empty without the contract guard.
+     */
+    static OperationCatalog operations(RunIndex index, ObjectMapper mapper) {
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        for (JsonNode report : reports(index, "module-api-explorer", "api-coverage", "api-coverage.json", mapper)) {
+            report.path("called").fieldNames().forEachRemaining(keys::add);
+            report.path("uncalled").forEach(key -> keys.add(key.asText()));
+        }
+        return OperationCatalog.of(keys);
+    }
+
     static java.util.Map<String, Long> latencies(RunIndex index, ObjectMapper mapper) {
         java.util.Map<String, Long> latencies = new java.util.TreeMap<>();
+        OperationCatalog catalog = operations(index, mapper);
         for (JsonNode report : reports(index, "module-http", "http-summary", "http-summary.json", mapper)) {
             for (JsonNode operation : report.path("operations")) {
                 if (operation.path("requests").asLong() > 0 && operation.has("p95Millis")) {
-                    latencies.merge(operation.path("operation").asText(), operation.path("p95Millis").asLong(),
-                            Math::max);
+                    latencies.merge(catalog.key(operation.path("operation").asText()),
+                            operation.path("p95Millis").asLong(), Math::max);
                 }
             }
         }
@@ -269,9 +306,11 @@ final class ModuleDimensions {
                     "no http-summary.json (module-http) in the run");
         }
         java.util.Map<String, long[]> operations = new java.util.TreeMap<>();
+        OperationCatalog catalog = operations(index, mapper);
         for (JsonNode report : reports) {
             for (JsonNode operation : report.path("operations")) {
-                long[] counts = operations.computeIfAbsent(operation.path("operation").asText(), k -> new long[2]);
+                long[] counts = operations.computeIfAbsent(catalog.key(operation.path("operation").asText()),
+                        k -> new long[2]);
                 counts[0] += operation.path("requests").asLong();
                 counts[1] += operation.path("status").path("5xx").asLong() + operation.path("transportErrors").asLong();
             }
@@ -299,7 +338,7 @@ final class ModuleDimensions {
         facts.addFirst(requests + " HTTP requests, " + failed + " answered 5xx or failed in transport, across "
                 + issues.size() + " operations");
         return new QualityDimension(QualityDimension.RELIABILITY, issues.isEmpty() ? QualityStatus.PASS
-                : QualityStatus.FAIL, Math.round(100f * (requests - failed) / requests),
+                : QualityStatus.FAIL, QualityAssessor.share(requests - failed, requests),
                 "100 × requests without 5xx / requests", facts).withIssues(issues);
     }
 

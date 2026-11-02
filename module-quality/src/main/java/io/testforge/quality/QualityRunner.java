@@ -100,6 +100,7 @@ public class QualityRunner {
         compared = compared.withNotes(notes).withLabels(labels(revision))
                 .withComponents(QualityComponents.assign(compared.dimensions(), properties.components(),
                         properties.codeowners() == null ? null : CodeOwners.read(Path.of(properties.codeowners()))));
+        compared = compared.withGate(gate(compared));
         QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper,
                 properties.metrics().runIds());
         if (historyProperties.enabled()) {
@@ -188,6 +189,18 @@ public class QualityRunner {
     public QualityReport writeBaseline() {
         JunitResults.Read read = tests();
         QualityReport report = run(read);
+        // a run that measured nothing, or not what is required, would replace the accepted baseline with blanks
+        if (report.overall() == QualityStatus.NOT_MEASURED) {
+            throw new QualityException("Nothing was measured: the baseline " + properties.baselineFile()
+                    + " is unchanged. See " + report.reportMarkdown());
+        }
+        List<String> missing = report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.NOT_MEASURED && properties.required().contains(d.name()))
+                .map(QualityDimension::name).toList();
+        if (!missing.isEmpty()) {
+            throw new QualityException("Required dimensions not measured (" + String.join(", ", missing)
+                    + "): the baseline " + properties.baselineFile() + " is unchanged. See " + report.reportMarkdown());
+        }
         QualityBaseline.of(report, read.tests()).write(Path.of(properties.baselineFile()), mapper);
         return report;
     }
@@ -226,6 +239,18 @@ public class QualityRunner {
                     + report.reportMarkdown());
         }
         return report;
+    }
+
+    /** The verdict {@link #assertAcceptable()} reaches on {@code report}, written into it. */
+    private QualityReport.Gate gate(QualityReport report) {
+        List<Breach> breaches = breaches(report);
+        List<String> failures = new ArrayList<>();
+        if (report.overall() == QualityStatus.NOT_MEASURED) {
+            failures.add("nothing measured");
+        }
+        breaches.stream().filter(b -> !dryRun(b.dimension())).forEach(b -> failures.add(b.note()));
+        return new QualityReport.Gate(failures.isEmpty() ? QualityStatus.PASS : QualityStatus.FAIL, failures,
+                breaches.stream().filter(b -> dryRun(b.dimension())).map(Breach::note).toList(), roles(report));
     }
 
     /**
@@ -313,10 +338,31 @@ public class QualityRunner {
         return failures;
     }
 
+    /**
+     * {@code contracts (2 new: a, b — 26 API responses checked …)}: what is wrong first, the dimension's
+     * first fact — often the size of the sample — after it. A FAIL without issue keys gives the fact alone.
+     */
     private static String describe(QualityDimension dimension) {
         List<String> fresh = dimension.newIssues();
-        String issues = fresh.isEmpty() ? "" : ", new: " + String.join(", ",
-                fresh.subList(0, Math.min(5, fresh.size()))) + (fresh.size() > 5 ? " (+" + (fresh.size() - 5) + ")" : "");
-        return dimension.name() + " (" + dimension.facts().getFirst() + issues + ")";
+        if (fresh.isEmpty()) {
+            return dimension.name() + " (" + dimension.facts().getFirst() + ")";
+        }
+        return dimension.name() + " (" + fresh.size() + " new: " + String.join(", ",
+                fresh.subList(0, Math.min(5, fresh.size()))) + (fresh.size() > 5 ? " (+" + (fresh.size() - 5) + ")" : "")
+                + " — " + dimension.facts().getFirst() + ")";
+    }
+
+    /** {@code enforced}, {@code dry-run} or {@code report only}: what each dimension can do to the gate. */
+    private java.util.Map<String, String> roles(QualityReport report) {
+        java.util.Map<String, String> roles = new java.util.LinkedHashMap<>();
+        for (QualityDimension dimension : report.dimensions()) {
+            String name = dimension.name();
+            QualityProperties.GateProperties gate = properties.gate().get(name);
+            boolean enforced = properties.failOn().contains(name) || properties.required().contains(name)
+                    || gate != null && (gate.minScore() != null || gate.maxNewIssues() != null);
+            roles.put(name, dryRun(name) ? QualityReport.Gate.DRY_RUN
+                    : enforced ? QualityReport.Gate.ENFORCED : QualityReport.Gate.REPORT_ONLY);
+        }
+        return roles;
     }
 }
