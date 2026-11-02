@@ -193,7 +193,7 @@ class QualityExportTest {
         assertThat(Files.readString(output.resolve("quality.md"))).contains("- labels: ")
                 .contains("environment=staging");
         assertThat(Files.readString(output.resolve("quality-summary.md")))
-                .startsWith("### Quality: FAIL")
+                .startsWith("### Quality gate: FAIL · overall FAIL")
                 .contains("| functional | FAIL | 40 | `io.acme.orders.OrdersTest.pays`, "
                         + "`io.acme.orders.OrdersTest.refunds`, `io.acme.billing.BillsTest.bills` |")
                 .contains("- **orders** (team-orders): 2 new, FAIL")

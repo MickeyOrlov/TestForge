@@ -50,6 +50,8 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *         owner: team-orders
  *         match: ["io.acme.orders.*", "* /api/v1/orders*", "*ORDERS*"]
  *     codeowners: .github/CODEOWNERS      # owners of issues no component matched, by the file they point at
+ *     robustness:
+ *       reports: [build/evomaster/report.json]  # Web Fuzzing Commons reports (EvoMaster …), next to module-api-fuzz
  *     metrics:
  *       run-ids: false                    # revision, job and run_id as labels in quality.prom (one series per run)
  *     gate:                               # per dimension, on top of fail-on
@@ -91,7 +93,8 @@ public record QualityProperties(
         MutationProperties mutation,
         DiffCoverageProperties diffCoverage,
         String codeowners,
-        MetricsProperties metrics) {
+        MetricsProperties metrics,
+        RobustnessProperties robustness) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -160,6 +163,32 @@ public record QualityProperties(
         }
         if (metrics == null) {
             metrics = new MetricsProperties(false);
+        }
+        if (robustness == null) {
+            robustness = new RobustnessProperties(null);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation, DiffCoverageProperties diffCoverage, String codeowners,
+                             MetricsProperties metrics) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, null);
+    }
+
+    /** Web Fuzzing Commons {@code report.json} files whose faults join module-api-fuzz's in {@code robustness}. */
+    public record RobustnessProperties(List<String> reports) {
+
+        public RobustnessProperties {
+            reports = reports == null ? List.of() : List.copyOf(reports);
         }
     }
 

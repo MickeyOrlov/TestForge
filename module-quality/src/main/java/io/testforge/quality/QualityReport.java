@@ -14,9 +14,10 @@ import java.util.Optional;
  * @param notes     what the history suggests to a reader — never acted on by the assessment
  * @param labels    the run's metadata: revision, branch, CI job, configured {@code run-labels}
  * @param components issues by owning component ({@code forge.quality.components}); empty without them
+ * @param gate       what {@code assertAcceptable()} decides on this report; {@code null} before it is judged
  */
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({"formatVersion", "runId", "baselineRunId", "overall", "meanScore", "measured",
-        "labels", "notes", "components", "dimensions", "inputs", "reportMarkdown", "reportJson"})
+        "gate", "labels", "notes", "components", "dimensions", "inputs", "reportMarkdown", "reportJson"})
 public record QualityReport(
         String runId,
         String baselineRunId,
@@ -28,7 +29,23 @@ public record QualityReport(
         String reportJson,
         List<String> notes,
         java.util.Map<String, String> labels,
-        List<Component> components) {
+        List<Component> components,
+        Gate gate) {
+
+    /**
+     * The gate's verdict on this report — the same rules {@code assertAcceptable()} enforces.
+     *
+     * @param verdict  PASS or FAIL
+     * @param failures what fails it, one line each; empty on PASS
+     * @param dryRun   what would fail it on the dimensions whose gate is a dry run
+     */
+    public record Gate(QualityStatus verdict, List<String> failures, List<String> dryRun) {
+
+        public Gate {
+            failures = List.copyOf(failures);
+            dryRun = List.copyOf(dryRun);
+        }
+    }
 
     /**
      * One component's share of the run.
@@ -51,6 +68,14 @@ public record QualityReport(
         labels = labels == null ? java.util.Map.of() : java.util.Collections.unmodifiableMap(
                 new java.util.TreeMap<>(labels));
         components = components == null ? List.of() : List.copyOf(components);
+    }
+
+    public QualityReport(String runId, String baselineRunId, QualityStatus overall, Integer meanScore,
+                         List<QualityDimension> dimensions, List<String> inputs, String reportMarkdown,
+                         String reportJson, List<String> notes, java.util.Map<String, String> labels,
+                         List<Component> components) {
+        this(runId, baselineRunId, overall, meanScore, dimensions, inputs, reportMarkdown, reportJson, notes, labels,
+                components, null);
     }
 
     public QualityReport(String runId, String baselineRunId, QualityStatus overall, Integer meanScore,
@@ -86,26 +111,31 @@ public record QualityReport(
 
     QualityReport withFiles(String markdown, String json) {
         return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, markdown, json, notes,
-                labels, components);
+                labels, components, gate);
     }
 
     QualityReport withDimensions(String baseline, List<QualityDimension> compared) {
         return new QualityReport(runId, baseline, overall, meanScore, compared, inputs, reportMarkdown, reportJson,
-                notes, labels, components);
+                notes, labels, components, gate);
     }
 
     QualityReport withNotes(List<String> added) {
         return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, reportMarkdown,
-                reportJson, added, labels, components);
+                reportJson, added, labels, components, gate);
     }
 
     QualityReport withLabels(java.util.Map<String, String> runLabels) {
         return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, reportMarkdown,
-                reportJson, notes, runLabels, components);
+                reportJson, notes, runLabels, components, gate);
     }
 
     QualityReport withComponents(List<Component> owned) {
         return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, reportMarkdown,
-                reportJson, notes, labels, owned);
+                reportJson, notes, labels, owned, gate);
+    }
+
+    QualityReport withGate(Gate verdict) {
+        return new QualityReport(runId, baselineRunId, overall, meanScore, dimensions, inputs, reportMarkdown,
+                reportJson, notes, labels, components, verdict);
     }
 }

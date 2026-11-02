@@ -32,6 +32,11 @@ final class MutationDimension {
     }
 
     static QualityDimension of(QualityProperties.MutationProperties properties) {
+        return of(properties, null);
+    }
+
+    /** As above; a report older than {@code notBefore} is an earlier build's and leaves it NOT MEASURED. */
+    static QualityDimension of(QualityProperties.MutationProperties properties, java.time.Instant notBefore) {
         List<Path> reports = new ArrayList<>();
         for (String root : properties.reports()) {
             Path path = Path.of(root);
@@ -48,6 +53,12 @@ final class MutationDimension {
         if (reports.isEmpty()) {
             return QualityDimension.notMeasured(QualityDimension.MUTATION, "no PIT " + REPORT + " under "
                     + properties.reports() + " (run pitest with the XML output format)");
+        }
+        for (Path report : reports) {
+            String stale = InputFreshness.stale(report, notBefore);
+            if (stale != null) {
+                return QualityDimension.notMeasured(QualityDimension.MUTATION, stale);
+            }
         }
         int detected = 0;
         int survived = 0;

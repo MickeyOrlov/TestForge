@@ -21,6 +21,10 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   dimension documents its formula in the README table.
 - NOT MEASURED is never a pass; the gate fails closed when disabled or when
   nothing was measured.
+- An API operation in an issue key is `OperationCatalog.key(...)`: `<spec> <METHOD> <template>` when
+  `api-coverage.json` knows it. A new dimension that names operations goes through it.
+- `QualityCli` is a thin shell over `QualityRunner`: exit codes 0 / 1 / 2 / 64 are a contract (README),
+  and the verdict it reports is `report.gate()`, never its own logic.
 - `run()` and `assertAcceptable()` judge the gate from the same breaches
   (`QualityRunner.breaches`): a dry-run dimension's breaches become report
   notes, every other one fails. A new gate rule goes into `breaches`, never

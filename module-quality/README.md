@@ -16,7 +16,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `stability` | `100 × (1 − flaky / executed)` | flaky rate above `max-flaky-rate` (WARN below it) | JUnit XML, history |
 | `contracts` | `100 − 10 × mismatches` | any mismatch | `module-api-explorer` contract guard, `module-contract-monitor` |
 | `data` | `100 − 50 × breaking − 20 × risky − 5 × unknown` | a breaking schema change (WARN on risky/unknown) | `module-db-contract` |
-| `robustness` | `100 − 10 × finding groups` | a fuzz finding group nobody accepted | `module-api-fuzz` `findings.json` |
+| `robustness` | `100 − 10 × finding groups` | a fuzz finding group nobody accepted | `module-api-fuzz` `findings.json`, Web Fuzzing Commons `report.json` (EvoMaster) |
 | `authorization` | `100 − 20 × violations` | a role got in, or was shut out, against the access matrix | `module-api-explorer` access matrix |
 | `efficiency` | `100 × (compared − slower) / compared` | never (WARN): with history, a test or an API operation's p95 above its median + `mad-factor` × MAD; without, a test ≥ `slowdown-factor`× **and** ≥ `min-millis` slower than in the baseline | JUnit durations, `http-summary.json`, history or baseline |
 | `security` | `100 − 40 × critical − 20 × high − 5 × medium − 1 × low` (new findings) | a new critical or high finding (WARN on medium/low) | `module-security` `security-findings.json` |
@@ -25,7 +25,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
 | `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
-| `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--json-report` |
+| `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--format json:<file>` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
 - **Failures** are counted as **assertion** (a check failed: `AssertionError`,
@@ -100,7 +100,7 @@ is [diff-cover](https://github.com/Bachmann1234/diff_cover)'s job;
 
 ```bash
 diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
-    --compare-branch=origin/main --json-report build/reports/diff-coverage.json
+    --compare-branch=origin/main --src-roots src/main/java --format json:build/reports/diff-coverage.json
 ```
 
 ```yaml
@@ -118,6 +118,51 @@ forge:
   issues are the files — a line number moves with every edit, the file
   does not. A diff is per pull request: run this with `fail-on` and
   `min-score`, not against a baseline.
+
+## Fuzzers: what an API does when nobody wrote the test
+
+Exploring an API is a fuzzer's job, not this module's. EvoMaster (and any
+fuzzer writing [Web Fuzzing Commons](https://github.com/WebFuzzing/Commons)
+`report.json`) generates the requests; `robustness` reads its faults next to
+`module-api-fuzz`'s:
+
+```bash
+java -jar evomaster.jar --blackBox true --bbSwaggerUrl file://$PWD/openapi.yml \
+    --bbTargetUrl http://localhost:8080 --outputFormat JAVA_JUNIT_5 \
+    --outputFolder build/evomaster --maxTime 180s
+```
+
+```yaml
+forge:
+  quality:
+    robustness:
+      reports: [build/evomaster/report.json]
+```
+
+- One issue per operation and fault category, by the category's WFC name:
+  `petclinic DELETE /owners/{ownerId} HTTP_STATUS_500`,
+  `petclinic POST /owners SECURITY_XSS` (1xx HTTP semantics, 2xx schema, 3xx
+  security; an unknown code is `WFC_<code>`). The fact names the generated
+  test that shows it.
+- A configured report that is missing, not WFC, or older than
+  `results-not-before` leaves `robustness` NOT MEASURED: a fuzzer that did not
+  run this time found nothing.
+- A black-box fuzzer writes: run it against a disposable environment, never a
+  shared one.
+
+## One name per operation
+
+Every report names an API operation its own way — the traffic summary by URL
+(`GET /petclinic/api/owners/{n}`), a WFC fuzzer by `GET:/petclinic/api/...`,
+the contract guard by template. With the contract guard on, its
+`api-coverage.json` lists every documented operation, and `reliability`,
+`efficiency` and `robustness` name operations as it does:
+`<spec> <METHOD> <documented template>` (`petclinic GET /owners/{ownerId}`).
+A base path in front is matched without configuration; a longer template wins
+(`/v2/owners` over `/owners`). An operation the document does not know keeps
+its own name. `contracts` keys carry the same `<METHOD> <template>`, so one
+component pattern (`"*GET /owners/{ownerId}*"`) covers an operation in every
+dimension.
 
 ## How much was measured
 
@@ -137,6 +182,10 @@ layout this module does not know leaves its dimension NOT MEASURED with that
 reason, rather than being read as zero findings.
 
 ## Which run is judged
+
+- PIT, diff-cover and WFC reports have no timestamp of their own: with
+  `results-not-before` set, a report file written before it is an earlier
+  build's and its dimension is NOT MEASURED, naming the file and its time.
 
 - JUnit suites older than `forge.quality.results-not-before` are dropped and
   listed among the inputs — the results of a test task that did not run in
@@ -340,6 +389,14 @@ once it fires only on real regressions. Other dimensions stay enforced.
 
 ## Exports
 
+Every report carries the **gate verdict** — the same rules `assertAcceptable()`
+enforces — so a reader never has to work it out: `gate` in `quality.json`
+(`verdict`, `failures`, `dryRun`), `- gate: **PASS**` in `quality.md` (with
+"what fails is known or accepted, nothing new" when overall is FAIL), the
+summary's first line `### Quality gate: PASS · overall FAIL`, and
+`testforge_quality_gate_passed` in `quality.prom`. A score is never 100 while
+something failed: 252 of 253 is 99.
+
 Beside `quality.md` and `quality.json` in `output-dir`:
 
 - `quality-summary.md` — overall, the dimensions that are not PASS with their
@@ -373,7 +430,7 @@ forge:
       reports: [build/reports/pitest, target/pit-reports]  # PIT mutations.xml, searched recursively
       min-score:                         # optional, 0..1: mutation FAILs below this share (default: WARN only)
     diff-coverage:
-      report: build/reports/diff-coverage.json  # diff-cover --json-report
+      report: build/reports/diff-coverage.json  # diff-cover --format json:<file>
       min-score:                         # optional, 0..1: diff-coverage FAILs below this share
       min-lines: 1                       # fewer measured changed lines: NOT MEASURED
     codeowners:                          # e.g. .github/CODEOWNERS: owners of issues no component matched
@@ -388,6 +445,27 @@ forge:
     history:
       dir:                               # off unless set — see History
 ```
+
+## The command: `testforge-quality`
+
+The same gate without a Spring test, for a CI step, a person or an agent that
+runs the build and acts on the result:
+
+```bash
+./gradlew :module-quality:installDist        # build/install/testforge-quality/bin/testforge-quality
+testforge-quality check --config quality.yml [--set min-tests=50]... [--json]
+testforge-quality baseline --config quality.yml   # promote this run, in a reviewed change
+```
+
+- `quality.yml` holds the `forge.quality` tree an `application.yml` would;
+  relative paths are relative to where the command runs. `--set` overrides
+  one key (`forge.quality.` may be left out; lists as `accepted[0]=…`).
+- `check` prints `quality-summary.md` (`--json`: `quality.json`) and exits
+  **0** when the gate passes, **1** when it fails (`gate.failures` says
+  why), **2** when nothing could be measured or an input cannot be read,
+  **64** on a wrong command line.
+- It registers nothing in a run index: it only reads what the build left.
+- Java 21, like the rest of TestForge (`JAVA_HOME`).
 
 ## Usage
 

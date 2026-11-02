@@ -100,6 +100,7 @@ public class QualityRunner {
         compared = compared.withNotes(notes).withLabels(labels(revision))
                 .withComponents(QualityComponents.assign(compared.dimensions(), properties.components(),
                         properties.codeowners() == null ? null : CodeOwners.read(Path.of(properties.codeowners()))));
+        compared = compared.withGate(gate(compared));
         QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper,
                 properties.metrics().runIds());
         if (historyProperties.enabled()) {
@@ -226,6 +227,18 @@ public class QualityRunner {
                     + report.reportMarkdown());
         }
         return report;
+    }
+
+    /** The verdict {@link #assertAcceptable()} reaches on {@code report}, written into it. */
+    private QualityReport.Gate gate(QualityReport report) {
+        List<Breach> breaches = breaches(report);
+        List<String> failures = new ArrayList<>();
+        if (report.overall() == QualityStatus.NOT_MEASURED) {
+            failures.add("nothing measured");
+        }
+        breaches.stream().filter(b -> !dryRun(b.dimension())).forEach(b -> failures.add(b.note()));
+        return new QualityReport.Gate(failures.isEmpty() ? QualityStatus.PASS : QualityStatus.FAIL, failures,
+                breaches.stream().filter(b -> dryRun(b.dimension())).map(Breach::note).toList());
     }
 
     /**

@@ -40,7 +40,8 @@ final class QualityAssessor {
                 stability(tests, properties, history, revision),
                 ModuleDimensions.guarded(QualityDimension.CONTRACTS, () -> ModuleDimensions.contracts(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.DATA, () -> ModuleDimensions.data(index, mapper)),
-                ModuleDimensions.guarded(QualityDimension.ROBUSTNESS, () -> ModuleDimensions.robustness(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.ROBUSTNESS, () -> ModuleDimensions.robustness(index,
+                        mapper, properties.robustness().reports(), properties.resultsNotBefore())),
                 ModuleDimensions.guarded(QualityDimension.AUTHORIZATION,
                         () -> ModuleDimensions.authorization(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.SECURITY, () -> ModuleDimensions.security(index, mapper)),
@@ -50,9 +51,11 @@ final class QualityAssessor {
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
-                ModuleDimensions.guarded(QualityDimension.MUTATION, () -> MutationDimension.of(properties.mutation())),
+                ModuleDimensions.guarded(QualityDimension.MUTATION,
+                        () -> MutationDimension.of(properties.mutation(), properties.resultsNotBefore())),
                 ModuleDimensions.guarded(QualityDimension.DIFF_COVERAGE,
-                        () -> DiffCoverageDimension.of(properties.diffCoverage(), mapper)),
+                        () -> DiffCoverageDimension.of(properties.diffCoverage(), mapper,
+                                properties.resultsNotBefore())),
                 byHistory != null ? byHistory : efficiencyWithoutHistory(tests, baseline, properties, history),
                 ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)))
                 .map(dimension -> HistoryDimensions.trend(dimension, history))
@@ -118,11 +121,20 @@ final class QualityAssessor {
         }
         return new QualityDimension(QualityDimension.FUNCTIONAL,
                 failed > 0 || tooFew ? QualityStatus.FAIL : QualityStatus.PASS,
-                passed + failed == 0 ? 0 : Math.round(100f * passed / (passed + failed)),
+                passed + failed == 0 ? 0 : share(passed, passed + failed),
                 "100 × passed / (passed + failed)", facts)
                 .withIssues(java.util.stream.Stream.concat(tooFew ? java.util.stream.Stream.of(TOO_FEW_TESTS)
                                 : java.util.stream.Stream.empty(),
                         tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id)).toList());
+    }
+
+    /**
+     * {@code 100 × part / whole}, rounded — but never 100 while anything is missing: 252 of 253 is
+     * 99, not a perfect score next to a failed test.
+     */
+    static int share(long part, long whole) {
+        int rounded = Math.round(100f * part / whole);
+        return rounded == 100 && part < whole ? 99 : rounded;
     }
 
     static QualityDimension stability(List<TestCase> tests, QualityProperties properties) {
@@ -159,7 +171,7 @@ final class QualityAssessor {
                 : rate > properties.maxFlakyRate() ? QualityStatus.FAIL : QualityStatus.WARN;
         List<String> issues = new ArrayList<>(flaky.stream().map(TestCase::id).toList());
         issues.addAll(byHistory);
-        return new QualityDimension(QualityDimension.STABILITY, status, (int) Math.round(100 * (1 - rate)),
+        return new QualityDimension(QualityDimension.STABILITY, status, share(executed - count, executed),
                 "100 × (1 − flaky / executed)", facts).withIssues(issues);
     }
 

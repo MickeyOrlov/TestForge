@@ -11,6 +11,16 @@
     "overall": { "$ref": "#/$defs/status" },
     "meanScore": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
     "measured": { "type": "integer", "minimum": 0, "description": "Dimensions that were not NOT_MEASURED." },
+    "gate": {
+      "type": ["object", "null"],
+      "description": "What assertAcceptable() decides on this report: the same rules, written down.",
+      "required": ["verdict", "failures", "dryRun"],
+      "properties": {
+        "verdict": { "enum": ["PASS", "FAIL"] },
+        "failures": { "type": "array", "items": { "type": "string" } },
+        "dryRun": { "type": "array", "items": { "type": "string" }, "description": "What would fail on dry-run dimensions." }
+      }
+    },
     "labels": {
       "type": "object",
       "additionalProperties": { "type": "string" },
