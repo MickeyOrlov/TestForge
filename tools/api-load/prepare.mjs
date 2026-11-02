@@ -17,6 +17,12 @@ const json = async file => {
 const writeJson = (file, data) => writeFile(file, JSON.stringify(data, null, 2) + '\n');
 const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
 
+export function runGenerator(cli, input, generated) {
+  // Generator output is intentionally private and unused. Discard it instead of buffering it.
+  return spawnSync(process.execPath, [cli, '--disable-analytics', '--mode', 'single', input, generated],
+    { stdio: 'ignore', timeout: 120_000, env: { ...process.env, DISABLE_ANALYTICS: 'true' } });
+}
+
 export function validateSpec(spec) {
   requireThat(spec && typeof spec.openapi === 'string' && spec.openapi.startsWith('3.'), 'Use a bundled OpenAPI 3 document');
   const visit = value => {
@@ -129,9 +135,8 @@ export async function prepare({ run }) {
   const installed = await json(join(toolDir, 'node_modules/@grafana/openapi-to-k6/package.json'));
   requireThat(installed.version === generatorVersion, 'Run npm ci to restore the pinned client generator');
   const generated = join(run, 'generated');
-  const result = spawnSync(process.execPath, [join(toolDir, 'node_modules/@grafana/openapi-to-k6/dist/cli.js'),
-    '--disable-analytics', '--mode', 'single', join(input, 'openapi.json'), generated],
-  { encoding: 'utf8', timeout: 120_000, maxBuffer: 8192, env: { ...process.env, DISABLE_ANALYTICS: 'true' } });
+  const result = runGenerator(join(toolDir, 'node_modules/@grafana/openapi-to-k6/dist/cli.js'),
+    join(input, 'openapi.json'), generated);
   requireThat(result.status === 0 && !result.error, 'The pinned openapi-to-k6 generator failed; inspect the input document');
   const clients = (await readdir(generated)).filter(name => name.endsWith('.ts'));
   requireThat(clients.length === 1, 'Expected one upstream TypeScript client in single mode');

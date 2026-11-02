@@ -91,12 +91,24 @@ forge:
       project: testforge
       environment: local
       grafana-url: http://127.0.0.1:3000
+      run-ids: false                   # opt in to one set of time series per run
 ```
 
-k6 sends native histograms and static `project`, `environment`, `run_id`, `generator`
-labels, with stale markers when it finishes. Credentials stay in the child environment.
-Each local invocation gets its own run UUID and a Grafana link with its time range in
-`report.md`/`report.json`. Native load thresholds remain the gate; optional telemetry
+k6 sends native histograms and static `project`, `environment`, `generator` labels,
+with stale markers when it finishes. `run-ids: true` adds a run UUID label for isolated
+counters and concurrent runs; it costs one set of time series per invocation. The
+default reuses series across runs and selects All runs plus the report time range in
+Grafana. Use distinct stable project/environment labels for independent generators,
+or explicitly opt into run IDs. Window totals over reused/reset counters are not exact
+per-run counts; use the native report or opt into run IDs for that purpose.
+Credentials stay in the child environment. Each local invocation gets its own report
+UUID and a Grafana link with its time range in `report.md`/`report.json`.
+When remote write is enabled, the runner explicitly limits native system tags to
+`proto,status,method,tls_version,scenario,expected_response,error_code`. It excludes
+both `url` and `name` (k6's default name is a URL), plus free-text error/group/check
+tags. Thresholds using excluded system tags must be adapted or run without remote
+write. Custom tags and scenario names remain trusted script inputs: keep their values
+bounded and free of credentials. Native load thresholds remain the gate; optional telemetry
 availability is verified separately by `observabilityTest`.
 
 See [infra/load](../infra/load/README.md) for the pinned Docker Compose stack,
@@ -147,7 +159,11 @@ An arrival rate counts **iterations**, not HTTP requests: one iteration can issu
 
 The local executor drains output while k6 runs and keeps at most 8 KiB in memory. Raw
 output is never written into diagnostics or exceptions. On timeout/interruption it
-terminates the process and its current descendants. Only a small OS environment
+terminates the process and its observed descendants, including after a normal exit.
+Descendants are sampled while the parent lives; a child created and orphaned between
+samples may escape discovery. This portable Java adapter is not an OS process sandbox;
+use an isolated job/container for stronger lifecycle guarantees. Windows environment
+allowlisting preserves mixed-case names such as `Path`. Only a small OS environment
 (PATH/HOME/temp/certificate paths) is inherited; CI credentials and ambient K6_* flags
 are not. A generated empty config replaces ambient user configuration. `K6_*` and
 `TESTFORGE_LOAD_*` entries are reserved; supply native options in the script.
@@ -158,6 +174,10 @@ names, group names or raw summary/console output. The temporary raw summary is d
 The entry hash does not cover imported modules/data; pin and version those alongside
 your script. Prepare data/auth before the measured phase; Java beans and ScenarioContext
 do not transfer into k6. Token refresh within the scenario belongs to the scenario.
+
+Private summary cleanup removes nested files without following symbolic links. A
+cleanup failure is recorded without suppressing the verdict or reports; an otherwise
+passing run becomes INVALID_RESULT so leftover private data is not silently ignored.
 
 Scripts are trusted executable code: they can ignore base-url, access explicit credentials,
 import remote code or write files. This module is not a network allowlist or a sandbox.

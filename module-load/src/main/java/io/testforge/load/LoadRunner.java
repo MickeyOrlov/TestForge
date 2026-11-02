@@ -82,6 +82,8 @@ public final class LoadRunner {
                         directory.resolve("k6-config.json").toAbsolutePath().toString()));
                 if (properties.prometheus().enabled()) {
                     command.addAll(List.of("--out", "experimental-prometheus-rw"));
+                    // Native name defaults to the full URL too; omitting url alone is insufficient.
+                    command.addAll(List.of("--system-tags", "proto,status,method,tls_version,scenario,expected_response,error_code"));
                 }
                 command.add(script.toString());
                 LoadProcess.Result result = process.run(command, script.getParent(), environment, properties.timeout());
@@ -94,15 +96,16 @@ public final class LoadRunner {
                 } else {
                     try {
                         metrics = K6Summary.read(summary, properties.policy());
-                        if (properties.policy().failOnDroppedIterations() && metrics.droppedIterations() > 0) {
+                        if (metrics.failedThresholds() > 0) {
+                            outcome = LoadReport.Outcome.THRESHOLDS_FAILED;
+                            detail = "Native k6 thresholds failed" + (metrics.droppedIterations() > 0
+                                    ? "; k6 also dropped iterations; the requested workload was not fully delivered" : "");
+                        } else if (properties.policy().failOnDroppedIterations() && metrics.droppedIterations() > 0) {
                             outcome = LoadReport.Outcome.INVALID_RESULT;
                             detail = "k6 dropped iterations; the requested workload was not fully delivered";
                         } else if (exitCode == 99 && metrics.failedThresholds() == 0) {
                             outcome = LoadReport.Outcome.INVALID_RESULT;
                             detail = "k6 exit code and summary threshold outcomes disagree";
-                        } else if (metrics.failedThresholds() > 0) {
-                            outcome = LoadReport.Outcome.THRESHOLDS_FAILED;
-                            detail = "Native k6 thresholds failed";
                         } else if (properties.htmlReport() && (!Files.isRegularFile(html) || Files.size(html) == 0)) {
                             outcome = LoadReport.Outcome.INVALID_RESULT;
                             detail = "k6 did not produce the requested HTML report";
@@ -125,15 +128,10 @@ public final class LoadRunner {
             outcome = LoadReport.Outcome.CANCELLED;
             detail = "Load execution was interrupted; its process tree was stopped";
         } finally {
-            try {
-                // Native summaries can contain arbitrary group/tag/check names. Publish only selected aggregates.
-                Files.deleteIfExists(summary);
-                Files.deleteIfExists(summary.getParent());
-            } catch (IOException e) {
-                if (interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-                throw new LoadException("Could not remove the private native k6 summary");
+            // Never let cleanup replace a verdict or prevent publishing evidence.
+            if (!removePrivateSummary(summary.getParent())) {
+                detail += "; private summary cleanup failed; remove the temporary testforge-load directory locally";
+                if (outcome == LoadReport.Outcome.PASSED) outcome = LoadReport.Outcome.INVALID_RESULT;
             }
         }
         String finishedAt = Instant.now().toString();
@@ -179,7 +177,8 @@ public final class LoadRunner {
             environment.put("K6_PROMETHEUS_RW_STALE_MARKERS", "true");
             environment.put("K6_PROMETHEUS_RW_PUSH_INTERVAL", "1s");
             environment.put("K6_PROMETHEUS_RW_LABELS", "project=" + prometheus.project()
-                    + ",environment=" + prometheus.environment() + ",run_id=" + runId + ",generator=local");
+                    + ",environment=" + prometheus.environment()
+                    + (prometheus.runIds() ? ",run_id=" + runId : "") + ",generator=local");
             if (prometheus.bearerToken() != null && !prometheus.bearerToken().isBlank()) {
                 environment.put("K6_PROMETHEUS_RW_BEARER_TOKEN", prometheus.bearerToken());
             }
@@ -194,8 +193,25 @@ public final class LoadRunner {
         }
         return prometheus.grafanaUrl().replaceAll("/+$", "") + "/d/testforge-load/testforge-load"
                 + "?var-project=" + prometheus.project() + "&var-environment=" + prometheus.environment()
-                + "&var-run_id=" + runId + "&from=" + (Instant.parse(startedAt).toEpochMilli() - 1000)
+                + "&var-run_id=" + (prometheus.runIds() ? runId : "%24__all") + "&from=" + (Instant.parse(startedAt).toEpochMilli() - 1000)
                 + "&to=" + (Instant.parse(finishedAt).toEpochMilli() + 1000);
+    }
+
+    static boolean removePrivateSummary(Path directory) {
+        boolean removed = true;
+        // walk does not follow symbolic links: never delete a script-created symlink's target.
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException | SecurityException e) {
+                    removed = false;
+                }
+            }
+        } catch (IOException | java.io.UncheckedIOException | SecurityException e) {
+            removed = false;
+        }
+        return removed;
     }
 
     private void write(LoadReport report, Path directory, Path html) {

@@ -22,17 +22,20 @@ class LoadConfigurationTest {
                 });
         context.withPropertyValues("forge.load.enabled=true", "forge.load.prometheus.enabled=true",
                         "forge.load.prometheus.project=orders", "forge.load.prometheus.bearer-token=private",
+                        "forge.load.prometheus.run-ids=true",
                         "forge.load.policy.require-http=false")
                 .run(c -> {
                     assertThat(c).hasNotFailed();
                     assertThat(c.getBean(LoadProperties.class).prometheus().project()).isEqualTo("orders");
                     assertThat(c.getBean(LoadProperties.class).prometheus().bearerToken()).isEqualTo("private");
+                    assertThat(c.getBean(LoadProperties.class).prometheus().runIds()).isTrue();
                     assertThat(c.getBean(LoadProperties.class).policy().requireHttp()).isFalse();
                 });
     }
 
     @Test void rejectsAmbientControlOverridesAndInvalidTargets() {
-        for (String key : new String[] {"K6_OUT", "TESTFORGE_LOAD_SUMMARY", "PATH", "BAD=KEY"}) {
+        for (String key : new String[] {"K6_OUT", "TESTFORGE_LOAD_SUMMARY", "PATH", "BAD=KEY",
+                "k6_out", "Path", "testforge_load_summary"}) {
             assertThatThrownBy(() -> new LoadProperties(true, null, null, "s.js", "http://127.0.0.1", null,
                     null, Map.of(key, "secret"), false)).isInstanceOf(IllegalArgumentException.class);
         }

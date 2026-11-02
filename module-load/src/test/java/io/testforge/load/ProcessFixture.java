@@ -33,10 +33,18 @@ public final class ProcessFixture {
                         Path.of(args[1]).getParent(), Map.of(), Duration.ofSeconds(30));
                 return;
             }
-            if (args[0].equals("parent")) {
+            if (args[0].equals("parent") || args[0].equals("exit-parent")) {
                 new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
                         "-cp", System.getProperty("java.class.path"), ProcessFixture.class.getName(),
                         "wait", args[2]).start();
+            }
+            if (args[0].equals("exit-parent")) {
+                var release = Path.of(args[3]);
+                try (var watcher = release.getFileSystem().newWatchService()) {
+                    release.getParent().register(watcher, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE);
+                    while (!Files.exists(release)) watcher.take().reset();
+                }
+                return;
             }
             new CountDownLatch(1).await();
         }

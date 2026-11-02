@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /** Drains output while running, retains at most 8 KiB, kills the process tree on timeout/interruption. */
@@ -19,17 +21,14 @@ public final class LocalLoadProcess implements LoadProcess {
         ProcessBuilder builder = new ProcessBuilder(command).directory(workingDirectory.toFile())
                 .redirectErrorStream(true);
         // Do not inherit CI credentials or ambient K6_* flags/outputs. Explicit credentials are opt-in.
-        Map<String, String> inherited = Map.copyOf(builder.environment());
+        Map<String, String> inherited = inheritedEnvironment(builder.environment(),
+                System.getProperty("os.name").startsWith("Windows"));
         builder.environment().clear();
-        for (String key : List.of("PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SystemRoot", "WINDIR",
-                "SSL_CERT_FILE", "SSL_CERT_DIR")) {
-            if (inherited.containsKey(key)) {
-                builder.environment().put(key, inherited.get(key));
-            }
-        }
+        builder.environment().putAll(inherited);
         builder.environment().putAll(environment);
         Process process = builder.start();
-        Thread shutdown = new Thread(() -> stop(process), "testforge-k6-shutdown");
+        Map<Long, ProcessHandle> children = new ConcurrentHashMap<>();
+        Thread shutdown = new Thread(() -> stop(process, children), "testforge-k6-shutdown");
         Runtime.getRuntime().addShutdownHook(shutdown);
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         Thread drain = Thread.ofVirtual().start(() -> {
@@ -46,19 +45,23 @@ public final class LocalLoadProcess implements LoadProcess {
             }
         });
         try {
-            boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            if (!finished) {
-                stop(process);
-            }
+            long started = System.nanoTime();
+            boolean finished;
+            do {
+                rememberChildren(process, children);
+                long remaining = timeout.toNanos() - (System.nanoTime() - started);
+                finished = process.waitFor(Math.max(0, Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(50))),
+                        TimeUnit.NANOSECONDS);
+                if (finished || remaining <= 0) break;
+            } while (true);
+            stop(process, children);
             drain.join(1000);
             synchronized (captured) {
                 return new Result(finished ? process.exitValue() : -1, !finished,
                         captured.toString(StandardCharsets.UTF_8));
             }
         } finally {
-            if (process.isAlive()) {
-                stop(process);
-            }
+            stop(process, children);
             try {
                 process.getInputStream().close();
                 process.getOutputStream().close();
@@ -74,10 +77,24 @@ public final class LocalLoadProcess implements LoadProcess {
         }
     }
 
-    private static void stop(Process process) {
-        // Snapshot children before terminating the parent, which could otherwise orphan them.
-        List<ProcessHandle> children = process.descendants().toList();
-        children.reversed().forEach(ProcessHandle::destroyForcibly);
-        process.destroyForcibly();
+    static Map<String, String> inheritedEnvironment(Map<String, String> source, boolean windows) {
+        Map<String, String> inherited = new LinkedHashMap<>();
+        for (String key : List.of("PATH", "HOME", "TMPDIR", "TMP", "TEMP", "SystemRoot", "WINDIR",
+                "SSL_CERT_FILE", "SSL_CERT_DIR")) {
+            source.forEach((name, value) -> {
+                if (windows ? key.equalsIgnoreCase(name) : key.equals(name)) inherited.put(name, value);
+            });
+        }
+        return inherited;
+    }
+
+    private static void rememberChildren(Process process, Map<Long, ProcessHandle> children) {
+        process.descendants().forEach(child -> children.putIfAbsent(child.pid(), child));
+    }
+
+    private static void stop(Process process, Map<Long, ProcessHandle> children) {
+        rememberChildren(process, children);
+        children.values().forEach(child -> { if (child.isAlive()) child.destroyForcibly(); });
+        if (process.isAlive()) process.destroyForcibly();
     }
 }

@@ -57,7 +57,8 @@ class RealK6Test {
                       sleep(1.1); // Native user pacing; enough dashboard samples for the HTML export.
                     }
                     export function handleSummary(data) {
-                      return { [__ENV.TESTFORGE_LOAD_SUMMARY]: JSON.stringify(data) };
+                      return { [__ENV.TESTFORGE_LOAD_SUMMARY]: JSON.stringify(data),
+                        [__ENV.TESTFORGE_LOAD_SUMMARY + '.extra.json']: 'private extra output' };
                     }
                     """);
             LoadProperties properties = new LoadProperties(true, System.getProperty("testforge.k6"), null,

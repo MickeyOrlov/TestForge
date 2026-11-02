@@ -85,6 +85,80 @@ class LoadRunnerTest {
                 .isEqualTo(LoadReport.Outcome.INVALID_RESULT);
     }
 
+    @Test void droppedIterationsDoNotHideFailedThresholds() throws IOException {
+        String summary = SUMMARY.replace("\"ok\": true", "\"ok\": false").replace("\"count\": 0", "\"count\": 5");
+        LoadReport report = new LoadRunner(properties(true, false), stub(summary, 99, false), null).run();
+        assertThat(report.outcome()).isEqualTo(LoadReport.Outcome.THRESHOLDS_FAILED);
+        assertThat(report.detail()).contains("thresholds failed", "dropped iterations");
+        assertThat(report.metrics().droppedIterations()).isEqualTo(5);
+        assertThat(report.metrics().failedThresholds()).isEqualTo(1);
+    }
+
+    @Test void extraPrivateSummaryFilesAreRemovedWithoutLosingTheVerdict() throws IOException {
+        for (int exit : new int[] {0, 99}) {
+            Path[] privateDirectory = new Path[1];
+            LoadProcess extra = (command, cwd, env, timeout) -> {
+                if (command.contains("version")) return new LoadProcess.Result(0, false, "k6 v2.3.0 (fixture)");
+                Path summary = Path.of(env.get("TESTFORGE_LOAD_SUMMARY"));
+                privateDirectory[0] = summary.getParent();
+                Files.createDirectories(summary.getParent().resolve("extra/nested"));
+                Files.writeString(summary.getParent().resolve("extra/nested/secret.json"), "private-secret");
+                Files.writeString(summary, exit == 99 ? SUMMARY.replace("\"ok\": true", "\"ok\": false") : SUMMARY);
+                return new LoadProcess.Result(exit, false, "");
+            };
+            LoadReport report = new LoadRunner(properties(true, false), extra, null).run();
+            assertThat(report.outcome()).isEqualTo(exit == 99 ? LoadReport.Outcome.THRESHOLDS_FAILED : LoadReport.Outcome.PASSED);
+            assertThat(privateDirectory[0]).doesNotExist();
+            assertThat(Path.of(report.directory()).resolve("report.md")).exists();
+            assertThat(Files.readString(Path.of(report.directory()).resolve("report.json"))).doesNotContain("private-secret");
+        }
+    }
+
+    @Test void cleanupDoesNotFollowSymlinksOutsideThePrivateDirectory() throws IOException {
+        Path outside = dir.resolve("outside.json");
+        Files.writeString(outside, "keep");
+        Path temporary = Files.createDirectory(dir.resolve("private"));
+        try {
+            Files.createSymbolicLink(temporary.resolve("link"), outside);
+        } catch (UnsupportedOperationException | java.nio.file.FileSystemException e) {
+            org.junit.jupiter.api.Assumptions.abort("Symlinks unavailable on this platform");
+        }
+        assertThat(LoadRunner.removePrivateSummary(temporary)).isTrue();
+        assertThat(Files.readString(outside)).isEqualTo("keep");
+    }
+
+    @Test void failedCleanupStillPublishesThresholdVerdictAndInvalidatesAnOtherwisePassingRun() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"));
+        for (int exit : new int[] {0, 99}) {
+            Path[] temporary = new Path[1];
+            Path[] locked = new Path[1];
+            LoadProcess unremovable = (command, cwd, env, timeout) -> {
+                if (command.contains("version")) return new LoadProcess.Result(0, false, "k6 v2.3.0 (fixture)");
+                Path summary = Path.of(env.get("TESTFORGE_LOAD_SUMMARY"));
+                temporary[0] = summary.getParent();
+                Files.writeString(summary, exit == 99 ? SUMMARY.replace("\"ok\": true", "\"ok\": false") : SUMMARY);
+                locked[0] = Files.createDirectory(summary.getParent().resolve("locked"));
+                Files.writeString(locked[0].resolve("private.json"), "private-secret");
+                Files.setPosixFilePermissions(locked[0], java.util.Set.of());
+                org.junit.jupiter.api.Assumptions.assumeFalse(Files.isReadable(locked[0]), "Requires permission enforcement");
+                return new LoadProcess.Result(exit, false, "");
+            };
+            try {
+                LoadReport report = new LoadRunner(properties(true, false), unremovable, null).run();
+                assertThat(report.outcome()).isEqualTo(exit == 99 ? LoadReport.Outcome.THRESHOLDS_FAILED
+                        : LoadReport.Outcome.INVALID_RESULT);
+                assertThat(report.detail()).contains("cleanup failed");
+                assertThat(report.metrics()).isNotNull();
+                assertThat(Path.of(report.directory()).resolve("report.md")).exists();
+                assertThat(Files.readString(Path.of(report.directory()).resolve("report.json"))).doesNotContain("private-secret");
+            } finally {
+                if (locked[0] != null) Files.setPosixFilePermissions(locked[0],
+                        java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
+                if (temporary[0] != null) LoadRunner.removePrivateSummary(temporary[0]);
+            }
+        }
+    }
+
     @Test void missingMalformedEmptyAndDroppedResultsCannotPass() throws IOException {
         for (String input : new String[] {null, "{}", "   ", "null", "not-json-secret", SUMMARY.replace("\"count\": 3", "\"count\": 0"),
                 SUMMARY.replace("\"count\": 0", "\"count\": 5"),

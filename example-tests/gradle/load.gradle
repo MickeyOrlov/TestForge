@@ -79,7 +79,7 @@ def configureLoad = { Test job, boolean researched ->
     job.systemProperty "forge.load.output-dir", rootProject.file(providers.gradleProperty("loadOutputDir")
             .orElse(researched ? new File(runRoot, "load").absolutePath : "build/load").get()).absolutePath
     job.systemProperty "forge.load.timeout", providers.gradleProperty("loadTimeout").orElse("15m").get()
-    job.systemProperty "forge.load.html-report", providers.gradleProperty("loadHtmlReport").orElse("true").get()
+    job.systemProperty "forge.load.html-report", providers.gradleProperty("loadHtmlReport").orElse("false").get()
     job.systemProperty "forge.load.environment.[LOAD_RATE]", providers.gradleProperty("loadRate").orElse("2").get()
     job.systemProperty "forge.load.environment.[LOAD_DURATION]", providers.gradleProperty("loadDuration").orElse("10s").get()
     job.systemProperty "forge.load.environment.[LOAD_ITERATIONS]", providers.gradleProperty("loadIterations").orElse("").get()
@@ -87,6 +87,7 @@ def configureLoad = { Test job, boolean researched ->
     job.systemProperty "forge.load.policy.require-thresholds", providers.gradleProperty("loadRequireThresholds").orElse("true").get()
     job.systemProperty "forge.load.policy.fail-on-dropped-iterations", providers.gradleProperty("loadFailOnDroppedIterations").orElse("true").get()
     job.systemProperty "forge.load.prometheus.enabled", providers.gradleProperty("loadPrometheusEnabled").orElse("false").get()
+    job.systemProperty "forge.load.prometheus.run-ids", providers.gradleProperty("loadPrometheusRunIds").orElse("false").get()
     def prometheus = providers.gradleProperty("loadPrometheusUrl").orElse("http://127.0.0.1:9090").get()
     job.systemProperty "forge.load.prometheus.remote-write-url", providers.gradleProperty("loadRemoteWriteUrl")
             .orElse(prometheus.replaceAll('/+$', '') + "/api/v1/write").get()

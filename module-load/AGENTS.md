@@ -25,7 +25,8 @@ native summary ingestion, CI verdict and run-scoped evidence. No load engine or 
 - Default process environment does not inherit CI secrets or ambient K6_* options. An isolated
   empty k6 config overrides the user's config. Credentials reach the script only by explicit mapping.
 - Remote write is opt-in through typed PrometheusProperties; credentials remain in the environment.
-  Each invocation has run-specific labels and uses native histograms. Never average worker p95 gauges.
+  Run-specific labels are explicit opt-in; defaults reuse series. Remote write excludes URL/name and
+  free-text system tags; custom script tags still require review. Never average worker p95 gauges.
   Optional metrics delivery does not change native threshold verdicts. observabilityTest checks delivery.
 - Native k6 runs require a separate job/profile. Default build uses stubs plus local child-JVM tests.
 

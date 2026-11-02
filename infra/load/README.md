@@ -58,13 +58,24 @@ The sample health scenario itself requires no authentication. For a custom appli
 the script owns login, refresh and workload semantics; supplying a token does not
 automatically add an Authorization header to native requests.
 
-The resulting `report.md` and `report.json` include a link with `project`, `environment`,
-`run_id` and the exact time range already selected. Service volumes preserve history
-across restarts, bounded by Prometheus's **7 days / 512 MiB** retention. Labels include
-one UUID per run so different runs never overwrite each other's counters. Do not
+The resulting `report.md` and `report.json` include a link with project/environment
+and the exact time range selected. Run IDs are absent from metric labels by default,
+so repeated runs reuse series. To isolate concurrent runs and exact per-run counter
+totals, opt in with `-PloadPrometheusRunIds=true` (or
+`forge.load.prometheus.run-ids: true`); report links then also select the run UUID.
+Without it, the dashboard selects All runs and window totals over reset/reused counters
+are not exact per-run counts. Use the native report for those counts.
+
+Service volumes preserve history across restarts, bounded by Prometheus's **7 days /
+512 MiB** retention. Run IDs add a set of series on every invocation; use bounded
+retention on external Prometheus installations too. Remote-write runs exclude native
+URL/name and free-text error/group/check system tags. Custom tags and scenario names
+remain trusted script inputs; avoid request/user IDs, URLs and credentials. Do not
 reuse the reserved `project`, `environment`, `run_id`, `generator` labels in script
-tags: k6 gives explicit script tags precedence over remote-write static labels. That has a
-cardinality cost; keep retention bounded and avoid request ids/user ids in metric tags.
+tags: explicit script tags take precedence over remote-write static labels.
+
+Native HTML is off by default; request `-PloadHtmlReport=true` explicitly after reviewing
+the scenario's names/tags and use a run long enough to generate the dashboard export.
 
 ## Verify the whole path without a target service
 

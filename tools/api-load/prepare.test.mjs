@@ -4,12 +4,24 @@ import { mkdtemp, readFile, writeFile, mkdir, rm, access } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { snapshot, prepare, verifyInputs, validateSpec, validateSelection, validateResearch, sha256 } from './prepare.mjs';
+import { snapshot, prepare, verifyInputs, validateSpec, validateSelection, validateResearch, sha256, runGenerator } from './prepare.mjs';
 
 const example = fileURLToPath(new URL('../../docs/examples/api-load/', import.meta.url));
 const target = 'http://127.0.0.1:8080';
 const json = async file => JSON.parse(await readFile(file, 'utf8'));
 const writeJson = (file, value) => writeFile(file, JSON.stringify(value));
+
+test('verbose generator output cannot exhaust a capture buffer or leak diagnostics', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'testforge-generator-noise-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const cli = join(root, 'verbose.cjs');
+  await writeFile(cli, `process.stdout.write('x'.repeat(1024 * 1024)); process.stderr.write('y'.repeat(1024 * 1024));`);
+  const result = runGenerator(cli, 'unused.json', root);
+  assert.equal(result.status, 0);
+  assert.equal(result.error, undefined);
+  assert.equal(result.stdout, null);
+  assert.equal(result.stderr, null);
+});
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'testforge-api-load-'));

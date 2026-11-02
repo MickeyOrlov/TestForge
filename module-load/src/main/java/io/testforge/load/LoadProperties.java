@@ -25,9 +25,10 @@ public record LoadProperties(boolean enabled, String command, String expectedVer
         prometheus = prometheus == null ? new PrometheusProperties(false, null, null, null, null, null) : prometheus;
         policy = policy == null ? new LoadPolicyProperties(null, null, null) : policy;
         for (String key : environment.keySet()) {
-            if (!key.matches("[A-Za-z_][A-Za-z0-9_]*") || key.startsWith("K6_")
-                    || key.startsWith("TESTFORGE_LOAD_") || key.equals("HOME") || key.equals("PATH")
-                    || key.equals("LD_PRELOAD") || key.equals("DYLD_INSERT_LIBRARIES")) {
+            String reserved = key.toUpperCase(java.util.Locale.ROOT);
+            if (!key.matches("[A-Za-z_][A-Za-z0-9_]*") || reserved.startsWith("K6_")
+                    || reserved.startsWith("TESTFORGE_LOAD_") || reserved.equals("HOME") || reserved.equals("PATH")
+                    || reserved.equals("LD_PRELOAD") || reserved.equals("DYLD_INSERT_LIBRARIES")) {
                 throw new IllegalArgumentException("forge.load.environment contains a reserved or invalid key");
             }
         }

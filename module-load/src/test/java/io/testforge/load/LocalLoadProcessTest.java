@@ -34,6 +34,39 @@ class LocalLoadProcessTest {
         assertThat(result.output()).hasSize(LocalLoadProcess.OUTPUT_LIMIT);
     }
 
+    @Test void windowsEnvironmentRetainsMixedCasePathsButNotSecrets() {
+        Map<String, String> inherited = Map.of("Path", "tools", "SYSTEMROOT", "windows", "Temp", "temp",
+                "CI_TOKEN", "secret", "K6_OUT", "unexpected");
+        assertThat(LocalLoadProcess.inheritedEnvironment(inherited, true))
+                .containsExactlyInAnyOrderEntriesOf(Map.of("Path", "tools", "SYSTEMROOT", "windows", "Temp", "temp"));
+        assertThat(LocalLoadProcess.inheritedEnvironment(inherited, false)).isEmpty();
+    }
+
+    @Test void observedChildIsStoppedEvenAfterItsParentExitsNormally() throws Exception {
+        Path parent = dir.resolve("normal-parent.pid");
+        Path child = dir.resolve("orphan.pid");
+        Path release = dir.resolve("release");
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var result = executor.submit(() -> new LocalLoadProcess().run(
+                    command("exit-parent", parent.toString(), child.toString(), release.toString()),
+                    dir, Map.of(), Duration.ofSeconds(10)));
+            await().atMost(Duration.ofSeconds(5)).until(() -> Files.isRegularFile(child));
+            // Keep the child observable across several process-tree sampling intervals.
+            await().during(Duration.ofMillis(200)).atMost(Duration.ofSeconds(2))
+                    .untilAsserted(() -> assertThat(alive(child)).isTrue());
+            Files.writeString(release, "exit");
+            assertThat(result.get(5, java.util.concurrent.TimeUnit.SECONDS).exitCode()).isZero();
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> assertThat(alive(child)).isFalse());
+        } finally {
+            Files.writeString(release, "exit");
+            executor.shutdownNow();
+            if (Files.isRegularFile(child)) {
+                ProcessHandle.of(Long.parseLong(Files.readString(child))).ifPresent(ProcessHandle::destroyForcibly);
+            }
+        }
+    }
+
     @Test void onlyExplicitCredentialsReachTheChild() throws Exception {
         LoadProcess.Result result = new LocalLoadProcess().run(command("env"), dir,
                 Map.of("LOAD_TOKEN", "explicit"), Duration.ofSeconds(10));

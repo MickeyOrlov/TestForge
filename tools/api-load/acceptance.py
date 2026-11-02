@@ -9,6 +9,11 @@ import threading
 import uuid
 
 
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--k6", default="k6")
@@ -54,7 +59,7 @@ def main():
         run = suite / name
         command = [str(root / "gradlew"), ":example-tests:apiLoadTest", f"-PloadBaseUrl={target}",
                    f"-Pk6Executable={args.k6}", f"-PapiLoadRunDir={run}", "-PloadIterations=3",
-                   "-PloadHtmlReport=false", "--console=plain"]
+                   "--console=plain"]
         if args.prometheus:
             command += ["-PloadPrometheusEnabled=true", f"-PloadPrometheusUrl={args.prometheus}",
                         f"-PloadGrafanaUrl={args.grafana}"]
@@ -64,11 +69,11 @@ def main():
 
     try:
         result, positive = run_pipeline("positive")
-        assert result.returncode == 0, f"Positive pipeline failed; see {suite / 'positive.log'}"
-        assert Handler.counts == {"/health": 4, "/api/v1/tasks": 4}, Handler.counts
+        require(result.returncode == 0, f"Positive pipeline failed; see {suite / 'positive.log'}")
+        require(Handler.counts == {'/health': 4, '/api/v1/tasks': 4}, Handler.counts)
         report = json.loads(next((positive / "load").glob("*/report.json")).read_text())
-        assert report["outcome"] == "PASSED" and report["metrics"]["requests"] == 6
-        assert (Path(report["directory"]) / "provenance.json").is_file()
+        require(report['outcome'] == 'PASSED' and report['metrics']['requests'] == 6, "Expected a passing six-request load report")
+        require((Path(report['directory']) / 'provenance.json').is_file(), "Load evidence must include provenance")
 
         summary = suite / "standalone-summary.json"
         native_environment = dict(environment, TESTFORGE_LOAD_BASE_URL=target,
@@ -77,16 +82,16 @@ def main():
             direct = subprocess.run([args.k6, "run", "--no-usage-report", "--new-machine-readable-summary=false",
                                      str(positive / "prepared/scenario.ts")], cwd=root, env=native_environment,
                                     stdout=log, stderr=subprocess.STDOUT, timeout=30)
-        assert direct.returncode == 0, "Prepared bundle must run directly through k6"
-        assert json.loads(summary.read_text())["metrics"]["http_reqs"]["values"]["count"] == 2
+        require(direct.returncode == 0, 'Prepared bundle must run directly through k6')
+        require(json.loads(summary.read_text())['metrics']['http_reqs']['values']['count'] == 2, "Standalone scenario must issue exactly two requests")
 
         Handler.broken = True
         before = dict(Handler.counts)
         failed, negative = run_pipeline("negative")
-        assert failed.returncode != 0, "A contract mismatch must stop before generating/running load"
-        assert not (negative / "prepared").exists() and not (negative / "load").exists()
-        assert all(Handler.counts[path] - before[path] == 1 for path in ("/health", "/api/v1/tasks"))
-        assert "POST" not in Handler.counts
+        require(failed.returncode != 0, 'A contract mismatch must stop before generating/running load')
+        require(not (negative / 'prepared').exists() and (not (negative / 'load').exists()), "Contract failure must prevent preparation and load artifacts")
+        require(all((Handler.counts[path] - before[path] == 1 for path in ('/health', '/api/v1/tasks'))), "Contract failure must perform research calls only")
+        require('POST' not in Handler.counts, "The read-only fixture must not receive writes")
         (suite / "acceptance.json").write_text(json.dumps({"formatVersion": 1, "positiveLoadRequests": 6,
                 "standaloneRequests": 2, "contractMismatchBlockedLoad": True, "writeRequests": 0}, indent=2) + "\n")
         print(f"API load acceptance passed: {suite}")

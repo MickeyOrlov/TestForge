@@ -1,10 +1,12 @@
 package io.testforge.load;
 
 import java.net.URI;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 /** Optional native k6 remote-write output; no exporter, metrics store or dashboard server is implemented here. */
 public record PrometheusProperties(boolean enabled, String remoteWriteUrl, String bearerToken,
-                                   String project, String environment, String grafanaUrl) {
+                                   String project, String environment, String grafanaUrl, boolean runIds) {
+    @ConstructorBinding
     public PrometheusProperties {
         remoteWriteUrl = remoteWriteUrl == null || remoteWriteUrl.isBlank()
                 ? "http://127.0.0.1:9090/api/v1/write" : remoteWriteUrl;
@@ -18,6 +20,11 @@ public record PrometheusProperties(boolean enabled, String remoteWriteUrl, Strin
             validateUrl(remoteWriteUrl);
             validateUrl(grafanaUrl);
         }
+    }
+
+    public PrometheusProperties(boolean enabled, String remoteWriteUrl, String bearerToken,
+                                String project, String environment, String grafanaUrl) {
+        this(enabled, remoteWriteUrl, bearerToken, project, environment, grafanaUrl, false);
     }
 
     private static void validateUrl(String value) {

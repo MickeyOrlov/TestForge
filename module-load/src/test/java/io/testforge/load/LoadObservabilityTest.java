@@ -50,7 +50,7 @@ class LoadObservabilityTest {
                       checks: ['rate==1'], http_req_failed: ['rate==0'], dropped_iterations: ['count==0']
                     }};
                     export default function () {
-                      check(http.get(__ENV.TESTFORGE_LOAD_BASE_URL + '/health', { tags: {name: 'GET /health'} }),
+                      check(http.get(__ENV.TESTFORGE_LOAD_BASE_URL + '/health?token=fixture-private'),
                         { healthy: r => r.status === 200 });
                       sleep(1.1);
                     }
@@ -59,7 +59,7 @@ class LoadObservabilityTest {
                     }
                     """);
             PrometheusProperties output = new PrometheusProperties(true, prometheus + "/api/v1/write", null,
-                    "testforge", "acceptance", grafana);
+                    "testforge", "acceptance", grafana, true);
             LoadProperties properties = new LoadProperties(true, System.getProperty("testforge.k6"), null,
                     script.toString(), "http://127.0.0.1:" + server.getAddress().getPort(),
                     System.getProperty("testforge.observability-output"), Duration.ofSeconds(30), Map.of(), true, output);
@@ -70,6 +70,14 @@ class LoadObservabilityTest {
                 assertThat(samples.size()).isEqualTo(1);
                 assertThat(samples.get(0).path("value").get(1).asDouble()).isEqualTo(6);
             });
+            JsonNode tagged = query(prometheus, "k6_http_reqs_total" + selector, String.valueOf(
+                    Instant.parse(report.finishedAt()).toEpochMilli() / 1000.0 - 1.5));
+            assertThat(tagged.size()).isPositive();
+            for (JsonNode sample : tagged) {
+                assertThat(sample.path("metric").has("url")).isFalse();
+                assertThat(sample.path("metric").has("name")).isFalse();
+                assertThat(sample.path("metric").toString()).doesNotContain("fixture-private");
+            }
             String counter = "sum(max_over_time(k6_http_reqs_total" + selector + "[5m]))";
             HttpResponse<String> proxied = get(grafana + "/api/datasources/proxy/uid/testforge-prometheus/api/v1/query?query="
                     + URLEncoder.encode(counter, StandardCharsets.UTF_8));
