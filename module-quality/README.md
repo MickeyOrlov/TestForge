@@ -180,8 +180,16 @@ forge:
   run's durations to those medians — a slower CI machine slows every test
   and is not a regression). API operations compare their p95 from
   `http-summary.json` the same way, without the pace and with
-  `min-latency-millis`. A test with fewer than `min-runs` values is left
+  `min-latency-millis`, against runs not judged FAIL only — a broken run may
+  answer errors fast or time out slow, and its p95 is not the usual (the
+  first fact says how many were left out). A test with fewer than `min-runs` values is left
   out; with none at all the baseline comparison applies.
+- **switching and stabilized**: across the whole window, revisions
+  included, `stability` lists tests whose outcome switched between passing
+  and failing at least 3 times (`switching: T — passed / failed 4 times in
+  7 runs`), and tests that were flaky earlier but passed the last 5 runs
+  (`stabilized: …`). Across revisions a switch may be a fix, so these are
+  leads: they add no issue and change no score.
 - **trends**: every measured dimension lists its score over the window; a
   PASS whose score fell in each of the last 3 runs becomes a WARN. A trend
   adds no issue, so it never fails the gate.

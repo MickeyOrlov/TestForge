@@ -144,6 +144,7 @@ final class QualityAssessor {
         flaky.stream().limit(LISTED)
                 .forEach(t -> facts.add("flaky: " + t.id() + (t.message() == null ? "" : " — " + t.message())));
         byHistory.stream().limit(LISTED).forEach(id -> facts.add("flaky across runs: " + id));
+        facts.addAll(HistoryDimensions.outcomeFacts(tests, history));
         QualityStatus status = count == 0 ? QualityStatus.PASS
                 : rate > properties.maxFlakyRate() ? QualityStatus.FAIL : QualityStatus.WARN;
         List<String> issues = new ArrayList<>(flaky.stream().map(TestCase::id).toList());

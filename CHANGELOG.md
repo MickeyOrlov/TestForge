@@ -19,6 +19,10 @@ semantic versioning for its git tags.
   and the first frames outside test libraries; an accepted entry
   `functional <test> @<fingerprint>` quarantines a test only while it fails
   that way, and a different failure is new.
+- `module-quality`: with a history, API operations' p95 medians leave out
+  runs judged FAIL, and `stability` lists tests that keep switching between
+  passing and failing and earlier flaky tests that passed the last 5 runs
+  (facts only, no issue).
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the
