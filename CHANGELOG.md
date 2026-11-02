@@ -6,6 +6,15 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Fixed
+- `module-load`: with Prometheus remote write on, `--system-tags` left out `group`
+  and `check`, so thresholds such as `checks{check:…}` or
+  `http_req_duration{group:::…}` saw no sample and k6 passed them — enabling
+  telemetry silently disabled those SLOs. Both tags are kept now (with
+  `subproto` and `service`); only `url`, the default `name` and `error` are left
+  out. A threshold on a sub-metric no sample reached (a filter typo included) is
+  INVALID_RESULT (`forge.load.policy.fail-on-empty-thresholds`, default true).
+
 ### Changed
 - `module-load`: preserve evidence when private summary cleanup fails; native threshold failures take precedence over dropped iterations. HTML and Prometheus run-ID labels are opt-in. Preserve mixed-case Windows environment paths and clean up observed descendants after normal exit. Generator output is discarded without a capture limit, and Python acceptance checks remain active under optimization.
 - `module-quality`: `reliability`, `efficiency` and history name API operations

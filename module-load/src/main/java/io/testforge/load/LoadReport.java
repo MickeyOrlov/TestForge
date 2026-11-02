@@ -12,8 +12,19 @@ public record LoadReport(int formatVersion, String runId, Outcome outcome, Strin
     }
     public enum Outcome { PASSED, THRESHOLDS_FAILED, EXECUTION_ERROR, TIMED_OUT, CANCELLED, INVALID_RESULT }
 
-    /** Aggregates already calculated by k6; TestForge does not recompute timing statistics. */
+    /**
+     * Aggregates already calculated by k6; TestForge does not recompute timing statistics.
+     *
+     * @param emptyThresholds thresholds on a sub-metric that received no sample, which k6 counts as passed
+     */
     public record Metrics(long iterations, long requests, double requestsPerSecond, Double p95Millis,
-                          Double errorRate, long droppedIterations, int thresholds, int failedThresholds) {
+                          Double errorRate, long droppedIterations, int thresholds, int failedThresholds,
+                          int emptyThresholds) {
+
+        public Metrics(long iterations, long requests, double requestsPerSecond, Double p95Millis, Double errorRate,
+                       long droppedIterations, int thresholds, int failedThresholds) {
+            this(iterations, requests, requestsPerSecond, p95Millis, errorRate, droppedIterations, thresholds,
+                    failedThresholds, 0);
+        }
     }
 }

@@ -86,6 +86,7 @@ def configureLoad = { Test job, boolean researched ->
     job.systemProperty "forge.load.policy.require-http", String.valueOf(requireHttp)
     job.systemProperty "forge.load.policy.require-thresholds", providers.gradleProperty("loadRequireThresholds").orElse("true").get()
     job.systemProperty "forge.load.policy.fail-on-dropped-iterations", providers.gradleProperty("loadFailOnDroppedIterations").orElse("true").get()
+    job.systemProperty "forge.load.policy.fail-on-empty-thresholds", providers.gradleProperty("loadFailOnEmptyThresholds").orElse("true").get()
     job.systemProperty "forge.load.prometheus.enabled", providers.gradleProperty("loadPrometheusEnabled").orElse("false").get()
     job.systemProperty "forge.load.prometheus.run-ids", providers.gradleProperty("loadPrometheusRunIds").orElse("false").get()
     def prometheus = providers.gradleProperty("loadPrometheusUrl").orElse("http://127.0.0.1:9090").get()

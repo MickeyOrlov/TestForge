@@ -37,10 +37,13 @@ final class K6Summary {
         long dropped = droppedMetric.isMissingNode() ? 0 : count(droppedMetric.path("values").path("count"));
         int thresholds = 0;
         int failed = 0;
-        for (JsonNode metric : metrics) {
+        int empty = 0;
+        for (var entry : metrics.properties()) {
+            JsonNode metric = entry.getValue();
             if (!metric.has("thresholds")) {
                 continue;
             }
+            boolean noSamples = entry.getKey().contains("{") && empty(metric);
             JsonNode limits = metric.path("thresholds");
             if (!limits.isObject()) {
                 throw new LoadException("Unsupported k6 summary: thresholds must be an object");
@@ -52,6 +55,8 @@ final class K6Summary {
                 thresholds++;
                 if (!limit.path("ok").booleanValue()) {
                     failed++;
+                } else if (noSamples) {
+                    empty++;
                 }
             }
         }
@@ -63,7 +68,22 @@ final class K6Summary {
         if (errors != null && errors > 1) {
             throw new LoadException("Unsupported k6 summary: HTTP error rate must be between 0 and 1");
         }
-        return new LoadReport.Metrics(iterations, requests, rate, p95, errors, dropped, thresholds, failed);
+        return new LoadReport.Metrics(iterations, requests, rate, p95, errors, dropped, thresholds, failed, empty);
+    }
+
+    /**
+     * A sub-metric no sample reached. The legacy summary has no sample count for a trend, so a trend whose
+     * min, max and average are all 0 counts as empty — no real request takes 0 ms; a rate is empty without
+     * passes and fails. Counters and gauges are judged by k6 on their 0 as on any value.
+     */
+    private static boolean empty(JsonNode metric) {
+        JsonNode values = metric.path("values");
+        return switch (metric.path("type").asText()) {
+            case "rate" -> values.path("passes").asLong(-1) == 0 && values.path("fails").asLong(-1) == 0;
+            case "trend" -> values.path("min").isNumber() && values.path("min").doubleValue() == 0
+                    && values.path("max").doubleValue() == 0 && values.path("avg").doubleValue() == 0;
+            default -> false;
+        };
     }
 
     private static long count(JsonNode node) {
