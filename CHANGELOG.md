@@ -6,7 +6,39 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Changed
+- `module-quality`: `quality.prom` leaves `revision`, `job` and `run_id` out
+  of `testforge_quality_run_info` — one series per run — unless
+  `forge.quality.metrics.run-ids: true`.
+
 ### Added
+- `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
+  would fail the gate for that dimension (`fail-on`, `required`, its limits)
+  as a note in `quality.md` and `quality-summary.md` and fails nothing, so a
+  rule can be watched before it is enforced; `forge.quality.min-tests` FAILs
+  `functional` while fewer tests executed, none included; each FAIL or WARN
+  dimension carries a `hint` on how to act on it (`quality.json`,
+  `quality.md`, `quality-summary.md`).
+- `module-quality`: failures are counted as assertion or error (the test or
+  its environment threw), each with a fingerprint over the exception type
+  and the first frames outside test libraries; an accepted entry
+  `functional <test> @<fingerprint>` quarantines a test only while it fails
+  that way, and a different failure is new.
+- `module-quality`: with a history, API operations' p95 medians leave out
+  runs judged FAIL, and `stability` lists tests that keep switching between
+  passing and failing and earlier flaky tests that passed the last 5 runs
+  (facts only, no issue).
+- `module-quality`: a `mutation` dimension from PIT's `mutations.xml`
+  (`forge.quality.mutation.reports`, `min-score`): detected over all
+  mutants, test strength in the facts, surviving mutants as issues by
+  method and mutator.
+- `module-quality`: a `diff-coverage` dimension from diff-cover's
+  `--json-report` (`forge.quality.diff-coverage.report`, `min-score`,
+  `min-lines`): covered over measured changed lines, files with uncovered
+  lines as issues; a diff with too few measured lines is NOT MEASURED.
+- `module-quality`: `forge.quality.codeowners` gives issues no component
+  matched to the CODEOWNERS owners of the file they point at (test or
+  mutated class, changed file).
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

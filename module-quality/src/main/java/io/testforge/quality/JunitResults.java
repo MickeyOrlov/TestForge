@@ -28,18 +28,45 @@ import org.xml.sax.SAXException;
  * {@code <flakyFailure>} / {@code <flakyError>} element (Surefire's rerun).
  * Its final outcome is a pass — the stability dimension counts it, the
  * functional one does not.
+ *
+ * <p>A failure is an <b>assertion</b> when a check in the test failed
+ * ({@code AssertionError}, opentest4j, AssertJ) and an <b>error</b> when
+ * anything else was thrown — usually the test or its environment. Its
+ * <b>fingerprint</b> is a short hash of the exception type and the first
+ * frames of the stack trace outside test libraries, without line numbers:
+ * the same failure keeps it across runs and edits elsewhere in the file.
+ * Neither the trace nor its hash input goes into a report.
  */
 final class JunitResults {
 
     enum Outcome { PASSED, FAILED, SKIPPED }
 
-    /** @param millis the last attempt's duration, from the report's {@code time} (seconds) */
-    record TestCase(String className, String name, Outcome outcome, boolean flaky, String message, long millis) {
+    /**
+     * @param millis      the last attempt's duration, from the report's {@code time} (seconds)
+     * @param error       the failure was not an assertion: the test or its environment threw
+     * @param fingerprint the failure's {@link #fingerprint(String, String)}; {@code null} without a type or trace.
+     *                    Attempts that failed differently (retries) join theirs with {@code ,}, so no single
+     *                    quarantined fingerprint matches them
+     */
+    record TestCase(String className, String name, Outcome outcome, boolean flaky, String message, long millis,
+                    boolean error, String fingerprint) {
+
+        TestCase(String className, String name, Outcome outcome, boolean flaky, String message, long millis) {
+            this(className, name, outcome, flaky, message, millis, false, null);
+        }
 
         String id() {
             return className + "." + name;
         }
     }
+
+    /** Frames from these packages say how a check failed, not where: the fingerprint skips them. */
+    private static final List<String> LIBRARY_FRAMES = List.of("java.", "javax.", "jdk.", "sun.", "org.junit.",
+            "junit.", "org.opentest4j.", "org.assertj.", "org.hamcrest.", "org.gradle.", "org.apache.maven.",
+            "worker.org.gradle.");
+    private static final int FINGERPRINT_FRAMES = 3;
+    private static final java.util.regex.Pattern FRAME =
+            java.util.regex.Pattern.compile("^\\s*at\\s+([\\w$.<>/]+?)\\s*\\(");
 
     private JunitResults() {
     }
@@ -78,8 +105,9 @@ final class JunitResults {
         return new Read(tests, List.copyOf(stale));
     }
 
+    /** @param fingerprints one per failed attempt in the element, {@code "none"} where it had none */
     private record Attempt(String className, String name, Outcome outcome, boolean flakyMarker, String message,
-                           long millis) {
+                           long millis, boolean error, List<String> fingerprints) {
     }
 
     private static TestCase merge(List<Attempt> all) {
@@ -90,8 +118,12 @@ final class JunitResults {
         Outcome outcome = passed ? Outcome.PASSED : failed ? Outcome.FAILED : Outcome.SKIPPED;
         String message = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker())
                 .map(Attempt::message).filter(m -> m != null && !m.isBlank()).findFirst().orElse(null);
+        List<Attempt> failing = all.stream().filter(a -> a.outcome() == Outcome.FAILED || a.flakyMarker()).toList();
+        List<String> fingerprints = failing.stream().flatMap(a -> a.fingerprints().stream()).distinct().toList();
+        String fingerprint = fingerprints.isEmpty() || fingerprints.equals(List.of("none")) ? null
+                : String.join(",", fingerprints);
         return new TestCase(first.className(), first.name(), outcome, passed && (failed || marked), message,
-                all.getLast().millis());
+                all.getLast().millis(), failing.stream().anyMatch(Attempt::error), fingerprint);
     }
 
     /** @return false when the file's suite is older than {@code notBefore} and was skipped */
@@ -117,6 +149,9 @@ final class JunitResults {
             Outcome outcome = Outcome.PASSED;
             boolean flakyMarker = false;
             String message = null;
+            boolean error = false;
+            // every failed attempt in this element: Surefire's reruns sit inside one <testcase>
+            List<String> fingerprints = new ArrayList<>();
             for (Node child = testcase.getFirstChild(); child != null; child = child.getNextSibling()) {
                 if (!(child instanceof Element element)) {
                     continue;
@@ -125,18 +160,25 @@ final class JunitResults {
                     case "failure", "error" -> {
                         outcome = Outcome.FAILED;
                         message = firstLine(element);
+                        String type = type(element);
+                        error |= "error".equals(element.getTagName()) || type != null && !assertion(type);
+                        fingerprints.add(attemptFingerprint(type, element));
                     }
                     case "skipped" -> outcome = outcome == Outcome.FAILED ? outcome : Outcome.SKIPPED;
                     case "flakyFailure", "flakyError", "rerunFailure", "rerunError" -> {
                         flakyMarker = true;
                         message = message == null ? firstLine(element) : message;
+                        String type = type(element);
+                        error |= element.getTagName().endsWith("Error") || type != null && !assertion(type);
+                        fingerprints.add(attemptFingerprint(type, element));
                     }
                     default -> {
                     }
                 }
             }
             attempts.computeIfAbsent(className + "." + name, ignored -> new ArrayList<>())
-                    .add(new Attempt(className, name, outcome, flakyMarker, message, millis(testcase)));
+                    .add(new Attempt(className, name, outcome, flakyMarker, message, millis(testcase), error,
+                            fingerprints));
         }
         return true;
     }
@@ -165,6 +207,67 @@ final class JunitResults {
         }
     }
 
+    /** The exception class: the {@code type} attribute, or the trace's first line before its colon. */
+    private static String type(Element element) {
+        if (element.hasAttribute("type") && !element.getAttribute("type").isBlank()) {
+            return element.getAttribute("type").strip();
+        }
+        String first = element.getTextContent() == null ? "" : element.getTextContent().strip().lines().findFirst()
+                .orElse("");
+        String candidate = first.split(":", 2)[0].strip();
+        return candidate.matches("[\\w$]+(\\.[\\w$]+)+") ? candidate : null;
+    }
+
+    private static String attemptFingerprint(String type, Element element) {
+        String fingerprint = fingerprint(type, element.getTextContent());
+        return fingerprint == null ? "none" : fingerprint;
+    }
+
+    /** A failed check rather than a thrown exception. */
+    static boolean assertion(String type) {
+        String simple = type.substring(type.lastIndexOf('.') + 1);
+        return simple.endsWith("AssertionError") || simple.endsWith("AssertionFailedError")
+                || simple.equals("ComparisonFailure") || simple.equals("MultipleFailuresError")
+                || type.startsWith("org.opentest4j.") || type.startsWith("org.assertj.");
+    }
+
+    /**
+     * 12 hex digits of SHA-256 over the exception type and the first {@value #FINGERPRINT_FRAMES}
+     * frames outside test libraries — class and method, no line number, lambda and proxy counters
+     * dropped. {@code null} when there is neither a type nor a frame.
+     */
+    static String fingerprint(String type, String trace) {
+        List<String> frames = new ArrayList<>();
+        for (String line : (trace == null ? "" : trace).lines().toList()) {
+            java.util.regex.Matcher frame = FRAME.matcher(line);
+            if (!frame.find()) {
+                continue;
+            }
+            // "java.base/java.lang.Thread.run", "app//io.acme.T.m": the module prefix is not the method
+            String method = frame.group(1).replaceFirst("^[\\w.@-]*//?", "")
+                    .replaceAll("\\$\\$Lambda[$\\w/]*", "\\$\\$Lambda")
+                    .replaceAll("(lambda\\$\\w+?)\\$\\d+", "$1")
+                    .replaceAll("\\$\\d+", "\\$");
+            if (LIBRARY_FRAMES.stream().noneMatch(method::startsWith)) {
+                frames.add(method);
+            }
+            if (frames.size() == FINGERPRINT_FRAMES) {
+                break;
+            }
+        }
+        if ((type == null || type.isBlank()) && frames.isEmpty()) {
+            return null;
+        }
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(
+                    ((type == null ? "" : type) + "\n" + String.join("\n", frames))
+                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest).substring(0, 12);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is part of every JDK", e);
+        }
+    }
+
     private static String firstLine(Element element) {
         String text = element.hasAttribute("message") ? element.getAttribute("message") : element.getTextContent();
         String line = text == null ? "" : text.strip().lines().findFirst().orElse("");
@@ -172,7 +275,7 @@ final class JunitResults {
     }
 
     /** No DTDs, no external entities: a report is data, never a fetch. */
-    private static DocumentBuilder parser() {
+    static DocumentBuilder parser() {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);

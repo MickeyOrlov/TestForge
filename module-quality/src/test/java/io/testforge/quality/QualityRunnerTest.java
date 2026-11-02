@@ -63,6 +63,7 @@ class QualityRunnerTest {
         assertThat(functional.status()).isEqualTo(QualityStatus.FAIL);
         assertThat(functional.score()).isEqualTo(75);
         assertThat(functional.facts()).containsExactly("5 tests: 3 passed, 1 failed, 1 skipped",
+                "failures: 1 assertion (a check failed), 0 error (the test or its environment threw)",
                 "failed: Orders.refunds — expected 200, got 500");
         QualityDimension stability = report.dimension(QualityDimension.STABILITY).orElseThrow();
         assertThat(stability.status()).isEqualTo(QualityStatus.WARN);

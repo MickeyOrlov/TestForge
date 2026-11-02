@@ -21,6 +21,10 @@ final class HistoryDimensions {
     static final int FALLING_RUNS = 3;
     /** A MAD below this share of the median is noise-free on paper only: it is raised to it. */
     static final double MIN_SPREAD = 0.05;
+    /** Outcome switches across the window from which a test is listed as switching. */
+    static final int LISTED_SWITCHES = 3;
+    /** Passed runs in a row, this one included, after which an earlier flaky test counts as stabilized. */
+    static final int STABLE_RUNS = 5;
 
     private HistoryDimensions() {
     }
@@ -69,6 +73,52 @@ final class HistoryDimensions {
     }
 
     /**
+     * Informational facts about outcomes over the window, never issues: tests whose outcome switched
+     * between passing and failing (flaky or failed) at least {@value #LISTED_SWITCHES} times, most
+     * first; and tests that were flaky earlier but passed the last {@value #STABLE_RUNS} runs.
+     * Unlike {@link #flakyByHistory} this spans revisions, so a switch may be a fix — it is a lead,
+     * not a verdict.
+     */
+    static List<String> outcomeFacts(List<TestCase> tests, QualityHistory history) {
+        if (history.entries().isEmpty()) {
+            return List.of();
+        }
+        Map<String, Integer> switches = new LinkedHashMap<>();
+        Map<String, Integer> runs = new LinkedHashMap<>();
+        List<String> stabilized = new ArrayList<>();
+        for (TestCase test : tests) {
+            if (test.outcome() == Outcome.SKIPPED) {
+                continue;
+            }
+            List<String> outcomes = new ArrayList<>(history.entries().stream()
+                    .map(e -> e.outcomes().get(test.id())).filter(java.util.Objects::nonNull).toList());
+            outcomes.add(test.flaky() ? "FLAKY" : test.outcome().name());
+            int switched = 0;
+            for (int i = 1; i < outcomes.size(); i++) {
+                if ("PASSED".equals(outcomes.get(i)) != "PASSED".equals(outcomes.get(i - 1))) {
+                    switched++;
+                }
+            }
+            if (switched >= LISTED_SWITCHES) {
+                switches.put(test.id(), switched);
+                runs.put(test.id(), outcomes.size());
+            }
+            int lastPassed = outcomes.size() - STABLE_RUNS;
+            if (lastPassed > 0 && outcomes.subList(0, lastPassed).contains("FLAKY")
+                    && outcomes.subList(lastPassed, outcomes.size()).stream().allMatch("PASSED"::equals)) {
+                stabilized.add(test.id());
+            }
+        }
+        List<String> facts = new ArrayList<>();
+        switches.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(LISTED)
+                .forEach(e -> facts.add("switching: " + e.getKey() + " — passed / failed " + e.getValue()
+                        + " times in " + runs.get(e.getKey()) + " runs"));
+        stabilized.stream().limit(LISTED).forEach(id -> facts.add("stabilized: " + id + " — flaky earlier, passed the "
+                + "last " + STABLE_RUNS + " runs"));
+        return facts;
+    }
+
+    /**
      * Passed tests against the median of their own last runs, after dividing out the run's pace —
      * the median ratio of this run's durations to those medians, so a slower machine is not a
      * regression of every test. Slower means above median + {@code madFactor} × MAD and at least
@@ -91,8 +141,12 @@ final class HistoryDimensions {
             }
         }
         Map<String, long[]> pastLatencies = new LinkedHashMap<>();
+        // a run judged FAIL may have answered errors fast or timed out slow: its p95 is not the usual
+        List<QualityHistory.Entry> green = history.entries().stream()
+                .filter(e -> !QualityStatus.FAIL.name().equals(e.overall())).toList();
+        long leftOut = history.entries().size() - green.size();
         latencies.forEach((operation, p95) -> {
-            long[] values = history.entries().stream().map(e -> e.latencies().get(operation))
+            long[] values = green.stream().map(e -> e.latencies().get(operation))
                     .filter(java.util.Objects::nonNull).mapToLong(Long::longValue).toArray();
             if (values.length >= minRuns) {
                 pastLatencies.put(operation, values);
@@ -141,7 +195,8 @@ final class HistoryDimensions {
         if (!pastLatencies.isEmpty()) {
             facts.addFirst(pastLatencies.size() + " API operations' p95 compared with their median, "
                     + (issues.size() - slowerTests) + " above median + " + limits.madFactor() + " × MAD and "
-                    + limits.minLatencyMillis() + " ms");
+                    + limits.minLatencyMillis() + " ms"
+                    + (leftOut == 0 ? "" : " (" + leftOut + " runs judged FAIL left out of the medians)"));
         }
         if (!past.isEmpty()) {
             facts.addFirst(past.size() + " tests compared with the median of their last runs (at least " + minRuns

@@ -13,6 +13,11 @@ import java.util.Locale;
 final class QualityAssessor {
 
     static final int LISTED = 10;
+    /**
+     * The {@code functional} issue of a run that executed fewer than {@code min-tests}: the gate
+     * fails on it whatever the baseline, {@code accepted} or a budget say.
+     */
+    static final String TOO_FEW_TESTS = "min-tests not reached";
 
     private QualityAssessor() {
     }
@@ -45,6 +50,9 @@ final class QualityAssessor {
                         () -> ModuleDimensions.apiCoverage(index, mapper, properties.minApiCoverage())),
                 ModuleDimensions.guarded(QualityDimension.FLOW_COVERAGE,
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
+                ModuleDimensions.guarded(QualityDimension.MUTATION, () -> MutationDimension.of(properties.mutation())),
+                ModuleDimensions.guarded(QualityDimension.DIFF_COVERAGE,
+                        () -> DiffCoverageDimension.of(properties.diffCoverage(), mapper)),
                 byHistory != null ? byHistory : efficiencyWithoutHistory(tests, baseline, properties, history),
                 ModuleDimensions.guarded(QualityDimension.HYGIENE, () -> hygiene(tests, index, mapper)))
                 .map(dimension -> HistoryDimensions.trend(dimension, history))
@@ -82,21 +90,39 @@ final class QualityAssessor {
         long passed = count(tests, Outcome.PASSED);
         long failed = count(tests, Outcome.FAILED);
         long skipped = count(tests, Outcome.SKIPPED);
-        if (passed + failed == 0) {
+        Integer minTests = properties.minTests();
+        // too few executed tests is a filter or task that selected the wrong ones, not a green run
+        boolean tooFew = minTests != null && passed + failed < minTests;
+        if (passed + failed == 0 && !tooFew) {
             return QualityDimension.notMeasured(QualityDimension.FUNCTIONAL,
                     "no executed tests in " + properties.junitResults());
         }
         List<String> facts = new ArrayList<>();
+        if (tooFew) {
+            facts.add((passed + failed) + " tests executed, fewer than min-tests " + minTests + " (in "
+                    + properties.junitResults() + ")");
+        }
         facts.add((passed + failed + skipped) + " tests: " + passed + " passed, " + failed + " failed, "
                 + skipped + " skipped");
+        long errors = tests.stream().filter(t -> t.outcome() == Outcome.FAILED && t.error()).count();
+        if (failed > 0) {
+            facts.add("failures: " + (failed - errors) + " assertion (a check failed), " + errors
+                    + " error (the test or its environment threw)");
+        }
         tests.stream().filter(t -> t.outcome() == Outcome.FAILED).limit(LISTED)
-                .forEach(t -> facts.add("failed: " + t.id() + (t.message() == null ? "" : " — " + t.message())));
+                .forEach(t -> facts.add("failed: " + t.id() + (t.message() == null ? "" : " — " + t.message())
+                        + (t.error() ? " [error]" : "")
+                        + (t.fingerprint() == null ? "" : " [fingerprint " + t.fingerprint() + "]")));
         if (failed > LISTED) {
             facts.add("… and " + (failed - LISTED) + " more failed");
         }
-        return new QualityDimension(QualityDimension.FUNCTIONAL, failed > 0 ? QualityStatus.FAIL : QualityStatus.PASS,
-                Math.round(100f * passed / (passed + failed)), "100 × passed / (passed + failed)", facts)
-                .withIssues(tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id).toList());
+        return new QualityDimension(QualityDimension.FUNCTIONAL,
+                failed > 0 || tooFew ? QualityStatus.FAIL : QualityStatus.PASS,
+                passed + failed == 0 ? 0 : Math.round(100f * passed / (passed + failed)),
+                "100 × passed / (passed + failed)", facts)
+                .withIssues(java.util.stream.Stream.concat(tooFew ? java.util.stream.Stream.of(TOO_FEW_TESTS)
+                                : java.util.stream.Stream.empty(),
+                        tests.stream().filter(t -> t.outcome() == Outcome.FAILED).map(TestCase::id)).toList());
     }
 
     static QualityDimension stability(List<TestCase> tests, QualityProperties properties) {
@@ -128,6 +154,7 @@ final class QualityAssessor {
         flaky.stream().limit(LISTED)
                 .forEach(t -> facts.add("flaky: " + t.id() + (t.message() == null ? "" : " — " + t.message())));
         byHistory.stream().limit(LISTED).forEach(id -> facts.add("flaky across runs: " + id));
+        facts.addAll(HistoryDimensions.outcomeFacts(tests, history));
         QualityStatus status = count == 0 ? QualityStatus.PASS
                 : rate > properties.maxFlakyRate() ? QualityStatus.FAIL : QualityStatus.WARN;
         List<String> issues = new ArrayList<>(flaky.stream().map(TestCase::id).toList());

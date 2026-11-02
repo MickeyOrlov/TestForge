@@ -24,8 +24,18 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `db-queries` | `100 − 10 × flagged statement shapes` | a statement failed (swallowed or not) or wrote every row of a table; WARN on one over `forge.db.queries.slow-millis` | `module-db` `db-queries.json` |
 | `api-coverage` | `100 × called / documented operations` | below `min-api-coverage` (WARN while any operation is uncalled) | `module-api-explorer` contract guard `api-coverage.json` |
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
+| `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
+| `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--json-report` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
+- **Failures** are counted as **assertion** (a check failed: `AssertionError`,
+  opentest4j, AssertJ) or **error** (anything else thrown — usually the test
+  or its environment: `[error]` after the test). Each carries a
+  **fingerprint**, 12 hex digits over the exception type and the first three
+  stack frames outside test libraries, without line numbers. Neither the
+  trace nor its frames go into a report. Grouping failures into named
+  categories is Allure's job (`categories.json`); this module does not
+  repeat it.
 - **Flaky** means failed and passed in the same run: a test listed twice
   (Gradle's test-retry) or with `<flakyFailure>` (Surefire's rerun). Without
   reruns there is nothing to see: `example-tests` applies
@@ -35,6 +45,15 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
   counts as passed for `functional` and as flaky for `stability`.
 - **NOT MEASURED** is never a pass: a dimension without its input says so,
   and the overall status ignores it. Nothing measured at all fails the gate.
+- **min-tests**: with `forge.quality.min-tests` set, `functional` FAILs while
+  fewer tests executed — none at all included — so a filter or task that
+  selected the wrong tests does not pass for a green run. The first fact
+  names the count; it fails the gate while `functional` is in `fail-on` (the
+  default) — whatever the baseline, `accepted` or a `max-new-issues` budget
+  say about the tests that did fail. Only `dry-run` turns it into a note.
+- **How to fix**: a FAIL or WARN dimension carries a `hint` — what to do
+  about it, next to the facts that say what is wrong — in `quality.json`,
+  `quality.md` and `quality-summary.md`.
 - **Overall** is the worst measured status; the mean score is for trend lines.
 
 A module that is not used leaves its dimension NOT MEASURED with the reason
@@ -43,6 +62,62 @@ read as JSON from the run index, so deleting a module never breaks this one.
 `module-security` keeps its own accepted list and baseline; `security`
 scores what it reports as `new`, and a security run that measured nothing is
 NOT MEASURED, not a pass.
+
+## Mutation: how strong the tests are
+
+Line coverage says a line ran; it does not say a test would notice it
+change. PIT changes the code (a `>=` to a `>`, a return value to `null`)
+and reruns the tests: a mutant no test fails on **survived**. `mutation`
+reads what PIT wrote — the mutation engine stays PIT's — from
+`mutations.xml` under `forge.quality.mutation.reports` (default
+`build/reports/pitest`, `target/pit-reports`, searched recursively; one
+per module, merged).
+
+- Detected: KILLED, TIMED_OUT, MEMORY_ERROR, RUN_ERROR, as PIT counts them;
+  NON_VIABLE mutants never compiled and are left out.
+- Facts give the test strength too: detected among mutants a test covered.
+- Issues are surviving mutants by method and mutator, without the line —
+  it moves with every edit above it — so the baseline holds across edits.
+- Run PIT incrementally on what the change touched (`withHistory`,
+  `targetClasses` from the diff); a full run on every pull request is slow
+  and 100 % is never the target: equivalent mutants cannot be killed.
+
+```yaml
+forge:
+  quality:
+    mutation:
+      reports: [build/reports/pitest]
+      min-score: 0.6       # FAIL below 60 % detected
+```
+
+## Diff coverage: the lines this change touched
+
+A gate on overall coverage blocks every small fix in legacy code, or lets
+coverage creep down a little per pull request. The lines a change touched
+are what it can be held to. Intersecting `git diff` with a coverage report
+is [diff-cover](https://github.com/Bachmann1234/diff_cover)'s job;
+`diff-coverage` reads its JSON report:
+
+```bash
+diff-cover build/reports/jacoco/test/jacocoTestReport.xml \
+    --compare-branch=origin/main --json-report build/reports/diff-coverage.json
+```
+
+```yaml
+forge:
+  quality:
+    diff-coverage:
+      report: build/reports/diff-coverage.json
+      min-score: 0.8     # FAIL below 80 % of measured changed lines covered
+      min-lines: 5       # fewer: NOT MEASURED, not a pass
+```
+
+- diff-cover calls a change without measured lines 100 % covered; here it
+  is NOT MEASURED, as is one below `min-lines`, with the count in the fact.
+- Facts name each file with its uncovered lines (`lines 12-14, 20`);
+  issues are the files — a line number moves with every edit, the file
+  does not. A diff is per pull request: run this with `fail-on` and
+  `min-score`, not against a baseline.
 
 ## How much was measured
 
@@ -109,7 +184,24 @@ forge:
 ```
 
 `until <date>` in the comment makes an acceptance expire: from the day
-after, the issue counts as new again and the report notes it. An accepted
+after, the issue counts as new again and the report notes it.
+
+**Quarantine** is an accepted failing test pinned to its fingerprint
+(`functional` only): `@<fingerprint>` after the test id, copied from its
+`failed:` fact. The test keeps running; the gate lets it through only while
+it fails the same way, and a different failure — another exception, another
+place — is new, with a note naming both fingerprints. The pin outranks the
+baseline: a test the baseline already had is still new once it fails
+differently. Every failed attempt counts — a retry (Gradle's second
+`<testcase>`, Surefire's `<rerunFailure>`) that fails differently gives the
+test both fingerprints, `a1…,b2…`, and no single pin matches it:
+
+```yaml
+forge:
+  quality:
+    accepted:
+      - "functional io.acme.PayTest.pays @1a2b3c4d5e6f  # QUAR-7 sandbox timeouts, until 2026-11-30"
+``` An accepted
 entry that matches no issue of the run is noted too — delete it once that
 holds, or it will silently cover the next regression.
 
@@ -151,8 +243,16 @@ forge:
   run's durations to those medians — a slower CI machine slows every test
   and is not a regression). API operations compare their p95 from
   `http-summary.json` the same way, without the pace and with
-  `min-latency-millis`. A test with fewer than `min-runs` values is left
+  `min-latency-millis`, against runs not judged FAIL only — a broken run may
+  answer errors fast or time out slow, and its p95 is not the usual (the
+  first fact says how many were left out). A test with fewer than `min-runs` values is left
   out; with none at all the baseline comparison applies.
+- **switching and stabilized**: across the whole window, revisions
+  included, `stability` lists tests whose outcome switched between passing
+  and failing at least 3 times (`switching: T — passed / failed 4 times in
+  7 runs`), and tests that were flaky earlier but passed the last 5 runs
+  (`stabilized: …`). Across revisions a switch may be a fix, so these are
+  leads: they add no issue and change no score.
 - **trends**: every measured dimension lists its score over the window; a
   PASS whose score fell in each of the last 3 runs becomes a WARN. A trend
   adds no issue, so it never fails the gate.
@@ -194,6 +294,15 @@ forge:
 A component's status is the worst status of the dimensions it has issues in;
 the report lists its issues and how many are new.
 
+**CODEOWNERS** saves a second owner mapping. With
+`forge.quality.codeowners: .github/CODEOWNERS`, an issue no component
+matched goes to the owners of the file its key points at — a test or a
+mutated class (looked up once among the repository's `src/*/java|kotlin|…`
+sources; `build/`, `target/` skipped), or a changed file from
+`diff-coverage`. As on GitHub the last matching rule wins and a rule
+without owners leaves the file unowned; the owners are the component's
+name. Operations and tables point at no file: map them in `components`.
+
 ## Gate policy per dimension
 
 `fail-on` fails on a FAIL with a new issue. `forge.quality.gate` adds per
@@ -211,6 +320,24 @@ With `max-new-issues` a `fail-on` FAIL passes while its new issues stay within
 the budget, and any status fails beyond it. A NOT MEASURED dimension is not
 judged here — list it in `required`.
 
+### Dry run: watch a rule before enforcing it
+
+```yaml
+forge:
+  quality:
+    fail-on: [functional, stability, contracts]
+    required: [contracts]
+    gate:
+      contracts: { dry-run: true, min-score: 90 }
+```
+
+Nothing the gate would fail on for a dry-run dimension — `fail-on`,
+`required`, `min-score`, `max-new-issues`, an incomplete security run —
+fails it. The report notes each instead (`dry run — the gate would fail on
+contracts (…)`), in `quality.md` and in `quality-summary.md`, so a team sees
+on its pull requests how often the rule would have fired. Remove `dry-run`
+once it fires only on real regressions. Other dimensions stay enforced.
+
 ## Exports
 
 Beside `quality.md` and `quality.json` in `output-dir`:
@@ -221,7 +348,12 @@ Beside `quality.md` and `quality.json` in `output-dir`:
 - `quality.prom` — OpenMetrics text (`testforge_quality_score`,
   `testforge_quality_status`, `testforge_quality_issues{kind="new"|"all"}`,
   `testforge_quality_component_new_issues`, `testforge_quality_run_info` with
-  the labels) for a push gateway or a textfile collector;
+  the labels) for a push gateway or a textfile collector. `revision`, `job`
+  and `run_id` take a new value every run — a new series each time, kept
+  until retention — so they stay out of it unless
+  `forge.quality.metrics.run-ids: true`; the report and the history keep
+  them. `branch` stays: mind it when every pull
+  request branch reaches the metrics;
 - `quality.schema.json` — JSON Schema of `quality.json` (`formatVersion` 1).
 
 ## Configuration
@@ -236,6 +368,17 @@ forge:
     output-dir: build/quality
     max-flaky-rate: 0.02
     fail-on: [functional, stability]     # add contracts, data, robustness, authorization when they run
+    min-tests:                           # optional: functional FAILs while fewer tests executed
+    mutation:
+      reports: [build/reports/pitest, target/pit-reports]  # PIT mutations.xml, searched recursively
+      min-score:                         # optional, 0..1: mutation FAILs below this share (default: WARN only)
+    diff-coverage:
+      report: build/reports/diff-coverage.json  # diff-cover --json-report
+      min-score:                         # optional, 0..1: diff-coverage FAILs below this share
+      min-lines: 1                       # fewer measured changed lines: NOT MEASURED
+    codeowners:                          # e.g. .github/CODEOWNERS: owners of issues no component matched
+    metrics:
+      run-ids: false                     # revision, job, run_id as quality.prom labels (a series per run)
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise

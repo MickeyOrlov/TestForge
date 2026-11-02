@@ -17,9 +17,18 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     output-dir: build/quality
  *     max-flaky-rate: 0.02                # stability FAILs above it
  *     fail-on: [functional, stability]    # dimensions whose FAIL fails the gate
+ *     min-tests: 25                       # functional FAILs while fewer tests executed
+ *     mutation:                           # PIT's mutations.xml, found under these paths
+ *       reports: [build/reports/pitest]
+ *       min-score: 0.6                    # mutation FAILs below this share of detected mutants
+ *     diff-coverage:                      # diff-cover's --json-report over JaCoCo XML and git diff
+ *       report: build/reports/diff-coverage.json
+ *       min-score: 0.8                    # diff-coverage FAILs below this share of changed lines covered
+ *       min-lines: 5                      # fewer measured changed lines: NOT MEASURED, not a silent pass
  *     baseline-file: build/quality/baseline/quality-baseline.json
  *     accepted:                           # known issues the gate lets through, with a reason
  *       - "functional io.acme.OrdersTest.refunds()  # ORD-12, fixed in 2.4"
+ *       - "functional io.acme.PayTest.pays @1a2b3c4d5e6f  # QUAR-7, until 2026-12-01"  # only that failure
  *     efficiency:
  *       slowdown-factor: 2.0              # a test this many times slower than in the baseline…
  *       min-millis: 1000                  # …and at least this much slower counts
@@ -40,9 +49,13 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *       orders:
  *         owner: team-orders
  *         match: ["io.acme.orders.*", "* /api/v1/orders*", "*ORDERS*"]
+ *     codeowners: .github/CODEOWNERS      # owners of issues no component matched, by the file they point at
+ *     metrics:
+ *       run-ids: false                    # revision, job and run_id as labels in quality.prom (one series per run)
  *     gate:                               # per dimension, on top of fail-on
  *       stability: { max-new-issues: 2 }  # a budget: fail-on fails only beyond it
  *       api-coverage: { min-score: 80 }   # fails below the score, whatever the status
+ *       contracts: { dry-run: true }      # reports what would fail the gate, fails nothing
  * </pre>
  *
  * An accepted entry may expire: {@code "functional X  # until 2026-12-01, ORD-12"} counts as new
@@ -73,7 +86,12 @@ public record QualityProperties(
         java.util.Map<String, String> runLabels,
         java.util.Map<String, ComponentProperties> components,
         java.util.Map<String, GateProperties> gate,
-        java.util.Map<String, java.time.LocalDate> acceptedUntil) {
+        java.util.Map<String, java.time.LocalDate> acceptedUntil,
+        Integer minTests,
+        MutationProperties mutation,
+        DiffCoverageProperties diffCoverage,
+        String codeowners,
+        MetricsProperties metrics) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -128,6 +146,118 @@ public record QualityProperties(
         components = components == null ? java.util.Map.of()
                 : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(components));
         gate = gate == null ? java.util.Map.of() : java.util.Map.copyOf(gate);
+        if (minTests != null && minTests < 1) {
+            throw new IllegalArgumentException("forge.quality.min-tests is at least 1");
+        }
+        if (mutation == null) {
+            mutation = new MutationProperties(null, null);
+        }
+        if (diffCoverage == null) {
+            diffCoverage = new DiffCoverageProperties(null, null, null);
+        }
+        if (codeowners != null && codeowners.isBlank()) {
+            codeowners = null;
+        }
+        if (metrics == null) {
+            metrics = new MetricsProperties(false);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation, DiffCoverageProperties diffCoverage) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, diffCoverage, null, null);
+    }
+
+    /**
+     * {@code quality.prom}: with {@code runIds}, the run's revision, job and run id are labels of
+     * {@code testforge_quality_run_info} — a new series every run, which a Prometheus keeps until
+     * retention; off by default, the report and history keep them anyway.
+     */
+    public record MetricsProperties(boolean runIds) {
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, null, null, null);
+    }
+
+    /**
+     * diff-cover's JSON report ({@code --json-report}): changed lines against the coverage report it
+     * was given (JaCoCo XML). {@code minScore} is the share below which {@code diff-coverage} FAILs;
+     * with fewer than {@code minLines} measured changed lines it is NOT MEASURED rather than a pass.
+     */
+    public record DiffCoverageProperties(String report, Double minScore, Integer minLines) {
+
+        public DiffCoverageProperties {
+            if (report == null || report.isBlank()) {
+                report = "build/reports/diff-coverage.json";
+            }
+            if (minScore != null && (minScore < 0 || minScore > 1)) {
+                throw new IllegalArgumentException("forge.quality.diff-coverage.min-score is a share between 0 and 1");
+            }
+            if (minLines == null || minLines < 1) {
+                minLines = 1;
+            }
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, null, null);
+    }
+
+    /**
+     * Where PIT left {@code mutations.xml} (searched recursively, several merge — one per module)
+     * and the share of detected mutants below which {@code mutation} FAILs.
+     */
+    public record MutationProperties(List<String> reports, Double minScore) {
+
+        public MutationProperties {
+            reports = reports == null || reports.isEmpty() ? List.of("build/reports/pitest", "target/pit-reports")
+                    : List.copyOf(reports);
+            if (minScore != null && (minScore < 0 || minScore > 1)) {
+                throw new IllegalArgumentException("forge.quality.mutation.min-score is a share between 0 and 1");
+            }
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, null, null);
     }
 
     private static final java.util.regex.Pattern UNTIL =
@@ -138,7 +268,7 @@ public record QualityProperties(
                              List<String> accepted, EfficiencyProperties efficiency, List<String> required,
                              java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
-                efficiency, required, resultsNotBefore, minApiCoverage, history, null, null, null, null);
+                efficiency, required, resultsNotBefore, minApiCoverage, history, null, null, null, null, null);
     }
 
     /** Who owns the issues whose key matches one of {@code match} ({@code *} is any text). */
@@ -152,9 +282,15 @@ public record QualityProperties(
     /**
      * A dimension's own gate: fail below {@code minScore}; with {@code maxNewIssues}, a
      * {@code fail-on} FAIL passes while its new issues stay within the budget, and any status
-     * fails beyond it.
+     * fails beyond it. With {@code dryRun} nothing the gate would fail on for this dimension —
+     * {@code fail-on}, {@code required}, these limits — fails it: the report notes it instead,
+     * so a rule can be watched before it is enforced.
      */
-    public record GateProperties(Integer minScore, Integer maxNewIssues) {
+    public record GateProperties(Integer minScore, Integer maxNewIssues, boolean dryRun) {
+
+        public GateProperties(Integer minScore, Integer maxNewIssues) {
+            this(minScore, maxNewIssues, false);
+        }
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
