@@ -79,6 +79,10 @@ final class WebFuzzingReports {
             if (!report.has("schemaVersion") || !report.path("faults").path("foundFaults").isArray()) {
                 return unusable(file + " is not a WFC report (no schemaVersion / faults.foundFaults)");
             }
+            String malformed = malformed(report.path("faults").path("foundFaults"));
+            if (malformed != null) {
+                return unusable(file + " has a malformed fault (" + malformed + "): its faults cannot be judged");
+            }
             int[] families = new int[4];
             java.util.Set<String> operations = new java.util.HashSet<>();
             int before = evidence.size();
@@ -104,6 +108,30 @@ final class WebFuzzingReports {
             facts.add("… and " + (evidence.size() - QualityAssessor.LISTED) + " more fault groups");
         }
         return new Read(List.copyOf(evidence.keySet()), facts, null);
+    }
+
+    /**
+     * Why a fault entry cannot be counted, or {@code null}: every fault needs an operation and at least
+     * one category with an integer code — one without would read as a clean run.
+     */
+    private static String malformed(JsonNode faults) {
+        int index = 0;
+        for (JsonNode fault : faults) {
+            if (!fault.path("operationId").isTextual() || fault.path("operationId").asText().isBlank()) {
+                return "foundFaults[" + index + "] has no operationId";
+            }
+            JsonNode categories = fault.path("faultCategories");
+            if (!categories.isArray() || categories.isEmpty()) {
+                return "foundFaults[" + index + "] has no faultCategories";
+            }
+            for (JsonNode category : categories) {
+                if (!category.path("code").isIntegralNumber()) {
+                    return "foundFaults[" + index + "] has a category without an integer code";
+                }
+            }
+            index++;
+        }
+        return null;
     }
 
     private static Read unusable(String why) {

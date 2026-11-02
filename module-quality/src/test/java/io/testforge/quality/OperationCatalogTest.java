@@ -26,6 +26,16 @@ class OperationCatalogTest {
     }
 
     @Test
+    void aPathTwoDocumentsMatchEquallyWellKeepsItsOwnName() {
+        OperationCatalog two = OperationCatalog.of(List.of("billing GET /health", "orders GET /health",
+                "orders GET /tasks/{id}"));
+
+        assertThat(two.key("GET /billing/health")).as("not billing's by a guess").isEqualTo("GET /billing/health");
+        assertThat(two.key("GET /orders/health")).isEqualTo("GET /orders/health");
+        assertThat(two.key("GET /api/tasks/7")).as("one document matches: named").isEqualTo("orders GET /tasks/{id}");
+    }
+
+    @Test
     void whatTheDocumentDoesNotKnowKeepsItsOwnName() {
         assertThat(catalog.key("OPTIONS:/petclinic/api/owners")).isEqualTo("OPTIONS:/petclinic/api/owners");
         assertThat(catalog.key("POST /owners")).as("another method").isEqualTo("POST /owners");

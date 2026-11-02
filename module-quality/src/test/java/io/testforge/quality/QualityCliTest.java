@@ -89,6 +89,23 @@ class QualityCliTest {
     }
 
     @Test
+    void aBaselineFromARunThatMeasuredNothingLeavesTheAcceptedOneAlone() throws IOException {
+        Path config = config("");
+        assertThat(cli("baseline", "--config", config.toString())).isEqualTo(QualityCli.PASS);
+        byte[] accepted = Files.readAllBytes(dir.resolve("baseline.json"));
+
+        assertThat(cli("baseline", "--config", config.toString(), "--set",
+                "junit-results=" + dir.resolve("none"))).isEqualTo(QualityCli.CANNOT_JUDGE);
+        assertThat(err()).contains("baseline").contains("is unchanged");
+        assertThat(Files.readAllBytes(dir.resolve("baseline.json"))).isEqualTo(accepted);
+
+        assertThat(cli("baseline", "--config", config.toString(), "--set", "required[0]=contracts"))
+                .as("a required dimension not measured").isEqualTo(QualityCli.CANNOT_JUDGE);
+        assertThat(err()).contains("Required dimensions not measured (contracts)");
+        assertThat(Files.readAllBytes(dir.resolve("baseline.json"))).isEqualTo(accepted);
+    }
+
+    @Test
     void aWrongCommandLineSaysHowToUseIt() {
         assertThat(cli("frobnicate")).isEqualTo(QualityCli.USAGE);
         assertThat(cli("check", "--set", "novalue")).isEqualTo(QualityCli.USAGE);

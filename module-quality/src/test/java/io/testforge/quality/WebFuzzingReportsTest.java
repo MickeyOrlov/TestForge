@@ -62,6 +62,19 @@ class WebFuzzingReportsTest {
         assertThat(robustness(dir.resolve("absent.json"), null).facts().getFirst()).startsWith("no WFC report at");
         assertThat(robustness(report("{\"faults\": 3}"), null).facts().getFirst())
                 .endsWith("is not a WFC report (no schemaVersion / faults.foundFaults)");
+        QualityDimension malformed = robustness(report("""
+                {"schemaVersion": "0.7.0", "faults": {"totalNumber": 1, "foundFaults": [{"operationId": "GET:/owners"}]}}"""), null);
+        assertThat(malformed.status()).as("a fault without categories is not a clean run")
+                .isEqualTo(QualityStatus.NOT_MEASURED);
+        assertThat(malformed.facts().getFirst()).endsWith("has a malformed fault (foundFaults[0] has no "
+                + "faultCategories): its faults cannot be judged");
+        assertThat(robustness(report("""
+                {"schemaVersion": "0.7.0", "faults": {"foundFaults": [{"faultCategories": [{"code": 100}]}]}}"""), null)
+                .facts().getFirst()).contains("foundFaults[0] has no operationId");
+        assertThat(robustness(report("""
+                {"schemaVersion": "0.7.0", "faults": {"foundFaults": [
+                  {"operationId": "GET:/x", "faultCategories": [{"code": "500"}]}]}}"""), null)
+                .facts().getFirst()).contains("a category without an integer code");
 
         Path old = report(REPORT);
         Files.setLastModifiedTime(old, FileTime.from(Instant.parse("2026-11-01T08:00:00Z")));

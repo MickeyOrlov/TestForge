@@ -144,7 +144,8 @@ forge:
   `petclinic POST /owners SECURITY_XSS` (1xx HTTP semantics, 2xx schema, 3xx
   security; an unknown code is `WFC_<code>`). The fact names the generated
   test that shows it.
-- A configured report that is missing, not WFC, or older than
+- A configured report that is missing, not WFC, has a fault without an
+  operation or a category, or is older than
   `results-not-before` leaves `robustness` NOT MEASURED: a fuzzer that did not
   run this time found nothing.
 - A black-box fuzzer writes: run it against a disposable environment, never a
@@ -160,7 +161,9 @@ the contract guard by template. With the contract guard on, its
 `<spec> <METHOD> <documented template>` (`petclinic GET /owners/{ownerId}`).
 A base path in front is matched without configuration; a longer template wins
 (`/v2/owners` over `/owners`). An operation the document does not know keeps
-its own name. `contracts` keys carry the same `<METHOD> <template>`, so one
+its own name, and so does one that two documents match equally well
+(`billing GET /health`, `orders GET /health`): a guess would merge two APIs'
+issues and history. `contracts` keys carry the same `<METHOD> <template>`, so one
 component pattern (`"*GET /owners/{ownerId}*"`) covers an operation in every
 dimension.
 
@@ -466,6 +469,8 @@ testforge-quality baseline --config quality.yml   # promote this run, in a revie
 - `quality.yml` holds the `forge.quality` tree an `application.yml` would;
   relative paths are relative to where the command runs. `--set` overrides
   one key (`forge.quality.` may be left out; lists as `accepted[0]=…`).
+- `baseline` refuses a run that measured nothing or missed a `required`
+  dimension: the accepted baseline stays as it was, exit 2.
 - `check` prints `quality-summary.md` (`--json`: `quality.json`) and exits
   **0** when the gate passes, **1** when it fails (`gate.failures` says
   why), **2** when nothing could be measured or an input cannot be read,

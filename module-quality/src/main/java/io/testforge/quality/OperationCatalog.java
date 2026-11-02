@@ -16,7 +16,9 @@ import java.util.regex.Pattern;
  * <p>A raw path matches a template when the template's segments end it ({@code {x}} any one
  * segment), so a base path the document's servers add ({@code /petclinic/api}) needs no
  * configuration. Of several matches the one with more segments wins, then the one with more literal
- * segments: {@code /v2/owners} over {@code /owners}. What matches nothing keeps its own name.
+ * segments: {@code /v2/owners} over {@code /owners}. What matches nothing keeps its own name, and so
+ * does a path two documents match equally well ({@code billing GET /health} and {@code orders GET
+ * /health} for {@code GET /orders/health}): guessing would merge two APIs' issues and history.
  */
 final class OperationCatalog {
 
@@ -77,10 +79,14 @@ final class OperationCatalog {
         }
         String method = trimmed.substring(0, at).toUpperCase(java.util.Locale.ROOT);
         String path = trimmed.substring(at + 1).strip().split("[?#]", 2)[0];
-        return operations.stream()
+        Comparator<Operation> specificity = Comparator.comparingInt(Operation::segments)
+                .thenComparingInt(Operation::literals);
+        List<Operation> matches = operations.stream()
                 .filter(o -> o.method().equals(method) && o.path().matcher(path).matches())
-                .max(Comparator.comparingInt(Operation::segments).thenComparingInt(Operation::literals))
-                .map(Operation::key)
-                .orElse(operation);
+                .sorted(specificity.reversed()).toList();
+        if (matches.isEmpty() || matches.size() > 1 && specificity.compare(matches.get(0), matches.get(1)) == 0) {
+            return operation;
+        }
+        return matches.getFirst().key();
     }
 }

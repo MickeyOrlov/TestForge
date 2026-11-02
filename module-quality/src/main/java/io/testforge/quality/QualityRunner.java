@@ -189,6 +189,18 @@ public class QualityRunner {
     public QualityReport writeBaseline() {
         JunitResults.Read read = tests();
         QualityReport report = run(read);
+        // a run that measured nothing, or not what is required, would replace the accepted baseline with blanks
+        if (report.overall() == QualityStatus.NOT_MEASURED) {
+            throw new QualityException("Nothing was measured: the baseline " + properties.baselineFile()
+                    + " is unchanged. See " + report.reportMarkdown());
+        }
+        List<String> missing = report.dimensions().stream()
+                .filter(d -> d.status() == QualityStatus.NOT_MEASURED && properties.required().contains(d.name()))
+                .map(QualityDimension::name).toList();
+        if (!missing.isEmpty()) {
+            throw new QualityException("Required dimensions not measured (" + String.join(", ", missing)
+                    + "): the baseline " + properties.baselineFile() + " is unchanged. See " + report.reportMarkdown());
+        }
         QualityBaseline.of(report, read.tests()).write(Path.of(properties.baselineFile()), mapper);
         return report;
     }
