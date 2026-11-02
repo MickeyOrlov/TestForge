@@ -289,6 +289,15 @@ forge:
 A component's status is the worst status of the dimensions it has issues in;
 the report lists its issues and how many are new.
 
+**CODEOWNERS** saves a second owner mapping. With
+`forge.quality.codeowners: .github/CODEOWNERS`, an issue no component
+matched goes to the owners of the file its key points at — a test or a
+mutated class (looked up once among the repository's `src/*/java|kotlin|…`
+sources; `build/`, `target/` skipped), or a changed file from
+`diff-coverage`. As on GitHub the last matching rule wins and a rule
+without owners leaves the file unowned; the owners are the component's
+name. Operations and tables point at no file: map them in `components`.
+
 ## Gate policy per dimension
 
 `fail-on` fails on a FAIL with a new issue. `forge.quality.gate` adds per
@@ -334,7 +343,12 @@ Beside `quality.md` and `quality.json` in `output-dir`:
 - `quality.prom` — OpenMetrics text (`testforge_quality_score`,
   `testforge_quality_status`, `testforge_quality_issues{kind="new"|"all"}`,
   `testforge_quality_component_new_issues`, `testforge_quality_run_info` with
-  the labels) for a push gateway or a textfile collector;
+  the labels) for a push gateway or a textfile collector. `revision`, `job`
+  and `run_id` take a new value every run — a new series each time, kept
+  until retention — so they stay out of it unless
+  `forge.quality.metrics.run-ids: true`; the report and the history keep
+  them. `branch` stays: mind it when every pull
+  request branch reaches the metrics;
 - `quality.schema.json` — JSON Schema of `quality.json` (`formatVersion` 1).
 
 ## Configuration
@@ -357,6 +371,9 @@ forge:
       report: build/reports/diff-coverage.json  # diff-cover --json-report
       min-score:                         # optional, 0..1: diff-coverage FAILs below this share
       min-lines: 1                       # fewer measured changed lines: NOT MEASURED
+    codeowners:                          # e.g. .github/CODEOWNERS: owners of issues no component matched
+    metrics:
+      run-ids: false                     # revision, job, run_id as quality.prom labels (a series per run)
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
     efficiency:
       slowdown-factor: 2.0               # both limits at once, so a 10 ms test going to 90 ms is noise

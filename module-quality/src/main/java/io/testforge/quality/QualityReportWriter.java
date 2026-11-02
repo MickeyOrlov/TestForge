@@ -25,7 +25,15 @@ final class QualityReportWriter {
     private QualityReportWriter() {
     }
 
+    /** Labels of {@code testforge_quality_run_info} that take a new value every run. */
+    static final java.util.Set<String> RUN_ID_LABELS = java.util.Set.of("revision", "job", "run_id");
+
     static QualityReport write(Path outputDir, QualityReport report, ObjectMapper mapper) {
+        return write(outputDir, report, mapper, false);
+    }
+
+    /** @param runIds keep the per-run labels in {@code quality.prom} */
+    static QualityReport write(Path outputDir, QualityReport report, ObjectMapper mapper, boolean runIds) {
         try {
             Files.createDirectories(outputDir);
             Path markdown = outputDir.resolve(MARKDOWN);
@@ -34,7 +42,7 @@ final class QualityReportWriter {
             Files.writeString(markdown, render(written));
             mapper.copy().enable(SerializationFeature.INDENT_OUTPUT).writeValue(json.toFile(), written);
             Files.writeString(outputDir.resolve(SUMMARY), summary(written));
-            Files.writeString(outputDir.resolve(METRICS), metrics(written));
+            Files.writeString(outputDir.resolve(METRICS), metrics(written, runIds));
             try (var schema = QualityReportWriter.class.getResourceAsStream(SCHEMA)) {
                 Files.write(outputDir.resolve(SCHEMA), schema.readAllBytes());
             }
@@ -147,11 +155,19 @@ final class QualityReportWriter {
 
     /** OpenMetrics text: one gauge family per fact a dashboard plots, labelled by dimension. */
     static String metrics(QualityReport report) {
+        return metrics(report, true);
+    }
+
+    /** @param runIds with revision, job and run id: one series per run — see {@code metrics.run-ids} */
+    static String metrics(QualityReport report, boolean runIds) {
         StringBuilder out = new StringBuilder();
         java.util.Map<String, String> info = new java.util.TreeMap<>();
         report.labels().forEach((key, value) -> info.put(metricLabel(key), value));
         if (report.runId() != null) {
             info.put("run_id", report.runId());
+        }
+        if (!runIds) {
+            info.keySet().removeAll(RUN_ID_LABELS);
         }
         info.put("overall", report.overall().name());
         out.append("# TYPE testforge_quality_run info\n# HELP testforge_quality_run The judged run.\n")

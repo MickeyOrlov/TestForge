@@ -6,6 +6,11 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Changed
+- `module-quality`: `quality.prom` leaves `revision`, `job` and `run_id` out
+  of `testforge_quality_run_info` — one series per run — unless
+  `forge.quality.metrics.run-ids: true`.
+
 ### Added
 - `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
   would fail the gate for that dimension (`fail-on`, `required`, its limits)
@@ -31,6 +36,9 @@ semantic versioning for its git tags.
   `--json-report` (`forge.quality.diff-coverage.report`, `min-score`,
   `min-lines`): covered over measured changed lines, files with uncovered
   lines as issues; a diff with too few measured lines is NOT MEASURED.
+- `module-quality`: `forge.quality.codeowners` gives issues no component
+  matched to the CODEOWNERS owners of the file they point at (test or
+  mutated class, changed file).
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

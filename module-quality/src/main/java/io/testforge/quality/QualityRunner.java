@@ -98,8 +98,10 @@ public class QualityRunner {
         breaches(compared).stream().filter(b -> dryRun(b.dimension()))
                 .forEach(b -> notes.add("dry run — the gate would fail on " + b.note()));
         compared = compared.withNotes(notes).withLabels(labels(revision))
-                .withComponents(QualityComponents.assign(compared.dimensions(), properties.components()));
-        QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper);
+                .withComponents(QualityComponents.assign(compared.dimensions(), properties.components(),
+                        properties.codeowners() == null ? null : CodeOwners.read(Path.of(properties.codeowners()))));
+        QualityReport report = QualityReportWriter.write(Path.of(properties.outputDir()), compared, mapper,
+                properties.metrics().runIds());
         if (historyProperties.enabled()) {
             QualityHistory.record(Path.of(historyProperties.dir()),
                     QualityHistory.of(report, tests, revision, Instant.now(), latencies(index)),

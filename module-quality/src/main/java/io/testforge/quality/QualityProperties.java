@@ -49,6 +49,9 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *       orders:
  *         owner: team-orders
  *         match: ["io.acme.orders.*", "* /api/v1/orders*", "*ORDERS*"]
+ *     codeowners: .github/CODEOWNERS      # owners of issues no component matched, by the file they point at
+ *     metrics:
+ *       run-ids: false                    # revision, job and run_id as labels in quality.prom (one series per run)
  *     gate:                               # per dimension, on top of fail-on
  *       stability: { max-new-issues: 2 }  # a budget: fail-on fails only beyond it
  *       api-coverage: { min-score: 80 }   # fails below the score, whatever the status
@@ -86,7 +89,9 @@ public record QualityProperties(
         java.util.Map<String, java.time.LocalDate> acceptedUntil,
         Integer minTests,
         MutationProperties mutation,
-        DiffCoverageProperties diffCoverage) {
+        DiffCoverageProperties diffCoverage,
+        String codeowners,
+        MetricsProperties metrics) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -150,6 +155,34 @@ public record QualityProperties(
         if (diffCoverage == null) {
             diffCoverage = new DiffCoverageProperties(null, null, null);
         }
+        if (codeowners != null && codeowners.isBlank()) {
+            codeowners = null;
+        }
+        if (metrics == null) {
+            metrics = new MetricsProperties(false);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation, DiffCoverageProperties diffCoverage) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, diffCoverage, null, null);
+    }
+
+    /**
+     * {@code quality.prom}: with {@code runIds}, the run's revision, job and run id are labels of
+     * {@code testforge_quality_run_info} — a new series every run, which a Prometheus keeps until
+     * retention; off by default, the report and history keep them anyway.
+     */
+    public record MetricsProperties(boolean runIds) {
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
@@ -163,7 +196,7 @@ public record QualityProperties(
                              MutationProperties mutation) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
                 efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
-                acceptedUntil, minTests, mutation, null);
+                acceptedUntil, minTests, mutation, null, null, null);
     }
 
     /**

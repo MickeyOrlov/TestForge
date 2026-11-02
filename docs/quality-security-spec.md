@@ -288,6 +288,7 @@ CHANGELOG, and a review step at the end of each part.
 | A8 | History: operation p95 medians from runs not judged FAIL; switching and stabilized tests listed in `stability` — **shipped** | failed runs do not hide a slow operation; a test passing 5 runs after a flaky one is listed as stabilized, without an issue |
 | A9 | `mutation` dimension read from PIT's `mutations.xml` — **shipped** | a surviving mutant is an issue without its line; the score is computed by hand from the report; no report, NOT MEASURED |
 | A10 | `diff-coverage` dimension read from diff-cover's JSON report (JaCoCo XML ∩ git diff) — **shipped** | uncovered changed lines are named by file and range; a diff below `min-lines` is NOT MEASURED, not a pass |
+| A11 | Owners from CODEOWNERS for issues that point at a file; per-run labels out of `quality.prom` by default — **shipped** | a failing test goes to its file's last matching owners; `quality.prom` holds no revision unless `metrics.run-ids` |
 
 ## 7. Open questions
 
