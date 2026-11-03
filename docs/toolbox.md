@@ -80,7 +80,9 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 
 | Situation | Tool | In TestForge | Status |
 |---|---|---|---|
-| Is this build worse than the accepted one; can it ship | — | `module-quality` (`testforge-quality`) | glue |
+| Is this build worse than the accepted one | — | `module-quality` (`testforge-quality check`) | glue |
+| Can this build ship: absolute rules, unmeasured is unknown, accepted risks listed | — | `module-quality` (`testforge-quality release`) | glue |
+| Did the load run hold its service levels | k6 (via `module-load`) | `module-quality` `load` reads its `report.json` | reader |
 | Would the tests notice a change in the code | PIT | `module-quality` `mutation` | reader |
 | Are the lines this change touched covered | diff-cover | `module-quality` `diff-coverage` | reader |
 | Flaky tests, quarantine with an expiry | — | `module-quality` `stability`, `accepted @fingerprint` | glue |

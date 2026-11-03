@@ -26,6 +26,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
 | `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
 | `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--format json:<file>` |
+| `load` | `100 × passed thresholds / thresholds` | a load run's native k6 thresholds failed; any other non-PASSED outcome is NOT MEASURED | `module-load` `report.json` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
 - **Failures** are counted as **assertion** (a check failed: `AssertionError`,
@@ -443,6 +444,11 @@ forge:
       min-score:                         # optional, 0..1: diff-coverage FAILs below this share
       min-lines: 1                       # fewer measured changed lines: NOT MEASURED
     codeowners:                          # e.g. .github/CODEOWNERS: owners of issues no component matched
+    load:
+      reports: []                        # module-load report.json files or folders, beside the run index
+    release:
+      required: [functional, contracts, security, load]  # testforge-quality release; see Release
+      limits: {}                         # per dimension: {max-issues: n, min-score: n}
     metrics:
       run-ids: false                     # revision, job, run_id as quality.prom labels (a series per run)
     min-api-coverage:                    # optional, 0..1: api-coverage FAILs below this share (default: WARN only)
@@ -454,6 +460,56 @@ forge:
     history:
       dir:                               # off unless set — see History
 ```
+
+## Load: k6 runs judged by their own thresholds
+
+`load` reads the `report.json` every `module-load` run writes — from the run
+index, and from `forge.quality.load.reports` (files, or folders holding them):
+
+- PASSED is PASS, THRESHOLDS_FAILED is FAIL; INVALID_RESULT, EXECUTION_ERROR,
+  TIMED_OUT and CANCELLED leave the dimension NOT MEASURED with the run's own
+  detail — a load run that measured nothing valid is never a pass.
+- One issue per failing scenario, keyed by its script's SHA-256
+  (`load script f76e985538f9`): the same scenario failing again is the same
+  issue. Facts: requests, actual rate, p95, error rate, dropped iterations,
+  thresholds passed of total.
+- The thresholds are k6's: this module neither re-computes timings nor adds
+  limits of its own.
+
+## Release: can this build ship
+
+The gate asks "did this change make things worse" — new issues against a
+baseline. A release asks something else:
+
+```bash
+testforge-quality release --config quality.yml     # 0 READY · 1 NOT_READY · 2 UNKNOWN · 64 usage
+```
+
+```yaml
+forge:
+  quality:
+    release:
+      required: [functional, contracts, security, load]   # the default
+      limits:
+        reliability: { max-issues: 0 }
+        api-coverage: { min-score: 80 }
+```
+
+- **Absolute.** An issue the baseline already knew still counts. A dimension
+  blocks when it is `required`, in `fail-on` or has a release limit, and it
+  FAILs with an open issue — or breaks its limit.
+- **UNKNOWN, not READY,** while a `required` dimension is NOT MEASURED; each is
+  named with the reason.
+- **Accepted risks are listed, not hidden:** every `accepted` entry whose issue
+  is present appears with its owner (components / CODEOWNERS), the reason
+  after `#` and its `until`. A FAIL whose every issue is accepted ships as a
+  risk; an expired acceptance blocks.
+- Writes `release.md` (first line `### Release: NOT_READY — …`), `release.json`
+  and `release.schema.json` beside the quality report. The everyday `check`
+  gate is unchanged.
+
+On petclinic, with two contract mismatches the baseline knew, the gate passed
+and `release` said NOT_READY — the point of the second question.
 
 ## The command: `testforge-quality`
 
@@ -468,7 +524,10 @@ testforge-quality baseline --config quality.yml   # promote this run, in a revie
 
 - `quality.yml` holds the `forge.quality` tree an `application.yml` would;
   relative paths are relative to where the command runs. `--set` overrides
-  one key (`forge.quality.` may be left out; lists as `accepted[0]=…`).
+  one key (`forge.quality.` may be left out). A list given with `--set`
+  replaces the file's list whole: write it comma-separated
+  (`--set fail-on=functional,contracts`) or from index 0 on (`accepted[0]=…`);
+  `fail-on[1]=…` alone leaves a hole and is refused.
 - `baseline` refuses a run that measured nothing or missed a `required`
   dimension: the accepted baseline stays as it was, exit 2.
 - `check` prints `quality-summary.md` (`--json`: `quality.json`) and exits

@@ -94,7 +94,10 @@ public record QualityProperties(
         DiffCoverageProperties diffCoverage,
         String codeowners,
         MetricsProperties metrics,
-        RobustnessProperties robustness) {
+        RobustnessProperties robustness,
+        LoadRunsProperties load,
+        ReleaseProperties release,
+        java.util.Map<String, String> acceptedReasons) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -119,9 +122,14 @@ public record QualityProperties(
         }
         java.util.Map<String, java.time.LocalDate> until = new java.util.LinkedHashMap<>(
                 acceptedUntil == null ? java.util.Map.of() : acceptedUntil);
+        java.util.Map<String, String> reasons = new java.util.LinkedHashMap<>(
+                acceptedReasons == null ? java.util.Map.of() : acceptedReasons);
         if (accepted != null) {
             for (String entry : accepted) {
                 String[] parts = entry == null ? new String[] {""} : entry.split(" #", 2);
+                if (parts.length == 2 && !parts[1].isBlank()) {
+                    reasons.put(parts[0].strip().replaceAll("\\s+", " "), parts[1].strip());
+                }
                 java.util.regex.Matcher date = parts.length < 2 ? null : UNTIL.matcher(parts[1]);
                 if (date != null && date.find()) {
                     until.put(parts[0].strip().replaceAll("\\s+", " "), java.time.LocalDate.parse(date.group(1)));
@@ -129,6 +137,7 @@ public record QualityProperties(
             }
         }
         acceptedUntil = java.util.Map.copyOf(until);
+        acceptedReasons = java.util.Map.copyOf(reasons);
         accepted = accepted == null ? List.of() : accepted.stream()
                 .map(entry -> entry == null ? "" : entry.split(" #", 2)[0].strip().replaceAll("\\s+", " "))
                 .filter(entry -> !entry.isEmpty())
@@ -167,6 +176,55 @@ public record QualityProperties(
         if (robustness == null) {
             robustness = new RobustnessProperties(null);
         }
+        if (load == null) {
+            load = new LoadRunsProperties(null);
+        }
+        if (release == null) {
+            release = new ReleaseProperties(null, null);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation, DiffCoverageProperties diffCoverage, String codeowners,
+                             MetricsProperties metrics, RobustnessProperties robustness) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, robustness, null, null, null);
+    }
+
+    /** module-load's {@code report.json} files (or folders holding them) beside those in the run index. */
+    public record LoadRunsProperties(List<String> reports) {
+
+        public LoadRunsProperties {
+            reports = reports == null ? List.of() : List.copyOf(reports);
+        }
+    }
+
+    /**
+     * What {@code testforge-quality release} requires — absolute, not against a baseline.
+     *
+     * @param required dimensions a release must have measured; one that is not makes the verdict UNKNOWN
+     * @param limits   per dimension: at most {@code maxIssues} open issues, a score of at least
+     *                 {@code minScore}
+     */
+    public record ReleaseProperties(List<String> required, java.util.Map<String, ReleaseLimit> limits) {
+
+        public ReleaseProperties {
+            required = required == null ? List.of(QualityDimension.FUNCTIONAL, QualityDimension.CONTRACTS,
+                    QualityDimension.SECURITY, QualityDimension.LOAD) : List.copyOf(required);
+            limits = limits == null ? java.util.Map.of() : java.util.Map.copyOf(limits);
+        }
+    }
+
+    /** A release limit on one dimension; either may be unset. */
+    public record ReleaseLimit(Integer maxIssues, Integer minScore) {
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
@@ -181,7 +239,7 @@ public record QualityProperties(
                              MetricsProperties metrics) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
                 efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
-                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, null);
+                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, null, null, null, null);
     }
 
     /** Web Fuzzing Commons {@code report.json} files whose faults join module-api-fuzz's in {@code robustness}. */

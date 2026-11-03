@@ -161,6 +161,25 @@ Checked after the runs (web search, November 2026):
   checking whether to read its `metrics.env` / model as an input instead of
   keeping our own parsers.
 
+## Release readiness with real k6 runs
+
+`testforge-quality release` on the same petclinic data, with two real k6 2.3.0
+runs through `:example-tests:loadTest` (10 iterations/s for 10 s): the normal
+scenario (PASSED, 404 requests, 6/6 thresholds) and the same scenario with an
+impossible `p(95)<0.001` on a group (THRESHOLDS_FAILED, 1/6).
+
+| Scenario | Release | Why |
+|---|---|---|
+| tests pass, load PASSED, `required: [functional, load]` | READY (exit 0) | both measured, nothing blocking |
+| load THRESHOLDS_FAILED | NOT_READY (exit 1) | `load FAIL (1 open: load script 2b1d0d4fc0aa)` |
+| no load report | UNKNOWN (exit 2) | `load (no module-load report.json at …)` |
+| contracts required, two mismatches known since the baseline | NOT_READY (exit 1) | while the everyday `check` gate passed on the same build |
+
+The last row is the point of the second question: "nothing new" and "can
+ship" are different answers. Found on the way: `--set fail-on[1]=…` alone is
+refused by Spring's binding (a list from `--set` replaces the file's whole) —
+the README now says to write lists comma-separated.
+
 ## Repeat it
 
 The harness lives outside the repository (`~/Documents/quality-dogfood`): a

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TestForge release readiness (release.json)",
+  "description": "testforge-quality release: absolute rules over one judged run. formatVersion changes when a field is removed or changes meaning; fields may be added within a version.",
+  "type": "object",
+  "required": ["formatVersion", "verdict", "blockers", "unmeasured", "risks", "dimensions"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "runId": { "type": ["string", "null"] },
+    "verdict": { "enum": ["READY", "NOT_READY", "UNKNOWN"] },
+    "blockers": { "type": "array", "items": { "type": "string" }, "description": "Why it is NOT_READY." },
+    "unmeasured": { "type": "array", "items": { "type": "string" }, "description": "Required dimensions nobody measured." },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dimension", "issue", "expired"],
+        "properties": {
+          "dimension": { "type": "string" },
+          "issue": { "type": "string" },
+          "owner": { "type": ["string", "null"] },
+          "reason": { "type": ["string", "null"] },
+          "until": { "type": ["string", "null"], "format": "date" },
+          "expired": { "type": "boolean" }
+        }
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "role", "openIssues"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "enum": ["NOT_MEASURED", "PASS", "WARN", "FAIL"] },
+          "score": { "type": ["integer", "null"] },
+          "role": { "enum": ["required", "blocking", "report only"] },
+          "openIssues": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "reportMarkdown": { "type": ["string", "null"] },
+    "reportJson": { "type": ["string", "null"] }
+  }
+}

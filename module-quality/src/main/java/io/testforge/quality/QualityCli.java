@@ -24,6 +24,7 @@ import org.springframework.core.io.FileSystemResource;
  * <pre>
  * testforge-quality check    [--config quality.yml] [--set key=value]… [--json]
  * testforge-quality baseline [--config quality.yml] [--set key=value]…
+ * testforge-quality release  [--config quality.yml] [--set key=value]… [--json]
  * </pre>
  *
  * The configuration is the same {@code forge.quality.*} an {@code application.yml} holds; {@code --set}
@@ -38,7 +39,9 @@ import org.springframework.core.io.FileSystemResource;
  * </ul>
  *
  * {@code baseline} promotes the run it judges to {@code baseline-file} — run it on purpose, in a
- * reviewed change. Nothing is registered in a run index: the command only reads what the build left.
+ * reviewed change. {@code release} answers whether the build can ship by {@code forge.quality.release}'s
+ * absolute rules and exits {@value #PASS} READY, {@value #FAILED} NOT_READY, {@value #CANNOT_JUDGE}
+ * UNKNOWN (a required dimension not measured). Nothing is registered in a run index: the command only reads what the build left.
  */
 public final class QualityCli {
 
@@ -61,7 +64,7 @@ public final class QualityCli {
         List<String> arguments = new ArrayList<>(List.of(args));
         String command = arguments.isEmpty() || arguments.getFirst().startsWith("--") ? "check"
                 : arguments.removeFirst();
-        if (!command.equals("check") && !command.equals("baseline")) {
+        if (!command.equals("check") && !command.equals("baseline") && !command.equals("release")) {
             return usage(err, "unknown command " + command);
         }
         Path config = null;
@@ -94,6 +97,16 @@ public final class QualityCli {
         try {
             QualityRunner runner = new QualityRunner(properties(config, settings), new ObjectMapper(),
                     ArtifactSink.NO_OP);
+            if (command.equals("release")) {
+                ReleaseReport release = runner.release();
+                out.print(Files.readString(Path.of(json ? release.reportJson() : release.reportMarkdown())));
+                err.println("release: " + release.verdict() + " — " + release.reportJson());
+                return switch (release.verdict()) {
+                    case READY -> PASS;
+                    case NOT_READY -> FAILED;
+                    case UNKNOWN -> CANNOT_JUDGE;
+                };
+            }
             QualityReport report = command.equals("baseline") ? runner.writeBaseline() : runner.run();
             out.print(json ? Files.readString(Path.of(report.reportJson()))
                     : Files.readString(Path.of(report.reportJson()).resolveSibling(QualityReportWriter.SUMMARY)));
@@ -133,7 +146,8 @@ public final class QualityCli {
 
     private static int usage(PrintStream err, String problem) {
         err.println("quality: " + problem);
-        err.println("usage: testforge-quality check|baseline [--config quality.yml] [--set key=value]... [--json]");
+        err.println("usage: testforge-quality check|baseline|release [--config quality.yml] [--set key=value]... "
+                + "[--json]");
         return USAGE;
     }
 }

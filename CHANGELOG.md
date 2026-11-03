@@ -6,6 +6,16 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-quality`: a `load` dimension from `module-load`'s `report.json`
+  (run index and `forge.quality.load.reports`): native k6 thresholds decide,
+  any outcome other than PASSED / THRESHOLDS_FAILED is NOT MEASURED.
+- `module-quality`: `testforge-quality release` / `QualityRunner.release()` —
+  whether a build can ship by absolute rules (`forge.quality.release`:
+  `required`, `limits`): baseline-known issues count, an unmeasured required
+  dimension is UNKNOWN, accepted issues are listed as risks with owner,
+  reason and expiry; `release.md`, `release.json` + schema; exit 0 / 1 / 2.
+
 ### Fixed
 - `module-security`: an artifact secret finding in a file with an extension
   longer than eight letters (`app.properties`, `trace.network`) named the file
