@@ -81,7 +81,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Generate a k6 client from OpenAPI | Grafana openapi-to-k6 | `tools/api-load` | adapter |
 | Watch a load run live | Prometheus, Grafana | `infra/load` (pinned compose stack) | alongside |
 | A test that got slower than its own history | — | `module-quality` `efficiency` | glue |
-| Front-end performance budgets | Lighthouse CI | — | empty |
+| Front-end performance budgets | Lighthouse CI | `tools/lighthouse` | adapter |
 
 ## Judging the run
 
@@ -116,7 +116,6 @@ an opt-in adapter or reader; none is planned until a project needs it.
 | Database migrations apply and roll back | Flyway, Liquibase |
 | Realistic fake data | Datafaker |
 
-| Front-end performance | Lighthouse CI |
 
 ## Decided
 

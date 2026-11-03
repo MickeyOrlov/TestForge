@@ -132,6 +132,7 @@ flowchart LR
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
 | [module-web-playwright](module-web-playwright) | Playwright lifecycle: shared browser, per-test context, `Page` fixture, failure artifacts |
 | [module-mobile-appium](module-mobile-appium) | Appium lifecycle: device matrix, session/driver fixtures, optional local node, failure artifacts |
+| [tools/lighthouse](tools/lighthouse) | Explicit native Lighthouse CI performance budgets and local JSON/HTML reports |
 | [example-tests](example-tests) | Self-contained reference suite (WireMock + H2), runs offline |
 
 ## Quick start

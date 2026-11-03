@@ -68,6 +68,8 @@ depend on opt-in runtime integrations.
 - `module-a11y`: axe-core adapter over an existing Page; automated checks, explicit adoption and manual-review evidence.
 - `module-faults`: Toxiproxy adapter; explicit isolated scopes, network failures and fault evidence.
 
+- `tools/lighthouse`: native front-end budgets, explicit project workflow outside default build.
+
 These modules are wired and tested, but their public API or supported schema
 surface is still expected to evolve.
 

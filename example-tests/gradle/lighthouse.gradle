@@ -1,0 +1,34 @@
+// Explicit project tooling only; never a dependency of build/test.
+def lighthouseDir = rootProject.file("tools/lighthouse")
+tasks.register("lighthouseTools", Exec) {
+    group = "verification"
+    workingDir lighthouseDir
+    commandLine "npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"
+}
+tasks.register("lighthouseUnitTest", Exec) {
+    group = "verification"
+    workingDir lighthouseDir
+    commandLine "node", "--test", "run.test.mjs"
+}
+tasks.register("lighthouseTest", Exec) {
+    group = "verification"
+    dependsOn "lighthouseTools"
+    workingDir rootProject.projectDir
+    doFirst {
+        def config = providers.gradleProperty("lighthouseConfig").orNull
+        def urls = providers.gradleProperty("lighthouseUrls").orNull
+        def chrome = providers.gradleProperty("lighthouseChrome").orNull
+        if (!config || !urls || !chrome) throw new GradleException("Select lighthouseConfig, lighthouseUrls and lighthouseChrome explicitly")
+        commandLine "node", rootProject.file("tools/lighthouse/run.mjs"), rootProject.file(config), rootProject.file(urls), chrome
+    }
+}
+tasks.register("lighthouseAcceptance", Exec) {
+    group = "verification"
+    dependsOn "lighthouseTools"
+    workingDir rootProject.projectDir
+    doFirst {
+        def chrome = providers.gradleProperty("lighthouseChrome").orNull
+        if (!chrome) throw new GradleException("Select lighthouseChrome explicitly")
+        commandLine "node", rootProject.file("tools/lighthouse/acceptance.mjs"), chrome
+    }
+}

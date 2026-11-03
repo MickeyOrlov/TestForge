@@ -373,3 +373,5 @@ reviewing a module. Adapting a fresh clone follows
 Security adoption: enable `forge.security.passive.enabled`, then call
 `SecurityRunner.assertAcceptable()` after API tests and before artifact upload.
 Read module-security/README.md for applicability and coverage limits.
+
+Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in `tools/lighthouse/README.md`. Native Lighthouse CI owns assertions and reports; no browser or node tooling runs during the default build.
