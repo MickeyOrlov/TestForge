@@ -64,7 +64,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | This run's own credentials leaking into artifacts, archives included | — | `module-security` pre-upload scan | glue — [decided](toolbox-decisions.md#2-artifact-secret-scan-vs-gitleaks) |
 | Credentials of a known shape (cloud keys, vendor tokens) in artifacts | gitleaks | — (run next to the scan; reader planned) | empty |
 | Vulnerable dependencies; static analysis of the product | Trivy, Grype, Semgrep, CodeQL (SARIF) | — | empty |
-| Network faults, latency, a dependency going down | Toxiproxy | — | empty |
+| Network faults, latency, a dependency going down | Toxiproxy | `module-faults` | adapter |
 
 ## Performance
 
@@ -108,7 +108,6 @@ an opt-in adapter or reader; none is planned until a project needs it.
 | Database migrations apply and roll back | Flyway, Liquibase |
 | Realistic fake data | Datafaker |
 | Vulnerable dependencies, static analysis | Trivy, Grype, Semgrep, CodeQL — one SARIF reader covers them |
-| Network faults | Toxiproxy (Testcontainers module) |
 | Front-end performance | Lighthouse CI |
 
 ## Decided

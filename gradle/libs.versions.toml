@@ -21,6 +21,9 @@ archunit = "1.4.1"
 # 7.x runs on JUnit 5, which Spring Boot 3.5 manages; 8.x moves to JUnit 6
 cucumber = "7.34.9"
 
+toxiproxy-java = "2.1.11"
+toxiproxy-server = "2.13.0"
+
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 # standalone (shaded) build: avoids the Jetty 11 vs Boot-managed Jetty 12 clash
@@ -39,3 +42,7 @@ testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-jun
 schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
 cucumber-bom = { module = "io.cucumber:cucumber-bom", version.ref = "cucumber" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
+
+testcontainers-toxiproxy = { module = "org.testcontainers:testcontainers-toxiproxy", version.ref = "testcontainers" }
+toxiproxy-java = { module = "eu.rekawek.toxiproxy:toxiproxy-java", version.ref = "toxiproxy-java" }
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }

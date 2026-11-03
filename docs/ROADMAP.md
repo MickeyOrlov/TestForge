@@ -65,6 +65,8 @@ depend on opt-in runtime integrations.
 
 ### Experimental
 
+- `module-faults`: Toxiproxy adapter; explicit isolated scopes, network failures and fault evidence.
+
 These modules are wired and tested, but their public API or supported schema
 surface is still expected to evolve.
 
