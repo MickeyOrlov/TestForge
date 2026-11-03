@@ -7,6 +7,12 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-quality`: a `static-analysis` dimension reading SARIF 2.1.0 from
+  gitleaks, Trivy, Grype, Semgrep, CodeQL or SpotBugs
+  (`forge.quality.sarif.reports`, `tool-severity`): one issue per tool, rule
+  and file (plus the tool's fingerprint), severity from `security-severity`
+  or the level, suppressions honoured; CODEOWNERS now also finds a file
+  named later in an issue key.
 - `module-quality`: a `load` dimension from `module-load`'s `report.json`
   (run index and `forge.quality.load.reports`): native k6 thresholds decide,
   any outcome other than PASSED / THRESHOLDS_FAILED is NOT MEASURED.

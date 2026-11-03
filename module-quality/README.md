@@ -26,6 +26,7 @@ Each dimension has a status (PASS / WARN / FAIL / NOT MEASURED), a score
 | `flow-coverage` | `100 × taken / declared transitions` | never (WARN while a declared transition is untaken) | `module-flow` `flow-coverage.json` |
 | `mutation` | `100 × detected / (detected + survived + not covered)` | below `mutation.min-score` (WARN while a mutant survives or is not covered) | PIT `mutations.xml` |
 | `diff-coverage` | `100 × covered / measured changed lines` | below `diff-coverage.min-score` (WARN while a changed line is uncovered) | diff-cover `--format json:<file>` |
+| `static-analysis` | `100 − 40 × critical − 20 × high − 5 × medium − 1 × low` | a critical or high finding (WARN on medium/low) | SARIF 2.1.0 from gitleaks, Trivy, Grype, Semgrep, CodeQL, SpotBugs |
 | `load` | `100 × passed thresholds / thresholds` | a load run's native k6 thresholds failed; any other non-PASSED outcome is NOT MEASURED | `module-load` `report.json` |
 | `hygiene` | `100 − 5 × leftover rows − 10 × reporting problems − 5 × unused stubs − 5 × unmatched requests` | never (WARN) | run index, `module-mock` `mock-summary.json` |
 
@@ -119,6 +120,45 @@ forge:
   issues are the files — a line number moves with every edit, the file
   does not. A diff is per pull request: run this with `fail-on` and
   `min-score`, not against a baseline.
+
+## Scanners: SARIF from gitleaks, Trivy, Semgrep and others
+
+Secret, dependency and code scanners all write SARIF 2.1.0; `static-analysis`
+reads it. The scanners run in the project's build — this module never runs one
+and keeps no pattern catalogue of its own.
+
+```bash
+gitleaks dir build/testforge-artifacts --redact --report-format sarif --report-path build/sarif/gitleaks.sarif
+trivy fs --scanners vuln --format sarif --output build/sarif/trivy.sarif .
+semgrep scan --config auto --sarif --output build/sarif/semgrep.sarif
+```
+
+```yaml
+forge:
+  quality:
+    sarif:
+      reports: [build/sarif]       # files, or folders searched for *.sarif / *.sarif.json
+      tool-severity:
+        gitleaks: high             # gitleaks writes no level: a leaked secret is no warning
+```
+
+- One issue per tool, rule and file — plus the tool's own fingerprint when it
+  gives a non-empty one — and never the line, so the baseline holds when code
+  above moves: `Trivy CVE-2026-0001 pom.xml`, `gitleaks jwt artifacts/session.txt`.
+  The file makes the finding CODEOWNERS-owned.
+- Severity: the rule's `security-severity` (≥ 9 critical, ≥ 7 high, ≥ 4
+  medium, else low) when it has one, otherwise the level — `error` high,
+  `warning` medium (also a result without a level, as SARIF says), `note` low,
+  `none` ignored — and never below the tool's `tool-severity` floor.
+- A suppressed result (in source or external, not `rejected` / `underReview`)
+  is counted as suppressed, not an issue; `baselineState: absent` is gone.
+- A missing, malformed (no `runs`, a run without `tool.driver.name`, a result
+  without `ruleId`) or stale report is NOT MEASURED, never a clean pass.
+- Facts name tool, rule, file and line only: a SARIF message or snippet may
+  hold the very secret it reports.
+- module-security's own artifact scan finds this run's credentials, gitleaks
+  finds credential shapes; together they caught eight of eight planted leaks
+  ([docs/toolbox-decisions.md](../docs/toolbox-decisions.md) §2).
 
 ## Fuzzers: what an API does when nobody wrote the test
 
@@ -444,6 +484,9 @@ forge:
       min-score:                         # optional, 0..1: diff-coverage FAILs below this share
       min-lines: 1                       # fewer measured changed lines: NOT MEASURED
     codeowners:                          # e.g. .github/CODEOWNERS: owners of issues no component matched
+    sarif:
+      reports: []                        # SARIF 2.1.0 files or folders; see Scanners
+      tool-severity: {}                  # e.g. {gitleaks: high}
     load:
       reports: []                        # module-load report.json files or folders, beside the run index
     release:

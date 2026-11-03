@@ -15,7 +15,8 @@ import java.util.stream.Stream;
 /**
  * A repository's {@code CODEOWNERS}, so issues need no second owner mapping: an issue key that
  * points at a file — a test or mutated class ({@code io.acme.orders.OrdersTest.pays()}), a changed
- * source file ({@code src/main/java/…/Prices.java}) — goes to the owners of that file. As on GitHub
+ * source file ({@code src/main/java/…/Prices.java}), a scanner finding's file
+ * ({@code gitleaks jwt artifacts/session.txt}) — goes to the owners of that file. As on GitHub
  * the last matching rule wins, and a rule without owners leaves the file unowned.
  *
  * <p>A class name becomes a file by looking it up among the repository's sources once; an operation
@@ -76,9 +77,26 @@ final class CodeOwners {
         });
     }
 
-    /** A repository-relative path: the key itself when it is one, else the source of its class. */
+    /**
+     * A repository-relative path: the key's first word when it is a source path, else the source of its
+     * class; failing both, a later word that is a file path ({@code gitleaks jwt artifacts/session.txt},
+     * {@code Trivy CVE-1 pom.xml}) — never a URL path ({@code GET /owners/{id}}).
+     */
     private Optional<String> file(String issue) {
-        String key = issue.split(" ", 2)[0];
+        Optional<String> first = firstWordFile(issue.split(" ", 2)[0]);
+        if (first.isPresent()) {
+            return first;
+        }
+        String[] words = issue.split(" ");
+        for (int i = 1; i < words.length; i++) {
+            if (words[i].matches("[\\w.-]+(/[\\w.-]+)*\\.[A-Za-z0-9]+")) {
+                return Optional.of(words[i]);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<String> firstWordFile(String key) {
         if (key.contains("/") && SOURCES.stream().anyMatch(key::endsWith)) {
             return Optional.of(key.startsWith("/") ? key.substring(1) : key);
         }

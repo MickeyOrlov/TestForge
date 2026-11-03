@@ -93,6 +93,6 @@ by growing it.
 
 ## What follows
 
-- A `module-quality` reader for gitleaks' JSON report (or SARIF), next to the
-  own scan — the one open action of the three.
+- ~~A `module-quality` reader for gitleaks' report~~ — done: `static-analysis`
+  reads SARIF from gitleaks and the other scanners.
 - docs/toolbox.md: the three rows are no longer `own — review`.

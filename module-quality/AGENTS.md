@@ -5,7 +5,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **Scope:** `QualityRunner` (run, gate), `JunitResults`, `RunIndex`, `QualityAssessor` dimensions, `quality.md` / `quality.json`. Spec: [docs/quality-security-spec.md](../docs/quality-security-spec.md) (Part A).
 
-**May depend on:** `core` only. Other modules' output is read from files (JUnit XML, `manifest.json`, their own reports), never through their classes — a module that is deleted just leaves its dimension NOT MEASURED. Another tool's report (PIT's `mutations.xml`, diff-cover's JSON) is read from a configured path the same way: the tool runs in the project's build, never from here.
+**May depend on:** `core` only. Other modules' output is read from files (JUnit XML, `manifest.json`, their own reports), never through their classes — a module that is deleted just leaves its dimension NOT MEASURED. Another tool's report (PIT's `mutations.xml`, diff-cover's JSON, SARIF, WFC) is read from a configured path the same way: the tool runs in the project's build, never from here.
 
 ## Invariants (do not break)
 
