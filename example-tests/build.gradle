@@ -21,6 +21,7 @@ dependencies {
     testImplementation project(":module-state")
     testImplementation project(":module-http")
     testImplementation project(":module-load")
+    testImplementation project(":module-a11y")
     testImplementation project(":module-faults")
     testImplementation project(":module-auth")
     testImplementation project(":module-kafka")
@@ -196,6 +197,16 @@ tasks.register("securityScanTest", Test) {
 
 // Project-level load orchestration stays separate from production modules.
 apply from: "gradle/load.gradle"
+
+// Explicit native axe acceptance; never run by the default build.
+tasks.register("a11yTest", Test) {
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "browser" }
+    filter { includeTestsMatching "*A11yAxeIT*" }
+    outputs.upToDateWhen { false }
+}
 
 // Only the new fault adapter acceptance, without unrelated Cucumber suites.
 tasks.register("faultsTest", Test) {

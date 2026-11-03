@@ -30,6 +30,7 @@ module-gherkin/ optional Cucumber steps over the modules: scope per scenario, ${
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
 module-quality/ judges a finished run: dimensions with formulas, quality.md/json, gate
+module-a11y/   axe-core checks, explicit adoption baseline and sanitized accessibility evidence
 module-web/    PrewarmRunner — warm key pages once per suite
 module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
 module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
@@ -225,6 +226,7 @@ must not replace each other. `example-tests` is never published.
    [docs/examples/quality-gate.github-actions.yml](docs/examples/quality-gate.github-actions.yml)
    is the whole job for GitHub Actions: history cache, run index, gate,
    artifacts and the summary on the pull request.
+17b. **module-a11y**: enable only for explicit UI checks on an existing Page; use reviewed page templates, inspect native findings and promote baselines explicitly. Manual-review results never pass; browser examples stay out of the default build.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
    run: a page "ended at" a sign-in URL warmed the login wall, not the page.

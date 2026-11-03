@@ -67,6 +67,12 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Network faults, latency, a dependency going down | Toxiproxy | `module-faults` | adapter |
 
 
+## Browser checks
+
+| Situation | Tool | In TestForge | Status |
+|---|---|---|---|
+| Accessibility of a page | axe-core (official Playwright Java integration) | `module-a11y` | adapter |
+
 ## Performance
 
 | Situation | Tool | In TestForge | Status |
@@ -104,7 +110,6 @@ an opt-in adapter or reader; none is planned until a project needs it.
 
 | Situation | Proven tool |
 |---|---|
-| Accessibility of a page | axe-core (with Playwright) |
 | Visual regression of a page | Playwright screenshots |
 | Mail a service sends | Mailpit, GreenMail |
 | AWS services a product depends on | LocalStack |

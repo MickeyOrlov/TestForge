@@ -21,6 +21,8 @@ archunit = "1.4.1"
 # 7.x runs on JUnit 5, which Spring Boot 3.5 manages; 8.x moves to JUnit 6
 cucumber = "7.34.9"
 
+# 4.11.3 targets Playwright 1.58; retain the project's 1.59 instead of upgrading browser fixtures.
+axe-playwright = "4.11.3"
 toxiproxy-java = "2.1.11"
 toxiproxy-server = "2.13.0"
 
@@ -43,6 +45,7 @@ schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawl
 cucumber-bom = { module = "io.cucumber:cucumber-bom", version.ref = "cucumber" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
 
+axe-playwright = { module = "com.deque.html.axe-core:playwright", version.ref = "axe-playwright" }
 testcontainers-toxiproxy = { module = "org.testcontainers:testcontainers-toxiproxy", version.ref = "testcontainers" }
 toxiproxy-java = { module = "eu.rekawek.toxiproxy:toxiproxy-java", version.ref = "toxiproxy-java" }
 testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
