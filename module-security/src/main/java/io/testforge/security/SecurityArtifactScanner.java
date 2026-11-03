@@ -185,7 +185,8 @@ public class SecurityArtifactScanner {
                     .append(
                             !secrets.matches(name)
                                             && name.matches(
-                                                    "[A-Za-z][A-Za-z_-]{0,39}(\\.[A-Za-z]{1,8})?")
+                                                    // .properties, .network: a finding must name the file
+                                                    "[A-Za-z][A-Za-z_-]{0,39}(\\.[A-Za-z]{1,16})?")
                                     ? name
                                     : "{value}");
         }

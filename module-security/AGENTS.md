@@ -10,6 +10,9 @@ Style: like the rest of the repository — 4-space indentation, explicit imports
 (no wildcards), 8-space continuation; google-java-format `--aosp` produces it.
 
 Invariants:
+- The artifact scan matches this run's known secrets exactly and opens archives;
+  credential *shapes* (cloud keys, vendor tokens) are gitleaks' job — combine,
+  do not grow a pattern catalogue here ([docs/toolbox-decisions.md](../docs/toolbox-decisions.md) §2).
 - Inert by default. Passive checks add no traffic and never replace a response.
 - Never retain observed values in findings, coverage, logs, errors or SARIF.
 - Missing/incomplete coverage never passes the gate or resolves old findings.

@@ -9,6 +9,11 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 ## Invariants (do not break)
 
+- **Kept, bounded** ([docs/toolbox-decisions.md](../docs/toolbox-decisions.md) §1): the value is
+  `ApiClient`-based clients, records, the compile check and the regeneration
+  diff for tests. No race to OpenAPI Generator's feature list; a project that
+  needs rich `oneOf` / enum typing uses it alongside.
+
 - Never write into a hand-maintained source directory.
 - `oneOf`/`anyOf` → `Object` and enums → wire scalar in v1; changing that is a
   design decision, not a fix.
