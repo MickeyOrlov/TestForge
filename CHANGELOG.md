@@ -54,6 +54,7 @@ semantic versioning for its git tags.
   `forge.quality.metrics.run-ids: true`.
 
 ### Added
+- `module-faults`: opt-in isolated Toxiproxy scopes, exact upstream allowlisting, lazy managed/external controllers, cleanup and value-free fault evidence.
 - `module-load`: opt-in local k6 OSS adapter with version preflight, native thresholds, configurable HTTP/threshold/dropped-iteration validity rules, timeout/cancellation cleanup, bounded output, aggregate evidence and optional HTML. Optional Prometheus remote write uses native histograms, excludes URL/name system tags and makes per-run labels explicit opt-in; a pinned Compose stack provisions Grafana, with direct report links to the selected time range. Dedicated `loadTest`, native acceptance and observability tasks stay outside the default build; a manual CI workflow verifies the whole local path. Optional project-level API research → load tasks exchange snapshots/reports, delegate TypeScript client generation to Grafana openapi-to-k6 and run a portable native scenario; module-load gains no producer dependency.
 - `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
   would fail the gate for that dimension (`fail-on`, `required`, its limits)

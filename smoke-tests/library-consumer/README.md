@@ -35,3 +35,6 @@ export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat-with-read-packages>
 
 This directory can also be opened as an independent Gradle project in IntelliJ
 IDEA to demonstrate the consumer boundary without committing `.idea` files.
+
+`PublishedFaultsSmokeTest` consumes the published module-faults JAR/POM and verifies opt-in
+auto-configuration and named upstream binding without starting Docker or a proxy.
