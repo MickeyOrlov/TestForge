@@ -182,6 +182,78 @@ public class QualityRunner {
     }
 
     /**
+     * Whether this build can ship: {@link #run()}, then absolute rules from {@code forge.quality.release}
+     * instead of the baseline comparison — an issue the baseline already knew still counts, a required
+     * dimension that was not measured makes the verdict UNKNOWN, and accepted issues are listed as the
+     * risks the release carries, with owner, reason and expiry. Writes {@code release.md} and
+     * {@code release.json} beside the quality report; never fails, the verdict says it.
+     */
+    public ReleaseReport release() {
+        QualityReport report = run();
+        QualityProperties.ReleaseProperties release = properties.release();
+        java.time.LocalDate today = java.time.LocalDate.now(clock);
+        java.util.Set<String> blocking = new java.util.LinkedHashSet<>(release.required());
+        blocking.addAll(properties.failOn());
+        blocking.addAll(release.limits().keySet());
+        List<String> blockers = new ArrayList<>();
+        List<String> unmeasured = new ArrayList<>();
+        List<ReleaseReport.Dimension> dimensions = new ArrayList<>();
+        if (report.overall() == QualityStatus.NOT_MEASURED) {
+            unmeasured.add("nothing measured");
+        }
+        for (QualityDimension dimension : report.dimensions()) {
+            String name = dimension.name();
+            String role = release.required().contains(name) ? "required"
+                    : blocking.contains(name) ? "blocking" : "report only";
+            List<String> accepted = dimension.delta() == null ? List.of() : dimension.delta().acceptedIssues();
+            List<String> open = dimension.issues().stream().filter(issue -> !accepted.contains(issue)).toList();
+            dimensions.add(new ReleaseReport.Dimension(name, dimension.status(), dimension.score(), role, open.size()));
+            if (dimension.status() == QualityStatus.NOT_MEASURED) {
+                if (release.required().contains(name)) {
+                    unmeasured.add(name + " (" + dimension.facts().getFirst() + ")");
+                }
+                continue;
+            }
+            if (!blocking.contains(name)) {
+                continue;
+            }
+            // a FAIL whose every issue is accepted ships as a risk; a FAIL without issue keys (a rate) cannot
+            if (dimension.status() == QualityStatus.FAIL && (dimension.issues().isEmpty() || !open.isEmpty())) {
+                blockers.add(name + " FAIL (" + (open.isEmpty() ? dimension.facts().getFirst()
+                        : open.size() + " open: " + String.join(", ", open.subList(0, Math.min(3, open.size())))
+                        + (open.size() > 3 ? ", …" : "")) + ")");
+            }
+            QualityProperties.ReleaseLimit limit = release.limits().get(name);
+            if (limit != null && limit.maxIssues() != null && open.size() > limit.maxIssues()) {
+                blockers.add(name + " (" + open.size() + " open issues, the release allows " + limit.maxIssues() + ")");
+            }
+            if (limit != null && limit.minScore() != null && dimension.score() < limit.minScore()) {
+                blockers.add(name + " (score " + dimension.score() + " below the release minimum "
+                        + limit.minScore() + ")");
+            }
+        }
+        List<ReleaseReport.Risk> risks = new ArrayList<>();
+        for (String entry : properties.accepted()) {
+            String key = QualityBaseline.acceptedKey(entry);
+            QualityDimension dimension = report.dimensions().stream()
+                    .filter(d -> key.startsWith(d.name() + " ")).findFirst().orElse(null);
+            if (dimension == null || !dimension.issues().contains(key.substring(dimension.name().length() + 1))) {
+                continue;
+            }
+            java.time.LocalDate until = properties.acceptedUntil().get(entry);
+            String owner = report.components().stream().filter(c -> c.issues().contains(key))
+                    .map(c -> c.owner() == null ? c.name() : c.owner()).findFirst().orElse(null);
+            risks.add(new ReleaseReport.Risk(dimension.name(), key.substring(dimension.name().length() + 1),
+                    owner, properties.acceptedReasons().get(entry), until == null ? null : until.toString(),
+                    QualityBaseline.expired(until, today)));
+        }
+        ReleaseReport.Verdict verdict = !blockers.isEmpty() ? ReleaseReport.Verdict.NOT_READY
+                : !unmeasured.isEmpty() ? ReleaseReport.Verdict.UNKNOWN : ReleaseReport.Verdict.READY;
+        return ReleaseReportWriter.write(Path.of(properties.outputDir()), new ReleaseReport(report.runId(), verdict,
+                blockers, unmeasured, dimensions, risks, null, null), mapper);
+    }
+
+    /**
      * Promotes this run to the baseline the next runs are compared with —
      * always an explicit call in a reviewed change, never a side effect of
      * the check.

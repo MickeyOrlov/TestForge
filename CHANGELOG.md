@@ -13,6 +13,14 @@ semantic versioning for its git tags.
   and file (plus the tool's fingerprint), severity from `security-severity`
   or the level, suppressions honoured; CODEOWNERS now also finds a file
   named later in an issue key.
+- `module-quality`: a `load` dimension from `module-load`'s `report.json`
+  (run index and `forge.quality.load.reports`): native k6 thresholds decide,
+  any outcome other than PASSED / THRESHOLDS_FAILED is NOT MEASURED.
+- `module-quality`: `testforge-quality release` / `QualityRunner.release()` —
+  whether a build can ship by absolute rules (`forge.quality.release`:
+  `required`, `limits`): baseline-known issues count, an unmeasured required
+  dimension is UNKNOWN, accepted issues are listed as risks with owner,
+  reason and expiry; `release.md`, `release.json` + schema; exit 0 / 1 / 2.
 
 ### Fixed
 - `module-security`: an artifact secret finding in a file with an extension
