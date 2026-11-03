@@ -103,6 +103,12 @@ TestForge's runtime signals. Coverage and mutation parsing overlap with
 [uhafner/quality-monitor](https://github.com/uhafner/quality-monitor); worth
 checking whether to read its model instead of keeping own parsers.
 
+## Mail capture
+
+| Situation | Tool | In TestForge | Status |
+|---|---|---|---|
+| Assert mail sent by the product | Mailpit | `module-mail` | adapter |
+
 ## Rare compartments — still empty
 
 The pipe wrenches: needed rarely, needed at once when they are. Each would be
@@ -111,7 +117,6 @@ an opt-in adapter or reader; none is planned until a project needs it.
 | Situation | Proven tool |
 |---|---|
 | Visual regression of a page | Playwright screenshots |
-| Mail a service sends | Mailpit, GreenMail |
 | AWS services a product depends on | LocalStack |
 | Database migrations apply and roll back | Flyway, Liquibase |
 | Realistic fake data | Datafaker |

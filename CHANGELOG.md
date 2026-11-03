@@ -7,6 +7,7 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-mail`: opt-in Mailpit capture API adapter with UUID recipients, text/HTML/attachment assertions, bounded calls, isolated cleanup and value-free lifecycle evidence. Native SMTP fixture remains outside the default build.
 - `module-quality`: a `static-analysis` dimension reading SARIF 2.1.0 from
   gitleaks, Trivy, Grype, Semgrep, CodeQL or SpotBugs
   (`forge.quality.sarif.reports`, `tool-severity`): one issue per tool, rule
