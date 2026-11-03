@@ -7,6 +7,10 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Fixed
+- `module-security`: an artifact secret finding in a file with an extension
+  longer than eight letters (`app.properties`, `trace.network`) named the file
+  `/{value}`; the mask now lets extensions of up to 16 letters through, and
+  still masks names with digits or IDs.
 - `module-load`: with Prometheus remote write on, `--system-tags` left out `group`
   and `check`, so thresholds such as `checks{check:…}` or
   `http_req_duration{group:::…}` saw no sample and k6 passed them — enabling

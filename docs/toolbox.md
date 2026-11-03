@@ -48,19 +48,21 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Keep WireMock stubs honest to the downstream's document | — | `module-api-explorer` stub contract | glue |
 | Tell whether a schema change breaks a database consumer | SchemaCrawler | `module-db-contract` | adapter |
 | Verified provider / consumer contract between teams | Pact, Spring Cloud Contract | — (README "TestForge + Testcontainers + Pact") | alongside |
-| Typed Java clients and records from OpenAPI | OpenAPI Generator (`java`, `rest-assured` library) | `module-api-codegen` (own generator) | own — review |
+| Typed Java clients and records from OpenAPI, over `ApiClient` | — (OpenAPI Generator alongside for rich `oneOf` / enum typing) | `module-api-codegen` | glue — [decided](toolbox-decisions.md#1-module-api-codegen-vs-openapi-generator) |
 
 ## Exploring, breaking, attacking
 
 | Situation | Tool | In TestForge | Status |
 |---|---|---|---|
-| What does the API actually do, operation by operation | EvoMaster, Schemathesis | `module-api-explorer` (GET walker) | own — review |
+| Find defects across an API: chains, 500s, schema violations | EvoMaster, Schemathesis | `module-quality` reads their reports | reader |
+| A deterministic, safe, diffable pass over an API's reads | — | `module-api-explorer` walker (frozen) | glue — [decided](toolbox-decisions.md#3-module-api-explorer-walker-vs-evomaster) |
 | Which role gets into which operation | — | `module-api-explorer` access matrix | glue |
 | Schema-aware fuzzing | Schemathesis | `module-api-fuzz` | adapter |
 | Black-box fuzzing with request chains, generated tests | EvoMaster | `module-quality` reads its WFC `report.json` | reader |
 | Security issues visible in responses, no extra traffic | — | `module-security` passive checks | glue |
 | Active web / API security scan | OWASP ZAP | `module-security` (scoped ZAP, Docker) | adapter |
-| Secrets leaking into test artifacts | gitleaks, TruffleHog | `module-security` own pre-upload scan | own — review |
+| This run's own credentials leaking into artifacts, archives included | — | `module-security` pre-upload scan | glue — [decided](toolbox-decisions.md#2-artifact-secret-scan-vs-gitleaks) |
+| Credentials of a known shape (cloud keys, vendor tokens) in artifacts | gitleaks | — (run next to the scan; reader planned) | empty |
 | Vulnerable dependencies; static analysis of the product | Trivy, Grype, Semgrep, CodeQL (SARIF) | — | empty |
 | Network faults, latency, a dependency going down | Toxiproxy | — | empty |
 
@@ -109,18 +111,17 @@ an opt-in adapter or reader; none is planned until a project needs it.
 | Network faults | Toxiproxy (Testcontainers module) |
 | Front-end performance | Lighthouse CI |
 
-## To decide
+## Decided
 
-The `own — review` rows, one decision record each (keep, wrap or replace),
-in the manner of [api-fuzz-prototype-analysis.md](api-fuzz-prototype-analysis.md):
+The three `own — review` rows were measured against the tool next to them
+on real inputs — [toolbox-decisions.md](toolbox-decisions.md):
 
-1. **`module-api-explorer` walker.** EvoMaster found 500s on 41 petclinic
-   operations where the walker found one (it covers GET only). Its contract
-   guard, access matrix and stub contract have no off-the-shelf equivalent and
-   stay; the walking itself is the candidate to hand over.
-2. **`module-api-codegen`.** OpenAPI Generator's `java` generator with the
-   `rest-assured` library, plus templates for TestForge's `ApiClient`, may do
-   what the own generator does.
-3. **`module-security` artifact secret scan.** gitleaks and TruffleHog are the
-   established scanners; the own scan knows TestForge's configured secrets
-   (`forge.auth.roles.*`), which they do not — a reason to keep, or to combine.
+1. **`module-api-codegen` — keep, bounded.** OpenAPI Generator's client for
+   petclinic did not compile; the own one did, at a sixth of the code, over
+   `ApiClient`.
+2. **Artifact secret scan — combine with gitleaks.** Each found what the other
+   missed (this run's tokens vs credential shapes); together, eight of eight.
+3. **`module-api-explorer` walker — keep, frozen.** Defect hunting belongs to
+   EvoMaster and Schemathesis; the walker stays a deterministic, role-aware pass.
+
+No row is `own — review` now. A new one gets a decision record the same way.
