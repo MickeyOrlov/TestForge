@@ -26,6 +26,8 @@ axe-playwright = "4.11.3"
 toxiproxy-java = "2.1.11"
 toxiproxy-server = "2.13.0"
 
+mailpit = "1.33.0"
+
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 # standalone (shaded) build: avoids the Jetty 11 vs Boot-managed Jetty 12 clash

@@ -65,6 +65,8 @@ depend on opt-in runtime integrations.
 
 ### Experimental
 
+- `module-mail`: Mailpit adapter; explicit recipient scopes, content assertions and owned cleanup.
+
 - `module-a11y`: axe-core adapter over an existing Page; automated checks, explicit adoption and manual-review evidence.
 - `module-faults`: Toxiproxy adapter; explicit isolated scopes, network failures and fault evidence.
 
