@@ -1,0 +1,16 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+    api project(":core")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    implementation libs.testcontainers.toxiproxy
+    implementation libs.toxiproxy.java
+    implementation "com.fasterxml.jackson.core:jackson-databind"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.named("processResources") {
+    filesMatching("io/testforge/faults/versions.properties") {
+        expand(toxiproxyVersion: libs.versions.toxiproxy.server.get())
+    }
+}

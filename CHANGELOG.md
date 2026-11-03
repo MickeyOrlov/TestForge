@@ -13,6 +13,14 @@ semantic versioning for its git tags.
   and file (plus the tool's fingerprint), severity from `security-severity`
   or the level, suppressions honoured; CODEOWNERS now also finds a file
   named later in an issue key.
+- `module-quality`: a `load` dimension from `module-load`'s `report.json`
+  (run index and `forge.quality.load.reports`): native k6 thresholds decide,
+  any outcome other than PASSED / THRESHOLDS_FAILED is NOT MEASURED.
+- `module-quality`: `testforge-quality release` / `QualityRunner.release()` —
+  whether a build can ship by absolute rules (`forge.quality.release`:
+  `required`, `limits`): baseline-known issues count, an unmeasured required
+  dimension is UNKNOWN, accepted issues are listed as risks with owner,
+  reason and expiry; `release.md`, `release.json` + schema; exit 0 / 1 / 2.
 
 ### Fixed
 - `module-security`: an artifact secret finding in a file with an extension
@@ -47,6 +55,7 @@ semantic versioning for its git tags.
 
 ### Added
 - `module-a11y`: optional official axe-core/Playwright adapter, explicit page keys, impact thresholds, adoption baselines, expiring acceptance and sanitized evidence.
+- `module-faults`: opt-in isolated Toxiproxy scopes, exact upstream allowlisting, lazy managed/external controllers, cleanup and value-free fault evidence.
 - `module-load`: opt-in local k6 OSS adapter with version preflight, native thresholds, configurable HTTP/threshold/dropped-iteration validity rules, timeout/cancellation cleanup, bounded output, aggregate evidence and optional HTML. Optional Prometheus remote write uses native histograms, excludes URL/name system tags and makes per-run labels explicit opt-in; a pinned Compose stack provisions Grafana, with direct report links to the selected time range. Dedicated `loadTest`, native acceptance and observability tasks stay outside the default build; a manual CI workflow verifies the whole local path. Optional project-level API research → load tasks exchange snapshots/reports, delegate TypeScript client generation to Grafana openapi-to-k6 and run a portable native scenario; module-load gains no producer dependency.
 - `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
   would fail the gate for that dimension (`fail-on`, `required`, its limits)

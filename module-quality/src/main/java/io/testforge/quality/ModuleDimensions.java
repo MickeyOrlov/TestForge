@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.testforge.quality.JunitResults.Outcome;
 import io.testforge.quality.JunitResults.TestCase;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -572,6 +573,84 @@ final class ModuleDimensions {
         } catch (UnsupportedFormat e) {
             return QualityDimension.notMeasured(name, e.getMessage());
         }
+    }
+
+    /**
+     * Load runs by module-load (its {@code report.json}, from the run index and from {@code reports}):
+     * PASSED is PASS, THRESHOLDS_FAILED is FAIL, any other outcome — the run did not deliver a valid
+     * measurement — is NOT MEASURED with the outcome and its detail. One issue per failing script, keyed
+     * by its SHA-256, so the same scenario failing again is the same issue.
+     */
+    static QualityDimension load(RunIndex index, ObjectMapper mapper, List<String> files, java.time.Instant notBefore) {
+        List<JsonNode> runs = new ArrayList<>(reports(index, "module-load", "load", "report.json", mapper));
+        for (String location : files) {
+            Path path = Path.of(location);
+            List<Path> found = new ArrayList<>();
+            if (Files.isRegularFile(path)) {
+                found.add(path);
+            } else if (Files.isDirectory(path)) {
+                try (java.util.stream.Stream<Path> walk = Files.walk(path)) {
+                    walk.filter(f -> f.getFileName().toString().equals("report.json")).sorted().forEach(found::add);
+                } catch (IOException e) {
+                    throw new QualityException("Could not read load reports under " + path, e);
+                }
+            }
+            if (found.isEmpty()) {
+                return QualityDimension.notMeasured(QualityDimension.LOAD, "no module-load report.json at " + path);
+            }
+            for (Path file : found) {
+                String stale = InputFreshness.stale(file, notBefore);
+                if (stale != null) {
+                    return QualityDimension.notMeasured(QualityDimension.LOAD, stale);
+                }
+                try {
+                    runs.add(mapper.readTree(file.toFile()));
+                } catch (IOException e) {
+                    return QualityDimension.notMeasured(QualityDimension.LOAD, file + " is not JSON");
+                }
+            }
+        }
+        if (runs.isEmpty()) {
+            return QualityDimension.notMeasured(QualityDimension.LOAD,
+                    "no load run (module-load report.json) in the run or under forge.quality.load.reports");
+        }
+        List<String> issues = new ArrayList<>();
+        List<String> facts = new ArrayList<>();
+        int thresholds = 0;
+        int failed = 0;
+        for (JsonNode run : runs) {
+            if (run.path("formatVersion").asInt(1) != 1 || !run.has("outcome")) {
+                return QualityDimension.notMeasured(QualityDimension.LOAD, "a load report of an unknown layout "
+                        + "(formatVersion " + run.path("formatVersion").asText("?") + ")");
+            }
+            String outcome = run.path("outcome").asText();
+            if (!outcome.equals("PASSED") && !outcome.equals("THRESHOLDS_FAILED")) {
+                return QualityDimension.notMeasured(QualityDimension.LOAD, "load run " + run.path("runId").asText()
+                        + " ended " + outcome + ": " + run.path("detail").asText() + " — no valid measurement");
+            }
+            JsonNode metrics = run.path("metrics");
+            thresholds += metrics.path("thresholds").asInt();
+            failed += metrics.path("failedThresholds").asInt();
+            String script = "load script " + run.path("scriptSha256").asText("unknown").substring(0,
+                    Math.min(12, run.path("scriptSha256").asText("unknown").length()));
+            if (outcome.equals("THRESHOLDS_FAILED")) {
+                issues.add(script);
+            }
+            facts.add(String.format(java.util.Locale.ROOT, "k6 %s %s: %d requests at %.1f/s, p95 %s ms, errors %s, "
+                            + "dropped %d, thresholds %d of %d passed (%s)", run.path("k6Version").asText("?"), outcome,
+                    metrics.path("requests").asLong(), metrics.path("requestsPerSecond").asDouble(),
+                    metrics.path("p95Millis").isNumber()
+                            ? String.format(java.util.Locale.ROOT, "%.1f", metrics.path("p95Millis").asDouble()) : "—",
+                    metrics.path("errorRate").isNumber()
+                            ? String.format(java.util.Locale.ROOT, "%.2f%%", 100 * metrics.path("errorRate").asDouble())
+                            : "—",
+                    metrics.path("droppedIterations").asLong(), metrics.path("thresholds").asInt()
+                            - metrics.path("failedThresholds").asInt(), metrics.path("thresholds").asInt(), script));
+        }
+        int score = thresholds == 0 ? (issues.isEmpty() ? 100 : 0)
+                : QualityAssessor.share(thresholds - failed, thresholds);
+        return new QualityDimension(QualityDimension.LOAD, issues.isEmpty() ? QualityStatus.PASS : QualityStatus.FAIL,
+                score, "100 × passed thresholds / thresholds", facts).withIssues(issues);
     }
 
     /**

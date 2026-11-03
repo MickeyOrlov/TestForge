@@ -32,6 +32,7 @@ COPY module-state/build.gradle module-state/build.gradle
 COPY module-http/build.gradle module-http/build.gradle
 COPY module-load/build.gradle module-load/build.gradle
 COPY module-a11y/build.gradle module-a11y/build.gradle
+COPY module-faults/build.gradle module-faults/build.gradle
 COPY module-security/build.gradle module-security/build.gradle
 COPY module-kafka/build.gradle module-kafka/build.gradle
 COPY module-rabbitmq/build.gradle module-rabbitmq/build.gradle

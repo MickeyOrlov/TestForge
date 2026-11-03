@@ -30,6 +30,7 @@ final class Modules {
             Map.entry("module-http", "io.testforge.http"),
             Map.entry("module-load", "io.testforge.load"),
             Map.entry("module-a11y", "io.testforge.a11y"),
+            Map.entry("module-faults", "io.testforge.faults"),
             Map.entry("module-kafka", "io.testforge.kafka"),
             Map.entry("module-rabbitmq", "io.testforge.rabbitmq"),
             Map.entry("module-gherkin", "io.testforge.gherkin"),

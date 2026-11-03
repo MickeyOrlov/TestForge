@@ -38,3 +38,5 @@ IDEA to demonstrate the consumer boundary without committing `.idea` files.
 
 `PublishedA11ySmokeTest` consumes the published module-a11y JAR/POM and verifies opt-in
 auto-configuration and impact binding without launching a browser.
+`PublishedFaultsSmokeTest` consumes the published module-faults JAR/POM and verifies opt-in
+auto-configuration and named upstream binding without starting Docker or a proxy.
