@@ -29,6 +29,7 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
     public static final String FLOW_COVERAGE = "flow-coverage";
     public static final String MUTATION = "mutation";
     public static final String DIFF_COVERAGE = "diff-coverage";
+    public static final String STATIC_ANALYSIS = "static-analysis";
 
     public QualityDimension {
         facts = List.copyOf(facts == null ? List.of() : facts);
@@ -81,6 +82,9 @@ public record QualityDimension(String name, QualityStatus status, Integer score,
                     + "that tells the two apart, starting with the classes this change touched."),
             java.util.Map.entry(DIFF_COVERAGE, "Changed lines no test ran: cover them with a test of the "
                     + "behaviour they change, or remove them if nothing needs them."),
+            java.util.Map.entry(STATIC_ANALYSIS, "Fix new critical and high scanner findings first — a leaked "
+                    + "secret is rotated, not just deleted; accept one only in forge.quality.accepted with a "
+                    + "reason and `until`, or suppress it in the scanner with a justification."),
             java.util.Map.entry(HYGIENE, "Delete leftover rows, remove unused stubs and match unmatched requests: "
                     + "they hide what a test really depends on."));
 

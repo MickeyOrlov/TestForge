@@ -6,6 +6,14 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Added
+- `module-quality`: a `static-analysis` dimension reading SARIF 2.1.0 from
+  gitleaks, Trivy, Grype, Semgrep, CodeQL or SpotBugs
+  (`forge.quality.sarif.reports`, `tool-severity`): one issue per tool, rule
+  and file (plus the tool's fingerprint), severity from `security-severity`
+  or the level, suppressions honoured; CODEOWNERS now also finds a file
+  named later in an issue key.
+
 ### Fixed
 - `module-security`: an artifact secret finding in a file with an extension
   longer than eight letters (`app.properties`, `trace.network`) named the file

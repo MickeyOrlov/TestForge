@@ -258,11 +258,15 @@ final class JunitResults {
         if ((type == null || type.isBlank()) && frames.isEmpty()) {
             return null;
         }
+        return sha256((type == null ? "" : type) + "\n" + String.join("\n", frames)).substring(0, 12);
+    }
+
+    /** Hex SHA-256 of {@code text} in UTF-8 — for keys built from what a tool reported, never its values. */
+    static String sha256(String text) {
         try {
-            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(
-                    ((type == null ? "" : type) + "\n" + String.join("\n", frames))
-                            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest).substring(0, 12);
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is part of every JDK", e);
         }

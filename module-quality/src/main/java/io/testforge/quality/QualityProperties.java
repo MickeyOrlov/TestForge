@@ -52,6 +52,10 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
  *     codeowners: .github/CODEOWNERS      # owners of issues no component matched, by the file they point at
  *     robustness:
  *       reports: [build/evomaster/report.json]  # Web Fuzzing Commons reports (EvoMaster …), next to module-api-fuzz
+ *     sarif:
+ *       reports: [build/sarif]            # SARIF 2.1.0 from gitleaks, Trivy, Grype, Semgrep, CodeQL, SpotBugs
+ *       tool-severity:                    # a floor per tool (driver name), for tools that write no level
+ *         gitleaks: high
  *     metrics:
  *       run-ids: false                    # revision, job and run_id as labels in quality.prom (one series per run)
  *     gate:                               # per dimension, on top of fail-on
@@ -94,7 +98,8 @@ public record QualityProperties(
         DiffCoverageProperties diffCoverage,
         String codeowners,
         MetricsProperties metrics,
-        RobustnessProperties robustness) {
+        RobustnessProperties robustness,
+        SarifProperties sarif) {
 
     @ConstructorBinding
     public QualityProperties {
@@ -167,6 +172,54 @@ public record QualityProperties(
         if (robustness == null) {
             robustness = new RobustnessProperties(null);
         }
+        if (sarif == null) {
+            sarif = new SarifProperties(null, null);
+        }
+    }
+
+    public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
+                             String outputDir, Double maxFlakyRate, List<String> failOn, String baselineFile,
+                             List<String> accepted, EfficiencyProperties efficiency, List<String> required,
+                             java.time.Instant resultsNotBefore, Double minApiCoverage, HistoryProperties history,
+                             java.util.Map<String, String> runLabels,
+                             java.util.Map<String, ComponentProperties> components,
+                             java.util.Map<String, GateProperties> gate,
+                             java.util.Map<String, java.time.LocalDate> acceptedUntil, Integer minTests,
+                             MutationProperties mutation, DiffCoverageProperties diffCoverage, String codeowners,
+                             MetricsProperties metrics, RobustnessProperties robustness) {
+        this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
+                efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
+                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, robustness, null);
+    }
+
+    /**
+     * SARIF 2.1.0 reports (files, or directories searched for {@code *.sarif} / {@code *.sarif.json}) and a
+     * severity floor per tool, by its driver name in any case: {@code gitleaks: high}.
+     */
+    public record SarifProperties(List<String> reports, java.util.Map<String, String> toolSeverity) {
+
+        public SarifProperties {
+            reports = reports == null ? List.of() : List.copyOf(reports);
+            java.util.Map<String, String> floors = new java.util.HashMap<>();
+            if (toolSeverity != null) {
+                toolSeverity.forEach((tool, severity) -> {
+                    try {
+                        SarifDimension.Severity.valueOf(severity.strip().toUpperCase(java.util.Locale.ROOT));
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("forge.quality.sarif.tool-severity." + tool
+                                + " must be low, medium, high or critical");
+                    }
+                    floors.put(tool.toLowerCase(java.util.Locale.ROOT),
+                            severity.strip().toUpperCase(java.util.Locale.ROOT));
+                });
+            }
+            toolSeverity = java.util.Map.copyOf(floors);
+        }
+
+        SarifDimension.Severity floor(String tool) {
+            String severity = toolSeverity.get(tool.toLowerCase(java.util.Locale.ROOT));
+            return severity == null ? null : SarifDimension.Severity.valueOf(severity);
+        }
     }
 
     public QualityProperties(boolean enabled, List<String> junitResults, String artifactsRoot, String runId,
@@ -181,7 +234,7 @@ public record QualityProperties(
                              MetricsProperties metrics) {
         this(enabled, junitResults, artifactsRoot, runId, outputDir, maxFlakyRate, failOn, baselineFile, accepted,
                 efficiency, required, resultsNotBefore, minApiCoverage, history, runLabels, components, gate,
-                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, null);
+                acceptedUntil, minTests, mutation, diffCoverage, codeowners, metrics, null, null);
     }
 
     /** Web Fuzzing Commons {@code report.json} files whose faults join module-api-fuzz's in {@code robustness}. */
