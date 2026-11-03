@@ -1,0 +1,9 @@
+{
+  "name": "testforge-lighthouse-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.19.0" },
+  "scripts": { "test": "node --test run.test.mjs" },
+  "dependencies": { "@lhci/cli": "0.16.0" }
+}

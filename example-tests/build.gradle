@@ -198,6 +198,9 @@ tasks.register("securityScanTest", Test) {
 // Project-level load orchestration stays separate from production modules.
 apply from: "gradle/load.gradle"
 
+// Optional native front-end performance workflow.
+apply from: "gradle/lighthouse.gradle"
+
 // Explicit native axe acceptance; never run by the default build.
 tasks.register("a11yTest", Test) {
     group = "verification"
