@@ -53,6 +53,8 @@ final class QualityAssessor {
                         () -> ModuleDimensions.flowCoverage(index, mapper)),
                 ModuleDimensions.guarded(QualityDimension.MUTATION,
                         () -> MutationDimension.of(properties.mutation(), properties.resultsNotBefore())),
+                ModuleDimensions.guarded(QualityDimension.STATIC_ANALYSIS,
+                        () -> SarifDimension.of(properties.sarif(), mapper, properties.resultsNotBefore())),
                 ModuleDimensions.guarded(QualityDimension.DIFF_COVERAGE,
                         () -> DiffCoverageDimension.of(properties.diffCoverage(), mapper,
                                 properties.resultsNotBefore())),
