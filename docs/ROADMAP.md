@@ -65,6 +65,8 @@ depend on opt-in runtime integrations.
 
 ### Experimental
 
+- `module-a11y`: axe-core adapter over an existing Page; automated checks, explicit adoption and manual-review evidence.
+
 These modules are wired and tested, but their public API or supported schema
 surface is still expected to evolve.
 

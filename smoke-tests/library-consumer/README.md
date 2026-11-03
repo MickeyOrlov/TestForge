@@ -35,3 +35,6 @@ export TESTFORGE_REPOSITORY_PASSWORD=<classic-pat-with-read-packages>
 
 This directory can also be opened as an independent Gradle project in IntelliJ
 IDEA to demonstrate the consumer boundary without committing `.idea` files.
+
+`PublishedA11ySmokeTest` consumes the published module-a11y JAR/POM and verifies opt-in
+auto-configuration and impact binding without launching a browser.

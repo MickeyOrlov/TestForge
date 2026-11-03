@@ -21,6 +21,9 @@ archunit = "1.4.1"
 # 7.x runs on JUnit 5, which Spring Boot 3.5 manages; 8.x moves to JUnit 6
 cucumber = "7.34.9"
 
+# 4.11.3 targets Playwright 1.58; retain the project's 1.59 instead of upgrading browser fixtures.
+axe-playwright = "4.11.3"
+
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 # standalone (shaded) build: avoids the Jetty 11 vs Boot-managed Jetty 12 clash
@@ -39,3 +42,5 @@ testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-jun
 schemacrawler = { module = "us.fatehi:schemacrawler", version.ref = "schemacrawler" }
 cucumber-bom = { module = "io.cucumber:cucumber-bom", version.ref = "cucumber" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
+
+axe-playwright = { module = "com.deque.html.axe-core:playwright", version.ref = "axe-playwright" }

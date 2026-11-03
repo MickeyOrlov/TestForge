@@ -127,6 +127,7 @@ flowchart LR
 | [module-rabbitmq](module-rabbitmq) | RabbitMQ message probe on a queue of its own (never takes a service's messages); confirmed, mandatory publisher |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Run-scoped artifact index (`manifest.json`, `summary.md`) every module publishes into, resource usage monitor, optional Allure attachments |
+| [module-a11y](module-a11y) | Opt-in axe-core accessibility checks on an existing Playwright Page, adoption baseline and evidence |
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
 | [module-web-playwright](module-web-playwright) | Playwright lifecycle: shared browser, per-test context, `Page` fixture, failure artifacts |
 | [module-mobile-appium](module-mobile-appium) | Appium lifecycle: device matrix, session/driver fixtures, optional local node, failure artifacts |
