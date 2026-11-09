@@ -377,3 +377,5 @@ Security adoption: enable `forge.security.passive.enabled`, then call
 Read module-security/README.md for applicability and coverage limits.
 
 Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in `tools/lighthouse/README.md`. Native Lighthouse CI owns assertions and reports; no browser or node tooling runs during the default build.
+
+OpenAPI security lint: run `:example-tests:spectralLint -PspectralSpecs=...` (`tools/spectral/README.md`) and point `forge.quality.sarif.reports` at `build/spectral`. Native Spectral with the pinned OWASP API Top 10 ruleset owns the rules; local documents only, no remote `$ref`, never in the default build.

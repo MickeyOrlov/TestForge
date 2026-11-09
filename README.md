@@ -134,6 +134,7 @@ flowchart LR
 | [module-web-playwright](module-web-playwright) | Playwright lifecycle: shared browser, per-test context, `Page` fixture, failure artifacts |
 | [module-mobile-appium](module-mobile-appium) | Appium lifecycle: device matrix, session/driver fixtures, optional local node, failure artifacts |
 | [tools/lighthouse](tools/lighthouse) | Explicit native Lighthouse CI performance budgets and local JSON/HTML reports |
+| [tools/spectral](tools/spectral) | Explicit OpenAPI security lint with Spectral and the OWASP API Top 10 ruleset, SARIF for the quality gate |
 | [example-tests](example-tests) | Self-contained reference suite (WireMock + H2), runs offline |
 
 ## Quick start

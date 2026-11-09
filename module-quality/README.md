@@ -131,6 +131,7 @@ and keeps no pattern catalogue of its own.
 gitleaks dir build/testforge-artifacts --redact --report-format sarif --report-path build/sarif/gitleaks.sarif
 trivy fs --scanners vuln --format sarif --output build/sarif/trivy.sarif .
 semgrep scan --config auto --sarif --output build/sarif/semgrep.sarif
+./gradlew :example-tests:spectralLint -PspectralSpecs=openapi.yaml -PspectralOutput=build/sarif  # OWASP API Top 10 on the API description, see tools/spectral
 ```
 
 ```yaml

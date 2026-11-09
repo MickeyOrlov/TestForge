@@ -59,7 +59,7 @@ Ordinary HTTP 500 responses do not prove malformed-input handling defects.
 
 ## Limits and safety
 
-No source/dependency scanning, penetration-test claim or implicit writes.
+No source/dependency scanning, penetration-test claim or implicit writes. The API *description* is linted against the OWASP API Top 10 by [tools/spectral](../tools/spectral) (Spectral), which the quality gate reads as SARIF; this module checks what the running API does.
 No response bodies, credential hashes or observed values enter the collector,
 report, SARIF or gate errors. Request query strings, hosts and identifier-like
 path segments are omitted from finding targets. For unusual sensitive path

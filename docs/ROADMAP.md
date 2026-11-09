@@ -71,6 +71,7 @@ depend on opt-in runtime integrations.
 - `module-faults`: Toxiproxy adapter; explicit isolated scopes, network failures and fault evidence.
 
 - `tools/lighthouse`: native front-end budgets, explicit project workflow outside default build.
+- `tools/spectral`: OpenAPI security lint (OWASP API Top 10), read as SARIF by the quality gate.
 
 These modules are wired and tested, but their public API or supported schema
 surface is still expected to evolve.

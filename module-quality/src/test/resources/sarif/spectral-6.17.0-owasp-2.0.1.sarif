@@ -1,0 +1,1005 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-2.1.0-rtm.6.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "spectral",
+          "rules": [
+            {
+              "id": "owasp:api1:2023-no-numeric-ids",
+              "shortDescription": {
+                "text": "Use random IDs that cannot be guessed. UUIDs are preferred but any other random string will do."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-no-http-basic",
+              "shortDescription": {
+                "text": "Basic authentication credentials transported over network are more susceptible to interception than other forms of authentication, and as they are not encrypted it means passwords and tokens are more easily leaked."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-no-api-keys-in-url",
+              "shortDescription": {
+                "text": "API Keys are are passed in headers, cookies or query parameters to access APIs Those keys can be eavesdropped, especially when they are passed in the URL as logging or history tools will keep track of them and potentially expose them."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-no-credentials-in-url",
+              "shortDescription": {
+                "text": "URL parameters MUST NOT contain credentials such as API key, password, or secret. See [RAC_GEN_004](https://docs.italia.it/italia/piano-triennale-ict/lg-modellointeroperabilita-docs/it/bozza/doc/04_Raccomandazioni%20di%20implementazione/04_raccomandazioni-tecniche-generali/01_globali.html?highlight=credenziali#rac-gen-004-non-passare-credenziali-o-dati-riservati-nellurl)"
+              }
+            },
+            {
+              "id": "owasp:api2:2023-auth-insecure-schemes",
+              "shortDescription": {
+                "text": "There are many [HTTP authorization schemes](https://www.iana.org/assignments/http-authschemes/) but some of them are now considered insecure, such as negotiating authentication using specifications like NTLM or OAuth v1."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-jwt-best-practices",
+              "shortDescription": {
+                "text": "JSON Web Tokens RFC7519 is a compact, URL-safe, means of representing claims to be transferred between two parties. JWT can be enclosed in encrypted or signed tokens like JWS and JWE.\n\nThe [JOSE IANA registry](https://www.iana.org/assignments/jose/jose.xhtml) provides algorithms information.\n\nRFC8725 describes common pitfalls in the JWx specifications and in\ntheir implementations, such as:\n- the ability to ignore algorithms, eg. `{\"alg\": \"none\"}`;\n- using insecure algorithms like `RSASSA-PKCS1-v1_5` eg. `{\"alg\": \"RS256\"}`.\nAn API using JWT should explicit in the `description`\nthat the implementation conforms to RFC8725.\n```\ncomponents:\n  securitySchemes:\n    JWTBearer:\n      type: http\n      scheme: bearer\n      bearerFormat: JWT\n      description: |-\n        A bearer token in the format of a JWS and conformato\n        to the specifications included in RFC8725.\n```"
+              }
+            },
+            {
+              "id": "owasp:api2:2023-short-lived-access-tokens",
+              "shortDescription": {
+                "text": "Using short-lived access tokens is a good practice, and when using OAuth 2 this is done by using refresh tokens. If a malicious actor is able to get hold of an access token then rotation means that token might not work by the time they try to use it, or it could at least reduce how long they are able to perform malicious requests."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-write-restricted",
+              "shortDescription": {
+                "text": "All write operations (POST, PUT, PATCH, DELETE) must be secured by at least one security scheme. Security schemes are defined in the `securityScheme` section then referenced in the `security` key at the global or operation levels."
+              }
+            },
+            {
+              "id": "owasp:api2:2023-read-restricted",
+              "shortDescription": {
+                "text": "Read operations (GET, HEAD) should be secured by at least one security scheme. Security schemes are defined in the `securityScheme` section then referenced in the `security` key at the global or operation levels."
+              }
+            },
+            {
+              "id": "owasp:api3:2023-no-additionalProperties",
+              "shortDescription": {
+                "text": "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`."
+              }
+            },
+            {
+              "id": "owasp:api3:2023-constrained-additionalProperties",
+              "shortDescription": {
+                "text": "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`"
+              }
+            },
+            {
+              "id": "owasp:api3:2023-no-unevaluatedProperties",
+              "shortDescription": {
+                "text": "By default JSON Schema allows unevaluated properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `unevaluatedProperties: false` or add `maxProperties`."
+              }
+            },
+            {
+              "id": "owasp:api3:2023-constrained-unevaluatedProperties",
+              "shortDescription": {
+                "text": "By default JSON Schema allows unevaluated properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `unevaluatedProperties: false` or add `maxProperties`"
+              }
+            },
+            {
+              "id": "owasp:api4:2023-rate-limit",
+              "shortDescription": {
+                "text": "Define proper rate limiting to avoid attackers overloading the API. There are many ways to implement rate-limiting, but most of them involve using HTTP headers, and there are two popular ways to do that:\n\nIETF Draft HTTP RateLimit Headers:. https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/\n\nCustomer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)"
+              }
+            },
+            {
+              "id": "owasp:api4:2023-rate-limit-retry-after",
+              "shortDescription": {
+                "text": "Define proper rate limiting to avoid attackers overloading the API. Part of that involves setting a Retry-After header so well meaning consumers are not polling and potentially exacerbating problems."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-rate-limit-responses-429",
+              "shortDescription": {
+                "text": "OWASP API Security recommends defining schemas for all responses, even errors. A HTTP 429 response signals the API client is making too many requests, and will supply information about when to retry so that the client can back off calmly without everything breaking. Defining this response is important not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces. It also ensures your API/framework/gateway actually has rate limiting set up."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-array-limit",
+              "shortDescription": {
+                "text": "Array size should be limited to mitigate resource exhaustion attacks. This can be done using `maxItems`. You should ensure that the subschema in `items` is constrained too."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-string-limit",
+              "shortDescription": {
+                "text": "String size should be limited to mitigate resource exhaustion attacks. This can be done using `maxLength`, `enum` or `const`."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-string-restricted",
+              "shortDescription": {
+                "text": "To avoid unexpected values being sent or leaked, strings should have a `format`, RegEx `pattern`, `enum`, or `const`."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-integer-limit",
+              "shortDescription": {
+                "text": "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-integer-limit-legacy",
+              "shortDescription": {
+                "text": "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected."
+              }
+            },
+            {
+              "id": "owasp:api4:2023-integer-format",
+              "shortDescription": {
+                "text": "Integers should be limited to mitigate resource exhaustion attacks. Specifying whether int32 or int64 is expected via `format`."
+              }
+            },
+            {
+              "id": "owasp:api5:2023-admin-security-unique",
+              "shortDescription": {
+                "text": "owasp:api5:2023-admin-security-unique"
+              }
+            },
+            {
+              "id": "owasp:api7:2023-concerning-url-parameter",
+              "shortDescription": {
+                "text": "Using external resource based on user input for webhooks, file fetching from URLs, custom SSO, URL previews, or redirects, can lead to a wide variety of security issues.\n\nLearn more about Server Side Request Forgery here: https://owasp.org/API-Security/editions/2023/en/0xa7-server-side-request-forgery/"
+              }
+            },
+            {
+              "id": "owasp:api8:2023-define-cors-origin",
+              "shortDescription": {
+                "text": "Setting up CORS headers will control which websites can make browser-based HTTP requests to your API, using either the wildcard \"*\" to allow any origin, or \"null\" to disable any origin. Alternatively you can use \"Access-Control-Allow-Origin: https://example.com\" to indicate that only requests originating from the specified domain (https://example.com) are allowed to access its resources.\n\nMore about CORS here: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS."
+              }
+            },
+            {
+              "id": "owasp:api8:2023-no-scheme-http",
+              "shortDescription": {
+                "text": "Server interactions must use the http protocol as it's inherently insecure and can lead to PII and other sensitive information being leaked through traffic sniffing or man-in-the-middle attacks. Use the https or wss schemes instead.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html"
+              }
+            },
+            {
+              "id": "owasp:api8:2023-no-server-http",
+              "shortDescription": {
+                "text": "Server interactions must not use the http:// as it's inherently insecure and can lead to PII and other sensitive information being leaked through traffic sniffing or man-in-the-middle attacks. Use https:// or wss:// protocols instead.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html"
+              }
+            },
+            {
+              "id": "owasp:api8:2023-define-error-validation",
+              "shortDescription": {
+                "text": "Carefully define schemas for all the API responses, including either 400, 422 or 4XX responses which describe errors caused by invalid requests."
+              }
+            },
+            {
+              "id": "owasp:api8:2023-define-error-responses-401",
+              "shortDescription": {
+                "text": "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces."
+              }
+            },
+            {
+              "id": "owasp:api8:2023-define-error-responses-500",
+              "shortDescription": {
+                "text": "OWASP API Security recommends defining schemas for all responses, even errors. The 500 describes what happens when a request fails with an internal server error, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces."
+              }
+            },
+            {
+              "id": "owasp:api9:2023-inventory-access",
+              "shortDescription": {
+                "text": "Servers are required to use vendor extension x-internal set to true or false to explicitly explain the audience for the API, which will be picked up by most documentation tools."
+              }
+            },
+            {
+              "id": "owasp:api9:2023-inventory-environment",
+              "shortDescription": {
+                "text": "Make it clear which servers are expected to run as which environment to avoid unexpected problems, exposing test data to the public, or letting bad actors bypass security measures to get to production-like environments."
+              }
+            }
+          ],
+          "version": "6.17.0",
+          "informationUri": "https://github.com/stoplightio/spectral",
+          "properties": {
+            "ruleset": "@stoplight/spectral-owasp-ruleset 2.0.1"
+          }
+        }
+      },
+      "results": [
+        {
+          "level": "warning",
+          "message": {
+            "text": "This read operation is not protected by any security scheme."
+          },
+          "ruleId": "owasp:api2:2023-read-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 9,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 8,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing rate limiting response in responses[429]."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit-responses-429",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 15,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing rate limiting response in responses[429].content."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit-responses-429",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 15,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[401]."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-401",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 28,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[401].content."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-401",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 28,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[500]."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-500",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 29,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[500].content."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-500",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 29,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Missing error response of either 400, 422 or 4XX."
+          },
+          "ruleId": "owasp:api8:2023-define-error-validation",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 10,
+                  "startColumn": 17,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 27,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "All 2XX and 4XX responses should define rate limiting headers."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 11,
+                  "startColumn": 15,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 13,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses.200"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type array must specify maxItems."
+          },
+          "ruleId": "owasp:api4:2023-array-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 25,
+                  "endLine": 22,
+                  "endColumn": 56
+                }
+              }
+            }
+          ],
+          "ruleIndex": 16,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.get.responses.200.content.application/json.schema.properties.items"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "This write operation is not protected by any security scheme."
+          },
+          "ruleId": "owasp:api2:2023-write-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 10,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 7,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing rate limiting response in responses[429]."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit-responses-429",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 15,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing rate limiting response in responses[429].content."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit-responses-429",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 15,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[401]."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-401",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 28,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[401].content."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-401",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 28,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[500]."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-500",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 29,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Operation is missing responses[500].content."
+          },
+          "ruleId": "owasp:api8:2023-define-error-responses-500",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 29,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Missing error response of either 400, 422 or 4XX."
+          },
+          "ruleId": "owasp:api8:2023-define-error-validation",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 32,
+                  "startColumn": 17,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 27,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "All 2XX and 4XX responses should define rate limiting headers."
+          },
+          "ruleId": "owasp:api4:2023-rate-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 33,
+                  "startColumn": 15,
+                  "endLine": 38,
+                  "endColumn": 50
+                }
+              }
+            }
+          ],
+          "ruleIndex": 13,
+          "partialFingerprints": {
+            "documentPath/v1": "paths./api/v1/tasks.post.responses.201"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type string must specify maxLength, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 45,
+                  "startColumn": 15,
+                  "endLine": 46,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 17,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.CreateTaskRequest.properties.title"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Schema of type string should specify a format, pattern, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 45,
+                  "startColumn": 15,
+                  "endLine": 46,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 18,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.CreateTaskRequest.properties.title"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type integer must specify format (int32 or int64)."
+          },
+          "ruleId": "owasp:api4:2023-integer-format",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 47,
+                  "startColumn": 18,
+                  "endLine": 48,
+                  "endColumn": 24
+                }
+              }
+            }
+          ],
+          "ruleIndex": 21,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.CreateTaskRequest.properties.priority"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type integer must specify minimum and maximum."
+          },
+          "ruleId": "owasp:api4:2023-integer-limit-legacy",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 47,
+                  "startColumn": 18,
+                  "endLine": 48,
+                  "endColumn": 24
+                }
+              }
+            }
+          ],
+          "ruleIndex": 20,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.CreateTaskRequest.properties.priority"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type string must specify maxLength, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 12,
+                  "endLine": 54,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 17,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.id"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Schema of type string should specify a format, pattern, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 53,
+                  "startColumn": 12,
+                  "endLine": 54,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 18,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.id"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type string must specify maxLength, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 55,
+                  "startColumn": 15,
+                  "endLine": 56,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 17,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.title"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Schema of type string should specify a format, pattern, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 55,
+                  "startColumn": 15,
+                  "endLine": 56,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 18,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.title"
+          }
+        },
+        {
+          "level": "error",
+          "message": {
+            "text": "Schema of type string must specify maxLength, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-limit",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 57,
+                  "startColumn": 16,
+                  "endLine": 58,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 17,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.status"
+          }
+        },
+        {
+          "level": "warning",
+          "message": {
+            "text": "Schema of type string should specify a format, pattern, enum, or const."
+          },
+          "ruleId": "owasp:api4:2023-string-restricted",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "example-tests/src/test/resources/openapi/demo-api.yaml",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 57,
+                  "startColumn": 16,
+                  "endLine": 58,
+                  "endColumn": 23
+                }
+              }
+            }
+          ],
+          "ruleIndex": 18,
+          "partialFingerprints": {
+            "documentPath/v1": "components.schemas.Task.properties.status"
+          }
+        }
+      ],
+      "artifacts": [
+        {
+          "sourceLanguage": "YAML",
+          "location": {
+            "uri": "example-tests/src/test/resources/openapi/demo-api.yaml"
+          }
+        }
+      ]
+    }
+  ]
+}
