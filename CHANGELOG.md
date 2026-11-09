@@ -23,6 +23,8 @@ semantic versioning for its git tags.
   dimension is UNKNOWN, accepted issues are listed as risks with owner,
   reason and expiry; `release.md`, `release.json` + schema; exit 0 / 1 / 2.
 
+- `tools/lighthouse`: opt-in native Lighthouse CI collect/assert/filesystem workflow with pinned tooling, fresh run directories and report export after assertion failures. Includes real Petclinic faults/a11y dogfood evidence and a standalone reproduction harness.
+
 ### Fixed
 - `module-security`: an artifact secret finding in a file with an extension
   longer than eight letters (`app.properties`, `trace.network`) named the file

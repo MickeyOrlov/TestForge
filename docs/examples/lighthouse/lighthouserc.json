@@ -1,0 +1,15 @@
+{
+  "ci": {
+    "collect": {
+      "numberOfRuns": 3,
+      "settings": {"onlyCategories": ["performance"], "disableFullPageScreenshot": true}
+    },
+    "assert": {
+      "assertions": {
+        "first-contentful-paint": ["error", {"maxNumericValue": 2000}],
+        "largest-contentful-paint": ["error", {"maxNumericValue": 2500}],
+        "cumulative-layout-shift": ["error", {"maxNumericValue": 0.1}]
+      }
+    }
+  }
+}
