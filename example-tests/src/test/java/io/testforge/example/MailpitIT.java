@@ -1,7 +1,10 @@
 package io.testforge.example;
 
-import static org.assertj.core.api.Assertions.*;
-import io.testforge.mail.*;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.testforge.mail.MailProperties;
+import io.testforge.mail.Mailpit;
+import io.testforge.mail.MailpitBackend;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Tag;
@@ -13,7 +16,7 @@ import org.testcontainers.containers.GenericContainer;
 import java.util.List;
 
 /** The application sends ordinary SMTP through Spring Mail; Mailpit captures and parses MIME. */
-@Tag("containers")
+@Tag("mail")
 class MailpitIT {
     private void send(JavaMailSenderImpl sender, String recipient, String token) throws Exception {
         MimeMessage message = sender.createMimeMessage();

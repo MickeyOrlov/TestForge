@@ -3,7 +3,6 @@ package io.testforge.mail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -14,6 +13,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +37,7 @@ public final class MailpitBackend implements MailBackend {
         properties.validateRun();
         Duration timeout = budget.compareTo(properties.requestTimeout()) < 0 ? budget : properties.requestTimeout();
         if (timeout.toMillis() < 1) throw new IllegalStateException("Mail operation deadline expired");
-        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(properties.apiUrl()).resolve(path))
+        HttpRequest.Builder builder = HttpRequest.newBuilder(properties.apiBase().resolve(path))
                 .timeout(timeout).header("Accept", "application/json");
         if (properties.username() != null) builder.header("Authorization", "Basic " + Base64.getEncoder()
                 .encodeToString((properties.username() + ":" + properties.password()).getBytes(StandardCharsets.UTF_8)));
@@ -71,16 +71,16 @@ public final class MailpitBackend implements MailBackend {
         int start = 0;
         do {
             Duration left = budget.minusNanos(System.nanoTime() - started);
-            var response = json("/api/v1/search?query=" + URLEncoder.encode("to:" + recipient, StandardCharsets.UTF_8)
+            var response = json("api/v1/search?query=" + URLEncoder.encode("to:" + recipient, StandardCharsets.UTF_8)
                     + "&start=" + start + "&limit=50", left);
             if (!response.path("messages").isArray() || !response.path("messages_count").isIntegralNumber() || !response.path("messages_count").canConvertToInt())
                 throw new IllegalStateException("Unknown Mailpit search response");
             int count = response.path("messages_count").intValue();
             if (count < start + response.path("messages").size()) throw new IllegalStateException("Inconsistent Mailpit result count");
-            if (count < 0 || count > properties.maxMessages()) throw new IllegalStateException("Mail scope message limit exceeded");
+            if (count < 0 || count > properties.maxMessages()) throw new MailRefusedException("Mail scope message limit exceeded");
             for (JsonNode message : response.path("messages")) ids.add(id(message.path("ID").asText()));
             start += response.path("messages").size();
-            if (ids.size() > properties.maxMessages()) throw new IllegalStateException("Mail scope message limit exceeded");
+            if (ids.size() > properties.maxMessages()) throw new MailRefusedException("Mail scope message limit exceeded");
             if (start >= count) break;
             if (response.path("messages").isEmpty()) throw new IllegalStateException("Incomplete Mailpit search pagination");
         } while (true);
@@ -97,7 +97,7 @@ public final class MailpitBackend implements MailBackend {
         return List.copyOf(addresses);
     }
     @Override public MailMessage fetch(String messageId, Duration budget) {
-        JsonNode message = json("/api/v1/message/" + id(messageId), budget);
+        JsonNode message = json("api/v1/message/" + id(messageId), budget);
         if (!messageId.equals(message.path("ID").asText()) || !message.path("Subject").isTextual()
                 || !message.path("Text").isTextual() || !message.path("HTML").isTextual())
             throw new IllegalStateException("Unknown Mailpit message response");
@@ -113,12 +113,12 @@ public final class MailpitBackend implements MailBackend {
                 message.path("Subject").textValue(), message.path("Text").textValue(), message.path("HTML").textValue(), attachments);
     }
     @Override public byte[] attachment(String messageId, String partId, Duration budget) {
-        return request("/api/v1/message/" + id(messageId) + "/part/" + id(partId), "GET", null, budget);
+        return request("api/v1/message/" + id(messageId) + "/part/" + id(partId), "GET", null, budget);
     }
     @Override public void delete(List<String> ids, Duration budget) {
         if (ids == null || ids.isEmpty() || ids.size() > properties.maxMessages()) throw new IllegalArgumentException("Refusing unscoped mail deletion");
         try {
-            request("/api/v1/messages", "DELETE", mapper.writeValueAsBytes(java.util.Map.of("IDs", ids.stream().map(MailpitBackend::id).toList())), budget);
+            request("api/v1/messages", "DELETE", mapper.writeValueAsBytes(Map.of("IDs", ids.stream().map(MailpitBackend::id).toList())), budget);
         } catch (IOException e) { throw new IllegalStateException("Could not encode scoped message IDs"); }
     }
     @Override public void close() { http.close(); }

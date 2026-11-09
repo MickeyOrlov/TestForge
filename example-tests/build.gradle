@@ -88,7 +88,7 @@ tasks.withType(Test).configureEach {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "browser", "live-api", "quality-gate", "load", "api-load-research"
+        excludeTags "containers", "mail", "browser", "live-api", "quality-gate", "load", "api-load-research"
     }
     // fixtures run only through EngineTestKit (they fail on purpose)
     exclude "**/*TestkitFixture*"
@@ -225,10 +225,7 @@ tasks.register("mailTest", Test) {
     group = "verification"
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "containers" }
-    filter { includeTestsMatching "*MailpitIT*" }
-    outputs.upToDateWhen { false }
-}
-tasks.withType(Test).configureEach {
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "mail" }
     systemProperty "testforge.mailpit-image", "axllent/mailpit:v${libs.versions.mailpit.get()}"
+    outputs.upToDateWhen { false }
 }

@@ -7,5 +7,5 @@ Read root AGENTS.md and README.md. Production module may depend on core only.
 - Never send an empty DELETE list or use purge, release, forwarding or send endpoints.
 - Preserve deadlines, response/message limits, no redirects and sanitized failures.
 - Content is for explicit in-memory assertions; evidence contains only counts, opaque scope IDs and lifecycle.
-- Cleanup is retryable; late delivery and server retention are documented limits.
+- Shared messages are left, never deleted, and do not keep a scope open; failed requests keep it open for a retry. Evidence is written once per scope. Late delivery and server retention are documented limits.
 Verify module/architecture tests, native MailpitIT, full build, published consumer and module removal.
