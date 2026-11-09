@@ -21,6 +21,7 @@ dependencies {
     testImplementation project(":module-state")
     testImplementation project(":module-http")
     testImplementation project(":module-load")
+    testImplementation project(":module-mail")
     testImplementation project(":module-a11y")
     testImplementation project(":module-faults")
     testImplementation project(":module-auth")
@@ -57,6 +58,7 @@ dependencies {
     testImplementation libs.testcontainers.toxiproxy
     testImplementation libs.toxiproxy.java
     testImplementation libs.testcontainers.kafka
+    testImplementation "org.springframework.boot:spring-boot-starter-mail"
     testImplementation libs.testcontainers.postgresql
     testImplementation libs.testcontainers.rabbitmq
     testImplementation libs.testcontainers.junit.jupiter
@@ -86,7 +88,7 @@ tasks.withType(Test).configureEach {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "browser", "live-api", "quality-gate", "load", "api-load-research"
+        excludeTags "containers", "mail", "browser", "live-api", "quality-gate", "load", "api-load-research"
     }
     // fixtures run only through EngineTestKit (they fail on purpose)
     exclude "**/*TestkitFixture*"
@@ -215,5 +217,15 @@ tasks.register("faultsTest", Test) {
     classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "containers" }
     filter { includeTestsMatching "*FaultsToxiproxyIT*" }
+    outputs.upToDateWhen { false }
+}
+
+// Mailpit is an explicitly requested, owned SMTP fixture, never a default build dependency.
+tasks.register("mailTest", Test) {
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "mail" }
+    systemProperty "testforge.mailpit-image", "axllent/mailpit:v${libs.versions.mailpit.get()}"
     outputs.upToDateWhen { false }
 }
