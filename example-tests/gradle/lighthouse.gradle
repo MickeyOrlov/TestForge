@@ -4,6 +4,8 @@ tasks.register("lighthouseTools", Exec) {
     group = "verification"
     workingDir lighthouseDir
     commandLine "npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"
+    inputs.files new File(lighthouseDir, "package.json"), new File(lighthouseDir, "package-lock.json")
+    outputs.dir new File(lighthouseDir, "node_modules")
 }
 tasks.register("lighthouseUnitTest", Exec) {
     group = "verification"
