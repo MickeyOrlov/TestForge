@@ -26,7 +26,10 @@ SecurityTransportExampleTest and SecurityArtifactExampleTest. Before finishing:
 Update README/examples/CHANGELOG with behavior changes. Keep the module removable.
 
 B4: never weaken global JDK TLS settings or treat a locally-disabled algorithm
-as server rejection. B5: no following symlinks, unbounded reads or secret values
+as server rejection. testssl.sh: pinned digest, no pull, fixed policy, `--nodns min`,
+no `--phone-out`; keep only id/severity/CVE/CWE, never its finding text; an incomplete
+scan adds no finding and stays not_measured. Tests: SecurityTestsslTest (replays a real
+3.2.5 report); run :example-tests:securityTlsTest for engine/container changes. B5: no following symlinks, unbounded reads or secret values
 in diagnostics; leaks block upload even when ordinary findings are accepted.
 
 B3: delegate through the loopback read-only gateway, never document servers.

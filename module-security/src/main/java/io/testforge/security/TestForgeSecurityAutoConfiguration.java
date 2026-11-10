@@ -109,8 +109,22 @@ public class TestForgeSecurityAutoConfiguration {
             name = "enabled",
             havingValue = "true")
     public SecurityTransportRunner securityTransportRunner(
-            SecurityTransportProperties p, SecurityCollector c) {
-        return new SecurityTransportRunner(p, c);
+            SecurityTransportProperties p, SecurityCollector c, TestsslEngine testssl) {
+        return new SecurityTransportRunner(p, c, defaultTls(), java.time.Clock.systemUTC(), testssl);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public TestsslEngine testsslEngine() {
+        return new DockerTestsslEngine();
+    }
+
+    private static javax.net.ssl.SSLContext defaultTls() {
+        try {
+            return javax.net.ssl.SSLContext.getDefault();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("default TLS context unavailable");
+        }
     }
 
     @Bean

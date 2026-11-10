@@ -139,8 +139,49 @@ Legacy protocols/weak ciphers are probed only when asked for and only when the
 local JDK enables them. Java 21 typically disables them; enabled probes then
 say not_measured, not "server rejected them", and that incomplete coverage
 cannot pass assertAcceptable — so both are off by default, and coverage says no
-server-wide claim was requested. Turn them on in a job whose JDK offers them. No trust-all TLS context or global algorithm weakening is
+server-wide claim was requested. Turn them on in a job whose JDK offers them, or let the delegated testssl.sh assessment below answer it. No trust-all TLS context or global algorithm weakening is
 installed. Tests generate a temporary certificate/keystore at runtime.
+
+### Delegated testssl.sh assessment
+
+The JDK cannot say whether a server accepts SSLv2/3, TLS 1.0/1.1 or weak ciphers once
+the JDK itself disables them. [testssl.sh](https://github.com/testssl/testssl.sh)
+(GPL-2.0, run as a separate container, never linked) brings its own sockets and
+OpenSSL and answers that, plus the known TLS vulnerabilities (Heartbleed, ROBOT,
+CCS, LUCKY13, …), forward secrecy and the certificate.
+
+```yaml
+forge:
+  security:
+    transport:
+      enabled: true
+      allowed-hosts: [api.staging.example.test]
+      testssl:
+        enabled: true
+        test-environment: true      # it sends vulnerability probes: test environments only
+        time-budget: 10m            # maximum 30m
+        # host-aliases: [tls.local.test]  # allowed names the container resolves to the Docker host
+```
+
+`check("https://…")` then runs the pinned image after the JDK checks — also when the
+JDK handshake failed, which is when the assessment matters most. The policy is fixed:
+`--protocols --std --fs --server-defaults --vulnerable`, with `--nodns min` (no CAA
+lookups) and without `--phone-out`, so no CRL or OCSP request leaves for a third
+party. The image is `ghcr.io/testssl/testssl.sh` 3.2.5 pinned by digest and must
+already be pulled (`--pull=never`); it runs with a read-only root, no capabilities,
+512 MiB, one CPU, 256 PIDs, the caller's user and one private output directory, and is
+removed even on error.
+
+Each testssl.sh check id becomes `testssl-<id>`: measured coverage, plus a finding with
+testssl.sh's own severity when it rates the check LOW, MEDIUM, HIGH or CRITICAL.
+Evidence is `testssl.sh rated <id> <severity>` with its CVE/CWE identifiers;
+testssl.sh's finding text — certificate names and dates, offered ciphers — never enters
+the report. A non-zero exit, a FATAL or `scanProblem` entry, an unknown entry shape, a
+timeout or a failed cleanup adds no finding and leaves `tls-testssl` not_measured, so
+`assertAcceptable()` cannot pass on a scan that did not finish. A finding is resolved
+only when a later complete scan measured the same id again. Projects can replace the
+`TestsslEngine` bean. Real container acceptance: `./gradlew :example-tests:securityTlsTest`
+(pull the pinned image first).
 
 ## B5: pre-upload artifact secret check
 

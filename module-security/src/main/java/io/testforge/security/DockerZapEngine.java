@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Pinned image, bounded execution, ephemeral private reports and unconditional container cleanup.
@@ -27,13 +26,13 @@ public class DockerZapEngine implements ZapEngine {
     public Result execute(Path dir, SecurityActiveProperties p) {
         String name = "testforge-security-" + UUID.randomUUID();
         Result result;
-        CommandOutcome cleaned;
+        BoundedCommand.Outcome cleaned;
         try {
             result = executeContainer(dir, p, name);
         } catch (Exception e) {
             result = new Result(false, null);
         } finally {
-            cleaned = command(List.of("docker", "rm", "-f", name), Duration.ofSeconds(10));
+            cleaned = BoundedCommand.run(List.of("docker", "rm", "-f", name), Duration.ofSeconds(10));
         }
         return cleaned.success()
                 ? result
@@ -67,7 +66,7 @@ public class DockerZapEngine implements ZapEngine {
                                     "/zap/wrk:rw,nosuid,nodev,size=128m,uid=1000,gid=1000"));
             if (hostNetwork()) start.addAll(List.of("--network", "host"));
             start.addAll(List.of("--entrypoint", "tail", p.image(), "-f", "/dev/null"));
-            CommandOutcome startup = command(start, Duration.ofSeconds(30));
+            BoundedCommand.Outcome startup = BoundedCommand.run(start, Duration.ofSeconds(30));
             if (!startup.success())
                 return new Result(
                         false,
@@ -75,8 +74,8 @@ public class DockerZapEngine implements ZapEngine {
                         startup.timedOut() ? Phase.TIMEOUT : Phase.STARTUP,
                         startup.exitCode());
             for (String file : List.of("plan.json", "openapi.json")) {
-                CommandOutcome copied =
-                        command(
+                BoundedCommand.Outcome copied =
+                        BoundedCommand.run(
                                 List.of(
                                         "docker",
                                         "exec",
@@ -89,12 +88,13 @@ public class DockerZapEngine implements ZapEngine {
                                             + " shutil.copyfileobj(sys.stdin.buffer,f); f.close()",
                                         "/zap/wrk/" + file),
                                 Duration.ofSeconds(10),
-                                dir.resolve(file));
+                                dir.resolve(file),
+                                null);
                 if (!copied.success())
                     return new Result(false, null, Phase.INPUT, copied.exitCode());
             }
-            CommandOutcome complete =
-                    command(
+            BoundedCommand.Outcome complete =
+                    BoundedCommand.run(
                             List.of(
                                     "docker",
                                     "exec",
@@ -126,8 +126,8 @@ public class DockerZapEngine implements ZapEngine {
                         java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
             } catch (UnsupportedOperationException ignored) {
             }
-            CommandOutcome copied =
-                    command(
+            BoundedCommand.Outcome copied =
+                    BoundedCommand.run(
                             List.of(
                                     "docker",
                                     "exec",
@@ -149,46 +149,6 @@ public class DockerZapEngine implements ZapEngine {
             return new Result(true, new ObjectMapper().readTree(report.toFile()));
         } catch (Exception e) {
             return new Result(false, null);
-        }
-    }
-
-    private record CommandOutcome(int exitCode, boolean timedOut) {
-        boolean success() {
-            return exitCode == 0 && !timedOut;
-        }
-    }
-
-    private static CommandOutcome command(List<String> args, Duration timeout) {
-        return command(args, timeout, null);
-    }
-
-    private static CommandOutcome command(List<String> args, Duration timeout, Path input) {
-        return command(args, timeout, input, null);
-    }
-
-    private static CommandOutcome command(
-            List<String> args, Duration timeout, Path input, Path output) {
-        Process process = null;
-        try {
-            ProcessBuilder builder =
-                    new ProcessBuilder(args)
-                            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                            .redirectError(ProcessBuilder.Redirect.DISCARD);
-            if (input != null) builder.redirectInput(input.toFile());
-            if (output != null) builder.redirectOutput(output.toFile());
-            process = builder.start();
-            if (!process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-                process.destroyForcibly();
-                return new CommandOutcome(-1, true);
-            }
-            return new CommandOutcome(process.exitValue(), false);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return new CommandOutcome(-1, false);
-        } catch (Exception e) {
-            return new CommandOutcome(-1, false);
-        } finally {
-            if (process != null && process.isAlive()) process.destroyForcibly();
         }
     }
 }

@@ -62,6 +62,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Security issues visible in responses, no extra traffic | — | `module-security` passive checks | glue |
 | Security weaknesses in an API description (OWASP API Top 10), no traffic | Spectral + OWASP API Security ruleset | `tools/spectral`; `module-quality` `static-analysis` reads its SARIF | adapter |
 | Active web / API security scan | OWASP ZAP | `module-security` (scoped ZAP, Docker) | adapter |
+| TLS: legacy protocols, weak ciphers, known TLS vulnerabilities, certificate | testssl.sh | `module-security` transport (pinned container) | adapter |
 | This run's own credentials leaking into artifacts, archives included | — | `module-security` pre-upload scan | glue — [decided](toolbox-decisions.md#2-artifact-secret-scan-vs-gitleaks) |
 | Credentials of a known shape (cloud keys, vendor tokens) in artifacts | gitleaks | `module-quality` `static-analysis` reads its SARIF | reader |
 | Vulnerable dependencies; static analysis of the product | Trivy, Grype, Semgrep, CodeQL, SpotBugs | `module-quality` `static-analysis` reads their SARIF | reader |

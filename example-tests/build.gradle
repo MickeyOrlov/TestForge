@@ -88,7 +88,7 @@ tasks.withType(Test).configureEach {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "mail", "browser", "live-api", "quality-gate", "load", "api-load-research"
+        excludeTags "containers", "mail", "testssl", "browser", "live-api", "quality-gate", "load", "api-load-research"
     }
     // fixtures run only through EngineTestKit (they fail on purpose)
     exclude "**/*TestkitFixture*"
@@ -194,6 +194,26 @@ tasks.register("securityScanTest", Test) {
         includeTags "containers"
     }
     filter { includeTestsMatching "*SecurityZapIT*" }
+    shouldRunAfter tasks.named("test")
+}
+
+// testssl.sh acceptance: the pinned image must already be pulled (never downloaded implicitly).
+// tls.testforge.test resolves to loopback for this JVM only, so the owned server's certificate name
+// matches for both the JDK checks and the container.
+tasks.register("securityTlsTest", Test) {
+    description = "Runs the pinned testssl.sh container against an owned local HTTPS server"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "testssl" }
+    def hosts = layout.buildDirectory.file("testssl/hosts")
+    doFirst {
+        def file = hosts.get().asFile
+        file.parentFile.mkdirs()
+        file.text = "127.0.0.1 tls.testforge.test\n"
+        systemProperty "jdk.net.hosts.file", file.absolutePath
+    }
+    outputs.upToDateWhen { false }
     shouldRunAfter tasks.named("test")
 }
 

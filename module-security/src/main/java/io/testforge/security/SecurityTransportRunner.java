@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
@@ -27,17 +28,28 @@ public class SecurityTransportRunner {
     private final SecurityCollector collector;
     private final SSLContext ssl;
     private final Clock clock;
+    private final TestsslEngine testssl;
 
     public SecurityTransportRunner(SecurityTransportProperties p, SecurityCollector c) {
-        this(p, c, defaultContext(), Clock.systemUTC());
+        this(p, c, defaultContext(), Clock.systemUTC(), new DockerTestsslEngine());
     }
 
     public SecurityTransportRunner(
             SecurityTransportProperties p, SecurityCollector c, SSLContext ssl, Clock clock) {
+        this(p, c, ssl, clock, new DockerTestsslEngine());
+    }
+
+    public SecurityTransportRunner(
+            SecurityTransportProperties p,
+            SecurityCollector c,
+            SSLContext ssl,
+            Clock clock,
+            TestsslEngine testssl) {
         this.properties = p;
         this.collector = c;
         this.ssl = ssl;
         this.clock = clock;
+        this.testssl = testssl;
     }
 
     private static SSLContext defaultContext() {
@@ -68,6 +80,33 @@ public class SecurityTransportRunner {
             redirect(target, label);
             return;
         }
+        if (properties.testssl().enabled() && !properties.testssl().testEnvironment())
+            throw new IllegalStateException(
+                    "forge.security.transport.testssl.test-environment must be true: testssl.sh"
+                            + " sends vulnerability probes");
+        jdk(target, label);
+        if (properties.testssl().enabled())
+            new TestsslAssessment(collector)
+                    .apply(label, run(target.getHost() + ":" + port(target)));
+    }
+
+    private static int port(URI target) {
+        return target.getPort() < 0 ? 443 : target.getPort();
+    }
+
+    private TestsslEngine.Result run(String hostPort) {
+        Path dir = null;
+        try {
+            dir = TestsslAssessment.privateDirectory();
+            return testssl.execute(dir, hostPort, properties.testssl());
+        } catch (Exception e) {
+            return new TestsslEngine.Result(null, TestsslEngine.Phase.EXECUTION, -1);
+        } finally {
+            TestsslAssessment.delete(dir);
+        }
+    }
+
+    private void jdk(URI target, String label) {
         SSLSession session;
         try (var socket = connect(target, null, null)) {
             session = socket.getSession();
