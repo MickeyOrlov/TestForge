@@ -1,0 +1,14 @@
+{
+  "name": "testforge-spectral-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "^22.0 || >= 24.0" },
+  "scripts": { "test": "node --test run.test.mjs" },
+  "dependencies": {
+    "@stoplight/json-ref-readers": "1.2.2",
+    "@stoplight/spectral-cli": "6.17.0",
+    "@stoplight/spectral-owasp-ruleset": "2.0.1",
+    "@stoplight/spectral-ref-resolver": "1.0.5"
+  }
+}

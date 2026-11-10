@@ -60,6 +60,26 @@ class SarifDimensionTest {
         assertThat(String.join("\n", floored.facts())).doesNotContain("REDACTED", "detected secret");
     }
 
+    @Test
+    void spectralOwaspFindingsAreOneIssuePerRuleAndOperationAndHoldWhenLinesMove() throws IOException {
+        // tools/spectral on example-tests' demo-api.yaml: Spectral 6.17.0, OWASP API Top 10 ruleset 2.0.1,
+        // with the document path as partial fingerprint
+        Path spectral = fixture("spectral-6.17.0-owasp-2.0.1.sarif");
+
+        QualityDimension lint = judge(spectral, null);
+        assertThat(lint.status()).as("OWASP error-level rules are high").isEqualTo(QualityStatus.FAIL);
+        assertThat(lint.facts().getFirst()).startsWith("spectral 6.17.0: 29 results — 0 critical, 10 high, "
+                + "19 medium, 0 low; 0 suppressed");
+        assertThat(lint.issues()).as("one per rule and operation, not one per rule and file").hasSize(23)
+                .contains("spectral owasp:api2:2023-write-restricted example-tests/src/test/resources/openapi/"
+                        + "demo-api.yaml #" + JunitResults.sha256("documentPath/v1=paths./api/v1/tasks.post\n")
+                        .substring(0, 12));
+
+        String moved = Files.readString(spectral).replaceAll("\"startLine\": (\\d+)", "\"startLine\": 1$1");
+        assertThat(judge(report(moved), null).issues()).as("the keys hold when lines move")
+                .containsExactlyInAnyOrderElementsOf(lint.issues());
+    }
+
     // the shapes Trivy, Semgrep and CodeQL use: rule security-severity, levels, suppressions, fingerprints
     private static final String MIXED = """
             {"version": "2.1.0", "runs": [{

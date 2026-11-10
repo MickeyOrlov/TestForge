@@ -7,6 +7,7 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `tools/spectral`: opt-in OpenAPI security lint with pinned Spectral 6.17.0 and the OWASP API Security Top 10 ruleset 2.0.1. One SARIF report per local document, remote `$ref` refused, incomplete lints leave no report, document-path fingerprints so module-quality keys one issue per rule and operation.
 - `module-mail`: opt-in Mailpit capture API adapter with UUID recipients, text/HTML/attachment assertions, bounded calls, isolated cleanup and value-free lifecycle evidence. Native SMTP fixture remains outside the default build.
 - `module-quality`: a `static-analysis` dimension reading SARIF 2.1.0 from
   gitleaks, Trivy, Grype, Semgrep, CodeQL or SpotBugs

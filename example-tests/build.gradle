@@ -202,6 +202,8 @@ apply from: "gradle/load.gradle"
 
 // Optional native front-end performance workflow.
 apply from: "gradle/lighthouse.gradle"
+// Optional OpenAPI security lint (Spectral + OWASP API Top 10), read by the quality gate as SARIF.
+apply from: "gradle/spectral.gradle"
 
 // Explicit native axe acceptance; never run by the default build.
 tasks.register("a11yTest", Test) {
