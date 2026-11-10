@@ -381,3 +381,5 @@ Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in 
 OpenAPI security lint: run `:example-tests:spectralLint -PspectralSpecs=...` (`tools/spectral/README.md`) and point `forge.quality.sarif.reports` at `build/spectral`. Native Spectral with the pinned OWASP API Top 10 ruleset owns the rules; local documents only, no remote `$ref`, never in the default build.
 
 Dependency vulnerabilities: `./gradlew osvScan` builds the CycloneDX SBOM of the published modules (`cyclonedxBom`) and scans it with the pinned OSV-Scanner image into `build/sarif/osv-scanner.sarif` for the quality gate. It needs network access to OSV.dev and never runs in the default build.
+
+Dependency licenses: `./gradlew licenseScan` reads the same SBOM's licenses with the pinned Trivy image, offline, into `build/sarif/trivy-licenses.sarif`; each package counts under its mildest listed license (a POM's list is a choice). A team's policy goes in a `trivy.yaml` passed as `-PlicenseConfig`. Never in the default build.

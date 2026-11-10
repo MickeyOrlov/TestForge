@@ -1,0 +1,429 @@
+{
+    "version": "2.1.0",
+    "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+    "runs": [
+        {
+            "tool": {
+                "driver": {
+                    "fullName": "Trivy Vulnerability Scanner",
+                    "informationUri": "https://github.com/aquasecurity/trivy",
+                    "name": "Trivy",
+                    "rules": [
+                        {
+                            "id": "com.deque.html.axe-core:dequeutilites:MPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "MPL-2.0 in com.deque.html.axe-core:dequeutilites"
+                            },
+                            "fullDescription": {
+                                "text": "MPL-2.0 in com.deque.html.axe-core:dequeutilites"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License MPL-2.0\nClassification: reciprocal\nPkgName: com.deque.html.axe-core:dequeutilites\nPath: ",
+                                "markdown": "**License MPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|com.deque.html.axe-core:dequeutilites|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "com.deque.html.axe-core:playwright:MPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "MPL-2.0 in com.deque.html.axe-core:playwright"
+                            },
+                            "fullDescription": {
+                                "text": "MPL-2.0 in com.deque.html.axe-core:playwright"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License MPL-2.0\nClassification: reciprocal\nPkgName: com.deque.html.axe-core:playwright\nPath: ",
+                                "markdown": "**License MPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|com.deque.html.axe-core:playwright|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "jakarta.annotation:jakarta.annotation-api:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in jakarta.annotation:jakarta.annotation-api"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in jakarta.annotation:jakarta.annotation-api"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: jakarta.annotation:jakarta.annotation-api\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|jakarta.annotation:jakarta.annotation-api|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "org.aspectj:aspectjweaver:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in org.aspectj:aspectjweaver"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in org.aspectj:aspectjweaver"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: org.aspectj:aspectjweaver\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|org.aspectj:aspectjweaver|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "org.junit.jupiter:junit-jupiter-api:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in org.junit.jupiter:junit-jupiter-api"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in org.junit.jupiter:junit-jupiter-api"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: org.junit.jupiter:junit-jupiter-api\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|org.junit.jupiter:junit-jupiter-api|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "org.junit.platform:junit-platform-commons:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in org.junit.platform:junit-platform-commons"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in org.junit.platform:junit-platform-commons"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: org.junit.platform:junit-platform-commons\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|org.junit.platform:junit-platform-commons|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "org.junit:junit-bom:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in org.junit:junit-bom"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in org.junit:junit-bom"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: org.junit:junit-bom\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|org.junit:junit-bom|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        },
+                        {
+                            "id": "us.fatehi:schemacrawler:EPL-2.0",
+                            "name": "License",
+                            "shortDescription": {
+                                "text": "EPL-2.0 in us.fatehi:schemacrawler"
+                            },
+                            "fullDescription": {
+                                "text": "EPL-2.0 in us.fatehi:schemacrawler"
+                            },
+                            "defaultConfiguration": {
+                                "level": "warning"
+                            },
+                            "help": {
+                                "text": "License EPL-2.0\nClassification: reciprocal\nPkgName: us.fatehi:schemacrawler\nPath: ",
+                                "markdown": "**License EPL-2.0**\n| PkgName | Classification | Path |\n| --- | --- | --- |\n|us.fatehi:schemacrawler|reciprocal||"
+                            },
+                            "properties": {
+                                "precision": "very-high",
+                                "security-severity": "5.5",
+                                "tags": [
+                                    "license",
+                                    "security",
+                                    "MEDIUM"
+                                ]
+                            }
+                        }
+                    ],
+                    "version": "0.76.1"
+                }
+            },
+            "results": [
+                {
+                    "ruleId": "com.deque.html.axe-core:dequeutilites:MPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense MPL-2.0\nPkgName: com.deque.html.axe-core:dequeutilites\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "com.deque.html.axe-core:dequeutilites"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "com.deque.html.axe-core:playwright:MPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense MPL-2.0\nPkgName: com.deque.html.axe-core:playwright\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "com.deque.html.axe-core:playwright"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "jakarta.annotation:jakarta.annotation-api:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: jakarta.annotation:jakarta.annotation-api\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "jakarta.annotation:jakarta.annotation-api"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "org.aspectj:aspectjweaver:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: org.aspectj:aspectjweaver\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "org.aspectj:aspectjweaver"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "org.junit.jupiter:junit-jupiter-api:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: org.junit.jupiter:junit-jupiter-api\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "org.junit.jupiter:junit-jupiter-api"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "org.junit.platform:junit-platform-commons:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: org.junit.platform:junit-platform-commons\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "org.junit.platform:junit-platform-commons"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "org.junit:junit-bom:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: org.junit:junit-bom\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "org.junit:junit-bom"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                },
+                {
+                    "ruleId": "us.fatehi:schemacrawler:EPL-2.0",
+                    "level": "warning",
+                    "message": {
+                        "text": "Artifact: Java\nLicense EPL-2.0\nPkgName: us.fatehi:schemacrawler\n Classification: reciprocal\n Path: "
+                    },
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {
+                                    "uri": "us.fatehi:schemacrawler"
+                                },
+                                "region": {
+                                    "startLine": 1,
+                                    "startColumn": 1,
+                                    "endLine": 1,
+                                    "endColumn": 1
+                                }
+                            },
+                            "message": {
+                                "text": ""
+                            }
+                        }
+                    ]
+                }
+            ],
+            "columnKind": "utf16CodeUnits"
+        }
+    ]
+}

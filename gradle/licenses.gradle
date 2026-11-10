@@ -1,0 +1,140 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.TimeUnit
+
+// Licenses of what the published modules bring to a consumer: Trivy's license scanner over the
+// aggregate CycloneDX SBOM (cyclonedxBom), written as SARIF for module-quality's static-analysis
+// dimension. Explicit only — never part of build. Trivy reads the licenses the SBOM declares and
+// classifies them itself (notice, reciprocal, restricted, forbidden, unknown); the container has no
+// network, so nothing about the SBOM leaves the machine.
+//
+// Why Trivy and not OSV-Scanner's --licenses (docs/toolbox.md): OSV-Scanner 2.7.0 looks licenses up
+// on deps.dev and finds none for SBOM input — every package comes back UNKNOWN with no error — and
+// it writes license results to JSON only, never SARIF.
+//
+// Pinned by digest: Trivy 0.76.1, an immutable GitHub release; the digest is the same on GHCR and
+// Docker Hub. Releases 0.69.4–0.69.6 were malicious (CVE-2026-33634): never move this pin to a tag.
+def trivyImage = "ghcr.io/aquasecurity/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c"
+def sbomPath = "build/reports/sbom/testforge.cdx.json"
+
+tasks.register("licenseScan") {
+    description = "Scans the published modules' SBOM licenses with the pinned Trivy into build/sarif/trivy-licenses.sarif"
+    group = "verification"
+    dependsOn "cyclonedxBom"
+    def root = rootProject.projectDir
+    def sbom = new File(root, sbomPath)
+    def report = new File(root, providers.gradleProperty("licenseReport").orElse("build/sarif/trivy-licenses.sarif").get())
+    def config = providers.gradleProperty("licenseConfig").map { new File(root, it) }.getOrNull()
+    def firstParty = project.group.toString()
+    inputs.file(sbom)
+    outputs.upToDateWhen { false }
+    doLast {
+        report.delete() // a stale report must never be judged as this run's
+        if (config != null && !config.isFile())
+            throw new GradleException("licenseConfig ${config} is not a file")
+        def work = Files.createTempDirectory("testforge-licenses-",
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")))
+        try {
+            def input = Files.createDirectory(work.resolve("in"))
+            def output = Files.createDirectory(work.resolve("out"))
+            Files.copy(sbom.toPath(), input.resolve("testforge.cdx.json"))
+            if (config != null) Files.copy(config.toPath(), input.resolve("trivy.yaml"))
+            def user = "${Files.getAttribute(work, 'unix:uid')}:${Files.getAttribute(work, 'unix:gid')}"
+            def name = "testforge-licenses-" + UUID.randomUUID()
+            def command = ["docker", "run", "--name", name, "--rm", "--pull=never", "--network=none",
+                           "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges",
+                           "--memory=1g", "--cpus=1", "--pids-limit=256", "--user", user,
+                           "--env", "HOME=/tmp", "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
+                           "--mount", "type=bind,source=${input},target=/in,readonly",
+                           "--mount", "type=bind,source=${output},target=/out",
+                           trivyImage]
+            // a team's own license categories (trivy.yaml: license.forbidden, restricted, ...)
+            if (config != null) command += ["--config", "/in/trivy.yaml"]
+            command += ["sbom", "--scanners", "license", "--offline-scan", "--skip-db-update",
+                        "--skip-java-db-update", "--cache-dir", "/tmp/cache", "--quiet",
+                        "--format", "sarif", "--output", "/out/trivy.sarif", "/in/testforge.cdx.json"]
+            def process = new ProcessBuilder(command.collect { it.toString() })
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+            boolean finished = process.waitFor(10, TimeUnit.MINUTES)
+            if (!finished) {
+                process.destroyForcibly()
+                new ProcessBuilder(["docker", "rm", "-f", name]).start().waitFor(10, TimeUnit.SECONDS)
+                throw new GradleException("trivy did not finish within 10 minutes")
+            }
+            // without --exit-code, Trivy exits 0 whatever it found: anything else is a failed scan
+            if (process.exitValue() != 0)
+                throw new GradleException("trivy failed (exit ${process.exitValue()}); no report written")
+            def sarif = output.resolve("trivy.sarif").toFile()
+            def parsed = sarif.isFile() ? new JsonSlurper().parse(sarif) : null
+            if (!(parsed instanceof Map) || parsed.version != "2.1.0" || !(parsed.runs instanceof List) || parsed.runs.size() != 1)
+                throw new GradleException("trivy wrote no valid SARIF 2.1.0 report")
+            def run = parsed.runs[0]
+            def rules = (run.tool?.driver?.rules ?: []).collectEntries { [(it.id): it] }
+            def kept = mildestLicenses(run.results ?: [], rules)
+            // Trivy reports nothing for a component that declares no license: absence is not a pass.
+            // The project's own modules are skipped — their POMs declare the license, but the
+            // CycloneDX plugin does not carry it into the SBOM for project components.
+            def bom = new JsonSlurper().parse(sbom)
+            def unlicensed = (bom.components ?: []).findAll { !it.licenses && it.group != firstParty }
+                    .collect { (it.group ? it.group + ':' : '') + it.name }.unique().sort()
+            unlicensed.each { pkg ->
+                kept << [ruleId    : pkg + ":UNKNOWN", level: "warning",
+                         message   : [text: pkg + " declares no license in the SBOM"],
+                         properties: ["security-severity": "5.5"],
+                         locations : [[physicalLocation: [artifactLocation: [uri: pkg]]]]]
+            }
+            run.results = kept
+            // only the rules a kept result names; ruleIndex would point into the old list
+            def named = kept*.ruleId as Set
+            run.tool.driver.rules = (run.tool?.driver?.rules ?: []).findAll { it.id in named }
+            kept.each { it.remove("ruleIndex") }
+            report.parentFile.mkdirs()
+            report.text = JsonOutput.prettyPrint(JsonOutput.toJson(parsed))
+            logger.lifecycle("trivy: ${kept.size()} license issue(s), ${unlicensed.size()} without a license -> " +
+                    "${root.toPath().relativize(report.toPath())}")
+        } finally {
+            work.toFile().deleteDir()
+        }
+    }
+}
+
+/**
+ * Trivy rates every license a package lists on its own. A POM that lists several licenses offers a
+ * choice ("If multiple licenses are listed, it is assumed that the user can select any of them" —
+ * Maven POM reference), and the SBOM carries that list as is: a package under "Apache-2.0 or
+ * GPL-2.0" would read as a GPL finding. So each package keeps only its mildest license, and a
+ * package whose mildest license is a notice one (security-severity below 4) is no issue at all.
+ * The location becomes the package name, so module-quality's key reads
+ * "Trivy group:artifact:License group:artifact".
+ */
+List mildestLicenses(List results, Map rules) {
+    Map<String, Map> mildest = new LinkedHashMap<>()
+    Map<String, Double> scores = [:]
+    results.each { result ->
+        def pkg = ((result.message?.text ?: "") =~ /PkgName: ([A-Za-z0-9._:@+~\/-]{1,300})/)
+        if (!pkg.find()) throw new GradleException("trivy result of unknown shape: ${result.ruleId}")
+        def score = (result.properties?.get("security-severity")
+                ?: rules[result.ruleId]?.properties?.get("security-severity"))?.toString()
+        if (score == null || !(score ==~ /\d{1,2}(\.\d+)?/))
+            throw new GradleException("trivy result without a severity: ${result.ruleId}")
+        String name = pkg.group(1)
+        double value = score as double
+        if (!mildest.containsKey(name) || value < scores[name]) {
+            mildest[name] = result
+            scores[name] = value
+        }
+    }
+    def kept = []
+    mildest.each { name, result ->
+        if (scores[name] < 4.0) return
+        (result.locations ?: []).each { it.physicalLocation?.artifactLocation = [uri: name] }
+        result.remove("partialFingerprints")
+        kept << result
+    }
+    return kept
+}

@@ -175,3 +175,4 @@ tasks.register("publishTestForgeLibraries") {
 }
 
 apply from: "gradle/osv.gradle"
+apply from: "gradle/licenses.gradle"
