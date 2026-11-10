@@ -35,3 +35,38 @@ tasks.register("externalSurfaceAcceptance", Exec) {
         commandLine "node", "acceptance.mjs", tools
     }
 }
+
+tasks.register("externalNetwork", Exec) {
+    description = "Checks explicit IP addresses and TCP ports with pinned Nmap"
+    group = "verification"
+    workingDir rootProject.projectDir
+    doFirst {
+        def scope = providers.gradleProperty("networkScope").orNull
+        def nmap = providers.gradleProperty("nmapExecutable").orNull
+        if (!scope || !nmap || !new File(nmap).isAbsolute()) {
+            throw new GradleException("Select -PnetworkScope=scope.json and -PnmapExecutable=/absolute/path")
+        }
+        commandLine "python3", new File(toolDir, "network.py"), rootProject.file(scope), nmap,
+                rootProject.layout.buildDirectory.dir("external-network").get().asFile
+    }
+}
+
+tasks.register("externalNetworkTest", Exec) {
+    description = "Checks network scope and Nmap XML interpretation offline"
+    group = "verification"
+    workingDir toolDir
+    commandLine "python3", "-m", "unittest", "test_network"
+}
+
+tasks.register("externalNetworkAcceptance", Exec) {
+    description = "Checks a listening and a closed TCP port on loopback with native Nmap"
+    group = "verification"
+    workingDir toolDir
+    doFirst {
+        def nmap = providers.gradleProperty("nmapExecutable").orNull
+        if (!nmap || !new File(nmap).isAbsolute()) {
+            throw new GradleException("Select -PnmapExecutable=/absolute/path")
+        }
+        commandLine "python3", "network_acceptance.py", nmap
+    }
+}

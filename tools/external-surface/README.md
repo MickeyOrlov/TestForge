@@ -79,3 +79,46 @@ Default build and tests leave this workflow idle.
 The first task replays passive output and checks scope and normalization. Native acceptance runs
 httpx and Katana against owned loopback servers, including a redirect, a same-host link to
 another port, an HTMX POST and a query with a synthetic secret.
+
+## TCP inventory with Nmap
+
+A separate task checks TCP ports on explicitly approved IP addresses. Its scope is
+independent of the web report. A DNS name or IP discovered by the web tools cannot
+add a network scan target. Supply the literal IP and selected ports for each host.
+
+```json
+{
+  "targets": [
+    {"ip": "192.0.2.10", "ports": [22, 443, 5432]},
+    {"ip": "2001:db8::10", "ports": [443]}
+  ]
+}
+```
+
+Use Python 3 and install [Nmap 7.993](https://nmap.org/download.html) separately. Verify the
+download with the publisher's checksums or signature. Run from the TestForge root.
+
+```bash
+./gradlew :example-tests:externalNetwork \
+  -PnetworkScope=/path/to/network-scope.json \
+  -PnmapExecutable=/absolute/path/to/nmap
+```
+
+The task uses an unprivileged TCP connect scan. It sends connections only to selected
+ports, with DNS lookup, Nmap host discovery, service fingerprinting and NSE scripts
+disabled. The scope allows up to 10 individual IPv4 or IPv6 addresses and 64 TCP
+ports per address. A bounded per-host scan limits retries and rate.
+
+The report is `build/external-network/<run-id>/network.json`. It records the state
+Nmap observed for each requested port from the runner's network position. An open
+port means the TCP connection succeeded. The service behind it and whether that
+exposure is expected require separate assessment. Ambiguous or missing results
+remain `not-measured` and return exit 2. Native XML is temporary.
+
+```bash
+./gradlew :example-tests:externalNetworkTest
+./gradlew :example-tests:externalNetworkAcceptance -PnmapExecutable=/absolute/path/to/nmap
+```
+
+Acceptance uses a loopback listener and a recently released loopback port. The default
+build leaves both network tasks idle.

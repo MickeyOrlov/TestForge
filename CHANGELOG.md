@@ -11,6 +11,7 @@ semantic versioning for its git tags.
 
 ### Added
 - `tools/external-surface` adds an opt-in anonymous web inventory with Subfinder candidates, httpx reachability and Katana routes from explicit origins. The crawler uses a bounded GET-only gateway.
+- `tools/external-surface` adds a separate Nmap TCP inventory for explicit IP addresses and port lists, with normalized port states and incomplete evidence reporting.
 - Root `:licenseScan`: the licenses the CycloneDX SBOM declares, classified by Trivy 0.76.1 in a pinned container with no network, into `build/sarif/trivy-licenses.sarif` for module-quality's `static-analysis`. One issue per package under its mildest license (a POM's license list is a choice); notice licenses are no issue, an undeclared third-party license is. Team policy through `-PlicenseConfig=trivy.yaml`. TestForge's own modules: 8 reciprocal (EPL-2.0, MPL-2.0), no restricted or forbidden.
 - Root `:osvScan`: CycloneDX SBOM (`cyclonedxBom`, plugin 3.5.1) of the published modules' runtime classpaths, scanned by OSV-Scanner 2.7.0 in a pinned container into `build/sarif/osv-scanner.sarif`; module-quality's `static-analysis` judges it, one issue per advisory and package version. Opt-in, needs network access to OSV.dev.
 - `module-security`: opt-in Nuclei 3.11.1 header assessment using a pinned image and signed upstream template. Explicit anonymous GET pages run through the read-only gateway. Findings and incomplete coverage feed the existing security gate.
