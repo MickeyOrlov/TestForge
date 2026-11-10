@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Bean;
     SecurityTransportProperties.class,
     SecurityArtifactProperties.class,
     SecurityActiveProperties.class,
+    SecurityNucleiProperties.class,
     BusinessSecurityProperties.class,
     BusinessScenarioProperties.class,
     BusinessPolicyProperties.class
@@ -81,6 +82,20 @@ public class TestForgeSecurityAutoConfiguration {
                 collector,
                 sink.getIfAvailable(() -> ArtifactSink.NO_OP),
                 policies);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public NucleiEngine nucleiEngine() {
+        return new DockerNucleiEngine();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "forge.security.nuclei", name = "enabled", havingValue = "true")
+    public SecurityNucleiRunner securityNucleiRunner(
+            SecurityNucleiProperties properties, SecurityCollector collector, NucleiEngine engine) {
+        return new SecurityNucleiRunner(properties, collector, engine);
     }
 
     @Bean
@@ -223,6 +238,7 @@ public class TestForgeSecurityAutoConfiguration {
                                             "transport",
                                             "artifacts-scan",
                                             "active",
+                                            "nuclei",
                                             "business")
                                     .stream()
                                     .filter(

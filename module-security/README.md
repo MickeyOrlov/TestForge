@@ -308,6 +308,63 @@ security in the quality gate rejects incomplete evidence. Current artifact
 secret leaks always stay `new`, make `healthy` false, and cannot be promoted into
 a security baseline, regardless of accepted findings or severity thresholds.
 
+## Nuclei header policy
+
+Use a dedicated test profile to run the pinned [Nuclei](https://github.com/projectdiscovery/nuclei)
+engine against explicitly selected anonymous GET pages. This policy checks header presence
+with the signed upstream `http-missing-security-headers` template. Each match keeps the
+template's INFO severity and the native matcher ID. Decide header applicability per page.
+
+```yaml
+forge:
+  security:
+    nuclei:
+      enabled: true
+      test-environment: true
+      allowed-hosts: [127.0.0.1:8080]
+      time-budget: 90s
+      max-requests: 50
+      max-requests-per-second: 5
+```
+
+```java
+nuclei.scanPages(List.of("/", "/health"), "http://127.0.0.1:8080");
+// a service below a base path: pages resolve against it, /api/health here
+nuclei.scanPages(List.of("/health"), "https://api.staging.example.test/api");
+security.assertAcceptable();
+```
+
+Select an HTTP(S) origin and up to 50 literal, query-free paths with stable, non-sensitive
+names. Each configured page must be safe to read and return HTTP 2xx anonymously. The
+loopback gateway forwards only declared GETs, discards scanner headers and sends only
+response headers back, with cookies and redirect locations removed. Nuclei receives
+gateway URLs. The container uses the same Linux host or Docker Desktop gateway transport
+as ZAP. Use a trusted local Docker daemon. The fixed template and flags constrain scanner
+requests, and the container uses ordinary Docker networking.
+
+The adapter checks the vendored template SHA-256 before launch. Nuclei verifies its
+signature and selects the exact template ID, `headers` tag and HTTP protocol. Template
+updates, redirects, Interactsh and HTTP probing are disabled. The reviewed policy covers
+header presence, including CSP and HSTS.
+
+Findings enter the existing security JSON, Markdown and SARIF outputs as
+`nuclei-headers-v1`. Evidence contains only configured route and matcher IDs. Temporary
+JSONL and gateway URLs are removed after the run. Missing route coverage, tool failure,
+invalid output or cleanup failure leaves the block incomplete and blocks the security
+gate. Include `info` in `forge.security.fail-on` to enforce new header findings as well.
+
+The template and its MIT license are vendored unchanged from
+[ProjectDiscovery nuclei-templates v10.5.1](https://github.com/projectdiscovery/nuclei-templates/blob/79fb682760ab3d5b0e22afbb44709353cbebf023/http/misconfiguration/http-missing-security-headers.yaml).
+Provision the pinned image explicitly. The default build uses neither Docker nor Nuclei traffic
+for this block.
+
+```bash
+docker pull projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb
+./gradlew :example-tests:securityNucleiTest   # tag "nuclei", never in the default build or containersTest
+```
+
+The acceptance task uses an owned loopback fixture with missing and complete headers.
+
 ## Business security: declared policies over OpenAPI
 
 `BusinessSecurityPlanner.propose(document, suite, maxCells)` produces **candidates**

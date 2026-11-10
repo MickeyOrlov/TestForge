@@ -41,6 +41,14 @@ Aggregate reports expose measured and complete separately; an enabled but
 unexecuted block cannot be hidden by other measurements. A4 consumes this
 contract and remains part of module-quality.
 
+Nuclei: fixed signed upstream header template, SHA-256 and image digest pinned.
+Use the anonymous GET-only gateway with literal routes, no queries, redirects,
+credentials or response bodies. Keep runtime downloads and Interactsh off.
+Preserve the value-free report and fail closed on incomplete coverage. Changes
+to the reviewed policy must update its coverage key and review the vendored bytes.
+Run :example-tests:securityNucleiTest on the pinned container and rerun ZAP acceptance
+when the shared gateway changes.
+
 Business policies: `BusinessSecuritySuite`, `BusinessSecurityPlanner`,
 `BusinessSecurityRunner` and private bounded JDK exchange. No automatic permission
 or tenant inference. Full document × role × kind scope; no silently omitted cells.
