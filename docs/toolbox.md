@@ -67,6 +67,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | This run's own credentials leaking into artifacts, archives included | — | `module-security` pre-upload scan | glue — [decided](toolbox-decisions.md#2-artifact-secret-scan-vs-gitleaks) |
 | Credentials of a known shape (cloud keys, vendor tokens) in artifacts | gitleaks | `module-quality` `static-analysis` reads its SARIF | reader |
 | Vulnerable dependencies; static analysis of the product | Trivy, Grype, Semgrep, CodeQL, SpotBugs | `module-quality` `static-analysis` reads their SARIF | reader |
+| Known vulnerabilities in what the published modules bring to a consumer | CycloneDX Gradle plugin (SBOM) + OSV-Scanner | root `:osvScan` (pinned container); `module-quality` `static-analysis` reads its SARIF | adapter |
 | Network faults, latency, a dependency going down | Toxiproxy | `module-faults` | adapter |
 
 

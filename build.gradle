@@ -1,3 +1,7 @@
+plugins {
+    alias(libs.plugins.cyclonedx)
+}
+
 def testforgeGroup = providers.gradleProperty("testforgeGroup")
         .orElse("io.testforge")
         .get()
@@ -46,6 +50,20 @@ subprojects {
 }
 
 def unpublishedProjects = ["example-tests", "architecture-tests"]
+
+// SBOM of what a consumer of the published modules receives: their runtime classpaths, never the
+// unpublished example and architecture suites. The aggregate feeds :osvScan (gradle/osv.gradle).
+allprojects {
+    tasks.named("cyclonedxDirectBom") {
+        enabled = !(project.name in unpublishedProjects)
+        includeConfigs = ["runtimeClasspath"]
+        xmlOutput.convention((RegularFile) null)
+    }
+}
+tasks.named("cyclonedxBom") {
+    jsonOutput = layout.buildDirectory.file("reports/sbom/testforge.cdx.json")
+    xmlOutput.convention((RegularFile) null)
+}
 
 configure(subprojects.findAll { !(it.name in unpublishedProjects) }) {
     apply plugin: "maven-publish"
@@ -140,3 +158,5 @@ tasks.register("publishTestForgeLibraries") {
             .findAll { !(it.name in unpublishedProjects) }
             .collect { "${it.path}:publishMavenJavaPublicationToTestForgeRepository" }
 }
+
+apply from: "gradle/osv.gradle"

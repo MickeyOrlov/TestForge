@@ -379,3 +379,5 @@ Read module-security/README.md for applicability and coverage limits.
 Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in `tools/lighthouse/README.md`. Native Lighthouse CI owns assertions and reports; no browser or node tooling runs during the default build.
 
 OpenAPI security lint: run `:example-tests:spectralLint -PspectralSpecs=...` (`tools/spectral/README.md`) and point `forge.quality.sarif.reports` at `build/spectral`. Native Spectral with the pinned OWASP API Top 10 ruleset owns the rules; local documents only, no remote `$ref`, never in the default build.
+
+Dependency vulnerabilities: `./gradlew osvScan` builds the CycloneDX SBOM of the published modules (`cyclonedxBom`) and scans it with the pinned OSV-Scanner image into `build/sarif/osv-scanner.sarif` for the quality gate. It needs network access to OSV.dev and never runs in the default build.

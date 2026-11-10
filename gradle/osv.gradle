@@ -1,0 +1,84 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.TimeUnit
+
+// Known vulnerabilities in what the published modules bring to a consumer: OSV-Scanner over the
+// aggregate CycloneDX SBOM (cyclonedxBom), written as SARIF for module-quality's static-analysis
+// dimension. Explicit only — never part of build. The scanner queries the OSV.dev API, so this
+// task needs network access; the SBOM (package names and versions) is what leaves the machine.
+def osvImage = "ghcr.io/google/osv-scanner@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0"
+def sbomPath = "build/reports/sbom/testforge.cdx.json"
+
+tasks.register("osvScan") {
+    description = "Scans the published modules' SBOM with the pinned OSV-Scanner into build/sarif/osv-scanner.sarif"
+    group = "verification"
+    dependsOn "cyclonedxBom"
+    def root = rootProject.projectDir
+    def sbom = new File(root, sbomPath)
+    def report = new File(root, providers.gradleProperty("osvReport").orElse("build/sarif/osv-scanner.sarif").get())
+    inputs.file(sbom)
+    outputs.upToDateWhen { false }
+    doLast {
+        report.delete() // a stale report must never be judged as this run's
+        def work = Files.createTempDirectory("testforge-osv-",
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")))
+        try {
+            def input = Files.createDirectory(work.resolve("in"))
+            def output = Files.createDirectory(work.resolve("out"))
+            // OSV-Scanner recognizes a CycloneDX SBOM by its spec name *.cdx.json
+            Files.copy(sbom.toPath(), input.resolve("testforge.cdx.json"))
+            def user = "${Files.getAttribute(work, 'unix:uid')}:${Files.getAttribute(work, 'unix:gid')}"
+            def name = "testforge-osv-" + UUID.randomUUID()
+            def command = ["docker", "run", "--name", name, "--rm", "--pull=never", "--read-only",
+                           "--cap-drop=ALL", "--security-opt=no-new-privileges", "--memory=1g", "--cpus=1",
+                           "--pids-limit=256", "--user", user, "--env", "HOME=/tmp",
+                           "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
+                           "--mount", "type=bind,source=${input},target=/in,readonly",
+                           "--mount", "type=bind,source=${output},target=/out",
+                           osvImage, "scan", "source", "-L", "/in/testforge.cdx.json",
+                           "--format", "sarif", "--output-file", "/out/osv.sarif"].collect { it.toString() }
+            def process = new ProcessBuilder(command)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+            boolean finished = process.waitFor(10, TimeUnit.MINUTES)
+            if (!finished) {
+                process.destroyForcibly()
+                new ProcessBuilder(["docker", "rm", "-f", name]).start().waitFor(10, TimeUnit.SECONDS)
+                throw new GradleException("osv-scanner did not finish within 10 minutes")
+            }
+            // 0: no vulnerability, 1: vulnerabilities found — both are a complete scan; judging is the gate's job
+            if (!(process.exitValue() in [0, 1]))
+                throw new GradleException("osv-scanner failed (exit ${process.exitValue()}); no report written")
+            def sarif = output.resolve("osv.sarif").toFile()
+            def parsed = sarif.isFile() ? new JsonSlurper().parse(sarif) : null
+            if (!(parsed instanceof Map) || parsed.version != "2.1.0" || !(parsed.runs instanceof List) || parsed.runs.isEmpty())
+                throw new GradleException("osv-scanner wrote no valid SARIF 2.1.0 report")
+            // Every result's location is the one SBOM, so module-quality's key (tool, rule, file) would
+            // name no package. The location becomes the vulnerable package version OSV-Scanner names in
+            // its message ("Package 'group:artifact@version' is vulnerable to ..."): the key then reads
+            // "osv-scanner CVE-… group:artifact@version" and needs no fingerprint. A message of another
+            // shape keeps the SBOM's repository path and the scanner's own fingerprint.
+            int results = 0
+            parsed.runs.each { run ->
+                (run.results ?: []).each { result ->
+                    results++
+                    def matcher = (result.message?.text ?: "") =~ /^Package '([A-Za-z0-9._:@+~\/-]{1,300})' is vulnerable/
+                    String location = matcher.find() ? matcher.group(1) : null
+                    (result.locations ?: []).each {
+                        it.physicalLocation?.artifactLocation?.uri = location ?: sbomPath
+                    }
+                    if (location) result.remove("partialFingerprints")
+                }
+            }
+            report.parentFile.mkdirs()
+            report.text = JsonOutput.prettyPrint(JsonOutput.toJson(parsed))
+            logger.lifecycle("osv-scanner: ${results} vulnerable package version(s) -> ${root.toPath().relativize(report.toPath())}")
+        } finally {
+            work.toFile().deleteDir()
+        }
+    }
+}

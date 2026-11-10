@@ -80,6 +80,22 @@ class SarifDimensionTest {
                 .containsExactlyInAnyOrderElementsOf(lint.issues());
     }
 
+    @Test
+    void osvScannerFindingsAreOneIssuePerAdvisoryAndPackageVersionRatedByCvss() throws IOException {
+        // :osvScan on TestForge's own published modules: OSV-Scanner 2.7.0 over the CycloneDX SBOM,
+        // locations rewritten to the vulnerable package version (advisory texts trimmed)
+        QualityDimension osv = judge(fixture("osv-scanner-2.7.0.sarif"), null);
+
+        assertThat(osv.status()).as("CVSS ≥ 7 is high").isEqualTo(QualityStatus.FAIL);
+        assertThat(osv.facts().getFirst()).startsWith("osv-scanner 2.7.0: 43 results — 0 critical, 18 high, "
+                + "23 medium, 2 low; 0 suppressed");
+        assertThat(osv.issues()).as("the same advisory on two versions is two issues").hasSize(43)
+                .contains("osv-scanner CVE-2026-106449 at.yawk.lz4:lz4-java@1.10.1",
+                        "osv-scanner CVE-2026-59889 com.fasterxml.jackson.core:jackson-databind@2.21.4",
+                        "osv-scanner CVE-2026-59889 com.fasterxml.jackson.core:jackson-databind@2.22.0")
+                .allMatch(key -> !key.contains("#") && !key.contains("cdx.json"));
+    }
+
     // the shapes Trivy, Semgrep and CodeQL use: rule security-severity, levels, suppressions, fingerprints
     private static final String MIXED = """
             {"version": "2.1.0", "runs": [{
