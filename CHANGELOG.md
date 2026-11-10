@@ -6,6 +6,9 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Security
+- Version floors over the Spring Boot BOM for every published module, from `./gradlew osvScan`: Jackson 2.22.3 (jackson-bom; also aligns the 2.21.4/2.22.0 split), OpenTelemetry 1.67.0 (bom), amqp-client 5.37.0, lz4-java 1.11.4, snappy-java 1.1.10.9, guava 33.7.2-jre. 43 vulnerable package versions (18 high) → 0. Declared before the Boot platform so Maven consumers get them too (published POMs list them first).
+
 ### Added
 - Root `:osvScan`: CycloneDX SBOM (`cyclonedxBom`, plugin 3.5.1) of the published modules' runtime classpaths, scanned by OSV-Scanner 2.7.0 in a pinned container into `build/sarif/osv-scanner.sarif`; module-quality's `static-analysis` judges it, one issue per advisory and package version. Opt-in, needs network access to OSV.dev.
 - `module-security`: opt-in Nuclei 3.11.1 header assessment using a pinned image and signed upstream template. Explicit anonymous GET pages run through the read-only gateway. Findings and incomplete coverage feed the existing security gate.
