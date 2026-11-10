@@ -1,0 +1,72 @@
+// Optional external inventory. The default build never installs or invokes the native tools.
+def toolDir = rootProject.file("tools/external-surface")
+
+tasks.register("externalSurface", Exec) {
+    description = "Inventories a selected domain and explicitly approved web origins"
+    group = "verification"
+    workingDir rootProject.projectDir
+    doFirst {
+        def scope = providers.gradleProperty("surfaceScope").orNull
+        def tools = providers.gradleProperty("surfaceToolsDir").orNull
+        if (!scope || !tools || !new File(tools).isAbsolute()) {
+            throw new GradleException("Select -PsurfaceScope=scope.json and -PsurfaceToolsDir=/absolute/path")
+        }
+        commandLine "node", new File(toolDir, "run.mjs"), rootProject.file(scope), tools,
+                rootProject.layout.buildDirectory.dir("external-surface").get().asFile
+    }
+}
+
+tasks.register("externalSurfaceTest", Exec) {
+    description = "Checks external inventory contracts without scanning a service"
+    group = "verification"
+    workingDir toolDir
+    commandLine "node", "--test", "run.test.mjs"
+}
+
+tasks.register("externalSurfaceAcceptance", Exec) {
+    description = "Runs native httpx and Katana against an owned loopback fixture"
+    group = "verification"
+    workingDir toolDir
+    doFirst {
+        def tools = providers.gradleProperty("surfaceToolsDir").orNull
+        if (!tools || !new File(tools).isAbsolute()) {
+            throw new GradleException("Select -PsurfaceToolsDir=/absolute/path")
+        }
+        commandLine "node", "acceptance.mjs", tools
+    }
+}
+
+tasks.register("externalNetwork", Exec) {
+    description = "Checks explicit IP addresses and TCP ports with pinned Nmap"
+    group = "verification"
+    workingDir rootProject.projectDir
+    doFirst {
+        def scope = providers.gradleProperty("networkScope").orNull
+        def nmap = providers.gradleProperty("nmapExecutable").orNull
+        if (!scope || !nmap || !new File(nmap).isAbsolute()) {
+            throw new GradleException("Select -PnetworkScope=scope.json and -PnmapExecutable=/absolute/path")
+        }
+        commandLine "python3", new File(toolDir, "network.py"), rootProject.file(scope), nmap,
+                rootProject.layout.buildDirectory.dir("external-network").get().asFile
+    }
+}
+
+tasks.register("externalNetworkTest", Exec) {
+    description = "Checks network scope and Nmap XML interpretation offline"
+    group = "verification"
+    workingDir toolDir
+    commandLine "python3", "-m", "unittest", "test_network"
+}
+
+tasks.register("externalNetworkAcceptance", Exec) {
+    description = "Checks a listening and a closed TCP port on loopback with native Nmap"
+    group = "verification"
+    workingDir toolDir
+    doFirst {
+        def nmap = providers.gradleProperty("nmapExecutable").orNull
+        if (!nmap || !new File(nmap).isAbsolute()) {
+            throw new GradleException("Select -PnmapExecutable=/absolute/path")
+        }
+        commandLine "python3", "network_acceptance.py", nmap
+    }
+}
