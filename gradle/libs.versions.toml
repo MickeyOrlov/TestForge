@@ -51,3 +51,7 @@ axe-playwright = { module = "com.deque.html.axe-core:playwright", version.ref = 
 testcontainers-toxiproxy = { module = "org.testcontainers:testcontainers-toxiproxy", version.ref = "testcontainers" }
 toxiproxy-java = { module = "eu.rekawek.toxiproxy:toxiproxy-java", version.ref = "toxiproxy-java" }
 testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
+
+[plugins]
+# SBOM of the published modules for dependency vulnerability scans (osvScan); never part of build
+cyclonedx = { id = "org.cyclonedx.bom", version = "3.5.1" }

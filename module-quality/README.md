@@ -131,6 +131,7 @@ and keeps no pattern catalogue of its own.
 gitleaks dir build/testforge-artifacts --redact --report-format sarif --report-path build/sarif/gitleaks.sarif
 trivy fs --scanners vuln --format sarif --output build/sarif/trivy.sarif .
 semgrep scan --config auto --sarif --output build/sarif/semgrep.sarif
+./gradlew osvScan   # CycloneDX SBOM of the published modules -> OSV-Scanner -> build/sarif/osv-scanner.sarif
 ./gradlew :example-tests:spectralLint -PspectralSpecs=openapi.yaml -PspectralOutput=build/sarif  # OWASP API Top 10 on the API description, see tools/spectral
 ```
 
@@ -153,6 +154,15 @@ forge:
   `none` ignored — and never below the tool's `tool-severity` floor.
 - A suppressed result (in source or external, not `rejected` / `underReview`)
   is counted as suppressed, not an issue; `baselineState: absent` is gone.
+- `:osvScan` (root build, [gradle/osv.gradle](../gradle/osv.gradle)) builds the
+  aggregate CycloneDX SBOM of the published modules' runtime classpaths with the
+  CycloneDX Gradle plugin and scans it with OSV-Scanner 2.7.0 in its pinned container
+  (`--pull=never`; pull it first). Each result's location is the vulnerable package
+  version, so an issue reads `osv-scanner CVE-2026-59889
+  com.fasterxml.jackson.core:jackson-databind@2.21.4`; severity is the advisory's CVSS.
+  The scanner queries the OSV.dev API: package names and versions leave the machine,
+  nothing else. Exit 0 (none) and 1 (found) are both complete scans; any other exit
+  writes no report, so the dimension is NOT MEASURED.
 - A missing, malformed (no `runs`, a run without `tool.driver.name`, a result
   without `ruleId`) or stale report is NOT MEASURED, never a clean pass.
 - Facts name tool, rule, file and line only: a SARIF message or snippet may
