@@ -96,6 +96,23 @@ class SarifDimensionTest {
                 .allMatch(key -> !key.contains("#") && !key.contains("cdx.json"));
     }
 
+    @Test
+    void trivyLicenseFindingsAreOneIssuePerPackageUnderItsMildestLicense() throws IOException {
+        // :licenseScan on TestForge's own published modules: Trivy 0.76.1 over the CycloneDX SBOM, each
+        // package kept under its mildest license and dropped when that one is a notice license
+        QualityDimension licenses = judge(fixture("trivy-0.76.1-licenses.sarif"), null);
+
+        assertThat(licenses.status()).as("reciprocal licenses are medium").isEqualTo(QualityStatus.WARN);
+        assertThat(licenses.facts().getFirst()).startsWith("Trivy 0.76.1: 8 results — 0 critical, 0 high, "
+                + "8 medium, 0 low; 0 suppressed");
+        assertThat(licenses.issues()).hasSize(8)
+                .contains("Trivy us.fatehi:schemacrawler:EPL-2.0 us.fatehi:schemacrawler",
+                        "Trivy org.junit.jupiter:junit-jupiter-api:EPL-2.0 org.junit.jupiter:junit-jupiter-api")
+                .as("a POM's license list is a choice: GPL-or-Apache packages are no issue")
+                .noneMatch(key -> key.contains("amqp-client") || key.contains(":jna")
+                        || key.contains("GPL") || key.contains("Apache-2.0"));
+    }
+
     // the shapes Trivy, Semgrep and CodeQL use: rule security-severity, levels, suppressions, fingerprints
     private static final String MIXED = """
             {"version": "2.1.0", "runs": [{

@@ -68,6 +68,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Credentials of a known shape (cloud keys, vendor tokens) in artifacts | gitleaks | `module-quality` `static-analysis` reads its SARIF | reader |
 | Vulnerable dependencies; static analysis of the product | Trivy, Grype, Semgrep, CodeQL, SpotBugs | `module-quality` `static-analysis` reads their SARIF | reader |
 | Known vulnerabilities in what the published modules bring to a consumer | CycloneDX Gradle plugin (SBOM) + OSV-Scanner | root `:osvScan` (pinned container); `module-quality` `static-analysis` reads its SARIF | adapter |
+| Licenses of what the published modules bring to a consumer (copyleft, forbidden, undeclared) | CycloneDX Gradle plugin (SBOM) + Trivy license scanner | root `:licenseScan` (pinned container, no network); `module-quality` `static-analysis` reads its SARIF. Not OSV-Scanner `--licenses`: 2.7.0 finds no license for SBOM input and writes none to SARIF | adapter |
 | Network faults, latency, a dependency going down | Toxiproxy | `module-faults` | adapter |
 
 

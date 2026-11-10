@@ -132,6 +132,7 @@ gitleaks dir build/testforge-artifacts --redact --report-format sarif --report-p
 trivy fs --scanners vuln --format sarif --output build/sarif/trivy.sarif .
 semgrep scan --config auto --sarif --output build/sarif/semgrep.sarif
 ./gradlew osvScan   # CycloneDX SBOM of the published modules -> OSV-Scanner -> build/sarif/osv-scanner.sarif
+./gradlew licenseScan   # the same SBOM's licenses -> Trivy, offline -> build/sarif/trivy-licenses.sarif
 ./gradlew :example-tests:spectralLint -PspectralSpecs=openapi.yaml -PspectralOutput=build/sarif  # OWASP API Top 10 on the API description, see tools/spectral
 ```
 
@@ -163,6 +164,16 @@ forge:
   The scanner queries the OSV.dev API: package names and versions leave the machine,
   nothing else. Exit 0 (none) and 1 (found) are both complete scans; any other exit
   writes no report, so the dimension is NOT MEASURED.
+- `:licenseScan` ([gradle/licenses.gradle](../gradle/licenses.gradle)) reads the
+  licenses the same SBOM declares with Trivy 0.76.1 in its pinned container, with no
+  network. Trivy's categories set the severity: notice low, reciprocal (EPL, MPL)
+  medium, restricted (GPL, LGPL) high, forbidden critical; `-PlicenseConfig=trivy.yaml`
+  sets a team's own (`license.forbidden: [AGPL-3.0]`). A POM listing several licenses
+  offers a choice, so each package keeps only its mildest one, and a package whose
+  mildest is a notice license is no issue: Apache-2.0-or-GPL is not a GPL finding.
+  An issue reads `Trivy us.fatehi:schemacrawler:EPL-2.0 us.fatehi:schemacrawler`.
+  A third-party component that declares no license is a medium `…:UNKNOWN` issue —
+  Trivy itself reports nothing for it. Any non-zero exit writes no report.
 - A missing, malformed (no `runs`, a run without `tool.driver.name`, a result
   without `ruleId`) or stale report is NOT MEASURED, never a clean pass.
 - Facts name tool, rule, file and line only: a SARIF message or snippet may
