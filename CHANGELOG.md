@@ -7,6 +7,7 @@ semantic versioning for its git tags.
 ## [Unreleased]
 
 ### Added
+- `module-security`: opt-in Nuclei 3.11.1 header assessment using a pinned image and signed upstream template. Explicit anonymous GET pages run through the read-only gateway. Findings and incomplete coverage feed the existing security gate.
 - `module-security`: the transport block can delegate to testssl.sh 3.2.5 in a pinned container (`forge.security.transport.testssl.*`): SSLv2/3 and TLS 1.0/1.1, cipher categories, forward secrecy, certificate and known TLS vulnerabilities, independent of what the JDK enables. Findings keep testssl.sh's severity and identifiers only; an incomplete scan stays not_measured. `:example-tests:securityTlsTest` runs the real container.
 - `tools/spectral`: opt-in OpenAPI security lint with pinned Spectral 6.17.0 and the OWASP API Security Top 10 ruleset 2.0.1. One SARIF report per local document, remote `$ref` refused, incomplete lints leave no report, document-path fingerprints so module-quality keys one issue per rule and operation.
 - `module-mail`: opt-in Mailpit capture API adapter with UUID recipients, text/HTML/attachment assertions, bounded calls, isolated cleanup and value-free lifecycle evidence. Native SMTP fixture remains outside the default build.

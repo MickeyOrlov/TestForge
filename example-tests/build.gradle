@@ -197,6 +197,17 @@ tasks.register("securityScanTest", Test) {
     shouldRunAfter tasks.named("test")
 }
 
+// Nuclei acceptance uses only an owned local HTTP fixture and a pre-pulled image.
+tasks.register("securityNucleiTest", Test) {
+    description = "Runs the pinned Nuclei header policy against an owned local sample"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "containers" }
+    filter { includeTestsMatching "*SecurityNucleiIT*" }
+    outputs.upToDateWhen { false }
+}
+
 // testssl.sh acceptance: the pinned image must already be pulled (never downloaded implicitly).
 // tls.testforge.test resolves to loopback for this JVM only, so the owned server's certificate name
 // matches for both the JDK checks and the container.
