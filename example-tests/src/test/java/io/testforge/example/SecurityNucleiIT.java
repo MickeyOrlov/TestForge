@@ -18,7 +18,7 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@Tag("containers")
+@Tag("nuclei")
 class SecurityNucleiIT {
     @Test
     void pinnedTemplateReportsMissingHeadersAndAcceptsTheCompleteFixture() throws Exception {

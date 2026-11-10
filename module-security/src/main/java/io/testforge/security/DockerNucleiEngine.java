@@ -15,7 +15,8 @@ import java.util.UUID;
 
 public final class DockerNucleiEngine implements NucleiEngine {
     public static final String IMAGE =
-            "projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb";
+            "projectdiscovery/nuclei"
+                    + "@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb";
     static final String TEMPLATE = "http-missing-security-headers";
     private static final String TEMPLATE_SHA256 =
             "7f45803f73ac6810b9b302df6be2c472a82d9164a7807328614efa83e6eac275";

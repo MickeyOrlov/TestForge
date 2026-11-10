@@ -30,8 +30,8 @@ import java.util.regex.Pattern;
 
 /** Loopback reverse gateway: the scanner never receives the real target or credentials. */
 final class SecurityScanGateway implements AutoCloseable {
-    record Limits(int maxRequestsPerSecond, int maxRequests, Duration timeBudget,
-            int maxResponseBytes) {}
+    record Limits(
+            int maxRequestsPerSecond, int maxRequests, Duration timeBudget, int maxResponseBytes) {}
 
     record Route(String method, String template, Pattern path) {}
 
@@ -91,8 +91,16 @@ final class SecurityScanGateway implements AutoCloseable {
             List<Route> routes,
             java.util.function.Supplier<Credential> credentials)
             throws IOException {
-        this(target, new Limits(p.maxRequestsPerSecond(), p.maxRequests(), p.timeBudget(),
-                p.maxResponseBytes()), routes, credentials, false);
+        this(
+                target,
+                new Limits(
+                        p.maxRequestsPerSecond(),
+                        p.maxRequests(),
+                        p.timeBudget(),
+                        p.maxResponseBytes()),
+                routes,
+                credentials,
+                false);
     }
 
     SecurityScanGateway(URI target, Limits limits, List<Route> routes) throws IOException {
@@ -170,7 +178,8 @@ final class SecurityScanGateway implements AutoCloseable {
                 return;
             }
             String query = exchange.getRequestURI().getRawQuery();
-            if (anonymousPages && (query != null || !method.equals("GET") || !raw.equals(decoded))) {
+            if (anonymousPages
+                    && (query != null || !method.equals("GET") || !raw.equals(decoded))) {
                 refuse(exchange, 403);
                 return;
             }
@@ -230,7 +239,10 @@ final class SecurityScanGateway implements AutoCloseable {
             var response = client.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
             byte[] body;
             try (var input = response.body()) {
-                body = anonymousPages ? new byte[0] : input.readNBytes(limits.maxResponseBytes() + 1);
+                body =
+                        anonymousPages
+                                ? new byte[0]
+                                : input.readNBytes(limits.maxResponseBytes() + 1);
             }
             if (body.length > limits.maxResponseBytes()) {
                 refuse(exchange, 502);
@@ -275,7 +287,9 @@ final class SecurityScanGateway implements AutoCloseable {
             int status = response.statusCode();
             exchange.sendResponseHeaders(
                     status,
-                    anonymousPages || method.equals("HEAD") || status == 204 || status == 304 ? -1 : body.length);
+                    anonymousPages || method.equals("HEAD") || status == 204 || status == 304
+                            ? -1
+                            : body.length);
             if (!anonymousPages && !method.equals("HEAD") && status != 204 && status != 304)
                 exchange.getResponseBody().write(body);
         } catch (InterruptedException e) {

@@ -88,7 +88,7 @@ tasks.withType(Test).configureEach {
 // container/browser tests need Docker/a browser binary — keep the default build offline
 test {
     useJUnitPlatform {
-        excludeTags "containers", "mail", "testssl", "browser", "live-api", "quality-gate", "load", "api-load-research"
+        excludeTags "containers", "mail", "testssl", "nuclei", "browser", "live-api", "quality-gate", "load", "api-load-research"
     }
     // fixtures run only through EngineTestKit (they fail on purpose)
     exclude "**/*TestkitFixture*"
@@ -203,7 +203,7 @@ tasks.register("securityNucleiTest", Test) {
     group = "verification"
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "containers" }
+    useJUnitPlatform { includeEngines "junit-jupiter"; includeTags "nuclei" }
     filter { includeTestsMatching "*SecurityNucleiIT*" }
     outputs.upToDateWhen { false }
 }

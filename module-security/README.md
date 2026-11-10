@@ -329,6 +329,8 @@ forge:
 
 ```java
 nuclei.scanPages(List.of("/", "/health"), "http://127.0.0.1:8080");
+// a service below a base path: pages resolve against it, /api/health here
+nuclei.scanPages(List.of("/health"), "https://api.staging.example.test/api");
 security.assertAcceptable();
 ```
 
@@ -358,7 +360,7 @@ for this block.
 
 ```bash
 docker pull projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb
-./gradlew :example-tests:securityNucleiTest
+./gradlew :example-tests:securityNucleiTest   # tag "nuclei", never in the default build or containersTest
 ```
 
 The acceptance task uses an owned loopback fixture with missing and complete headers.

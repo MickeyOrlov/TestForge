@@ -17,6 +17,8 @@ public final class SecurityNucleiRunner {
     private static final String CHECK = "nuclei-headers-v1";
     private static final Pattern PAGE_PATH =
             Pattern.compile("/(?:[A-Za-z0-9._~-]+/)*[A-Za-z0-9._~-]*");
+    private static final Pattern BASE_PATH =
+            Pattern.compile("(?:/[A-Za-z0-9_~-][A-Za-z0-9._~-]*)*/?");
     private static final Set<String> MATCHERS =
             Set.of(
                     "strict-transport-security",
@@ -48,8 +50,12 @@ public final class SecurityNucleiRunner {
             throw new IllegalStateException(
                     "Nuclei requires enabled and explicit test-environment=true");
         URI uri = new SecurityTargetPolicy(properties.allowedHosts()).require(target);
-        if (uri.getRawQuery() != null || !Set.of("", "/").contains(uri.getRawPath()))
-            throw new IllegalArgumentException("Nuclei target must be an HTTP(S) origin");
+        // an origin, or an origin with a literal base path for a service mounted below it (/api)
+        if (uri.getRawQuery() != null
+                || !BASE_PATH.matcher(uri.getRawPath()).matches()
+                || !uri.normalize().getRawPath().equals(uri.getRawPath()))
+            throw new IllegalArgumentException(
+                    "Nuclei target must be an HTTP(S) origin with an optional literal base path");
         if (paths == null
                 || paths.isEmpty()
                 || paths.size() > 50
