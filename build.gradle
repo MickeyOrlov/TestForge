@@ -21,6 +21,21 @@ allprojects {
 subprojects {
     apply plugin: "java-library"
 
+    // Security floors over the Spring Boot BOM (see gradle/libs.versions.toml). Declared here, before
+    // each module's own Boot platform, so the published POM lists these first: Maven's first imported
+    // BOM wins, and direct dependencyManagement entries beat imported ones. Constraints only raise a
+    // version a module actually uses; they add no dependency.
+    dependencies {
+        api platform(libs.jackson.bom)
+        api platform(libs.opentelemetry.bom)
+        constraints {
+            api(libs.amqp.client) { because "CVE fixes; spring-rabbit 3.2.x brings 5.25.0" }
+            api(libs.lz4.java) { because "CVE fixes; kafka-clients 3.9.x brings 1.10.1" }
+            api(libs.snappy.java) { because "CVE fixes; kafka-clients 3.9.x brings 1.1.10.5" }
+            api(libs.guava) { because "CVE fix; Selenium 4.42 brings 33.5.0-jre" }
+        }
+    }
+
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
