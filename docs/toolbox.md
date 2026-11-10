@@ -61,6 +61,7 @@ that adds, replaces or removes a tool updates its row here in the same commit.
 | Black-box fuzzing with request chains, generated tests | EvoMaster | `module-quality` reads its WFC `report.json` | reader |
 | Security issues visible in responses, no extra traffic | — | `module-security` passive checks | glue |
 | Security weaknesses in an API description (OWASP API Top 10), no traffic | Spectral + OWASP API Security ruleset | `tools/spectral`; `module-quality` `static-analysis` reads its SARIF | adapter |
+| Map an external web surface from a domain and reviewed origins | Subfinder, httpx, Katana | `tools/external-surface` | adapter |
 | Active web / API security scan | OWASP ZAP | `module-security` (scoped ZAP, Docker) | adapter |
 | Check headers on selected anonymous pages | Nuclei | `module-security` (pinned signed HTTP template and scoped gateway) | adapter |
 | TLS: legacy protocols, weak ciphers, known TLS vulnerabilities, certificate | testssl.sh | `module-security` transport (pinned container) | adapter |
