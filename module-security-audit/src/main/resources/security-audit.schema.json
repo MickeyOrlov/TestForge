@@ -1,0 +1,335 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:testforge:security-audit:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "formatVersion",
+    "mode",
+    "profile",
+    "environment",
+    "enabled",
+    "measured",
+    "complete",
+    "healthy",
+    "jobs"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "mode": {
+      "const": "IMPORTED"
+    },
+    "profile": {
+      "type": "string",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+    },
+    "environment": {
+      "enum": [
+        "LOCAL",
+        "TEST",
+        "STAGING"
+      ]
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "measured": {
+      "type": "boolean"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "healthy": {
+      "type": "boolean"
+    },
+    "jobs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 7000,
+      "items": {
+        "$ref": "#/definitions/job"
+      }
+    }
+  },
+  "definitions": {
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset",
+        "layer",
+        "kind",
+        "engine",
+        "version",
+        "sourceVersion",
+        "status",
+        "reason",
+        "sourceFormat",
+        "security"
+      ],
+      "properties": {
+        "asset": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+        },
+        "layer": {
+          "enum": [
+            "APPLICATION",
+            "SERVICES",
+            "NETWORK"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "URL",
+            "HOST",
+            "IMAGE",
+            "REPOSITORY"
+          ]
+        },
+        "engine": {
+          "enum": [
+            "ZAP",
+            "SCHEMATHESIS",
+            "TRIVY",
+            "NUCLEI",
+            "NMAP",
+            "TESTSSL",
+            "TESTFORGE"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        },
+        "sourceVersion": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        },
+        "status": {
+          "enum": [
+            "MEASURED",
+            "INCOMPLETE",
+            "DISABLED",
+            "NOT_APPLICABLE",
+            "BLOCKED"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "sourceFormat": {
+          "enum": [
+            "testforge-security-v1",
+            null
+          ]
+        },
+        "security": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/security"
+            }
+          ]
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "enabled",
+        "measured",
+        "complete",
+        "healthy",
+        "findings",
+        "coverage",
+        "newCounts"
+      ],
+      "properties": {
+        "formatVersion": {
+          "const": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "measured": {
+          "type": "boolean"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "healthy": {
+          "type": "boolean"
+        },
+        "findings": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/definitions/finding"
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "maxItems": 50000,
+          "items": {
+            "$ref": "#/definitions/coverage"
+          }
+        },
+        "newCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "properties": {
+            "critical": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "high": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "medium": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "low": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "info": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "check",
+        "severity",
+        "target",
+        "evidence",
+        "owasp",
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 161
+        },
+        "check": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,95}$"
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+        },
+        "evidence": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "owasp": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        },
+        "status": {
+          "enum": [
+            "new",
+            "accepted",
+            "resolved"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "target",
+        "role",
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "check": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,95}$"
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "measured",
+            "not_measured",
+            "not_applicable"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1024
+        }
+      }
+    }
+  }
+}

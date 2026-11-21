@@ -56,9 +56,39 @@ final class BusinessSecurityExchange {
                         .build();
     }
 
+    void requireCursorParameter(String parameter) {
+        if (tokens != null)
+            for (String role : tokens.roles())
+                if (tokens.placement(role)
+                        .filter(
+                                p ->
+                                        p.kind() == CredentialPlacement.Kind.QUERY
+                                                && p.name().equals(parameter))
+                        .isPresent())
+                    throw new BusinessSecurityException(
+                            "pagination cannot overwrite a credential parameter");
+    }
+
     boolean knownRole(String role) {
         return AuthContext.ANONYMOUS.equals(role)
                 || tokens != null && tokens.roles().contains(role);
+    }
+
+    void requireIdempotencyHeader(BusinessIdempotency idempotency) {
+        if (idempotency == null) return;
+        String header = idempotency.header();
+        if (auth != null && header.equalsIgnoreCase(auth.header()))
+            throw new BusinessSecurityException("idempotency cannot overwrite a credential header");
+        if (tokens != null)
+            for (String role : tokens.roles())
+                if (tokens.placement(role)
+                        .filter(
+                                p ->
+                                        p.kind() == CredentialPlacement.Kind.HEADER
+                                                && header.equalsIgnoreCase(p.name()))
+                        .isPresent())
+                    throw new BusinessSecurityException(
+                            "idempotency cannot overwrite a credential header");
     }
 
     void validate(PreparedRequest request) {
@@ -105,8 +135,19 @@ final class BusinessSecurityExchange {
 
     HttpResponse<byte[]> send(PreparedRequest request, String role, Duration remaining)
             throws Exception {
+        return send(request, role, remaining, null, null);
+    }
+
+    HttpResponse<byte[]> send(
+            PreparedRequest request,
+            String role,
+            Duration remaining,
+            BusinessIdempotency idempotency,
+            String key)
+            throws Exception {
         long started = System.nanoTime();
         validate(request);
+        requireIdempotencyHeader(idempotency);
         URI base = URI.create(http.resolveBaseUrl(null));
         String path = request.pathTemplate();
         for (var entry : request.pathParameters().entrySet()) {
@@ -144,7 +185,7 @@ final class BusinessSecurityExchange {
                 query.put(placement.name(), credential);
         }
         List<String> pairs = new ArrayList<>();
-        query.forEach((key, value) -> pairs.add(encode(key) + "=" + encode(value)));
+        query.forEach((name, value) -> pairs.add(encode(name) + "=" + encode(value)));
         String root = base.toString().replaceAll("/+$", "");
         URI uri = URI.create(root + path + (pairs.isEmpty() ? "" : "?" + String.join("&", pairs)));
         new SecurityTargetPolicy(properties.allowedHosts()).require(uri.toString());
@@ -155,6 +196,13 @@ final class BusinessSecurityExchange {
                 remaining.compareTo(http.readTimeout()) < 0 ? remaining : http.readTimeout();
         var builder =
                 HttpRequest.newBuilder(uri).timeout(timeout).header("Accept", "application/json");
+        if (idempotency != null) {
+            if (key == null || !key.matches("[\\x21-\\x7e]{1,256}"))
+                throw new BusinessSecurityException(
+                        "idempotency needs a bounded printable string binding");
+            secrets.register(key);
+            builder.header(idempotency.header(), key);
+        }
         if (placement != null)
             switch (placement.kind()) {
                 case HEADER -> builder.header(placement.name(), placement.prefix() + credential);

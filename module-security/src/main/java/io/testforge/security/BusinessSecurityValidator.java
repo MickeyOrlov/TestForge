@@ -38,11 +38,11 @@ final class BusinessSecurityValidator {
             Set<String> inputs) {
         if (test.steps().size() + test.cleanup().size() > properties.maxSteps())
             throw new BusinessSecurityException("business case exceeds max-steps");
-        boolean control = false, probe = false;
+        boolean control = false, probe = false, membershipControl = false;
         List<Step> ownerControls = new ArrayList<>();
         PreparedRequest lastMutation = null;
         PreparedRequest primary = null;
-        List<PreparedRequest> replayControls = new ArrayList<>();
+        List<Step> replayControls = new ArrayList<>();
         if (Set.of(Kind.PROPERTY_WRITE, Kind.TRANSITION, Kind.REPLAY).contains(test.kind())
                 && Set.of("GET", "HEAD", "OPTIONS").contains(test.method()))
             throw new BusinessSecurityException(
@@ -53,13 +53,61 @@ final class BusinessSecurityValidator {
         List<Step> all = new ArrayList<>(test.steps());
         all.addAll(test.cleanup());
         int captureCount = 0;
+        Set<String> invariantIds = new HashSet<>();
         for (var step : all) {
+            if (invariantIds.size() + step.invariants().size() > properties.maxSteps())
+                throw new BusinessSecurityException("too many business invariants");
+            for (var invariant : step.invariants()) {
+                if (!invariantIds.add(invariant.id()))
+                    throw new BusinessSecurityException(
+                            "invariant aliases must be unique within a case");
+                BusinessInvariantEvaluator.validate(invariant.actual(), 0, new int[] {0}, false);
+                BusinessInvariantEvaluator.validate(invariant.expected(), 0, new int[] {0}, false);
+                if (step.phase() != Phase.CONTROL
+                        && !responseDependent(invariant.actual())
+                        && !responseDependent(invariant.expected()))
+                    throw new BusinessSecurityException(
+                            "live invariant must depend on the current response");
+            }
+            if (step.pagination() != null) {
+                if (!step.request().method().equalsIgnoreCase("GET")
+                        || step.request().body() != null
+                        || step.statuses().stream().anyMatch(status -> status >= 300))
+                    throw new BusinessSecurityException(
+                            "pagination requires successful GET JSON responses");
+                if (step.request().queryParameters().containsKey(step.pagination().parameter())
+                        && step.request()
+                                .queryParameters()
+                                .get(step.pagination().parameter())
+                                .isBlank())
+                    throw new BusinessSecurityException(
+                            "initial cursor must be omitted or nonempty");
+                if (Set.of(
+                                "_method",
+                                "method",
+                                "httpmethod",
+                                "x-http-method-override",
+                                "x-method-override",
+                                "x-http-method")
+                        .contains(step.pagination().parameter().toLowerCase(Locale.ROOT)))
+                    throw new BusinessSecurityException(
+                            "pagination cannot override an HTTP method");
+            }
             captureCount += step.captures().size();
             if (captureCount > properties.maxSteps())
                 throw new BusinessSecurityException("too many business captures");
             if (!ids.add(step.id()) || !knownRole.test(step.role()))
                 throw new BusinessSecurityException("duplicate step or unknown role");
             requestValidator.accept(step.request());
+            if (step.idempotency() != null) {
+                if (Set.of("GET", "HEAD", "OPTIONS")
+                        .contains(step.request().method().toUpperCase(Locale.ROOT)))
+                    throw new BusinessSecurityException(
+                            "idempotency headers require a write operation");
+                if (!captured.contains(step.idempotency().binding()))
+                    throw new BusinessSecurityException(
+                            "idempotency binding must precede its request");
+            }
             if (!operations.contains(
                     step.request().method().toUpperCase(Locale.ROOT)
                             + " "
@@ -83,8 +131,20 @@ final class BusinessSecurityValidator {
             }
             if (step.phase() == Phase.CONTROL && !probe) {
                 control = true;
+                if (step.role().equals(test.role())
+                        && step.request().method().equalsIgnoreCase("GET")
+                        && step.request().pathTemplate().equals(test.path())
+                        && step.invariants().stream()
+                                .anyMatch(
+                                        rule ->
+                                                rule.compare() == BusinessInvariant.Compare.CONTAINS
+                                                        && responseDependent(rule.actual())
+                                                        && rule.expected().source()
+                                                                == BusinessInvariant.Source
+                                                                        .BINDING))
+                    membershipControl = true;
                 ownerControls.add(step);
-                if (step.role().equals(test.role())) replayControls.add(step.request());
+                if (step.role().equals(test.role())) replayControls.add(step);
             }
             if (step.phase() == Phase.PROBE) {
                 if (!control)
@@ -128,13 +188,23 @@ final class BusinessSecurityValidator {
                         throw new BusinessSecurityException(
                                 "tenant access needs explicit distinct tenant aliases for owner and"
                                         + " actor");
-                    if (test.kind() == Kind.REPLAY && !replayControls.contains(step.request()))
+                    if (test.kind() == Kind.REPLAY
+                            && replayControls.stream()
+                                    .noneMatch(
+                                            prior ->
+                                                    prior.request().equals(step.request())
+                                                            && java.util.Objects.equals(
+                                                                    prior.idempotency(),
+                                                                    step.idempotency())))
                         throw new BusinessSecurityException(
                                 "replay needs a preceding identical successful request under the"
                                         + " same role");
                     if (test.kind() == Kind.PROPERTY_WRITE && step.request().body() == null)
                         throw new BusinessSecurityException(
                                 "property-write probe requires an explicit body");
+                    if (test.kind() == Kind.COLLECTION_ACCESS && !membershipControl)
+                        throw new BusinessSecurityException(
+                                "collection membership control must precede the probe");
                     probe = true;
                     primary = step.request();
                     lastProbe = index;
@@ -142,7 +212,7 @@ final class BusinessSecurityValidator {
             }
             if (step.phase() == Phase.VERIFY
                     && probe
-                    && !step.assertions().isEmpty()
+                    && (!step.assertions().isEmpty() || !step.invariants().isEmpty())
                     && sameFixture(step.request(), lastMutation == null ? primary : lastMutation))
                 lastVerify = index;
         }
@@ -160,6 +230,69 @@ final class BusinessSecurityValidator {
         if (writes && lastVerify <= Math.max(lastWrite, lastProbe))
             throw new BusinessSecurityException(
                     "business writes need subsequent persisted-state assertions");
+        if (test.kind() == Kind.BUSINESS_INVARIANT
+                && test.steps().stream()
+                        .noneMatch(
+                                step ->
+                                        step.phase() != Phase.CONTROL
+                                                && !step.invariants().isEmpty()))
+            throw new BusinessSecurityException(
+                    "business invariant case needs a probe or verification invariant");
+        if (test.kind() == Kind.COLLECTION_ACCESS) {
+            boolean membership =
+                    test.steps().stream()
+                            .anyMatch(
+                                    step ->
+                                            step.phase() == Phase.CONTROL
+                                                    && step.role().equals(test.role())
+                                                    && step.request()
+                                                            .method()
+                                                            .equalsIgnoreCase("GET")
+                                                    && step.request()
+                                                            .pathTemplate()
+                                                            .equals(test.path())
+                                                    && step.invariants().stream()
+                                                            .anyMatch(
+                                                                    rule ->
+                                                                            rule.compare()
+                                                                                            == BusinessInvariant
+                                                                                                    .Compare
+                                                                                                    .CONTAINS
+                                                                                    && responseDependent(
+                                                                                            rule
+                                                                                                    .actual())
+                                                                                    && rule.expected()
+                                                                                                    .source()
+                                                                                            == BusinessInvariant
+                                                                                                    .Source
+                                                                                                    .BINDING));
+            boolean isolation =
+                    test.steps().stream()
+                            .anyMatch(
+                                    step ->
+                                            step.phase() == Phase.PROBE
+                                                    && step.role().equals(test.role())
+                                                    && step.request()
+                                                            .method()
+                                                            .equalsIgnoreCase(test.method())
+                                                    && step.request()
+                                                            .pathTemplate()
+                                                            .equals(test.path())
+                                                    && step.invariants().stream()
+                                                            .anyMatch(
+                                                                    rule ->
+                                                                            rule.compare()
+                                                                                            == BusinessInvariant
+                                                                                                    .Compare
+                                                                                                    .ALL_EQUAL
+                                                                                    && responseDependent(
+                                                                                            rule
+                                                                                                    .actual())));
+            if (!test.method().equals("GET") || !membership || !isolation)
+                throw new BusinessSecurityException(
+                        "collection access needs actor membership control and all-items isolation"
+                                + " invariant");
+        }
         if (test.kind() == Kind.PROPERTY_READ
                 && test.steps().stream()
                         .noneMatch(
@@ -179,6 +312,18 @@ final class BusinessSecurityValidator {
                                                                                         .ABSENT)))
             throw new BusinessSecurityException(
                     "property-read case needs an absent-field probe assertion");
+    }
+
+    private static boolean responseDependent(BusinessInvariant.Value value) {
+        return value.source() == BusinessInvariant.Source.RESPONSE
+                || value.args().stream().anyMatch(BusinessSecurityValidator::responseDependent);
+    }
+
+    static int plannedRequests(BusinessSecuritySuite.Case test) {
+        int requests = 0;
+        for (var step : BusinessContractSnapshotter.steps(test))
+            requests += step.pagination() == null ? 1 : step.pagination().maxPages();
+        return requests;
     }
 
     private static boolean sameFixture(PreparedRequest read, PreparedRequest operation) {

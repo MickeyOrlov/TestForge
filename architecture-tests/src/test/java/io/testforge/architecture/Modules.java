@@ -17,6 +17,7 @@ final class Modules {
             Map.entry("core", "io.testforge.core"),
             Map.entry("module-api-codegen", "io.testforge.api.codegen"),
             Map.entry("module-security", "io.testforge.security"),
+            Map.entry("module-security-audit", "io.testforge.security.audit"),
             Map.entry("module-auth", "io.testforge.auth"),
             Map.entry("module-api-discovery", "io.testforge.api.discovery"),
             Map.entry("module-api-explorer", "io.testforge.api.explorer"),

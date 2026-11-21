@@ -24,7 +24,9 @@ public record BusinessSecuritySuite(
         OBJECT_ACCESS,
         TENANT_ACCESS,
         TRANSITION,
-        REPLAY
+        REPLAY,
+        BUSINESS_INVARIANT,
+        COLLECTION_ACCESS
     }
 
     public enum Phase {
@@ -104,7 +106,44 @@ public record BusinessSecuritySuite(
             PreparedRequest request,
             Set<Integer> statuses,
             List<Assertion> assertions,
-            Map<String, String> captures) {
+            Map<String, String> captures,
+            List<BusinessInvariant> invariants,
+            BusinessPagination pagination,
+            BusinessIdempotency idempotency) {
+        public Step(
+                String id,
+                Phase phase,
+                String role,
+                PreparedRequest request,
+                Set<Integer> statuses,
+                List<Assertion> assertions,
+                Map<String, String> captures,
+                List<BusinessInvariant> invariants,
+                BusinessPagination pagination) {
+            this(
+                    id,
+                    phase,
+                    role,
+                    request,
+                    statuses,
+                    assertions,
+                    captures,
+                    invariants,
+                    pagination,
+                    null);
+        }
+
+        public Step(
+                String id,
+                Phase phase,
+                String role,
+                PreparedRequest request,
+                Set<Integer> statuses,
+                List<Assertion> assertions,
+                Map<String, String> captures) {
+            this(id, phase, role, request, statuses, assertions, captures, List.of(), null);
+        }
+
         public Step {
             id = identifier(id);
             role = identifier(role);
@@ -119,6 +158,7 @@ public record BusinessSecuritySuite(
                 throw new IllegalArgumentException(
                         "controls and verification require successful statuses");
             assertions = List.copyOf(assertions == null ? List.of() : assertions);
+            invariants = List.copyOf(invariants == null ? List.of() : invariants);
             captures = Map.copyOf(captures == null ? Map.of() : captures);
             captures.forEach(
                     (name, pointer) -> {

@@ -8,6 +8,7 @@ dependencies {
 
     testImplementation project(":core")
     testImplementation project(":module-security")
+    testImplementation project(":module-security-audit")
     testImplementation project(":module-contract")
     testImplementation project(":module-contract-monitor")
     testImplementation project(":module-api-discovery")

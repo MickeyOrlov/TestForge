@@ -10,6 +10,29 @@ semantic versioning for its git tags.
 - Version floors over the Spring Boot BOM for every published module, from `./gradlew osvScan`: Jackson 2.22.3 (jackson-bom; also aligns the 2.21.4/2.22.0 split), OpenTelemetry 1.67.0 (bom), amqp-client 5.37.0, lz4-java 1.11.4, snappy-java 1.1.10.9, guava 33.7.2-jre. 43 vulnerable package versions (18 high) → 0. Declared before the Boot platform so Maven consumers get them too (published POMs list them first).
 
 ### Added
+- Explicit audit adapter/process foundation and file-output plan/run CLI: private
+  cwd/environment, stdin credentials, bounded output/preparation, shared timeout,
+  cancellation, observed-child cleanup and execution receipts. No scanner adapters
+  or OS/network sandbox are bundled; missing engines remain incomplete.
+- Security audit result envelope reuses existing security-findings v1: bounded
+  imports with target aliases, native TESTFORGE provenance, partial/missing/version
+  coverage, private JSON/Markdown reports and a versioned schema. Baselines and
+  severity policy remain upstream; a standalone published consumer needs no
+  module-security/http dependency. No scanner execution added.
+- Experimental module-security-audit foundation: strict bounded private system
+  profiles, deterministic three-layer asset/engine plans and explicit blocked,
+  disabled and unsupported cells. Planning does not launch scanners or measure
+  security. Includes an ordered aggregator roadmap and published-JAR example.
+- Explicit case-local idempotency keys for business writes, header-aware replay
+  identity, credential-collision protection and structural policy preflight.
+  Secure/broken sequential payment/refund, conflict and rejection examples prove
+  persisted effects rather than accepting HTTP status alone.
+- Typed business invariants for exact decimal calculations, cross-resource
+  deltas, order totals and refund limits; response-backed list isolation with
+  bounded cursor pagination, positive membership controls and explicit incomplete
+  evidence. Rule-specific baseline resolution and structural review support.
+  Includes secure/broken local payment, stock, refund and list examples.
+
 - `tools/external-surface` adds an opt-in anonymous web inventory with Subfinder candidates, httpx reachability and Katana routes from explicit origins. The crawler uses a bounded GET-only gateway.
 - `tools/external-surface` adds a separate Nmap TCP inventory for explicit IP addresses and port lists, with normalized port states and incomplete evidence reporting.
 - Root `:licenseScan`: the licenses the CycloneDX SBOM declares, classified by Trivy 0.76.1 in a pinned container with no network, into `build/sarif/trivy-licenses.sarif` for module-quality's `static-analysis`. One issue per package under its mildest license (a POM's license list is a choice); notice licenses are no issue, an undeclared third-party license is. Team policy through `-PlicenseConfig=trivy.yaml`. TestForge's own modules: 8 reciprocal (EPL-2.0, MPL-2.0), no restricted or forbidden.

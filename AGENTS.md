@@ -22,6 +22,7 @@ module-state/  StateRecipe — reusable business state setup feeding @Prepared
 module-faults/ Isolated Toxiproxy scopes over named, allowlisted dependencies
 module-load/   Thin local k6 adapter: explicit runs, native thresholds, bounded process lifecycle and evidence
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
+module-security-audit/ internal three-layer aggregator: profile/plan, security-v1 reports and trusted process/CLI foundation; no scanner adapters
 module-security/ opt-in passive/auth/ZAP/Nuclei/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
@@ -375,6 +376,11 @@ reviewing a module. Adapting a fresh clone follows
 Security adoption: enable `forge.security.passive.enabled`, then call
 `SecurityRunner.assertAcceptable()` after API tests and before artifact upload.
 Read module-security/README.md for applicability and coverage limits.
+
+Security audit adoption: add module-security-audit for private system profiles and
+explicit plan generation. Enable forge.security-audit.enabled, parse a JSON profile
+with SecurityAuditProfiles, then call SecurityAuditPlanner.plan. Plans are not
+measured security evidence. Ordered implementation: docs/security-audit-roadmap.md.
 
 Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in `tools/lighthouse/README.md`. Native Lighthouse CI owns assertions and reports; no browser or node tooling runs during the default build.
 

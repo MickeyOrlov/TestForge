@@ -469,6 +469,22 @@ final class BusinessContractSnapshotter {
                         throw new BusinessSecurityException(
                                 "policy body template is not bounded JSON");
                     }
+                if (step.pagination() != null)
+                    item.set("pagination", mapper.valueToTree(step.pagination()));
+                if (step.idempotency() != null)
+                    item.set("idempotency", mapper.valueToTree(step.idempotency()));
+                if (!step.invariants().isEmpty()) {
+                    var rules = item.putArray("invariants");
+                    for (var rule : step.invariants()) {
+                        tick();
+                        var normalized =
+                                rules.addObject()
+                                        .put("id", rule.id())
+                                        .put("compare", rule.compare().name());
+                        normalized.set("actual", invariantShape(rule.actual(), 0));
+                        normalized.set("expected", invariantShape(rule.expected(), 0));
+                    }
+                }
                 var assertions = item.putArray("assertions");
                 for (var assertion : step.assertions()) {
                     tick();
@@ -486,7 +502,28 @@ final class BusinessContractSnapshotter {
         return node;
     }
 
+    private JsonNode invariantShape(BusinessInvariant.Value value, int depth) {
+        tick();
+        if (depth > 32) throw new BusinessSecurityException("invariant snapshot exceeds depth");
+        structuralPointer(value.pointer());
+        ObjectNode shape =
+                mapper.createObjectNode()
+                        .put("source", value.source().name())
+                        .put("pointer", value.pointer());
+        if (value.binding() != null) shape.put("binding", value.binding());
+        if (value.literal() != null)
+            shape.set("literal", literalShape(value.literal(), depth + 1, false));
+        var args = shape.putArray("args");
+        for (var arg : value.args()) args.add(invariantShape(arg, depth + 1));
+        return shape;
+    }
+
     private JsonNode literalShape(JsonNode value, int depth) {
+        return literalShape(value, depth, true);
+    }
+
+    private JsonNode literalShape(JsonNode value, int depth, boolean bindings) {
+
         tick();
         if (value == null || depth > properties.maxDepth())
             throw new BusinessSecurityException("policy literal shape exceeds bounds");
@@ -500,16 +537,19 @@ final class BusinessContractSnapshotter {
                             field -> {
                                 metadata(field.getKey());
                                 object.set(
-                                        field.getKey(), literalShape(field.getValue(), depth + 1));
+                                        field.getKey(),
+                                        literalShape(field.getValue(), depth + 1, bindings));
                             });
             return object;
         }
         if (value.isArray()) {
             var array = mapper.createArrayNode();
-            value.forEach(child -> array.add(literalShape(child, depth + 1)));
+            value.forEach(child -> array.add(literalShape(child, depth + 1, bindings)));
             return array;
         }
-        if (value.isTextual() && value.textValue().matches("\\$\\{[a-zA-Z][a-zA-Z0-9_-]{0,63}}"))
+        if (bindings
+                && value.isTextual()
+                && value.textValue().matches("\\$\\{[a-zA-Z][a-zA-Z0-9_-]{0,63}}"))
             return mapper.createObjectNode()
                     .put("binding", value.textValue().substring(2, value.textValue().length() - 1));
         return mapper.createObjectNode().put("literalType", value.getNodeType().name());

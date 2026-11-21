@@ -120,6 +120,17 @@ public class SecurityRunner {
                                                                                         c.target()
                                                                                                 + " "))
                                                                 && c.status().equals("measured"));
+                if (f.check().startsWith("business-")
+                        && f.target().matches(".* invariant [a-zA-Z][a-zA-Z0-9_-]{0,63}$"))
+                    checked =
+                            complete
+                                    && coverage.stream()
+                                            .anyMatch(
+                                                    c ->
+                                                            c.check().equals(f.check())
+                                                                    && c.target().equals(f.target())
+                                                                    && c.status()
+                                                                            .equals("measured"));
                 if (f.check().startsWith("zap-")) {
                     var priorChecks = previousCoverage;
                     checked =
@@ -229,7 +240,7 @@ public class SecurityRunner {
                         f -> f.check().equals("artifact-secret") && !f.status().equals("resolved")))
             throw new AssertionError(
                     "artifact secret leak blocks upload regardless of accepted findings or"
-                        + " fail-on");
+                            + " fail-on");
         if (!report.healthy())
             throw new AssertionError(
                     "new security findings meet fail-on severities; see security.md");
@@ -325,9 +336,9 @@ public class SecurityRunner {
                                         .append(" |\n"));
         s.append(
                 "\n"
-                    + "## Coverage\n\n"
-                    + "| check | target | role | status | reason |\n"
-                    + "|---|---|---|---|---|\n");
+                        + "## Coverage\n\n"
+                        + "| check | target | role | status | reason |\n"
+                        + "|---|---|---|---|---|\n");
         r.coverage()
                 .forEach(
                         c ->
