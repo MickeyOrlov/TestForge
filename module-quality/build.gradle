@@ -4,6 +4,16 @@ dependencies {
     api project(":core")
     api "org.springframework.boot:spring-boot-autoconfigure"
     api "com.fasterxml.jackson.core:jackson-databind"
+    // the command reads the same forge.quality YAML an application.yml holds
+    implementation "org.yaml:snakeyaml"
+}
+
+// testforge-quality check|baseline: ./gradlew :module-quality:installDist → build/install/testforge-quality/bin
+apply plugin: "application"
+
+application {
+    mainClass = "io.testforge.quality.QualityCli"
+    applicationName = "testforge-quality"
 }
 
 dependencies {

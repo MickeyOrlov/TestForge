@@ -25,7 +25,16 @@ final class QualityComponents {
 
     static List<QualityReport.Component> assign(List<QualityDimension> dimensions,
                                                 Map<String, ComponentProperties> components) {
-        if (components.isEmpty()) {
+        return assign(dimensions, components, null);
+    }
+
+    /**
+     * As above; an issue no component matches goes to its CODEOWNERS owners when its key points at a
+     * file — a test, a mutated class, a changed source file. The owners are the component's name.
+     */
+    static List<QualityReport.Component> assign(List<QualityDimension> dimensions,
+                                                Map<String, ComponentProperties> components, CodeOwners owners) {
+        if (components.isEmpty() && owners == null) {
             return List.of();
         }
         Map<String, List<Pattern>> patterns = new LinkedHashMap<>();
@@ -37,15 +46,18 @@ final class QualityComponents {
             for (String issue : dimension.issues()) {
                 String name = patterns.entrySet().stream()
                         .filter(e -> e.getValue().stream().anyMatch(p -> p.matcher(issue).matches()))
-                        .map(Map.Entry::getKey).findFirst().orElse(UNASSIGNED);
+                        .map(Map.Entry::getKey).findFirst()
+                        .or(() -> owners == null ? java.util.Optional.empty() : owners.ownersOf(issue))
+                        .orElse(UNASSIGNED);
                 owned.computeIfAbsent(name, ignored -> new Owned()).add(dimension, issue);
             }
         }
         List<QualityReport.Component> result = new ArrayList<>();
         owned.forEach((name, issues) -> {
             ComponentProperties component = components.get(name);
-            result.add(new QualityReport.Component(name, component == null ? null : component.owner(),
-                    issues.status, issues.keys, issues.fresh));
+            String owner = component != null ? component.owner()
+                    : name.equals(UNASSIGNED) ? null : name;
+            result.add(new QualityReport.Component(name, owner, issues.status, issues.keys, issues.fresh));
         });
         return result;
     }

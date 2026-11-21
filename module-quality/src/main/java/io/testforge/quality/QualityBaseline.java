@@ -77,16 +77,33 @@ public record QualityBaseline(String runId, Map<String, Entry> dimensions, Map<S
     /** As above; an accepted entry whose {@code until} date is before {@code today} no longer lets its issue through. */
     static QualityDelta compare(QualityDimension dimension, QualityBaseline baseline, List<String> accepted,
                                 Map<String, java.time.LocalDate> acceptedUntil, java.time.LocalDate today) {
+        return compare(dimension, baseline, accepted, acceptedUntil, today, Map.of());
+    }
+
+    /**
+     * As above; an accepted entry ending in {@code @<fingerprint>} lets its issue through only
+     * while the issue failed with that fingerprint ({@code fingerprints}: issue to fingerprint) —
+     * a quarantined test that fails differently is new, even when the baseline already had it:
+     * the pin is the narrower, explicit decision.
+     */
+    static QualityDelta compare(QualityDimension dimension, QualityBaseline baseline, List<String> accepted,
+                                Map<String, java.time.LocalDate> acceptedUntil, java.time.LocalDate today,
+                                Map<String, String> fingerprints) {
         Entry before = baseline == null ? null : baseline.dimensions().get(dimension.name());
         Set<String> known = before == null ? Set.of() : new LinkedHashSet<>(before.issues());
         List<String> fresh = new ArrayList<>();
         List<String> acceptedNow = new ArrayList<>();
         List<String> knownNow = new ArrayList<>();
         for (String issue : dimension.issues()) {
-            if (known.contains(issue)) {
+            if (failedOtherwise(dimension.name() + " " + issue, accepted, acceptedUntil, today,
+                    fingerprints.get(issue))) {
+                fresh.add(issue);
+            } else if (known.contains(issue)) {
                 knownNow.add(issue);
-            } else if (accepted.contains(dimension.name() + " " + issue)
-                    && !expired(acceptedUntil.get(dimension.name() + " " + issue), today)) {
+            } else if (accepted.stream().anyMatch(entry -> acceptedKey(entry).equals(dimension.name() + " " + issue)
+                    && !expired(acceptedUntil.get(entry), today)
+                    && (acceptedFingerprint(entry) == null
+                        || acceptedFingerprint(entry).equals(fingerprints.get(issue))))) {
                 acceptedNow.add(issue);
             } else {
                 fresh.add(issue);
@@ -95,6 +112,30 @@ public record QualityBaseline(String runId, Map<String, Entry> dimensions, Map<S
         List<String> resolved = before == null ? List.of() : before.issues().stream()
                 .filter(issue -> !dimension.issues().contains(issue)).toList();
         return new QualityDelta(before == null ? null : before.score(), fresh, acceptedNow, knownNow, resolved);
+    }
+
+    /** A live accepted entry pins {@code key} to a fingerprint, and it failed with another. */
+    private static boolean failedOtherwise(String key, List<String> accepted,
+                                           Map<String, java.time.LocalDate> acceptedUntil, java.time.LocalDate today,
+                                           String fingerprint) {
+        return accepted.stream().anyMatch(entry -> acceptedKey(entry).equals(key)
+                && acceptedFingerprint(entry) != null && !expired(acceptedUntil.get(entry), today)
+                && !acceptedFingerprint(entry).equals(fingerprint));
+    }
+
+    private static final java.util.regex.Pattern FINGERPRINT =
+            java.util.regex.Pattern.compile("^(.*?)\\s+@([0-9a-f]{12})$");
+
+    /** {@code "functional io.acme.T.x @1a2b3c4d5e6f"} without its fingerprint: the dimension and issue. */
+    static String acceptedKey(String entry) {
+        java.util.regex.Matcher matcher = FINGERPRINT.matcher(entry);
+        return matcher.matches() ? matcher.group(1) : entry;
+    }
+
+    /** The fingerprint an accepted entry is pinned to; {@code null} when it lets any failure through. */
+    static String acceptedFingerprint(String entry) {
+        java.util.regex.Matcher matcher = FINGERPRINT.matcher(entry);
+        return matcher.matches() ? matcher.group(2) : null;
     }
 
     static boolean expired(java.time.LocalDate until, java.time.LocalDate today) {

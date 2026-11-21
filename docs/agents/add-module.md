@@ -6,6 +6,10 @@ Goal: a new `module-<name>` that is removable, offline-first and documented.
 
 - It wraps a proven tool or a pattern at least two adapted projects would
   write themselves. If it only serves one project, it belongs in that project.
+- Search [docs/toolbox.md](../toolbox.md) and the ecosystem first. When an
+  established tool does the job, the module is its adapter; own code needs a
+  written reason (see the Toolbox rule in [AGENTS.md](../../AGENTS.md)). Add the
+  module's row to docs/toolbox.md in the same change.
 - It does not replace Spring, JUnit, Playwright, Appium, Allure or REST Assured
   (see "Explicitly Out Of Scope" in [docs/ROADMAP.md](../ROADMAP.md)).
 - Check [BACKLOG.md](../../BACKLOG.md): if it is listed there, follow that scope.

@@ -104,7 +104,8 @@ class QualityExportTest {
                 .assertAcceptable()).as("3 new functional issues, budget 3").doesNotThrowAnyException();
         assertThatThrownBy(() -> runner(null, Map.of(), Map.of(QualityDimension.FUNCTIONAL,
                 new GateProperties(null, 2))).assertAcceptable())
-                .hasMessageStartingWith("Quality gate failed on functional (5 tests: 2 passed, 3 failed");
+                .hasMessageStartingWith("Quality gate failed on functional (3 new: io.acme.orders.OrdersTest.pays, "
+                        + "io.acme.orders.OrdersTest.refunds, io.acme.billing.BillsTest.bills — 5 tests: 2 passed, 3 failed");
         assertThatCode(() -> runner(null, Map.of(), Map.of(QualityDimension.FUNCTIONAL, new GateProperties(null, 3),
                 QualityDimension.HYGIENE, new GateProperties(101, null))).assertAcceptable())
                 .as("hygiene is not measured here: that is for required").doesNotThrowAnyException();
@@ -112,6 +113,82 @@ class QualityExportTest {
                 QualityDimension.STABILITY, new GateProperties(90, 0))).assertAcceptable())
                 .hasMessageContaining("stability (score 80 below the gate's 90)")
                 .hasMessageContaining("stability (1 new issues, budget 0)");
+    }
+
+    private QualityRunner gated(List<String> required, Integer minTests, Map<String, GateProperties> gate) {
+        return new QualityRunner(new QualityProperties(true, List.of(dir.resolve("results").toString()),
+                dir.resolve("artifacts").toString(), null, dir.resolve("quality").toString(), 0.5, null,
+                dir.resolve("baseline.json").toString(), null, null, required, null, null, null, null, null, gate,
+                null, minTests), mapper, ArtifactSink.NO_OP, today);
+    }
+
+    @Test
+    void aDryRunDimensionNotesWhatWouldFailTheGateAndFailsNothing() throws IOException {
+        junit();
+        Map<String, GateProperties> gate = Map.of(QualityDimension.FUNCTIONAL, new GateProperties(null, null, true),
+                QualityDimension.HYGIENE, new GateProperties(null, null, true));
+
+        QualityReport report = gated(List.of(QualityDimension.HYGIENE), null, gate).assertAcceptable();
+
+        assertThat(report.notes())
+                .anyMatch(note -> note.startsWith("dry run — the gate would fail on hygiene (")
+                        && note.endsWith(", required but not measured"))
+                .anyMatch(note -> note.startsWith("dry run — the gate would fail on functional (3 new: ")
+                        && note.contains("— 5 tests: 2 passed, 3 failed"));
+        assertThat(Files.readString(Path.of(report.reportJson()).getParent().resolve("quality-summary.md")))
+                .contains("- dry run — the gate would fail on functional (3 new:")
+                .contains("| functional | FAIL | dry-run |");
+        assertThatThrownBy(() -> gated(List.of(QualityDimension.HYGIENE), null,
+                Map.of(QualityDimension.FUNCTIONAL, new GateProperties(null, null, true))).assertAcceptable())
+                .as("only the dry-run dimension is let through").hasMessageStartingWith(
+                        "Required dimensions not measured: hygiene");
+        assertThatThrownBy(() -> gated(null, null, Map.of(QualityDimension.STABILITY,
+                new GateProperties(90, null, true))).assertAcceptable())
+                .as("a dry run on one dimension leaves fail-on of another enforced")
+                .hasMessageStartingWith("Quality gate failed on functional");
+    }
+
+    @Test
+    void fewerExecutedTestsThanMinTestsFailFunctionalEvenWithNoneAtAll() throws IOException {
+        junit();
+        QualityDimension tooFew = gated(null, 6, Map.of()).run().dimension(QualityDimension.FUNCTIONAL)
+                .orElseThrow();
+
+        assertThat(tooFew.status()).isEqualTo(QualityStatus.FAIL);
+        assertThat(tooFew.facts().getFirst()).isEqualTo("5 tests executed, fewer than min-tests 6 (in ["
+                + dir.resolve("results") + "])");
+        assertThat(gated(null, 5, Map.of()).run().dimension(QualityDimension.FUNCTIONAL).orElseThrow().facts()
+                .getFirst()).as("enough tests: only the failures speak").startsWith("5 tests: 2 passed");
+
+        Files.delete(dir.resolve("results/TEST-s.xml"));
+        QualityReport none = gated(null, 1, Map.of()).run();
+        assertThat(none.dimension(QualityDimension.FUNCTIONAL).orElseThrow())
+                .returns(QualityStatus.FAIL, QualityDimension::status).returns(0, QualityDimension::score);
+        assertThat(none.dimension(QualityDimension.FUNCTIONAL).orElseThrow().hint())
+                .startsWith("Fewer tests ran than min-tests").doesNotContain("Read each failed");
+        assertThatThrownBy(() -> gated(null, 1, Map.of()).assertAcceptable())
+                .hasMessageStartingWith("Quality gate failed on functional (0 tests executed, fewer than min-tests 1");
+        assertThatThrownBy(() -> gated(null, 0, Map.of())).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aDimensionThatIsNotPassSaysHowToFixIt() throws IOException {
+        junit();
+        QualityReport report = runner(null, Map.of(), Map.of()).run();
+        JsonNode json = mapper.readTree(Path.of(report.reportJson()).toFile());
+        Path output = Path.of(report.reportJson()).getParent();
+
+        assertThat(report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().hint()).startsWith("Read each failed");
+        json.path("dimensions").forEach(dimension -> assertThat(dimension.path("hint").isNull())
+                .as(dimension.path("name").asText())
+                .isEqualTo(!List.of("FAIL", "WARN").contains(dimension.path("status").asText())));
+        assertThat(Files.readString(output.resolve("quality.md"))).contains("- how to fix: Read each failed");
+        assertThat(Files.readString(output.resolve("quality-summary.md"))).contains("- **functional**: Read each");
+        assertThat(report.dimension(QualityDimension.FUNCTIONAL).orElseThrow().hint())
+                .as("enough tests ran: nothing about min-tests").doesNotContain("min-tests");
+        assertThat(report.gate().dimensions()).containsEntry(QualityDimension.FUNCTIONAL, "enforced")
+                .containsEntry(QualityDimension.HYGIENE, "report only");
+        assertThat(json.path("gate").path("dimensions").path("stability").asText()).isEqualTo("enforced");
     }
 
     @Test
@@ -125,8 +202,8 @@ class QualityExportTest {
         assertThat(Files.readString(output.resolve("quality.md"))).contains("- labels: ")
                 .contains("environment=staging");
         assertThat(Files.readString(output.resolve("quality-summary.md")))
-                .startsWith("### Quality: FAIL")
-                .contains("| functional | FAIL | 40 | `io.acme.orders.OrdersTest.pays`, "
+                .startsWith("### Quality gate: FAIL · overall FAIL")
+                .contains("| functional | FAIL | enforced | 40 | `io.acme.orders.OrdersTest.pays`, "
                         + "`io.acme.orders.OrdersTest.refunds`, `io.acme.billing.BillsTest.bills` |")
                 .contains("- **orders** (team-orders): 2 new, FAIL")
                 .contains("Full report: `quality.md`.");

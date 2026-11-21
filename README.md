@@ -27,6 +27,26 @@ of starting from an empty directory.
 5. **Agent-friendly**: Adaptation notes live in [AGENTS.md](AGENTS.md) and the
    module READMEs.
 
+## A toolbox, not a home-made hammer
+
+TestForge is assembled the way a good household toolbox is: the screwdriver and
+the hammer you reach for every day, and the two pipe wrenches you need once a
+year when a pipe leaks — ready, findable, and in the way of nothing until then.
+Every tool in it is a proven open-source one; TestForge supplies the handle.
+
+1. **A proven tool, never a home-made one.** k6, Schemathesis, PIT, diff-cover,
+   EvoMaster, WireMock, Playwright, Appium — TestForge adds configuration,
+   safety (nothing reaches a shared environment by accident) and evidence in
+   one place. Its own code is the glue no tool provides.
+2. **A rare tool costs nothing while it lies there.** Opt-in, off the default
+   build, no traffic, no heavy dependency; unused, it reports NOT MEASURED
+   rather than a pass.
+3. **Every tool comes out the same way.** One command or one module, results in
+   the run index, judged together by `testforge-quality`.
+4. **Every tool has a card.** [docs/toolbox.md](docs/toolbox.md) lists the
+   situations, the tool for each, where it lives here — and the compartments
+   still empty.
+
 ## Architecture
 
 A deliberately thin core plus optional modules. Modules plug in through Spring
@@ -99,17 +119,24 @@ flowchart LR
 | [module-db-contract](module-db-contract) | Schema snapshots, bounded diff, and a BREAKING/RISKY/NON_BREAKING/UNKNOWN compatibility gate for CI |
 | [module-flow](module-flow) | Tiny state-machine runner for long business flows, with path logging and cycle guardrails |
 | [module-state](module-state) | State recipes that drive `module-flow` and feed domain objects into `@Prepared` fixtures |
+| [module-faults](module-faults) | Opt-in Toxiproxy scopes: isolated endpoints, latency, resets, outages and fault evidence |
+| [module-load](module-load) | Opt-in k6 OSS runner: native thresholds, process lifecycle, JSON/Markdown/HTML, optional [Prometheus/Grafana](infra/load) and optional [API → load composition](tools/api-load) |
 | [module-http](module-http) | Preconfigured REST Assured specification: base URLs per environment, scenario scope and request id on every call, redacted logging, opt-in retry |
 | [module-kafka](module-kafka) | Kafka message probe: bounded buffer, newest-first search, JSON-path filters; composes with `module-contract` |
 | [module-security-audit](module-security-audit) | Internal three-layer audit aggregator foundation: profiles/plans, security-v1 reports and explicit trusted process adapters/CLI; no scanner adapters bundled |
-| [module-quality](module-quality) | Judges a finished run: 13 dimensions with printed formulas (tests, contracts, data, security, reliability, coverage, …), baseline and run history, components and owners, a gate; `quality.md` / `.json`, a PR summary, OpenMetrics |
+| [module-quality](module-quality) | Judges a finished run: 15 dimensions with printed formulas (tests, contracts, data, security, reliability, coverage, …), baseline and run history, components and owners, a gate; `quality.md` / `.json`, a PR summary, OpenMetrics |
 | [module-gherkin](module-gherkin) | Optional Cucumber steps over the modules: a scope per scenario, `${variables}`, HTTP steps through `ApiClient` |
 | [module-rabbitmq](module-rabbitmq) | RabbitMQ message probe on a queue of its own (never takes a service's messages); confirmed, mandatory publisher |
 | [module-mock](module-mock) | `ScopedMockClient` — scenario-scoped stubs on a **shared** WireMock, safe for parallel runs |
 | [module-reporting](module-reporting) | Run-scoped artifact index (`manifest.json`, `summary.md`) every module publishes into, resource usage monitor, optional Allure attachments |
+| [module-mail](module-mail) | Opt-in Mailpit scopes: unique recipients, captured content/attachments, isolated cleanup |
+| [module-a11y](module-a11y) | Opt-in axe-core accessibility checks on an existing Playwright Page, adoption baseline and evidence |
 | [module-web](module-web) | `PrewarmRunner` — visits key pages once per suite so UI tests never start against a cold environment |
 | [module-web-playwright](module-web-playwright) | Playwright lifecycle: shared browser, per-test context, `Page` fixture, failure artifacts |
 | [module-mobile-appium](module-mobile-appium) | Appium lifecycle: device matrix, session/driver fixtures, optional local node, failure artifacts |
+| [tools/lighthouse](tools/lighthouse) | Explicit native Lighthouse CI performance budgets and local JSON/HTML reports |
+| [tools/external-surface](tools/external-surface) | Opt-in external web inventory with Subfinder, httpx and Katana |
+| [tools/spectral](tools/spectral) | Explicit OpenAPI security lint with Spectral and the OWASP API Top 10 ruleset, SARIF for the quality gate |
 | [example-tests](example-tests) | Self-contained reference suite (WireMock + H2), runs offline |
 
 ## Quick start

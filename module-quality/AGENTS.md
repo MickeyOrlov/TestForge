@@ -5,7 +5,7 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
 
 **Scope:** `QualityRunner` (run, gate), `JunitResults`, `RunIndex`, `QualityAssessor` dimensions, `quality.md` / `quality.json`. Spec: [docs/quality-security-spec.md](../docs/quality-security-spec.md) (Part A).
 
-**May depend on:** `core` only. Other modules' output is read from files (JUnit XML, `manifest.json`, their own reports), never through their classes — a module that is deleted just leaves its dimension NOT MEASURED.
+**May depend on:** `core` only. Other modules' output is read from files (JUnit XML, `manifest.json`, their own reports), never through their classes — a module that is deleted just leaves its dimension NOT MEASURED. Another tool's report (PIT's `mutations.xml`, diff-cover's JSON, SARIF, WFC) is read from a configured path the same way: the tool runs in the project's build, never from here.
 
 ## Invariants (do not break)
 
@@ -21,6 +21,15 @@ Read the root [AGENTS.md](../AGENTS.md) first. This file is about *changing*
   dimension documents its formula in the README table.
 - NOT MEASURED is never a pass; the gate fails closed when disabled or when
   nothing was measured.
+- An API operation in an issue key is `OperationCatalog.key(...)`: `<spec> <METHOD> <template>` when
+  `api-coverage.json` knows it. A new dimension that names operations goes through it.
+- `QualityCli` is a thin shell over `QualityRunner`: exit codes 0 / 1 / 2 / 64 are a contract (README),
+  and the verdict it reports is `report.gate()`, never its own logic.
+- `run()` and `assertAcceptable()` judge the gate from the same breaches
+  (`QualityRunner.breaches`): a dry-run dimension's breaches become report
+  notes, every other one fails. A new gate rule goes into `breaches`, never
+  into `assertAcceptable` alone. A new dimension gets a hint in
+  `QualityDimension.HINTS`.
 - XML is parsed with DTDs disallowed and secure processing on.
 - The newest-run default never picks a run holding only `module-quality`'s
   own report; listed runs (`run-id: a,b`) merge, each artifact resolved

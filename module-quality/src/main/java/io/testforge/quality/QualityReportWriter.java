@@ -25,7 +25,15 @@ final class QualityReportWriter {
     private QualityReportWriter() {
     }
 
+    /** Labels of {@code testforge_quality_run_info} that take a new value every run. */
+    static final java.util.Set<String> RUN_ID_LABELS = java.util.Set.of("revision", "job", "run_id");
+
     static QualityReport write(Path outputDir, QualityReport report, ObjectMapper mapper) {
+        return write(outputDir, report, mapper, false);
+    }
+
+    /** @param runIds keep the per-run labels in {@code quality.prom} */
+    static QualityReport write(Path outputDir, QualityReport report, ObjectMapper mapper, boolean runIds) {
         try {
             Files.createDirectories(outputDir);
             Path markdown = outputDir.resolve(MARKDOWN);
@@ -34,7 +42,7 @@ final class QualityReportWriter {
             Files.writeString(markdown, render(written));
             mapper.copy().enable(SerializationFeature.INDENT_OUTPUT).writeValue(json.toFile(), written);
             Files.writeString(outputDir.resolve(SUMMARY), summary(written));
-            Files.writeString(outputDir.resolve(METRICS), metrics(written));
+            Files.writeString(outputDir.resolve(METRICS), metrics(written, runIds));
             try (var schema = QualityReportWriter.class.getResourceAsStream(SCHEMA)) {
                 Files.write(outputDir.resolve(SCHEMA), schema.readAllBytes());
             }
@@ -51,6 +59,7 @@ final class QualityReportWriter {
                         : report.baselineRunId()).append('\n')
                 .append("- overall: **").append(report.overall()).append("**")
                 .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")").append('\n')
+                .append(gateLine(report))
                 .append("- measured: ").append(report.measured()).append(" of ").append(report.dimensions().size())
                 .append(" dimensions").append(notMeasured(report)).append('\n');
         if (!report.labels().isEmpty()) {
@@ -58,10 +67,12 @@ final class QualityReportWriter {
         }
         report.notes().forEach(note -> out.append("- note: ").append(note).append('\n'));
         out.append('\n')
-                .append("| Dimension | Status | Score | Baseline | New issues | Formula |\n|---|---|---|---|---|---|\n");
+                .append("| Dimension | Status | Gate | Score | Baseline | New issues | Formula |\n")
+                .append("|---|---|---|---|---|---|---|\n");
         for (QualityDimension dimension : report.dimensions()) {
             QualityDelta delta = dimension.delta();
             out.append("| ").append(dimension.name()).append(" | ").append(dimension.status()).append(" | ")
+                    .append(role(report, dimension)).append(" | ")
                     .append(dimension.score() == null ? "—" : dimension.score()).append(" | ")
                     .append(delta == null || delta.baselineScore() == null ? "—" : delta.baselineScore()).append(" | ")
                     .append(dimension.newIssues().size()).append(" | ")
@@ -70,6 +81,9 @@ final class QualityReportWriter {
         for (QualityDimension dimension : report.dimensions()) {
             out.append("\n## ").append(dimension.name()).append(" — ").append(dimension.status()).append("\n\n");
             dimension.facts().forEach(fact -> out.append("- ").append(fact).append('\n'));
+            if (dimension.hint() != null) {
+                out.append("- how to fix: ").append(dimension.hint()).append('\n');
+            }
             QualityDelta delta = dimension.delta();
             if (delta != null) {
                 list(out, "new", delta.newIssues());
@@ -100,7 +114,8 @@ final class QualityReportWriter {
      * components with new issues. The full report stays in {@code quality.md}.
      */
     static String summary(QualityReport report) {
-        StringBuilder out = new StringBuilder("### Quality: ").append(report.overall())
+        StringBuilder out = new StringBuilder(report.gate() == null ? "### Quality: "
+                : "### Quality gate: " + report.gate().verdict() + " · overall ").append(report.overall())
                 .append(report.meanScore() == null ? "" : " (mean score " + report.meanScore() + ")")
                 .append(report.runId() == null ? "" : " — run `" + report.runId() + "`").append("\n\n");
         if (!report.labels().isEmpty()) {
@@ -111,16 +126,25 @@ final class QualityReportWriter {
         if (attention.isEmpty()) {
             out.append("Every measured dimension passed.\n");
         } else {
-            out.append("| Dimension | Status | Score | New issues |\n|---|---|---|---|\n");
+            out.append("| Dimension | Status | Gate | Score | New issues |\n|---|---|---|---|---|\n");
             for (QualityDimension dimension : attention) {
                 List<String> fresh = dimension.newIssues();
                 out.append("| ").append(dimension.name()).append(" | ").append(dimension.status()).append(" | ")
+                        .append(role(report, dimension)).append(" | ")
                         .append(dimension.score()).append(" | ")
                         .append(fresh.stream().limit(SUMMARY_ISSUES).map(i -> "`" + i.replace("|", "\\|") + "`")
                                 .collect(java.util.stream.Collectors.joining(", ")))
                         .append(fresh.size() > SUMMARY_ISSUES ? " (+" + (fresh.size() - SUMMARY_ISSUES) + ")" : "")
                         .append(" |\n");
             }
+            out.append('\n');
+            attention.stream().filter(d -> d.hint() != null).forEach(d -> out.append("- **").append(d.name())
+                    .append("**: ").append(d.hint()).append('\n'));
+        }
+        report.notes().stream().filter(note -> note.startsWith("dry run"))
+                .forEach(note -> out.append("\n- ").append(note));
+        if (report.notes().stream().anyMatch(note -> note.startsWith("dry run"))) {
+            out.append('\n');
         }
         report.components().stream().filter(c -> c.newIssues() > 0).forEach(c -> out.append("\n- **")
                 .append(c.name()).append("**").append(c.owner() == null ? "" : " (" + c.owner() + ")").append(": ")
@@ -136,15 +160,27 @@ final class QualityReportWriter {
 
     /** OpenMetrics text: one gauge family per fact a dashboard plots, labelled by dimension. */
     static String metrics(QualityReport report) {
+        return metrics(report, true);
+    }
+
+    /** @param runIds with revision, job and run id: one series per run — see {@code metrics.run-ids} */
+    static String metrics(QualityReport report, boolean runIds) {
         StringBuilder out = new StringBuilder();
         java.util.Map<String, String> info = new java.util.TreeMap<>();
         report.labels().forEach((key, value) -> info.put(metricLabel(key), value));
         if (report.runId() != null) {
             info.put("run_id", report.runId());
         }
+        if (!runIds) {
+            info.keySet().removeAll(RUN_ID_LABELS);
+        }
         info.put("overall", report.overall().name());
         out.append("# TYPE testforge_quality_run info\n# HELP testforge_quality_run The judged run.\n")
                 .append("testforge_quality_run_info").append(labelSet(info)).append(" 1\n");
+        if (report.gate() != null) {
+            out.append("# TYPE testforge_quality_gate_passed gauge\ntestforge_quality_gate_passed ")
+                    .append(report.gate().verdict() == QualityStatus.PASS ? 1 : 0).append('\n');
+        }
         out.append("# TYPE testforge_quality_mean_score gauge\n");
         if (report.meanScore() != null) {
             out.append("testforge_quality_mean_score ").append(report.meanScore()).append('\n');
@@ -176,6 +212,22 @@ final class QualityReportWriter {
                     .append('\n'));
         }
         return out.append("# EOF\n").toString();
+    }
+
+    /** The dimension's part in the gate, or {@code —} before the gate is judged. */
+    private static String role(QualityReport report, QualityDimension dimension) {
+        return report.gate() == null ? "—" : report.gate().role(dimension.name());
+    }
+
+    /** {@code - gate: **FAIL** — why; why} for quality.md and the summary; empty before the gate is judged. */
+    private static String gateLine(QualityReport report) {
+        QualityReport.Gate gate = report.gate();
+        if (gate == null) {
+            return "";
+        }
+        return "- gate: **" + gate.verdict() + "**" + (gate.failures().isEmpty()
+                ? (report.overall() == QualityStatus.FAIL ? " — what fails is known or accepted, nothing new" : "")
+                : " — " + String.join("; ", gate.failures())) + "\n";
     }
 
     private static String labels(QualityReport report) {

@@ -47,7 +47,11 @@ class CodingRulesTest {
 
     @Test
     void noStandardStreams() {
-        GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS.check(CLASSES);
+        // a command's output is its standard streams; every library class logs instead
+        noClasses().that().doNotHaveFullyQualifiedName("io.testforge.quality.QualityCli")
+                .should(GeneralCodingRules.ACCESS_STANDARD_STREAMS)
+                .because("library code logs; only a command-line entry point writes to stdout / stderr")
+                .check(CLASSES);
     }
 
     @Test

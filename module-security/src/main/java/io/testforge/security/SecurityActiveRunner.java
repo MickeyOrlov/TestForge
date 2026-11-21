@@ -422,7 +422,7 @@ public class SecurityActiveRunner {
         }
     }
 
-    private static boolean remove(Path dir) {
+    static boolean remove(Path dir) {
         try (var paths = Files.walk(dir)) {
             for (Path path : paths.sorted(Comparator.reverseOrder()).toList())
                 Files.deleteIfExists(path);

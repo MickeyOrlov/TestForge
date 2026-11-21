@@ -1,0 +1,36 @@
+dependencies {
+    api platform(libs.spring.boot.dependencies)
+    api project(":core")
+    api "org.springframework.boot:spring-boot-autoconfigure"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+    useJUnitPlatform { excludeTags "k6", "load-observability" }
+}
+
+tasks.register("observabilityTest", Test) {
+    description = "Checks real k6 remote write, native histograms and the provisioned Grafana dashboard"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags "load-observability" }
+    systemProperty "testforge.k6", providers.gradleProperty("k6Executable").orElse("k6").get()
+    systemProperty "testforge.prometheus", providers.gradleProperty("loadPrometheusUrl").orElse("http://127.0.0.1:9090").get()
+    systemProperty "testforge.grafana", providers.gradleProperty("loadGrafanaUrl").orElse("http://127.0.0.1:3000").get()
+    systemProperty "testforge.observability-output", layout.buildDirectory.dir("load-observability").get().asFile.absolutePath
+    outputs.upToDateWhen { false }
+    shouldRunAfter tasks.named("test")
+}
+
+tasks.register("k6Test", Test) {
+    description = "Runs the real pinned k6 against an owned loopback HTTP fixture"
+    group = "verification"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags "k6" }
+    systemProperty "testforge.k6", providers.gradleProperty("k6Executable").orElse("k6").get()
+    outputs.upToDateWhen { false }
+    shouldRunAfter tasks.named("test")
+}

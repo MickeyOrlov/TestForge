@@ -57,6 +57,20 @@ class SecurityArtifactTest {
     }
 
     @Test
+    void aFindingNamesTheFileWhoseExtensionIsLongButMasksAnIdLikeName(@TempDir Path dir) throws Exception {
+        Files.writeString(dir.resolve("app.properties"), "db.password: synthetic-planted-value");
+        Files.writeString(dir.resolve("run-4711.log"), "db.password: synthetic-planted-value");
+        var collector = new SecurityCollector(100);
+
+        new SecurityArtifactScanner(properties(dir, null, null, null), new SecuritySecretRegistry(), collector)
+                .scan();
+
+        assertThat(collector.findings()).extracting(SecurityFinding::target)
+                .anyMatch(target -> target.endsWith("/app.properties"))
+                .anyMatch(target -> target.endsWith("/{value}"));
+    }
+
+    @Test
     void plantedSecretsAndPrivateKeysFailBeforeUploadWithoutEchoingTheValue(@TempDir Path dir)
             throws Exception {
         String secret = "synthetic-planted-credential";

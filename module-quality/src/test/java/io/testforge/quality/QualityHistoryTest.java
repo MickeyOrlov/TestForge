@@ -172,6 +172,52 @@ class QualityHistoryTest {
     }
 
     @Test
+    void runsJudgedFailAreLeftOutOfTheOperationMedians() throws IOException {
+        for (int i = 1; i <= 6; i++) {
+            Path file = dir.resolve("history/run-" + i + ".json");
+            Files.createDirectories(file.getParent());
+            // three green runs around 82 ms, three failed ones at 450 ms
+            mapper.writeValue(file.toFile(), new QualityHistory.Entry(1, String.valueOf(i), "2026-10-0" + i
+                    + "T10:00:00Z", "r", i <= 3 ? "PASS" : "FAIL", Map.of(), Map.of(), Map.of(),
+                    Map.of("GET /orders/{n}", i <= 3 ? 80L + i : 450L)));
+        }
+        junit("<testcase classname=\"T\" name=\"a\"/>");
+        Path summary = dir.resolve("artifacts/r9/module-http/http-summary.json");
+        Files.createDirectories(summary.getParent());
+        Files.writeString(summary, """
+                {"formatVersion": 1, "operations": [
+                  {"operation": "GET /orders/{n}", "requests": 40, "status": {"2xx": 40}, "transportErrors": 0,
+                   "p50Millis": 300, "p95Millis": 450, "maxMillis": 600}]}""");
+        Files.writeString(dir.resolve("artifacts/r9/manifest.json"), """
+                {"runId": "r9", "artifacts": [{"source": "module-http", "category": "http-summary",
+                  "name": "http-summary.json", "path": "module-http/http-summary.json"}]}""");
+
+        QualityDimension efficiency = runner("r").run().dimension(QualityDimension.EFFICIENCY).orElseThrow();
+
+        assertThat(efficiency.issues()).as("450 ms is slow against the green runs, usual among the failed ones")
+                .containsExactly("operation GET /orders/{n}");
+        assertThat(efficiency.facts().getFirst()).endsWith("(3 runs judged FAIL left out of the medians)");
+    }
+
+    @Test
+    void switchingAndStabilizedTestsAreListedButAddNoIssue() throws IOException {
+        String[] a = {"PASSED", "FAILED", "PASSED", "FAILED", "PASSED", "PASSED"};
+        String[] b = {"FLAKY", "PASSED", "PASSED", "PASSED", "PASSED", "PASSED"};
+        for (int i = 0; i < a.length; i++) {
+            entry("e" + i, "2026-10-0" + (i + 1) + "T10:00:00Z", "rev-" + i, "PASS", Map.of(),
+                    Map.of("T.a", a[i], "T.b", b[i]), Map.of());
+        }
+        junit("<testcase classname=\"T\" name=\"a\"/><testcase classname=\"T\" name=\"b\"/>");
+
+        QualityDimension stability = runner("now").run().dimension(QualityDimension.STABILITY).orElseThrow();
+
+        assertThat(stability.facts()).contains("switching: T.a — passed / failed 4 times in 7 runs",
+                "stabilized: T.b — flaky earlier, passed the last 5 runs");
+        assertThat(stability.status()).isEqualTo(QualityStatus.PASS);
+        assertThat(stability.issues()).isEmpty();
+    }
+
+    @Test
     void tooFewRunsFallBackToTheBaseline() throws IOException {
         entry("1", "2026-10-01T10:00:00Z", "r", "PASS", Map.of(), Map.of(), Map.of("T.a", 1000L));
         junit("<testcase classname=\"T\" name=\"a\" time=\"9.0\"/>");

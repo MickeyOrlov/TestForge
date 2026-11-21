@@ -19,9 +19,11 @@ module-db/     DbWaiter, SqlLoggingDataSourcePostProcessor, SchemaValidator, DbS
 module-db-contract/ schema snapshot, bounded diff, compatibility policy, CI gate
 module-flow/   FlowRunner — deterministic state-machine paths with guardrails
 module-state/  StateRecipe — reusable business state setup feeding @Prepared
+module-faults/ Isolated Toxiproxy scopes over named, allowlisted dependencies
+module-load/   Thin local k6 adapter: explicit runs, native thresholds, bounded process lifecycle and evidence
 module-http/   ApiClient — REST Assured spec with scope/correlation/logging filters
 module-security-audit/ internal three-layer aggregator: profile/plan, security-v1 reports and trusted process/CLI foundation; no scanner adapters
-module-security/ opt-in passive/auth/ZAP/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
+module-security/ opt-in passive/auth/ZAP/Nuclei/TLS checks, business security policies/coverage, pre-upload secret scan and value-free evidence
 module-auth/   TokenProvider per role (static, OAuth2, local JWT, API key, session cookie), @AsUser, auth filter
 module-kafka/  KafkaProbe — topic buffer/search; composes with module-contract
 module-rabbitmq/ RabbitProbe — exchange buffer/search on a queue of its own; publisher with confirms
@@ -29,6 +31,8 @@ module-gherkin/ optional Cucumber steps over the modules: scope per scenario, ${
 module-mock/   ScopedMockClient/MockScope — per-scenario stubs on shared WireMock
 module-reporting/ run-scoped artifact index (manifest/summary), resource monitor, optional Allure attachments
 module-quality/ judges a finished run: dimensions with formulas, quality.md/json, gate
+module-mail/   Mailpit recipient scopes, bounded capture API and isolated cleanup
+module-a11y/   axe-core checks, explicit adoption baseline and sanitized accessibility evidence
 module-web/    PrewarmRunner — warm key pages once per suite
 module-web-playwright/ Playwright lifecycle + Page fixture + failure artifacts
 module-mobile-appium/  Appium lifecycle, device matrix, failure artifacts
@@ -42,6 +46,26 @@ All modules are Spring Boot auto-configurations (see
 Config lives under the `forge.*` prefix; properties classes are records named
 `*Properties`. One Spring profile per test environment
 (`application-<environment>.yml`).
+
+## Toolbox rule (read before writing any new capability)
+
+TestForge is a toolbox of proven open-source tools with TestForge handles, not
+a set of home-made ones — see "A toolbox, not a home-made hammer" in the
+README and the inventory in [docs/toolbox.md](docs/toolbox.md).
+
+- **Search first.** Before implementing a capability, find the established tool
+  for it (docs/toolbox.md, then the ecosystem). If one exists, the module is an
+  adapter: configuration, safety policy, process or library wiring, evidence
+  in the run index. It never re-implements the tool.
+- **Own code needs a written reason.** Build it only when no tool does the job
+  or none fits the constraints (offline, no server, license); record why, as
+  [docs/api-fuzz-prototype-analysis.md](docs/api-fuzz-prototype-analysis.md)
+  did when the home-made fuzzer gave way to Schemathesis.
+- **Rare tools stay out of the way.** Opt-in, excluded from `./gradlew build`'s
+  traffic, no dependency forced on modules that do not use them, NOT MEASURED
+  when absent.
+- **Keep the inventory true.** A change that adds, replaces or removes a tool
+  updates its row in docs/toolbox.md in the same commit.
 
 ## Build & verify
 
@@ -155,6 +179,9 @@ must not replace each other. `example-tests` is never published.
    paste. Redaction follows `forge.http.logging.redact-*`; extend it before the
    first run uploads artifacts.
 12. **module-api-fuzz**: reuse `forge.api-discovery.specs`, leave methods at the default, never enable write methods against a shared environment, install Schemathesis separately, run it from an environment profile job and never the default build. Read the first `report.md`, copy what the team accepts into `forge.api-fuzz.accepted-findings`, then turn `fail-on-findings` on: it fails on new findings only.
+12b. **module-faults**: use a fresh `faults.on(name)` scope per scenario, point the tested dependency at its endpoint before opening connections, and close the scope. Upstreams require an exact allowlist; Docker/control traffic starts only on explicit calls.
+12a. **module-load**: install the pinned k6 binary separately, enable `forge.load.enabled` only in a load profile, set a trusted local script and explicit `base-url`, then call `LoadRunner.assertHealthy()` from a dedicated job. Scripts use native k6 options/thresholds and the documented `handleSummary` hook. No load runs in the default build; `:module-load:k6Test` verifies the adapter against an owned loopback server. Optional `forge.load.prometheus.*` feeds the provisioned `infra/load` stack; `:example-tests:loadTest` requires an explicit target, and `:module-load:observabilityTest` verifies the full metrics path. For optional API research → load orchestration, use `:example-tests:apiLoadTest` and `tools/api-load/README.md`: inputs and producer reports are files; the upstream generator prepares a native client; module-load still depends only on core.
+12c. **module-mail**: point the product SMTP client at a test-only Mailpit instance before startup, enable `forge.mail`, pass each fresh scope recipient into the product, assert captured content and close after senders stop. Never enable forwarding; configure server retention. Run `:example-tests:mailTest` explicitly.
 13. **module-data**: use `RunUniqueValues` around domain generators and
    `TemplateRenderer` for payloads or tables that reference scenario values.
    For expensive domain states implement `PreparedDataProvider<T>` (drive the
@@ -202,6 +229,7 @@ must not replace each other. `example-tests` is never published.
    [docs/examples/quality-gate.github-actions.yml](docs/examples/quality-gate.github-actions.yml)
    is the whole job for GitHub Actions: history cache, run index, gate,
    artifacts and the summary on the pull request.
+17b. **module-a11y**: enable only for explicit UI checks on an existing Page; use reviewed page templates, inspect native findings and promote baselines explicitly. Manual-review results never pass; browser examples stay out of the default build.
 18. **module-web**: list the 2–4 heaviest pages of the system under test in
    `forge.prewarm.urls` for the CI profile. Read `prewarm.md` after the first
    run: a page "ended at" a sign-in URL warmed the login wall, not the page.
@@ -353,3 +381,11 @@ Security audit adoption: add module-security-audit for private system profiles a
 explicit plan generation. Enable forge.security-audit.enabled, parse a JSON profile
 with SecurityAuditProfiles, then call SecurityAuditPlanner.plan. Plans are not
 measured security evidence. Ordered implementation: docs/security-audit-roadmap.md.
+
+Front-end budgets: use the explicit `:example-tests:lighthouseTest` workflow in `tools/lighthouse/README.md`. Native Lighthouse CI owns assertions and reports; no browser or node tooling runs during the default build.
+
+OpenAPI security lint: run `:example-tests:spectralLint -PspectralSpecs=...` (`tools/spectral/README.md`) and point `forge.quality.sarif.reports` at `build/spectral`. Native Spectral with the pinned OWASP API Top 10 ruleset owns the rules; local documents only, no remote `$ref`, never in the default build.
+
+Dependency vulnerabilities: `./gradlew osvScan` builds the CycloneDX SBOM of the published modules (`cyclonedxBom`) and scans it with the pinned OSV-Scanner image into `build/sarif/osv-scanner.sarif` for the quality gate. It needs network access to OSV.dev and never runs in the default build.
+
+Dependency licenses: `./gradlew licenseScan` reads the same SBOM's licenses with the pinned Trivy image, offline, into `build/sarif/trivy-licenses.sarif`; each package counts under its mildest listed license (a POM's list is a choice). A team's policy goes in a `trivy.yaml` passed as `-PlicenseConfig`. Never in the default build.

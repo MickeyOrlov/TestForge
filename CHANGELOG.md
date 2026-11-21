@@ -6,6 +6,9 @@ semantic versioning for its git tags.
 
 ## [Unreleased]
 
+### Security
+- Version floors over the Spring Boot BOM for every published module, from `./gradlew osvScan`: Jackson 2.22.3 (jackson-bom; also aligns the 2.21.4/2.22.0 split), OpenTelemetry 1.67.0 (bom), amqp-client 5.37.0, lz4-java 1.11.4, snappy-java 1.1.10.9, guava 33.7.2-jre. 43 vulnerable package versions (18 high) → 0. Declared before the Boot platform so Maven consumers get them too (published POMs list them first).
+
 ### Added
 - Explicit audit adapter/process foundation and file-output plan/run CLI: private
   cwd/environment, stdin credentials, bounded output/preparation, shared timeout,
@@ -30,6 +33,103 @@ semantic versioning for its git tags.
   evidence. Rule-specific baseline resolution and structural review support.
   Includes secure/broken local payment, stock, refund and list examples.
 
+- `tools/external-surface` adds an opt-in anonymous web inventory with Subfinder candidates, httpx reachability and Katana routes from explicit origins. The crawler uses a bounded GET-only gateway.
+- `tools/external-surface` adds a separate Nmap TCP inventory for explicit IP addresses and port lists, with normalized port states and incomplete evidence reporting.
+- Root `:licenseScan`: the licenses the CycloneDX SBOM declares, classified by Trivy 0.76.1 in a pinned container with no network, into `build/sarif/trivy-licenses.sarif` for module-quality's `static-analysis`. One issue per package under its mildest license (a POM's license list is a choice); notice licenses are no issue, an undeclared third-party license is. Team policy through `-PlicenseConfig=trivy.yaml`. TestForge's own modules: 8 reciprocal (EPL-2.0, MPL-2.0), no restricted or forbidden.
+- Root `:osvScan`: CycloneDX SBOM (`cyclonedxBom`, plugin 3.5.1) of the published modules' runtime classpaths, scanned by OSV-Scanner 2.7.0 in a pinned container into `build/sarif/osv-scanner.sarif`; module-quality's `static-analysis` judges it, one issue per advisory and package version. Opt-in, needs network access to OSV.dev.
+- `module-security`: opt-in Nuclei 3.11.1 header assessment using a pinned image and signed upstream template. Explicit anonymous GET pages run through the read-only gateway. Findings and incomplete coverage feed the existing security gate.
+- `module-security`: the transport block can delegate to testssl.sh 3.2.5 in a pinned container (`forge.security.transport.testssl.*`): SSLv2/3 and TLS 1.0/1.1, cipher categories, forward secrecy, certificate and known TLS vulnerabilities, independent of what the JDK enables. Findings keep testssl.sh's severity and identifiers only; an incomplete scan stays not_measured. `:example-tests:securityTlsTest` runs the real container.
+- `tools/spectral`: opt-in OpenAPI security lint with pinned Spectral 6.17.0 and the OWASP API Security Top 10 ruleset 2.0.1. One SARIF report per local document, remote `$ref` refused, incomplete lints leave no report, document-path fingerprints so module-quality keys one issue per rule and operation.
+- `module-mail`: opt-in Mailpit capture API adapter with UUID recipients, text/HTML/attachment assertions, bounded calls, isolated cleanup and value-free lifecycle evidence. Native SMTP fixture remains outside the default build.
+- `module-quality`: a `static-analysis` dimension reading SARIF 2.1.0 from
+  gitleaks, Trivy, Grype, Semgrep, CodeQL or SpotBugs
+  (`forge.quality.sarif.reports`, `tool-severity`): one issue per tool, rule
+  and file (plus the tool's fingerprint), severity from `security-severity`
+  or the level, suppressions honoured; CODEOWNERS now also finds a file
+  named later in an issue key.
+- `module-quality`: a `load` dimension from `module-load`'s `report.json`
+  (run index and `forge.quality.load.reports`): native k6 thresholds decide,
+  any outcome other than PASSED / THRESHOLDS_FAILED is NOT MEASURED.
+- `module-quality`: `testforge-quality release` / `QualityRunner.release()` —
+  whether a build can ship by absolute rules (`forge.quality.release`:
+  `required`, `limits`): baseline-known issues count, an unmeasured required
+  dimension is UNKNOWN, accepted issues are listed as risks with owner,
+  reason and expiry; `release.md`, `release.json` + schema; exit 0 / 1 / 2.
+
+- `tools/lighthouse`: opt-in native Lighthouse CI collect/assert/filesystem workflow with pinned tooling, fresh run directories and report export after assertion failures. Includes real Petclinic faults/a11y dogfood evidence and a standalone reproduction harness.
+
+### Fixed
+- `module-security`: an artifact secret finding in a file with an extension
+  longer than eight letters (`app.properties`, `trace.network`) named the file
+  `/{value}`; the mask now lets extensions of up to 16 letters through, and
+  still masks names with digits or IDs.
+- `module-load`: with Prometheus remote write on, `--system-tags` left out `group`
+  and `check`, so thresholds such as `checks{check:…}` or
+  `http_req_duration{group:::…}` saw no sample and k6 passed them — enabling
+  telemetry silently disabled those SLOs. Both tags are kept now (with
+  `subproto` and `service`); only `url`, the default `name` and `error` are left
+  out. A threshold on a sub-metric no sample reached (a filter typo included) is
+  INVALID_RESULT (`forge.load.policy.fail-on-empty-thresholds`, default true).
+
+### Changed
+- `module-load`: preserve evidence when private summary cleanup fails; native threshold failures take precedence over dropped iterations. HTML and Prometheus run-ID labels are opt-in. Preserve mixed-case Windows environment paths and clean up observed descendants after normal exit. Generator output is discarded without a capture limit, and Python acceptance checks remain active under optimization.
+- `module-quality`: `reliability`, `efficiency` and history name API operations
+  as `api-coverage.json` documents them — `<spec> <METHOD> <template>` instead
+  of the URL path (`GET /petclinic/api/owners/{n}` → `petclinic GET
+  /owners/{ownerId}`). The first run after the upgrade reports those issues
+  as new and the old keys as resolved; operation medians restart. Promote a
+  baseline after it.
+- `module-quality`: `quality-summary.md` starts with the gate's verdict
+  (`### Quality gate: PASS · overall FAIL`); a score is never 100 while
+  anything failed. The tables gain a Gate column (`enforced` / `dry-run` /
+  `report only`), and a gate failure reads `functional (1 new: X — 3 tests:
+  …)`: what is new first. `functional`'s hint speaks of `min-tests` only when
+  too few tests ran.
+- `module-quality`: `quality.prom` leaves `revision`, `job` and `run_id` out
+  of `testforge_quality_run_info` — one series per run — unless
+  `forge.quality.metrics.run-ids: true`.
+
+### Added
+- `module-a11y`: optional official axe-core/Playwright adapter, explicit page keys, impact thresholds, adoption baselines, expiring acceptance and sanitized evidence.
+- `module-faults`: opt-in isolated Toxiproxy scopes, exact upstream allowlisting, lazy managed/external controllers, cleanup and value-free fault evidence.
+- `module-load`: opt-in local k6 OSS adapter with version preflight, native thresholds, configurable HTTP/threshold/dropped-iteration validity rules, timeout/cancellation cleanup, bounded output, aggregate evidence and optional HTML. Optional Prometheus remote write uses native histograms, excludes URL/name system tags and makes per-run labels explicit opt-in; a pinned Compose stack provisions Grafana, with direct report links to the selected time range. Dedicated `loadTest`, native acceptance and observability tasks stay outside the default build; a manual CI workflow verifies the whole local path. Optional project-level API research → load tasks exchange snapshots/reports, delegate TypeScript client generation to Grafana openapi-to-k6 and run a portable native scenario; module-load gains no producer dependency.
+- `module-quality`: `forge.quality.gate.<dimension>.dry-run` reports what
+  would fail the gate for that dimension (`fail-on`, `required`, its limits)
+  as a note in `quality.md` and `quality-summary.md` and fails nothing, so a
+  rule can be watched before it is enforced; `forge.quality.min-tests` FAILs
+  `functional` while fewer tests executed, none included; each FAIL or WARN
+  dimension carries a `hint` on how to act on it (`quality.json`,
+  `quality.md`, `quality-summary.md`).
+- `module-quality`: failures are counted as assertion or error (the test or
+  its environment threw), each with a fingerprint over the exception type
+  and the first frames outside test libraries; an accepted entry
+  `functional <test> @<fingerprint>` quarantines a test only while it fails
+  that way, and a different failure is new.
+- `module-quality`: with a history, API operations' p95 medians leave out
+  runs judged FAIL, and `stability` lists tests that keep switching between
+  passing and failing and earlier flaky tests that passed the last 5 runs
+  (facts only, no issue).
+- `module-quality`: a `mutation` dimension from PIT's `mutations.xml`
+  (`forge.quality.mutation.reports`, `min-score`): detected over all
+  mutants, test strength in the facts, surviving mutants as issues by
+  method and mutator.
+- `module-quality`: a `diff-coverage` dimension from diff-cover's
+  `--json-report` (`forge.quality.diff-coverage.report`, `min-score`,
+  `min-lines`): covered over measured changed lines, files with uncovered
+  lines as issues; a diff with too few measured lines is NOT MEASURED.
+- `module-quality`: `testforge-quality check|baseline` — the gate as a
+  command over the same `forge.quality` YAML, exit codes 0 pass / 1 fail /
+  2 cannot judge / 64 usage (`./gradlew :module-quality:installDist`).
+- `module-quality`: `robustness` reads Web Fuzzing Commons reports
+  (`forge.quality.robustness.reports`, EvoMaster's `report.json`): one issue
+  per operation and WFC fault category, with the generated test as evidence.
+- `module-quality`: `gate` (verdict, failures, dry run) in `quality.json`,
+  `quality.md`, the summary and `quality.prom`.
+- `module-quality`: PIT, diff-cover and WFC reports older than
+  `results-not-before` are NOT MEASURED instead of judged as this build's.
+- `module-quality`: `forge.quality.codeowners` gives issues no component
+  matched to the CODEOWNERS owners of the file they point at (test or
+  mutated class, changed file).
 - `example-tests`: `ApplicationIsolationTest` boots a Spring MVC service with
   every module on the classpath and fails when a module replaces Spring Boot's
   `ObjectMapper` or one the service declares, rewrites the request bodies the

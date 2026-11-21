@@ -10,6 +10,9 @@ Style: like the rest of the repository — 4-space indentation, explicit imports
 (no wildcards), 8-space continuation; google-java-format `--aosp` produces it.
 
 Invariants:
+- The artifact scan matches this run's known secrets exactly and opens archives;
+  credential *shapes* (cloud keys, vendor tokens) are gitleaks' job — combine,
+  do not grow a pattern catalogue here ([docs/toolbox-decisions.md](../docs/toolbox-decisions.md) §2).
 - Inert by default. Passive checks add no traffic and never replace a response.
 - Never retain observed values in findings, coverage, logs, errors or SARIF.
 - Missing/incomplete coverage never passes the gate or resolves old findings.
@@ -23,7 +26,10 @@ SecurityTransportExampleTest and SecurityArtifactExampleTest. Before finishing:
 Update README/examples/CHANGELOG with behavior changes. Keep the module removable.
 
 B4: never weaken global JDK TLS settings or treat a locally-disabled algorithm
-as server rejection. B5: no following symlinks, unbounded reads or secret values
+as server rejection. testssl.sh: pinned digest, no pull, fixed policy, `--nodns min`,
+no `--phone-out`; keep only id/severity/CVE/CWE, never its finding text; an incomplete
+scan adds no finding and stays not_measured. Tests: SecurityTestsslTest (replays a real
+3.2.5 report); run :example-tests:securityTlsTest for engine/container changes. B5: no following symlinks, unbounded reads or secret values
 in diagnostics; leaks block upload even when ordinary findings are accepted.
 
 B3: delegate through the loopback read-only gateway, never document servers.
@@ -34,6 +40,14 @@ Run :example-tests:securityScanTest for actual scanner/transport changes.
 Aggregate reports expose measured and complete separately; an enabled but
 unexecuted block cannot be hidden by other measurements. A4 consumes this
 contract and remains part of module-quality.
+
+Nuclei: fixed signed upstream header template, SHA-256 and image digest pinned.
+Use the anonymous GET-only gateway with literal routes, no queries, redirects,
+credentials or response bodies. Keep runtime downloads and Interactsh off.
+Preserve the value-free report and fail closed on incomplete coverage. Changes
+to the reviewed policy must update its coverage key and review the vendored bytes.
+Run :example-tests:securityNucleiTest on the pinned container and rerun ZAP acceptance
+when the shared gateway changes.
 
 Business policies: `BusinessSecuritySuite`, `BusinessSecurityPlanner`,
 `BusinessSecurityRunner` and private bounded JDK exchange. No automatic permission

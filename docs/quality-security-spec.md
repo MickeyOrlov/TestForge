@@ -283,6 +283,12 @@ CHANGELOG, and a review step at the end of each part.
 | B3 | ZAP delegation with safety policy and allowlist | refuses a host not in the allowlist; containers test against a sample app |
 | B4 + B5 | TLS checks; artifact secret scan | a planted secret in an artifact fails the run |
 | A4 | Security dimension wired into Part A; review of Part A — **shipped** | one `quality.md` shows all dimensions including security |
+| A5 | Gate: per-dimension `dry-run`, `min-tests`, a `hint` on every FAIL / WARN dimension ([market review](research/quality-oss-analysis.md)) — **shipped** | a dry-run rule notes "would fail" and passes; 0 executed tests with `min-tests: 1` FAIL |
+| A7 | Failures as assertion / error with a fingerprint; quarantine = an accepted test pinned to its fingerprint (the "quarantined" of §3.2) — **shipped** | the same failure on moved lines is accepted; another exception in that test is new and fails the gate |
+| A8 | History: operation p95 medians from runs not judged FAIL; switching and stabilized tests listed in `stability` — **shipped** | failed runs do not hide a slow operation; a test passing 5 runs after a flaky one is listed as stabilized, without an issue |
+| A9 | `mutation` dimension read from PIT's `mutations.xml` — **shipped** | a surviving mutant is an issue without its line; the score is computed by hand from the report; no report, NOT MEASURED |
+| A10 | `diff-coverage` dimension read from diff-cover's JSON report (JaCoCo XML ∩ git diff) — **shipped** | uncovered changed lines are named by file and range; a diff below `min-lines` is NOT MEASURED, not a pass |
+| A11 | Owners from CODEOWNERS for issues that point at a file; per-run labels out of `quality.prom` by default — **shipped** | a failing test goes to its file's last matching owners; `quality.prom` holds no revision unless `metrics.run-ids` |
 
 ## 7. Open questions
 

@@ -1,0 +1,654 @@
+[
+         {
+              "id"           : "engine_problem",
+              "ip"           : "/",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "No engine or GOST support via engine with your /usr/bin/openssl"
+          }
+,         {
+              "id"           : "service",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "HTTP"
+          }
+,         {
+              "id"           : "pre_128cipher",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "No 128 cipher limit bug"
+          }
+,         {
+              "id"           : "SSLv2",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "SSLv3",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1_1",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1_2",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "TLS1_3",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "offered with final"
+          }
+,         {
+              "id"           : "NPN",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "ALPN",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_NULL",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_aNULL",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_EXPORT",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_LOW",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_3DES_IDEA",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-310",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_OBSOLETED",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "LOW",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_NOFS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_FS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "FS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "FS_ciphers",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA384 ECDHE-RSA-CHACHA20-POLY1305 TLS_AES_128_GCM_SHA256 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-AES128-SHA256"
+          }
+,         {
+              "id"           : "FS_KEMs",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "X25519MLKEM768"
+          }
+,         {
+              "id"           : "FS_ECDHE_curves",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "prime256v1 secp384r1 secp521r1 X25519 X448"
+          }
+,         {
+              "id"           : "DH_groups",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "ffdhe2048 ffdhe3072"
+          }
+,         {
+              "id"           : "FS_TLS12_sig_algs",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA-PSS-RSAE+SHA384 RSA-PSS-RSAE+SHA512 RSA+SHA256 RSA+SHA384 RSA+SHA512 RSA+SHA224"
+          }
+,         {
+              "id"           : "FS_TLS13_sig_algs",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA-PSS-RSAE+SHA384 RSA-PSS-RSAE+SHA512"
+          }
+,         {
+              "id"           : "TLS_extensions",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "'max fragment length/#1' 'EC point formats/#11' 'encrypt-then-mac/#22' 'extended master secret/#23' 'session ticket/#35' 'supported versions/#43' 'key share/#51' 'renegotiation info/#65281'"
+          }
+,         {
+              "id"           : "TLS_session_ticket",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "valid for 7200 seconds only (<daily)"
+          }
+,         {
+              "id"           : "SSL_sessionID_support",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "yes"
+          }
+,         {
+              "id"           : "sessionresumption_ticket",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "sessionresumption_ID",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "TLS_timestamp",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "random"
+          }
+,         {
+              "id"           : "certificate_compression",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "clientAuth",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "cert_numbers",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "1"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "SHA256 with RSA"
+          }
+,         {
+              "id"           : "cert_keySize",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "RSA 2048 bits (exponent is 65537)"
+          }
+,         {
+              "id"           : "cert_keyUsage",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "No server key usage information"
+          }
+,         {
+              "id"           : "cert_extKeyUsage",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "No server extended key usage information"
+          }
+,         {
+              "id"           : "cert_serialNumber",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "19EC4B544E2AD31086413C6BB6F9F5011E517B37"
+          }
+,         {
+              "id"           : "cert_serialNumberLen",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "20"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "3836553067F995BDFBE0FA88D5FAC86BB5C06BE4"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "785F4838D776C80C33F8B3E4ABCAEE4990F4A1FA44AB616982B489F2AB5DCAA4"
+          }
+,         {
+              "id"           : "cert",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIDOjCCAiKgAwIBAgIUGexLVE4q0xCGQTxrtvn1AR5RezcwDQYJKoZIhvcNAQELBQAwHTEbMBkGA1UEAwwSdGxzLnRlc3Rmb3JnZS50ZXN0MB4XDTI2MTExMDA3MDIyOVoXDTI2MTEzMDA3MDIyOVowHTEbMBkGA1UEAwwSdGxzLnRlc3Rmb3JnZS50ZXN0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0KwXRSDPHHpXEuqiL0QaD9KeLzZRgX939K/B4Luw5iVD90H1J7NnaKZtOrOnlkjH23RvE408L0zEfsyNmGSUDC21n9zpwmB3I5QnP5HlE852CqKjIe1Ho4sW+4l0r0wE22qSGxwe6bYF7MlmSE+dRQhGgtz4eZ76tPH0mlS7ZYcPmhdwfeLt985E9ALihD3YG7BVUmuUZMTQLZ6J2ZprX+wwZImuzkiiSLrFYx869kJ2W1z04g7cCAX1fAQHYxU8xZdhVp6Q2OA7LTEhBFLx/L+3DNnVINnof5QxKYpIa9THajwZPzzqTWOCO3zRjIs/06Iqn2TW7+ysRhPJLcnBAQIDAQABo3IwcDAdBgNVHQ4EFgQUWt3rfrr72x9fdG1rJqHpbHx5fyUwHwYDVR0jBBgwFoAUWt3rfrr72x9fdG1rJqHpbHx5fyUwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHREEFjAUghJ0bHMudGVzdGZvcmdlLnRlc3QwDQYJKoZIhvcNAQELBQADggEBAFMYDymoCNg+vC++MqMkp/yGihJdA9uKe+3ikru8IRcAiYbgZGpnj05A4asMG+YTnfisPx3No251gmZGEW/arF72aiP/lqLVtb0O1lWrevlj3SP1N+xhT4BNpEbu704e1pyabr0h/rR6rESrzP8H8THB3BBTcAnkTP+Ox1DTWCmw2nO3B1jrIrj6McUCSQYW+YiJwu0OdyBmq86zR0eGnd3pIP4XE2+4iqUs9UM6rrpPscX80yYAolrzdlgWxoJ4sCXTikoMfuylQcPJxQtTy/8rQ8gGNr/H77i4uyyOcEJw2/wnDdJQEM6S5Aeg/1FDuzyb3TaLoeCboDFeIs0zOHw=\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "tls.testforge.test"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "tls.testforge.test"
+          }
+,         {
+              "id"           : "cert_subjectAltName",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "tls.testforge.test"
+          }
+,         {
+              "id"           : "cert_trust",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "Ok via SAN and CN (same w/o SNI)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "CRITICAL",
+              "finding"      : "failed (self signed)."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "HIGH",
+              "finding"      : "expires < 30 days (19)"
+          }
+,         {
+              "id"           : "cert_notBefore",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "2026-11-10 07:02"
+          }
+,         {
+              "id"           : "cert_notAfter",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "HIGH",
+              "finding"      : "2026-11-30 07:02"
+          }
+,         {
+              "id"           : "cert_extlifeSpan",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "cert_ocspURL",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "cert_revocation",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "HIGH",
+              "finding"      : "Neither CRL nor OCSP URI provided"
+          }
+,         {
+              "id"           : "OCSP_stapling",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "check skipped as instructed"
+          }
+,         {
+              "id"           : "certificate_transparency",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certs_countServer",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "1"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "tls.testforge.test"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "heartbleed",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0160",
+              "cwe"          : "CWE-119",
+              "finding"      : "not vulnerable, no heartbeat extension"
+          }
+,         {
+              "id"           : "CCS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0224",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ticketbleed",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-9244",
+              "cwe"          : "CWE-200",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ROBOT",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2017-17382 CVE-2017-17427 CVE-2017-17428 CVE-2017-13098 CVE-2017-1000385 CVE-2017-13099 CVE-2016-6883 CVE-2012-5081 CVE-2017-6168",
+              "cwe"          : "CWE-203",
+              "finding"      : "not vulnerable, no RSA key transport cipher"
+          }
+,         {
+              "id"           : "secure_renego",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-310",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "secure_client_renego",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-1473",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "CRIME_TLS",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2012-4929",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "BREACH",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-3587",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no gzip/deflate/compress/br HTTP compression  - only supplied '/' tested"
+          }
+,         {
+              "id"           : "POODLE_SSL",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-3566",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no SSLv3"
+          }
+,         {
+              "id"           : "fallback_SCSV",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "finding"      : "no protocol below TLS 1.2 offered"
+          }
+,         {
+              "id"           : "SWEET32",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-2183 CVE-2016-6329",
+              "cwe"          : "CWE-327",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "FREAK",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-0204",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "DROWN",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable on this host and port"
+          }
+,         {
+              "id"           : "DROWN_hint",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "Make sure you don't use this certificate elsewhere with SSLv2 enabled services, see https://search.censys.io/search?resource=hosts&virtual_hosts=INCLUDE&q=785F4838D776C80C33F8B3E4ABCAEE4990F4A1FA44AB616982B489F2AB5DCAA4"
+          }
+,         {
+              "id"           : "LOGJAM",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no DH EXPORT ciphers,"
+          }
+,         {
+              "id"           : "LOGJAM-common_primes",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "no DH key with <= TLS 1.2"
+          }
+,         {
+              "id"           : "BEAST",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "not vulnerable, no SSL3 or TLS1"
+          }
+,         {
+              "id"           : "LUCKY13",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2013-0169",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially vulnerable, uses obsolete TLS CBC ciphers"
+          }
+,         {
+              "id"           : "winshock",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-6321",
+              "cwe"          : "CWE-94",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "RC4",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-2566 CVE-2015-2808",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "scanTime",
+              "ip"           : "tls.testforge.test/192.168.65.254",
+              "port"         : "18443",
+              "severity"     : "INFO",
+              "finding"      : "33"
+          }
+]

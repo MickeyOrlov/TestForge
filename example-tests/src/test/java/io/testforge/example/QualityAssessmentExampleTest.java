@@ -109,15 +109,15 @@ class QualityAssessmentExampleTest {
         assertThat(Path.of(report.reportJson()).resolveSibling("quality.prom")).exists();
         assertThat(Files.readString(Path.of(report.reportMarkdown())))
                 .contains("- overall: **FAIL**")
-                .contains("| stability | WARN | 67 | — | 1 | `100 × (1 − flaky / executed)` |");
+                .contains("| stability | WARN | enforced | 67 | — | 1 | `100 × (1 − flaky / executed)` |");
     }
 
     @Test
     void theGateNamesWhatFailed() {
         assertThatThrownBy(() -> quality.assertAcceptable())
                 .isInstanceOf(QualityException.class)
-                .hasMessageStartingWith("Quality gate failed on functional (3 tests: 2 passed, 1 failed, 0 skipped, "
-                        + "new: io.acme.OrdersTest.refundsAnOrder())");
+                .hasMessageStartingWith("Quality gate failed on functional (1 new: io.acme.OrdersTest.refundsAnOrder() "
+                        + "— 3 tests: 2 passed, 1 failed, 0 skipped)");
     }
 
     @Test

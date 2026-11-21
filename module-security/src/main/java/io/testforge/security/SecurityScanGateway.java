@@ -30,6 +30,9 @@ import java.util.regex.Pattern;
 
 /** Loopback reverse gateway: the scanner never receives the real target or credentials. */
 final class SecurityScanGateway implements AutoCloseable {
+    record Limits(
+            int maxRequestsPerSecond, int maxRequests, Duration timeBudget, int maxResponseBytes) {}
+
     record Route(String method, String template, Pattern path) {}
 
     record Credential(String headerName, String headerValue, String queryName, String queryValue) {
@@ -63,7 +66,8 @@ final class SecurityScanGateway implements AutoCloseable {
     private final HttpServer server;
     private final ExecutorService workers;
     private final URI target;
-    private final SecurityActiveProperties p;
+    private final Limits limits;
+    private final boolean anonymousPages;
     private final List<Route> routes;
     private final java.util.function.Supplier<Credential> credentials;
     private final HttpClient client =
@@ -87,11 +91,35 @@ final class SecurityScanGateway implements AutoCloseable {
             List<Route> routes,
             java.util.function.Supplier<Credential> credentials)
             throws IOException {
+        this(
+                target,
+                new Limits(
+                        p.maxRequestsPerSecond(),
+                        p.maxRequests(),
+                        p.timeBudget(),
+                        p.maxResponseBytes()),
+                routes,
+                credentials,
+                false);
+    }
+
+    SecurityScanGateway(URI target, Limits limits, List<Route> routes) throws IOException {
+        this(target, limits, routes, Credential::anonymous, true);
+    }
+
+    private SecurityScanGateway(
+            URI target,
+            Limits limits,
+            List<Route> routes,
+            java.util.function.Supplier<Credential> credentials,
+            boolean anonymousPages)
+            throws IOException {
         this.target = target;
-        this.p = p;
+        this.limits = limits;
+        this.anonymousPages = anonymousPages;
         this.routes = List.copyOf(routes);
         this.credentials = credentials;
-        deadline = System.nanoTime() + p.timeBudget().toNanos();
+        deadline = System.nanoTime() + limits.timeBudget().toNanos();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         workers =
                 Executors.newFixedThreadPool(
@@ -150,6 +178,11 @@ final class SecurityScanGateway implements AutoCloseable {
                 return;
             }
             String query = exchange.getRequestURI().getRawQuery();
+            if (anonymousPages
+                    && (query != null || !method.equals("GET") || !raw.equals(decoded))) {
+                refuse(exchange, 403);
+                return;
+            }
             if (query != null)
                 for (String pair : query.split("&")) {
                     String key =
@@ -197,7 +230,7 @@ final class SecurityScanGateway implements AutoCloseable {
                             .timeout(Duration.ofSeconds(10))
                             .method(method, HttpRequest.BodyPublishers.noBody());
             for (var header : exchange.getRequestHeaders().entrySet())
-                if (!DROP.contains(header.getKey().toLowerCase(Locale.ROOT))
+                if (!anonymousPages && !DROP.contains(header.getKey().toLowerCase(Locale.ROOT))
                         && (credential.headerName() == null
                                 || !header.getKey().equalsIgnoreCase(credential.headerName())))
                     for (String value : header.getValue()) request.header(header.getKey(), value);
@@ -206,9 +239,12 @@ final class SecurityScanGateway implements AutoCloseable {
             var response = client.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
             byte[] body;
             try (var input = response.body()) {
-                body = input.readNBytes(p.maxResponseBytes() + 1);
+                body =
+                        anonymousPages
+                                ? new byte[0]
+                                : input.readNBytes(limits.maxResponseBytes() + 1);
             }
-            if (body.length > p.maxResponseBytes()) {
+            if (body.length > limits.maxResponseBytes()) {
                 refuse(exchange, 502);
                 return;
             }
@@ -217,9 +253,14 @@ final class SecurityScanGateway implements AutoCloseable {
             if (response.statusCode() >= 200 && response.statusCode() < 300) succeeded.add(key);
             for (var header : response.headers().map().entrySet())
                 if (!DROP.contains(header.getKey().toLowerCase(Locale.ROOT))
-                        && !header.getKey().equalsIgnoreCase("location"))
+                        && !header.getKey().equalsIgnoreCase("location")
+                        && (!anonymousPages || !header.getKey().equalsIgnoreCase("set-cookie")))
                     exchange.getResponseHeaders().put(header.getKey(), header.getValue());
-            if (response.headers().firstValue("Location").isPresent()) {
+            if (anonymousPages && response.statusCode() >= 300 && response.statusCode() < 400) {
+                refuse(exchange, 403);
+                return;
+            }
+            if (!anonymousPages && response.headers().firstValue("Location").isPresent()) {
                 URI next =
                         URI.create(upstream)
                                 .resolve(response.headers().firstValue("Location").orElseThrow());
@@ -246,8 +287,10 @@ final class SecurityScanGateway implements AutoCloseable {
             int status = response.statusCode();
             exchange.sendResponseHeaders(
                     status,
-                    method.equals("HEAD") || status == 204 || status == 304 ? -1 : body.length);
-            if (!method.equals("HEAD") && status != 204 && status != 304)
+                    anonymousPages || method.equals("HEAD") || status == 204 || status == 304
+                            ? -1
+                            : body.length);
+            if (!anonymousPages && !method.equals("HEAD") && status != 204 && status != 304)
                 exchange.getResponseBody().write(body);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -266,7 +309,7 @@ final class SecurityScanGateway implements AutoCloseable {
     }
 
     private synchronized boolean reserve() {
-        if (System.nanoTime() >= deadline || requests.incrementAndGet() > p.maxRequests())
+        if (System.nanoTime() >= deadline || requests.incrementAndGet() > limits.maxRequests())
             return false;
         long ready = next;
         new Waiter(new WaitProperties(Duration.ofSeconds(2), Duration.ofMillis(10)))
@@ -274,7 +317,7 @@ final class SecurityScanGateway implements AutoCloseable {
                         "security scan rate budget",
                         () -> System.nanoTime() >= ready,
                         Boolean::booleanValue);
-        next = System.nanoTime() + 1_000_000_000L / p.maxRequestsPerSecond();
+        next = System.nanoTime() + 1_000_000_000L / limits.maxRequestsPerSecond();
         return System.nanoTime() < deadline;
     }
 
@@ -306,5 +349,6 @@ final class SecurityScanGateway implements AutoCloseable {
     public void close() {
         server.stop(0);
         workers.shutdownNow();
+        client.shutdownNow();
     }
 }

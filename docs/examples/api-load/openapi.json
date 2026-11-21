@@ -1,0 +1,25 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "API Load Demo", "version": "1.0.0" },
+  "paths": {
+    "/health": { "get": { "operationId": "health", "responses": {
+      "200": { "description": "Healthy", "content": { "application/json": { "schema": {
+        "type": "object", "required": ["status"], "properties": { "status": { "type": "string" } }
+      } } } }
+    } } },
+    "/api/v1/tasks": {
+      "get": { "operationId": "listTasks", "responses": {
+        "200": { "description": "Tasks", "content": { "application/json": { "schema": {
+          "type": "object", "required": ["items"], "properties": { "items": { "type": "array", "items": {
+            "type": "object", "required": ["id", "title", "status"], "properties": {
+              "id": { "type": "string" }, "title": { "type": "string" }, "status": { "type": "string" }
+            }
+          } } }
+        } } } }
+      } },
+      "post": { "operationId": "createTask", "requestBody": { "required": true, "content": {
+        "application/json": { "schema": { "type": "object", "required": ["title"], "properties": { "title": { "type": "string" } } } }
+      } }, "responses": { "201": { "description": "Created" } } }
+    }
+  }
+}

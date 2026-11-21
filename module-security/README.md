@@ -59,7 +59,7 @@ Ordinary HTTP 500 responses do not prove malformed-input handling defects.
 
 ## Limits and safety
 
-No source/dependency scanning, penetration-test claim or implicit writes.
+No source/dependency scanning, penetration-test claim or implicit writes. The API *description* is linted against the OWASP API Top 10 by [tools/spectral](../tools/spectral) (Spectral), which the quality gate reads as SARIF; this module checks what the running API does.
 No response bodies, credential hashes or observed values enter the collector,
 report, SARIF or gate errors. Request query strings, hosts and identifier-like
 path segments are omitted from finding targets. For unusual sensitive path
@@ -139,8 +139,49 @@ Legacy protocols/weak ciphers are probed only when asked for and only when the
 local JDK enables them. Java 21 typically disables them; enabled probes then
 say not_measured, not "server rejected them", and that incomplete coverage
 cannot pass assertAcceptable — so both are off by default, and coverage says no
-server-wide claim was requested. Turn them on in a job whose JDK offers them. No trust-all TLS context or global algorithm weakening is
+server-wide claim was requested. Turn them on in a job whose JDK offers them, or let the delegated testssl.sh assessment below answer it. No trust-all TLS context or global algorithm weakening is
 installed. Tests generate a temporary certificate/keystore at runtime.
+
+### Delegated testssl.sh assessment
+
+The JDK cannot say whether a server accepts SSLv2/3, TLS 1.0/1.1 or weak ciphers once
+the JDK itself disables them. [testssl.sh](https://github.com/testssl/testssl.sh)
+(GPL-2.0, run as a separate container, never linked) brings its own sockets and
+OpenSSL and answers that, plus the known TLS vulnerabilities (Heartbleed, ROBOT,
+CCS, LUCKY13, …), forward secrecy and the certificate.
+
+```yaml
+forge:
+  security:
+    transport:
+      enabled: true
+      allowed-hosts: [api.staging.example.test]
+      testssl:
+        enabled: true
+        test-environment: true      # it sends vulnerability probes: test environments only
+        time-budget: 10m            # maximum 30m
+        # host-aliases: [tls.local.test]  # allowed names the container resolves to the Docker host
+```
+
+`check("https://…")` then runs the pinned image after the JDK checks — also when the
+JDK handshake failed, which is when the assessment matters most. The policy is fixed:
+`--protocols --std --fs --server-defaults --vulnerable`, with `--nodns min` (no CAA
+lookups) and without `--phone-out`, so no CRL or OCSP request leaves for a third
+party. The image is `ghcr.io/testssl/testssl.sh` 3.2.5 pinned by digest and must
+already be pulled (`--pull=never`); it runs with a read-only root, no capabilities,
+512 MiB, one CPU, 256 PIDs, the caller's user and one private output directory, and is
+removed even on error.
+
+Each testssl.sh check id becomes `testssl-<id>`: measured coverage, plus a finding with
+testssl.sh's own severity when it rates the check LOW, MEDIUM, HIGH or CRITICAL.
+Evidence is `testssl.sh rated <id> <severity>` with its CVE/CWE identifiers;
+testssl.sh's finding text — certificate names and dates, offered ciphers — never enters
+the report. A non-zero exit, a FATAL or `scanProblem` entry, an unknown entry shape, a
+timeout or a failed cleanup adds no finding and leaves `tls-testssl` not_measured, so
+`assertAcceptable()` cannot pass on a scan that did not finish. A finding is resolved
+only when a later complete scan measured the same id again. Projects can replace the
+`TestsslEngine` bean. Real container acceptance: `./gradlew :example-tests:securityTlsTest`
+(pull the pinned image first).
 
 ## B5: pre-upload artifact secret check
 
@@ -266,6 +307,63 @@ The quality adapter reads `complete` and coverage alongside findings. Selecting
 security in the quality gate rejects incomplete evidence. Current artifact
 secret leaks always stay `new`, make `healthy` false, and cannot be promoted into
 a security baseline, regardless of accepted findings or severity thresholds.
+
+## Nuclei header policy
+
+Use a dedicated test profile to run the pinned [Nuclei](https://github.com/projectdiscovery/nuclei)
+engine against explicitly selected anonymous GET pages. This policy checks header presence
+with the signed upstream `http-missing-security-headers` template. Each match keeps the
+template's INFO severity and the native matcher ID. Decide header applicability per page.
+
+```yaml
+forge:
+  security:
+    nuclei:
+      enabled: true
+      test-environment: true
+      allowed-hosts: [127.0.0.1:8080]
+      time-budget: 90s
+      max-requests: 50
+      max-requests-per-second: 5
+```
+
+```java
+nuclei.scanPages(List.of("/", "/health"), "http://127.0.0.1:8080");
+// a service below a base path: pages resolve against it, /api/health here
+nuclei.scanPages(List.of("/health"), "https://api.staging.example.test/api");
+security.assertAcceptable();
+```
+
+Select an HTTP(S) origin and up to 50 literal, query-free paths with stable, non-sensitive
+names. Each configured page must be safe to read and return HTTP 2xx anonymously. The
+loopback gateway forwards only declared GETs, discards scanner headers and sends only
+response headers back, with cookies and redirect locations removed. Nuclei receives
+gateway URLs. The container uses the same Linux host or Docker Desktop gateway transport
+as ZAP. Use a trusted local Docker daemon. The fixed template and flags constrain scanner
+requests, and the container uses ordinary Docker networking.
+
+The adapter checks the vendored template SHA-256 before launch. Nuclei verifies its
+signature and selects the exact template ID, `headers` tag and HTTP protocol. Template
+updates, redirects, Interactsh and HTTP probing are disabled. The reviewed policy covers
+header presence, including CSP and HSTS.
+
+Findings enter the existing security JSON, Markdown and SARIF outputs as
+`nuclei-headers-v1`. Evidence contains only configured route and matcher IDs. Temporary
+JSONL and gateway URLs are removed after the run. Missing route coverage, tool failure,
+invalid output or cleanup failure leaves the block incomplete and blocks the security
+gate. Include `info` in `forge.security.fail-on` to enforce new header findings as well.
+
+The template and its MIT license are vendored unchanged from
+[ProjectDiscovery nuclei-templates v10.5.1](https://github.com/projectdiscovery/nuclei-templates/blob/79fb682760ab3d5b0e22afbb44709353cbebf023/http/misconfiguration/http-missing-security-headers.yaml).
+Provision the pinned image explicitly. The default build uses neither Docker nor Nuclei traffic
+for this block.
+
+```bash
+docker pull projectdiscovery/nuclei@sha256:582d5546902e67052097cb2d07296c642d50a1afc5e44623cb038845df9a32eb
+./gradlew :example-tests:securityNucleiTest   # tag "nuclei", never in the default build or containersTest
+```
+
+The acceptance task uses an owned loopback fixture with missing and complete headers.
 
 ## Business security: declared policies over OpenAPI
 

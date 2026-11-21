@@ -1,0 +1,35 @@
+// Explicit project tooling only; never a dependency of build/test.
+def spectralDir = rootProject.file("tools/spectral")
+tasks.register("spectralTools", Exec) {
+    description = "Installs the locked Spectral CLI and OWASP API Security ruleset; never part of build"
+    group = "verification"
+    workingDir spectralDir
+    commandLine "npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"
+    inputs.files new File(spectralDir, "package.json"), new File(spectralDir, "package-lock.json")
+    outputs.dir new File(spectralDir, "node_modules")
+}
+tasks.register("spectralUnitTest", Exec) {
+    group = "verification"
+    workingDir spectralDir
+    commandLine "node", "--test", "run.test.mjs"
+}
+tasks.register("spectralLint", Exec) {
+    description = "Lints -PspectralSpecs (comma-separated local OpenAPI files) into build/spectral/*.sarif"
+    group = "verification"
+    dependsOn "spectralTools"
+    workingDir rootProject.projectDir
+    outputs.upToDateWhen { false }
+    doFirst {
+        def specs = providers.gradleProperty("spectralSpecs").orNull
+        if (!specs) throw new GradleException("Select -PspectralSpecs=path/to/openapi.yaml[,...] explicitly")
+        def output = providers.gradleProperty("spectralOutput").orElse("build/spectral").get()
+        commandLine(["node", rootProject.file("tools/spectral/run.mjs"), "--output", rootProject.file(output)]
+                + specs.split(",").collect { rootProject.file(it.trim()) })
+    }
+}
+tasks.register("spectralAcceptance", Exec) {
+    group = "verification"
+    dependsOn "spectralTools"
+    workingDir rootProject.projectDir
+    commandLine "node", rootProject.file("tools/spectral/acceptance.mjs")
+}
